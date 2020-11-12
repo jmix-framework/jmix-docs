@@ -2,6 +2,7 @@ package sample.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
+import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -9,6 +10,7 @@ import javax.validation.constraints.NotNull;
 import java.util.UUID;
 
 // tag::entity[]
+@JmixEntity
 @Table(name = "SAMPLE_CUSTOMER") // <1>
 @Entity(name = "sample_Customer") // <2>
 public class Customer {
