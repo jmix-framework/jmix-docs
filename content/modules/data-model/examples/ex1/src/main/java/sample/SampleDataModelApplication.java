@@ -14,18 +14,20 @@ import javax.sql.DataSource;
 @SpringBootApplication
 public class SampleDataModelApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SampleDataModelApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SampleDataModelApplication.class, args);
+    }
 
-	@Bean
-	@Primary
-	@ConfigurationProperties(prefix="main.datasource")
-	DataSource dataSource() {
-		return DataSourceBuilder.create().build();
-	}
+    // tag::main-data-source[]
+    @Bean
+    @Primary
+    @ConfigurationProperties(prefix = "main.datasource")
+    DataSource dataSource() {
+        return DataSourceBuilder.create().build();
+    }
+    // end::main-data-source[]
 
-	@EnableWebSecurity
-	static class SamplerSecurityConfiguration extends CoreSecurityConfiguration {
-	}
+    @EnableWebSecurity
+    static class SamplerSecurityConfiguration extends CoreSecurityConfiguration {
+    }
 }

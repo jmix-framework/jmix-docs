@@ -1,0 +1,105 @@
+= Data Stores
+
+A data store represents a database or any other source of data in your application.
+
+Jmix provides the following two data store implementations:
+
+* `JpaDataStore` stores xref:jpa-entities.adoc[JPA entities] in a relational database. This is the main persistence mechanism in Jmix applications, and when we mention a data store in this manual, we always mean `JpaDataStore` if not explicitly stated otherwise.
+
+* `NoopDataStore` is a stub that is used just for associating xref:dto-entities.adoc[DTO entities] with it. It has no any persistence logic.
+
+
+== Main Store
+
+When you create a new Jmix project in Studio, it has a single data store called _main_ that connects to a relational database. The connection parameters are specified in the following application properties:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=main-data-store]
+----
+
+The main application class contains a corresponding JDBC `DataSource` bean declaration:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/SampleDataModelApplication.java[tags=main-data-source]
+----
+
+All JPA entities by default are associated with the main data store.
+
+== Additional Stores
+
+In order to work with multiple databases, you need additional data stores. You can use Studio interface to define them.
+
+Each additional store has a unique name, which is specified in the comma-separated list of the `jmix.core.additionalStores` application property. Parameters of the database connection have the store name as a prefix. In the examples below, the `locations` additional store is configured:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=add-data-store]
+----
+
+For each additional store, Studio creates a Spring configuration class and defines the JDBC `DataSource` and other related beans in it:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/LocationsStoreConfiguration.java[tags=add-data-source]
+----
+
+To associate an entity with an additional data store, use the `@Store` annotation on the entity class:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Country.java[tags=store-ann]
+----
+
+In the example above, the `Country` entity will be stored in the database connected as the `locations` data store.
+
+== Custom Data Store
+
+A custom data store may help you to work with some DTO entities in the same way as with JPA entities - by using `DataManager`. If your DTO entity is associated with a custom store, `DataManager` will delegate its CRUD operations to your data store and use it when resoving references to your DTOs from other entities.
+
+Let's consider the process of creating a custom data store. Imagine a transient `Metric` entity and an in-memory store for it.
+
+. Create a class that implements the `DataStore` interface. The class must be a Spring prototype bean. The example below contains a primitive implementation that is capable of storing entities of different types in memory.
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/store/InMemoryStore.java[tags=custom-store]
+----
+
+. Create a class that implements the `StoreDescriptor` interface. It must be a Spring singleton bean, and its `getBeanName()` method must return the name of the data store implementation bean created on the previous step:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/store/InMemoryStoreDescriptor.java[tags=custom-store]
+----
+
+. Add the data store name (`inmem` in this case) to the `jmix.core.additionalStores` property:
++
+[source,properties]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-1]
+----
+
+. Set the `StoreDescriptor` bean name in the `jmix.core.storeDescriptor_<store_name>` property:
++
+[source,properties]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-2]
+----
+
+. Add `@Store` annotation to the entity:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Metric.java[tags=custom-store]
+----
+
+. Now you can save and load the entity using `DataManager` and it will delegate the CRUD operations to your custom data store:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/sample/InMemoryStoreTest.java[tags=custom-store]
+----
++
+Also, if another entity has a reference to `Metric`, the `Metric` instance will be loaded automatically when accessing the reference attribute.
