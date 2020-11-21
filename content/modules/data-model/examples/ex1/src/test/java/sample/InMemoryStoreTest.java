@@ -26,5 +26,6 @@ public class InMemoryStoreTest {
         Metric metric1 = dataManager.load(Id.of(metric)).one();
         // end::custom-store[]
         assertEquals(metric, metric1);
+        assertNotSame(metric, metric1);
     }
 }
