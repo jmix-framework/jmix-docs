@@ -1,0 +1,183 @@
+= Entities
+
+There are the following types of entities in Jmix:
+
+* <<jpa,JPA entities>> are Java objects stored in a database using https://en.wikibooks.org/wiki/Java_Persistence[Java Persistence API^].
+
+* <<dto,DTO entities>> are simple Java objects that are not tied to any specific persistence technology.
+
+* <<key-value,KeyValueEntity>> is a dynamic entity with an arbitrary number of attributes.
+
+JPA and DTO entities are defined by Java classes and can have some <<jmix-annotations,common annotations>> specific to Jmix.
+
+[[jpa]]
+== JPA Entities
+
+JPA entity is a Java class annotated according to JPA rules. JPA entities are stored in a relational database connected as a main or additional xref:data-stores.adoc[data store].
+
+JPA annotations define mapping between database table fields and entity attributes. Jmix imposes the following restrictions on mapping annotations:
+
+* Attribute annotations must be placed only on fields (`AccessType.FIELD`).
+* Not supported: `@IdClass`, `@ElementCollection`.
+
+Below is an example of a typical JPA entity class:
+
+.Customer.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Customer.java[tags=entity]
+----
+
+<1> Mandatory <<jmix-entity,@JmixEntity>> annotation.
+<2> `@javax.persistence.Table` annotation specifies the database table name.
+<3> `@javax.persistence.Entity` annotation indicates that the class is a JPA entity and specifies its name.
+<4> The <<jmix-generated-value,@JmixGeneratedValue>> annotation indicates that the primary key must be generated and assigned by Jmix when creating entity instance in memory.
+<5> `@javax.persistence.Id` annotation indicates the primary key.
+<6> `@javax.persistence.Column` annotation specifies a mapping to a table column. The `nullable = false` parameter indicates that the xref:db-migration.adoc[database migration] mechanism should create the column with the `NOT NULL` constraint.
+<7> `@javax.persistence.Version` indicates that the entity must be optimistically locked using the value of this attribute. The attribute should be of `Integer` type. Studio creates such an attribute automatically if you select the _Versioned_ trait for the entity.
+<8> The <<instance-name,@InstanceName>> annotation here indicates a single attribute chosen as the instance name.
+<9> `@NotNull` and `@Email` annotations from the `javax.validation.constraints` package are the examples of using https://beanvalidation.org[Bean Validation^] annotations in entities.
+<10> The `unique = true` parameter of the `@Column` annotation indicates that the database migration mechanism should add the unique constraint to the column.
+
+Both table end entity name can have a prefix to eliminate name conflicts with entities of other modules. Studio inserts this prefix if the project has the `jmix.projectId` property in `build.gradle`.
+
+[[dto]]
+== DTO Entities
+
+The data model of your application can contain entities that exist only in memory or are mapped to some external data using mechanisms different from JPA. We call such entities _DTO_ because they are often used as Data Transfer Objects in parameters and return values in xref:rest:index.adoc[] and when communicating with external APIs.
+
+A DTO entity can be as simple as that:
+
+.OperationResult.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/OperationResult.java[tags=entity]
+----
+
+<1> Mandatory <<jmix-entity,@JmixEntity>> annotation.
+<2> All object properties (fields with accessor methods) become entity attributes.
+
+Entity attributes can have annotations to specify some details about them:
+
+.ProductPart.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/ProductPart.java[tags=entity]
+----
+
+<1> The <<jmix-entity,@JmixEntity>> annotation defines the entity name explicitly.
+<2> The <<jmix-property,@JmixProperty>> annotation with `mandatory = true` parameter indicates that the attribute is required, i.e. it must contain a value.
+<3> The <<instance-name,@InstanceName>> annotation here indicates a single attribute chosen as the instance name.
+<4> An attribute without annotations.
+
+DTO entities can be associated with a xref:data-stores.adoc#custom[custom data store] for generic CRUD operations via `DataManager` and automatic resolving of references to the DTO entity from JPA entities.
+
+In the example below, you can also see how to exclude some object properties from being entity attributes (in other words, how to not include them to the metadata):
+
+.Metric.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Metric.java[tags=entity]
+----
+
+<1> The `@Store` annotation specifies a custom data store.
+<2> The `annotatedPropertiesOnly = true` parameter of <<jmix-entity,@JmixEntity>> annotation indicates that object properties not annotated with <<jmix-property,@JmixProperty>> will not be entity attributes.
+<3> The <<jmix-property,@JmixProperty>> annotation with `mandatory = true` parameter indicates that the attribute is required, i.e. it must contain a value.
+<4> The <<jmix-id,@JmixId>> annotation indicates that the attribute is the entity identifier.
+<5> The <<jmix-generated-value,@JmixGeneratedValue>> annotation indicates that the identifier must be generated and assigned by Jmix when creating the entity instance in memory.
+<6> The <<jmix-property,@JmixProperty>> annotation here just indicates that the property is an entity attribute.
+<7> Not annotated property is not an entity attribute because of `annotatedPropertiesOnly = true` parameter of `@JmixEntity` annotation.
+
+[[key-value]]
+== KeyValueEntity
+
+TODO
+
+[[jmix-annotations]]
+== Jmix Entity Annotations
+
+Jmix entity annotations are described below in alphabetical order.
+
+[[depends-on-properties]]
+=== @DependsOnProperties
+
+TODO
+
+[[instance-name]]
+=== @InstanceName
+
+_Instance name_ is a human-readable text that represents an entity instance. Think of it as of an application-level `toString()` method. It is used extensively in UI when displaying an entity instance in a single field or table cell. You can also get the instance name programmatically using the `MetadataTools.getInstanceName()` method.
+
+The `@InstanceName` annotation can be present on a single field or a method of the object.
+
+In the former case, the annotated attribute value is used as the instance name. For example:
+
+[source,java,indent=0]
+----
+@InstanceName
+@Column(name = "NAME")
+private String name;
+----
+
+If you want to generate something more complex than a single attribute value, create a method returning `String` in the entity class. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/GeoPoint.java[tags=instance-name]
+----
+
+The method can accept any Spring beans as parameters. In the example above, the `Messages` bean is used to format the instance name according to the current user locale.
+
+The <<depends-on-properties,@DependsOnProperties>> annotation on the instance name method is necessary, because it specifies attributes of the built-in `_instance_name` fetch plan.
+
+
+[[jmix-entity]]
+=== @JmixEntity
+
+`@JmixEntity` is a mandatory annotation indicating that the class is a Jmix entity.
+
+If the class has `@javax.persistence.Entity` annotation, the entity name in the metadata is obtained from it, and `@JmixEntity` should not specify the `name` parameter. Otherwise, the `name` parameter is used for specifying the entity name. If neither `@JmixEntity` nor `@javax.persistence.Entity` have `name` parameter, the entity name equals to the Java class simple name.
+
+If the `annotatedPropertiesOnly` parameter is `false` (which is the default), the following object properties become entity attributes (i.e. get included into metadata):
+
+* For JPA entities: all properties except annotated with `@javax.persistence.Transient`.
+* For DTO entities: all properties.
+
+If the `annotatedPropertiesOnly` parameter is set to `true`, only the properties annotated with <<jmix-property,@JmixProperty>> become entity attributes.
+
+[[jmix-generated-value]]
+=== @JmixGeneratedValue
+
+TODO
+
+[[jmix-id]]
+=== @JmixId
+
+The `@JmixId` annotation specifies an entity identifier for <<dto,DTO entities>>. You should explicitly choose an identifier if your DTO entity is mapped to some external data and you need to load/save its instances repeatedly, because in this case you need to maintain the object identity through the entity lifecycle.
+
+You can use an existing attribute for an identifier if the attribute contains unique values, for example:
+
+[source,java]
+----
+@JmixId
+private String code;
+----
+
+If there is no such naturally unique attribute, define one and annotate it also with <<jmix-generated-value,@JmixGeneratedValue>> to assign a unique value on instance creation:
+
+[source,java]
+----
+@JmixId
+@JmixGeneratedValue
+private UUID id;
+----
+
+[[jmix-property]]
+=== @JmixProperty
+
+TODO
+
+[[store]]
+=== @Store
+
+TODO

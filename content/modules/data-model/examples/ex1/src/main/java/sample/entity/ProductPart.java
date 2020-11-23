@@ -1,35 +1,21 @@
 package sample.entity;
 
-import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.JmixProperty;
 
-import javax.persistence.Id;
-import java.util.UUID;
-
-@JmixEntity(name = "sample_ProductPart")
+// tag::entity[]
+@JmixEntity(name = "sample_ProductPart") // <1>
 public class ProductPart {
 
-    @JmixProperty(mandatory = true)
-    @JmixGeneratedValue
-    @Id
-    private UUID id;
-
-    @InstanceName
-    @JmixProperty
+    @JmixProperty(mandatory = true) // <2>
+    @InstanceName // <3>
     private String name;
 
-    @JmixProperty
-    private Integer quantity;
+    private Integer quantity; // <4>
 
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
+    // getters and setters
+    // end::entity[]
 
     public String getName() {
         return name;
@@ -39,11 +25,11 @@ public class ProductPart {
         this.name = name;
     }
 
-    public UUID getId() {
-        return id;
+    public Integer getQuantity() {
+        return quantity;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
     }
 }

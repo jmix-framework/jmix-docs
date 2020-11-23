@@ -10,27 +10,27 @@ import javax.validation.constraints.NotNull;
 import java.util.UUID;
 
 // tag::entity[]
-@JmixEntity
-@Table(name = "SAMPLE_CUSTOMER") // <1>
-@Entity(name = "sample_Customer") // <2>
+@JmixEntity // <1>
+@Table(name = "SAMPLE_CUSTOMER") // <2>
+@Entity(name = "sample_Customer") // <3>
 public class Customer {
 
-    @JmixGeneratedValue
-    @Id
-    @Column(name = "ID", nullable = false)
+    @JmixGeneratedValue // <4>
+    @Id // <5>
+    @Column(name = "ID", nullable = false) // <6>
     private UUID id;
 
-    @Version
+    @Version // <7>
     @Column(name = "VERSION")
     private Integer version;
 
-    @InstanceName
-    @NotNull
+    @InstanceName // <8>
+    @NotNull // <9>
     @Column(name = "NAME", nullable = false)
     private String name;
 
-    @Email
-    @Column(name = "EMAIL", unique = true)
+    @Email // <9>
+    @Column(name = "EMAIL", unique = true) // <10>
     private String email;
 
     public UUID getId() {
