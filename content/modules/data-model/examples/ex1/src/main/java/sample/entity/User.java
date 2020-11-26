@@ -1,12 +1,14 @@
 package sample.entity;
 
-import io.jmix.core.entity.BaseUser;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.metamodel.annotation.JmixProperty;
+import io.jmix.core.security.GrantedAuthorityContainer;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -19,7 +21,7 @@ import java.util.UUID;
 @Table(name = "SAMPLE_USER", indexes = {
         @Index(name = "IDX_SAMPLE_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
 })
-public class User implements BaseUser {
+public class User implements UserDetails, GrantedAuthorityContainer {
 
     @Id
     @Column(name = "ID")
@@ -37,8 +39,10 @@ public class User implements BaseUser {
     @Column(name = "PASSWORD")
     protected String password;
 
+    // tag::field-based-attr-1[]
     @Column(name = "FIRST_NAME")
     protected String firstName;
+    // end::field-based-attr-1[]
 
     @Column(name = "LAST_NAME")
     protected String lastName;
@@ -49,6 +53,17 @@ public class User implements BaseUser {
 
     @Column(name = "ENABLED")
     protected Boolean enabled = true;
+
+    // tag::method-based-attr[]
+    @JmixProperty
+    @DependsOnProperties({"firstName", "lastName"})
+    public String getFullName() {
+        return this.firstName + " " + this.lastName;
+    }
+    // end::method-based-attr[]
+
+    @Transient
+    protected Collection<? extends GrantedAuthority> authorities;
 
     public UUID getId() {
         return id;
@@ -99,6 +114,8 @@ public class User implements BaseUser {
         this.email = email;
     }
 
+    // tag::field-based-attr-2[]
+
     public String getFirstName() {
         return firstName;
     }
@@ -106,6 +123,7 @@ public class User implements BaseUser {
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
+    // end::field-based-attr-2[]
 
     public String getLastName() {
         return lastName;
@@ -117,7 +135,12 @@ public class User implements BaseUser {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList();
+        return authorities != null ? authorities : Collections.emptyList();
+    }
+
+    @Override
+    public void setAuthorities(Collection<? extends GrantedAuthority> authorities) {
+        this.authorities = authorities;
     }
 
     @Override
@@ -142,7 +165,6 @@ public class User implements BaseUser {
 
     @InstanceName
     @DependsOnProperties({"firstName", "lastName", "username"})
-    @Override
     public String getDisplayName() {
         return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
                 (lastName != null ? lastName : ""), username);

@@ -8,7 +8,9 @@ There are the following types of entities in Jmix:
 
 * <<key-value,KeyValueEntity>> is a dynamic entity with an arbitrary number of attributes.
 
-JPA and DTO entities are defined by Java classes and can have some <<jmix-annotations,common annotations>> specific to Jmix.
+Entities are characterized by their <<attributes,attributes>>.
+
+JPA and DTO entities are defined by Java classes and have some <<jmix-annotations,annotations specific to Jmix>>.
 
 [[jpa]]
 == JPA Entities
@@ -72,7 +74,7 @@ include::example$/ex1/src/main/java/sample/entity/ProductPart.java[tags=entity]
 
 DTO entities can be associated with a xref:data-stores.adoc#custom[custom data store] for generic CRUD operations via `DataManager` and automatic resolving of references to the DTO entity from JPA entities.
 
-In the example below, you can also see how to exclude some object properties from being entity attributes (in other words, how to not include them to the metadata):
+In the example below, you can also see how to exclude some object properties from being entity attributes (more on this in the <<attributes>> section):
 
 .Metric.java
 [source,java,indent=0]
@@ -91,7 +93,93 @@ include::example$/ex1/src/main/java/sample/entity/Metric.java[tags=entity]
 [[key-value]]
 == KeyValueEntity
 
-TODO
+`KeyValueEntity` lets you represent arbitrary sets of named values as entities and hence work with data that is not directly represented by Java classes (JPA or DTO entities).
+
+Consider an example: you have `Order` entity in your data model, and you need to calculate sum of order amounts aggregated by customers and show this data in UI. Then you can execute a JPQL query and load the result list as a list of `KeyValueEntity` instances using `DataManager`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/sample/KeyValueTest.java[tags=load]
+----
+
+The returned `KeyValueEntity` instances will have two attributes which you specified in the `properties()` method: `customer` with the value of the first field in the query result set, and `total` with the value of the second field. You can get them as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/sample/KeyValueTest.java[tags=get-value]
+----
+
+Backoffice UI has special xref:backoffice-ui:data-components.adoc[data containers] for binding UI components to `KeyValueEntity` instances.
+
+[[attributes]]
+== Entity Attributes
+
+NOTE: There is another term for entity attributes: _entity properties_. It's often used in the Jmix codebase, for example in annotations: `@JmixProperty`, `@DependsOnProperties`, etc.
+
+Each entity attribute should have an appropriate type. Jmix supports the following types out-of-the-box:
+
+* `java.lang.String`
+* `java.lang.Character`
+* `java.lang.Boolean`
+* `java.lang.Integer`
+* `java.lang.Long`
+* `java.lang.Double`
+* `java.math.BigDecimal`
+* `java.util.Date`
+* `java.time.LocalDate`
+* `java.time.LocalTime`
+* `java.time.LocalDateTime`
+* `java.time.OffsetTime`
+* `java.time.OffsetDateTime`
+* `java.sql.Date`
+* `java.sql.Time`
+* `java.util.UUID`
+* `java.net.URI`
+* `byte[]` (byte array)
+* xref:enumerations.adoc[Enumeration]
+* Entity or a collection of entities (a reference attribute)
+
+You can use a type not from the list above if you create an appropriate xref:data-types.adoc[Datatype] implementation and make sure your type is supported by the underlying xref:data-stores.adoc[data store].
+
+CAUTION: Note that Java primitive types (`int`, `boolean`, etc.) cannot be used for entity attributes.
+
+In JPA and DTO entities, there are two types of attributes:
+
+* _Field-based attribute_ corresponds to a field and a pair of accessor methods (getter / setter) of the field. The field name becomes the attribute name.
++
+The setter can be omitted, then the attribute is read-only.
++
+Example of a field-based attribute:
++
+.User.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/User.java[tags=field-based-attr-1;field-based-attr-2]
+----
+
+* _Method-based attribute_ corresponds to a method without parameters, returning a supported type, and with a name starting from `get`, for example `getCustomer()`. The method name without `get` with the first letter in lower case becomes the attribute name: `getFullName()` -> `fullName`.
++
+Example of a method-based attribute:
++
+.User.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/User.java[tags=method-based-attr]
+----
+
+An entity class can have properties (field + getter/setter) and methods that are not entitiy attributes, that is not included in metadata. So you can use such properties and methods in your application code, but the framework will not recognize them and will not display them in UI or transfer through the REST API.
+
+Whether a property or a qualifying method becomes an entity attribute is subject to the following rules:
+
+* If the `annotatedPropertiesOnly` parameter of <<jmix-entity,@JmixEntity>> annotation is `false` (which is the default), the following object properties become entity attributes:
++
+--
+* For JPA entities: all properties except annotated with `@javax.persistence.Transient`.
+* For DTO entities: all properties.
+* For both: all properties and methods annotated with <<jmix-property,@JmixProperty>>.
+--
+
+* If the `annotatedPropertiesOnly` parameter is set to `true`, only the properties and methods annotated with <<jmix-property,@JmixProperty>> become entity attributes.
 
 [[jmix-annotations]]
 == Jmix Entity Annotations
@@ -101,7 +189,8 @@ Jmix entity annotations are described below in alphabetical order.
 [[depends-on-properties]]
 === @DependsOnProperties
 
-TODO
+`@DependsOnProperties` annotation specifies entity attributes that the annotated attribute depends on. These properties are taken into account when building fetch plans and when loading/saving references to entities from different data stores. Also, if the annotated property is read-only (without a setter), `EntityPropertyChangeEvent` is sent for this attribute when the specified attributes are changed.
+
 
 [[instance-name]]
 === @InstanceName
@@ -136,24 +225,23 @@ The <<depends-on-properties,@DependsOnProperties>> annotation on the instance na
 
 `@JmixEntity` is a mandatory annotation indicating that the class is a Jmix entity.
 
-If the class has `@javax.persistence.Entity` annotation, the entity name in the metadata is obtained from it, and `@JmixEntity` should not specify the `name` parameter. Otherwise, the `name` parameter is used for specifying the entity name. If neither `@JmixEntity` nor `@javax.persistence.Entity` have `name` parameter, the entity name equals to the Java class simple name.
+If the class has `@javax.persistence.Entity` annotation, the framework obtains entity name for the metadata from it, and `@JmixEntity` should not specify the `name` parameter. Otherwise, specify the entity name in the `name` parameter. If neither `@JmixEntity` nor `@javax.persistence.Entity` have `name` parameter, the entity name equals the Java class simple name.
 
-If the `annotatedPropertiesOnly` parameter is `false` (which is the default), the following object properties become entity attributes (i.e. get included into metadata):
-
-* For JPA entities: all properties except annotated with `@javax.persistence.Transient`.
-* For DTO entities: all properties.
-
-If the `annotatedPropertiesOnly` parameter is set to `true`, only the properties annotated with <<jmix-property,@JmixProperty>> become entity attributes.
+The `annotatedPropertiesOnly` parameter specifies what object properties become entity attributes, see <<attributes>> for more details.
 
 [[jmix-generated-value]]
 === @JmixGeneratedValue
 
-TODO
+`@JmixGeneratedValue` annotation indicates that the entity attribute value must be generated and assigned by the framework when creating entity instance in memory.
+
+The annotated attribute must be of `Long`, `Integer` or `UUID` type, and the entity should not have more than one `UUID` attribute marked with this annotation.
+
+CAUTION: Note that the `@JmixGeneratedValue` annotation doesn't take any effect if you create an entity instance using the `new` operator. Always create entity instances using appropriate framework methods: `Metadata.create()`, `DataManager.create()` or `DataContext.create()`.
 
 [[jmix-id]]
 === @JmixId
 
-The `@JmixId` annotation specifies an entity identifier for <<dto,DTO entities>>. You should explicitly choose an identifier if your DTO entity is mapped to some external data and you need to load/save its instances repeatedly, because in this case you need to maintain the object identity through the entity lifecycle.
+`@JmixId` annotation specifies an entity identifier for <<dto,DTO entities>>. You should explicitly choose an identifier if your DTO entity is mapped to some external data and you need to load/save its instances repeatedly, because in this case you need to maintain the object identity through the entity lifecycle.
 
 You can use an existing attribute for an identifier if the attribute contains unique values, for example:
 
@@ -175,9 +263,37 @@ private UUID id;
 [[jmix-property]]
 === @JmixProperty
 
-TODO
+`@JmixProperty` annotation indicates that an object field or method is an entity attribute. See <<attributes>> for more details.
+
+Use the `mandatory` parameter if you want to specify that the attribute requires a value, and the object field has no JPA `@Column` annotation where you could set `nullable = false`.
 
 [[store]]
 === @Store
 
-TODO
+Use `@Store` annotation on an entity class to associate the entity with an additional xref:data-stores.adoc[data store].
+
+[[system-level]]
+=== @SystemLevel
+
+`@SystemLevel` annotation indicates that annotated entity or its attribute is low-level and should not be displayed in UI.
+
+[[cross-data-store-ref]]
+== Cross-Datastore References
+
+`DataManager` can automatically maintain To-One references between entities from different xref:data-stores.adoc[data stores], if they are properly defined.
+
+TIP: Jmix Studio entity designer automatically defines the set of attributes for cross-datastore references when you select an entity from a different data store as an association.
+
+Let's take an example: you have `Customer` entity in the main data store and `Address` entity in an additional data store, and you want to have a reference from `Customer` to `Address`. Then `Customer` entity should contain the following two attributes:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Customer.java[tags=cross-datastore-ref]
+----
+
+<1> The `addressId` attribute stores the identifier of `Address`. This attribute is annotated with `@SystemLevel` to indicate to the framework that the attribute should not be displayed to users.
+<2> The `address` attribute contains the reference to the `Address` entity. This attribute is transient (not stored in the database) and annotated with <<depends-on-properties,@DependsOnProperties>> to indicate to the framework that the attribute value depends on another attribute.
+
+After that, when you load `Customer` with a fetch plan including `address` attribute, `DataManager` automatically loads related `Address` from the additional data store. The framework optimizes loading of collections for performance: after loading a list of customers, it loads references from the additional data store in batches. The size of the batch is defined by the `jmix.core.crossDataStoreReferenceLoadingBatchSize` application property (50 by default).
+
+When you save an entity graph which includes `Customer` with `Address`, `DataManager` saves the instances via corresponding `DataStore` implementations, and then saves the identifier of the address in the customer’s `addressId` attribute.

@@ -1,8 +1,11 @@
 package sample.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.entity.annotation.SystemLevel;
+import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.metamodel.annotation.JmixProperty;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -44,6 +47,33 @@ public class Customer {
     // other getters and setters
 
     // end::entity[]
+
+    // tag::cross-datastore-ref[]
+    @SystemLevel
+    @Column(name = "ADDRESS_ID")
+    private UUID addressId; // <1>
+
+    @Transient
+    @JmixProperty
+    @DependsOnProperties("addressId")
+    private Address address; // <2>
+
+    public UUID getAddressId() {
+        return addressId;
+    }
+
+    public void setAddressId(UUID addressId) {
+        this.addressId = addressId;
+    }
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+    // end::cross-datastore-ref[]
 
     public Integer getVersion() {
         return version;
