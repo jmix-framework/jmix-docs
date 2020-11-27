@@ -15,9 +15,8 @@ public class ButtonScreen extends Screen {
     // tag::click-handler[]
     @Subscribe("helloButton") // <1>
     protected void onHelloButtonClick(Button.ClickEvent event) {
-        notifications.create()
-                .withCaption("Hello, world!")
-                .show();
+        Button button = event.getButton(); // <2>
+        // ...
     }
     // end::click-handler[]
 
