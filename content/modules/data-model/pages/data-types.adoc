@@ -1,3 +1,116 @@
 = Data Types
 
-TODO
+Each non-reference entity attribute is associated with an implementation of the `Datatype` interface. This interface defines methods for converting attribute values to and from strings (formatting and parsing) when displaying entities in xref:backoffice-ui:index.adoc[] and serializing in xref:rest:index.adoc[].
+
+The framework provides a set of `Datatype` implementations corresponding to standard data types of xref:data-model:entities.adoc#attributes[entity attributes].
+
+NOTE: We use term _datatype_ in all lowercase to refer to implementations of the `Datatype` interface.
+
+== Localized Format Strings
+
+Many standard datatypes use a set of format strings defined in localized message packs. It enables formatting and parsing dependent on the current user locale. The default set of format strings for the default language is the following:
+
+[source,properties]
+----
+# Date/time formats
+dateFormat = dd/MM/yyyy
+dateTimeFormat = dd/MM/yyyy HH:mm
+offsetDateTimeFormat = dd/MM/yyyy HH:mm Z
+timeFormat = HH:mm
+offsetTimeFormat = HH:mm Z
+
+# Number formats
+integerFormat = #,##0
+doubleFormat = #,##0.###
+decimalFormat = #,##0.##
+
+# Number separators
+numberDecimalSeparator = .
+numberGroupingSeparator = ,
+
+# Booleans
+trueString = True
+falseString = False
+----
+
+To provide your own format strings, add the corresponding messages to the message pack of your application. For example, to use the United States date format, add the following lines:
+
+.messages.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/sample/messages.properties[tags=format-strings]
+----
+
+[[custom-format]]
+== Customized Formatting and Parsing
+
+You can customize formatting and parsing of values for particular entity attributes by creating your own datatype and assigning it to the attributes.
+
+Suppose that some entity attributes in your application store calendar years, represented by integer numbers. Users should be able to view and edit a year, and if a user enters just two digits, the application should transform it to a year between 2000 and 2100. Otherwise, the whole entered number should be accepted as a year.
+
+First, create the `Datatype` implementation class and annotate it with `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/datatype/YearDatatype.java[tags=datatype]
+----
+
+<1> A unique identifier of the datatype.
+<2> Java class handled by the datatype.
+<3> Formatting without current user's locale. This method is called for system-level conversion.
+<4> Formatting considering current user's locale. This method is called in Backoffice UI.
+<5> Parsing without current user's locale. This method is called for system-level conversion.
+<6> Parsing considering current user's locale. This method is called in Backoffice UI.
+
+After creating a `Datatype` implementation, you can specify it for an entity attribute using the xref:entities.adoc#property-datatype[@PropertyDatatype] annotation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Model.java[tags=datatype]
+----
+
+[[custom-type]]
+== Support for Custom Java Type
+
+You can use a custom Java class as a type of entity attributes.
+
+Suppose that you have created a Java class representing a geographical coordinate:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/GeoPoint.java[tags=datatype]
+----
+
+Now you want to use this class as a type of a JPA entity attribute.
+
+First, create a JPA converter for your class:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/datatype/GeoPointConverter.java[tags=datatype]
+----
+
+<1> With `autoApply = true` you don't need to specify the converter on each attribute. The converter will be applied for all attributes of the corresponding type.
+
+Then create a `Datatype` implementation class for `GeoPoint` and annotate it with `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/datatype/GeoPointDatatype.java[tags=datatype]
+----
+
+<1> A unique identifier of the datatype.
+<2> Java class handled by the datatype.
+<3> `defaultForClass = true` means that the datatype will be automatically applied to all entity attributes of `GeoPoint` type.
+<4> Using `@Ddl` annotation, you can specify what SQL type should be used for entity attributes. Studio considers this annotation when it generates xref:db-migration.adoc[database migration] scripts.
+<5> Formatting without current user's locale. This method is called for system-level conversion.
+<6> Formatting considering current user's locale. This method is called in Backoffice UI.
+<7> Parsing without current user's locale. This method is called for system-level conversion.
+<8> Parsing considering current user's locale. This method is called in Backoffice UI.
+
+After that, when you define an entity attribute of `GeoPoint` type, the framework will use your custom JPA converter and datatype:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Address.java[tags=datatype]
+----

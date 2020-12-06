@@ -3,6 +3,7 @@ package sample.entity;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.Store;
+import sample.datatype.GeoPointConverter;
 
 import javax.persistence.*;
 import java.util.UUID;
@@ -30,6 +31,19 @@ public class Address {
 
     @Column(name = "LINE2")
     private String line2;
+
+    // tag::datatype[]
+    @Column(name = "GEO_POINT")
+    private GeoPoint geoPoint;
+    // end::datatype[]
+
+    public GeoPoint getGeoPoint() {
+        return geoPoint;
+    }
+
+    public void setGeoPoint(GeoPoint geoPoint) {
+        this.geoPoint = geoPoint;
+    }
 
     public String getLine2() {
         return line2;

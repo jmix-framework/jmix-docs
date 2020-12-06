@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import sample.entity.GeoPoint;
+import sample.entity.GeoPointEntity;
 import sample.entity.Metric;
 import sample.entity.OperationResult;
 
@@ -61,11 +61,11 @@ public class EntitiesTest {
 
     @Test
     void testInstanceName() {
-        GeoPoint geoPoint = metadata.create(GeoPoint.class);
-        geoPoint.setLatitude(53.20076);
-        geoPoint.setLongitude(50.098603);
+        GeoPointEntity geoPointEntity = metadata.create(GeoPointEntity.class);
+        geoPointEntity.setLatitude(53.20076);
+        geoPointEntity.setLongitude(50.098603);
 
-        String instanceName = metadataTools.getInstanceName(geoPoint);
+        String instanceName = metadataTools.getInstanceName(geoPointEntity);
         assertEquals("Latitude: 53.20076, Longitude: 50.098603", instanceName);
     }
 }

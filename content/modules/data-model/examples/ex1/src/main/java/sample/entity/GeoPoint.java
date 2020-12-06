@@ -1,46 +1,31 @@
 package sample.entity;
 
+// tag::datatype[]
+import java.io.Serializable;
+import java.util.Objects;
 
-import io.jmix.core.Messages;
-import io.jmix.core.metamodel.annotation.DependsOnProperties;
-import io.jmix.core.metamodel.annotation.InstanceName;
-import io.jmix.core.metamodel.annotation.JmixEntity;
+public class GeoPoint implements Serializable {
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
+    public final double latitude;
+    public final double longitude;
 
-// tag::instance-name[]
-@JmixEntity(name = "sample_GeoPoint")
-@Embeddable
-public class GeoPoint {
-
-    @Column(name = "LAT")
-    protected Double latitude;
-
-    @Column(name = "LON")
-    protected Double longitude;
-
-    @InstanceName
-    @DependsOnProperties({"latitude", "longitude"})
-    public String getDisplayName(Messages messages) {
-        return messages.formatMessage(
-                getClass(), "GeoPoint.instanceName", this.latitude, this.longitude);
-    }
-    // end::instance-name[]
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(Double latitude) {
+    public GeoPoint(double latitude, double longitude) {
         this.latitude = latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GeoPoint that = (GeoPoint) o;
+        return Double.compare(that.latitude, latitude) == 0 &&
+                Double.compare(that.longitude, longitude) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(latitude, longitude);
+    }
 }
+// end::datatype[]
