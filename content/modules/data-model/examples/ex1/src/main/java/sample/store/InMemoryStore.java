@@ -13,10 +13,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-// tag::custom-store[]
+// tag::custom-store-1[]
 @Component("sample_InMemoryStore")
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class InMemoryStore implements DataStore {
+    // ...
+    // end::custom-store-1[]
 
     private String name;
 
@@ -88,5 +90,6 @@ public class InMemoryStore implements DataStore {
     private List<Object> cloneInstances(Collection<Object> instances) {
         return instances.stream().map(this::cloneInstance).collect(Collectors.toList());
     }
+// tag::custom-store-2[]
 }
-// end::custom-store[]
+// end::custom-store-2[]
