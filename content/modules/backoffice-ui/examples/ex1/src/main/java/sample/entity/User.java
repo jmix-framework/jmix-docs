@@ -35,6 +35,9 @@ public class User implements UserDetails, GrantedAuthorityContainer {
     @Column(name = "USERNAME", nullable = false)
     protected String username;
 
+    @Column(name = "LOGIN", nullable = false)
+    protected String login;
+
     @SystemLevel
     @Column(name = "PASSWORD")
     protected String password;
@@ -158,5 +161,13 @@ public class User implements UserDetails, GrantedAuthorityContainer {
     public String getDisplayName() {
         return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
                 (lastName != null ? lastName : ""), username);
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public void setLogin(String login) {
+        this.login = login;
     }
 }
