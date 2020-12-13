@@ -1,5 +1,7 @@
 package sample.entity;
 
+import io.jmix.core.annotation.DeletedBy;
+import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
@@ -10,6 +12,7 @@ import io.jmix.core.metamodel.annotation.JmixProperty;
 import javax.persistence.*;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotNull;
+import java.util.Date;
 import java.util.UUID;
 
 // tag::entity[]
@@ -74,6 +77,31 @@ public class Customer {
         this.address = address;
     }
     // end::cross-datastore-ref[]
+
+    @DeletedBy
+    @Column(name = "DELETED_BY")
+    private String deletedBy;
+
+    @DeletedDate
+    @Temporal(TemporalType.DATE)
+    @Column(name = "DELETED_DATE")
+    private Date deletedDate;
+
+    public String getDeletedBy() {
+        return deletedBy;
+    }
+
+    public void setDeletedBy(String deletedBy) {
+        this.deletedBy = deletedBy;
+    }
+
+    public Date getDeletedDate() {
+        return deletedDate;
+    }
+
+    public void setDeletedDate(Date deletedDate) {
+        this.deletedDate = deletedDate;
+    }
 
     public Integer getVersion() {
         return version;

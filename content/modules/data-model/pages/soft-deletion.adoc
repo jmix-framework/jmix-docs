@@ -1,0 +1,113 @@
+= Soft Deletion
+
+In the _Soft Deletion_ mode, the remove operation on JPA entities just marks database records as deleted instead of actually deleting them. Later a system administrator can either erase the records completely or restore them.
+
+Soft deletion can help you to reduce the risk of data loss caused by incorrect user actions. It also allows users to make certain records inaccessible instantly even if there are references to them from other tables.
+
+Soft deletion mechanism in Jmix is transparent for application developers. If you define the xref:entities.adoc#soft-delete-trait[Soft Delete trait] for an entity, the framework marks database records for deleted entity instances, and loads deleted instances according to the following rules:
+
+* Soft-deleted instances are not returned when loading by Id and are filtered out from results of JPQL queries.
+
+* In loaded entity graphs, soft-deleted instances are filtered out from collection attributes (To-Many references), but present in single-value attributes (To-One references).
++
+For example, imagine a Customer - Order - OrderLine data model. Initially, an Order referenced a Customer and _five_ instances of OrderLine. You have soft deleted the Customer instance and one of the OrderLine instances. Then if you load the Order together with Customer and collection of OrderLine, it will contain the reference to the deleted Customer and _four_ OrderLine instances in the collection.
+
+== Handling of References
+
+When a normal (hard deleted) entity is deleted, foreign keys in the database define handling of references to this entity. By default, you cannot delete an entity if it has references from other entities. To delete the referencing entity together with your entity, or to set the reference to null, you define `ON DELETE CASCADE` or `ON DELETE SET NULL` rules for the foreign key.
+
+For soft deleted entities foreign keys also exist, but they cannot affect the deletion because there is no deletion from the database standpoint. So by default, when an entity instance is soft deleted, it doesn't affect any linked entities.
+
+Jmix offers `@OnDelete` and `@OnDeleteInverse` annotations to handle references between soft-deleted entities.
+
+TIP: Studio entity designer contains visual hints to help you choose correct annotations and their values.
+
+* `@OnDelete` annotation specifies what to do with referenced entity when deleting the current entity. In the following example, all `OrderLine` instances are deleted when the owning `Order` instance is deleted:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Order.java[tags=class-def;on-delete]
+----
+
+* `@OnDeleteInverse` annotation specifies what to do with the current entity when deleting the referenced entity. In the following example, the `Customer` instance cannot be deleted if there is a reference to it from an `Order` instance:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Order.java[tags=class-def;on-delete-inverse]
+----
+
+The annotations can have one of the following values:
+
+* `DeletePolicy.DENY` – to throw an exception on attempt to delete an entity if the reference is not null.
+
+* `DeletePolicy.CASCADE` – to delete the linked entities together.
+
+* `DeletePolicy.UNLINK` – to disconnect the linked entities by setting the reference attribute to null. Use this value only on the owning side of the association (the one with the `@JoinColumn` annotation).
+
+== Unique Constraints
+
+Soft deletion makes creation of database unique constraints more complicated. A constraint must take into account that there may be multiple records with the same value of the unique field: one non-deleted and any number of soft deleted.
+
+The problem is solved differently for different databases.
+
+TIP: Studio generates database migration scripts for unique attributes of soft deleted entities taking into account the database used in your project.
+
+If you define unique constraints manually without help from Studio, follow the recommendations below.
+
+* If the database supports partial indexes (PostgreSQL), a unique constraint can be defined like this:
++
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
+----
+
+* If the database permits only one null value in a composite index (Oracle, SQL Server), define a composite index including the `DELETED_DATE` column:
++
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
+----
+
+* Otherwise, you should use an additional column, a tigger to update it, and a composite index for the unique constraint. Here is an example for MySQL:
++
+[source,sql]
+----
+alter table CUSTOMER add DELETED_DATE_NN datetime not null default '1000-01-01 00:00:00.000';
+
+create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN);
+
+create trigger CUSTOMER_DELETED_DATE_NN_UPDATE_TRIGGER before update on CUSTOMER
+for each row
+begin
+    if not(NEW.DELETED_DATE <=> OLD.DELETED_DATE) then
+        set NEW.DELETED_DATE_NN = if (NEW.DELETED_DATE is null, '1000-01-01 00:00:00.000', NEW.DELETED_DATE);
+    end if;
+end;
+----
+
+== Turning Soft Deletion Off
+
+By default, soft deletion is on for all entities having the xref:entities.adoc#soft-delete-trait[Soft Delete trait]. But you can turn it off for a particular operation:
+
+* When loading entities using `DataManager`, use `softDeletion(false)` method of the fluent loader interface or `LoadContext.setSoftDeletion(false)`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/bean/CustomerService.java[tags=data-manager;load-hard-deleted]
+----
++
+Results will include soft deleted instances.
+
+* When removing entities using `DataManager`, use the following code:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/bean/CustomerService.java[tags=data-manager;hard-delete]
+----
+
+* When working with `EntityManager`, use the special hint:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/bean/CustomerService.java[tags=hard-delete-em]
+----
