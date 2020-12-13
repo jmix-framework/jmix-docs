@@ -87,9 +87,11 @@ public class Order {
 
     // tag::on-delete[]
     @OnDelete(DeletePolicy.CASCADE)
+    // tag::composition[]
     @Composition
     @OneToMany(mappedBy = "order")
     private List<OrderLine> lines;
+    // end::composition[]
     // end::on-delete[]
 
     public List<OrderLine> getLines() {

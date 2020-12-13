@@ -232,12 +232,59 @@ Whether a property or a qualifying method becomes an entity attribute is subject
 
 * If the `annotatedPropertiesOnly` parameter is set to `true`, only the properties and methods annotated with <<jmix-property,@JmixProperty>> become entity attributes.
 
+[[references]]
+== References
+
+Reference attributes define relationships between entities. References can be single-value (to-one relationships) or collections (to-many relationships).
+
+By default, a relationship is an _association_, which means that both entities can exist independently from each other, without any ownership. For example, in a Customer - Order relationship, Order has an attribute which is a reference to Customer. Users create customers and orders independently, select a customer for an order, and change the reference to another customer if needed.
+
+Jmix also supports a stronger connection between entities called _composition_. Composition implies ownership, when an entity instance can exist only as a part of its owning entity instance. For example, in a Order - OrderLine relationship, Order has an attribute which is a collection of OrderLine instances. Each OrderLine instance is created for a particular Order and becomes its part, it cannot belong to another Order.
+
+Entities belonging to a composition are edited together in UI. For example, a user opens an Order edit screen and can create and edit OrderLines in their separate edit screens, but all changes both for the Order and all its OrderLines are saved to the database together in one transaction, and only after the user confirms saving of the owning entity - Order.
+
+Composition relationship is specified by the <<composition,@Composition>> annotation on the reference attribute.
+
+TIP: Studio entity designer allows you to select a relationship type in the *Attribute type* field.
+
+[[cross-data-store-ref]]
+== Cross-Datastore References
+
+`DataManager` can automatically maintain To-One references between entities from different xref:data-stores.adoc[data stores], if they are properly defined.
+
+TIP: Studio entity designer automatically defines the set of attributes for cross-datastore references when you select an entity from a different data store as an association.
+
+Let's take an example: you have `Customer` entity in the main data store and `Address` entity in an additional data store, and you want to have a reference from `Customer` to `Address`. Then `Customer` entity should contain the following two attributes:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Customer.java[tags=cross-datastore-ref]
+----
+
+<1> The `addressId` attribute stores the identifier of `Address`. This attribute is annotated with `@SystemLevel` to indicate to the framework that the attribute should not be displayed to users.
+<2> The `address` attribute contains the reference to the `Address` entity. This attribute is transient (not stored in the database) and annotated with <<depends-on-properties,@DependsOnProperties>> to indicate to the framework that the attribute value depends on another attribute.
+
+After that, when you load `Customer` with a fetch plan including `address` attribute, `DataManager` automatically loads related `Address` from the additional data store. The framework optimizes loading of collections for performance: after loading a list of customers, it loads references from the additional data store in batches. The size of the batch is defined by the `jmix.core.crossDataStoreReferenceLoadingBatchSize` application property (50 by default).
+
+When you save an entity graph which includes `Customer` with `Address`, `DataManager` saves the instances via corresponding `DataStore` implementations, and then saves the identifier of the address in the customer’s `addressId` attribute.
+
 [[jmix-annotations]]
 == Jmix Entity Annotations
 
 Jmix entity annotations are described below in alphabetical order.
 
 NOTE: Jmix entities can also have annotations for JPA mappings, <<audit-traits,audit traits>> and xref:soft-deletion.adoc[soft deletion].
+
+[[composition]]
+=== @Composition
+
+`@Composition` annotation on a reference attribute indicates that the relationship is a <<references,composition>>.
+For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/entity/Order.java[tags=composition]
+----
 
 [[depends-on-properties]]
 === @DependsOnProperties
@@ -339,24 +386,3 @@ Use `@Store` annotation on an entity class to associate the entity with an addit
 === @SystemLevel
 
 `@SystemLevel` annotation indicates that annotated entity or its attribute is low-level and should not be displayed in UI.
-
-[[cross-data-store-ref]]
-== Cross-Datastore References
-
-`DataManager` can automatically maintain To-One references between entities from different xref:data-stores.adoc[data stores], if they are properly defined.
-
-TIP: Jmix Studio entity designer automatically defines the set of attributes for cross-datastore references when you select an entity from a different data store as an association.
-
-Let's take an example: you have `Customer` entity in the main data store and `Address` entity in an additional data store, and you want to have a reference from `Customer` to `Address`. Then `Customer` entity should contain the following two attributes:
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/sample/entity/Customer.java[tags=cross-datastore-ref]
-----
-
-<1> The `addressId` attribute stores the identifier of `Address`. This attribute is annotated with `@SystemLevel` to indicate to the framework that the attribute should not be displayed to users.
-<2> The `address` attribute contains the reference to the `Address` entity. This attribute is transient (not stored in the database) and annotated with <<depends-on-properties,@DependsOnProperties>> to indicate to the framework that the attribute value depends on another attribute.
-
-After that, when you load `Customer` with a fetch plan including `address` attribute, `DataManager` automatically loads related `Address` from the additional data store. The framework optimizes loading of collections for performance: after loading a list of customers, it loads references from the additional data store in batches. The size of the batch is defined by the `jmix.core.crossDataStoreReferenceLoadingBatchSize` application property (50 by default).
-
-When you save an entity graph which includes `Customer` with `Address`, `DataManager` saves the instances via corresponding `DataStore` implementations, and then saves the identifier of the address in the customer’s `addressId` attribute.
