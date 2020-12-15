@@ -1,5 +1,6 @@
-package sample.screen.component.valuePicker;
+package sample.screen.component.valuepicker;
 
+import com.google.common.base.Strings;
 import io.jmix.ui.Actions;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.action.Action;
@@ -14,7 +15,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 @UiController("valuePicker-screen")
 @UiDescriptor("valuePicker-screen.xml")
 public class ValuePickerScreen extends Screen {
+    // tag::integer-value-picker[]
+    @Autowired
+    private ValuePicker<Integer> ageValuePicker;
 
+    // end::integer-value-picker[]
     @Autowired
     protected Notifications notifications;
     @Autowired
@@ -53,4 +58,17 @@ public class ValuePickerScreen extends Screen {
         loginValuePicker.setValue(RandomStringUtils.randomAlphabetic(5, 10));
     }
     // end::custom-action-handler[]
+
+    // tag::field-value-change-event[]
+    @Subscribe("ageValuePicker")
+    public void onAgeValuePickerFieldValueChange(ValuePicker.FieldValueChangeEvent<Integer> event) {
+        String text = event.getText(); // <1>
+        notifications.create()
+                .withCaption("Entered value: " + text)
+                .show();
+        if (!Strings.isNullOrEmpty(text)) {
+            ageValuePicker.setValue(Integer.parseInt(text)); // <2>
+        }
+    }
+    // end::field-value-change-event[]
 }

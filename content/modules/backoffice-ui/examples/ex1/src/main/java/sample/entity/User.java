@@ -5,7 +5,6 @@ import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
-import io.jmix.core.metamodel.annotation.JmixProperty;
 import io.jmix.core.security.GrantedAuthorityContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,9 +23,12 @@ import java.util.UUID;
 public class User implements UserDetails, GrantedAuthorityContainer {
 
     @Id
-    @Column(name = "ID")
+    @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
     private UUID id;
+
+    @Column(name = "AGE")
+    private Integer age;
 
     @Version
     @Column(name = "VERSION", nullable = false)
@@ -57,6 +59,14 @@ public class User implements UserDetails, GrantedAuthorityContainer {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
 
     public UUID getId() {
         return id;
