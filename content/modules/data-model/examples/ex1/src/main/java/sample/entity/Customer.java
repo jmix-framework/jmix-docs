@@ -78,6 +78,19 @@ public class Customer {
     }
     // end::cross-datastore-ref[]
 
+    // tag::enum[]
+    @Column(name = "GRADE")
+    private String grade; // <1>
+
+    public CustomerGrade getGrade() { // <2>
+        return grade == null ? null : CustomerGrade.fromId(grade);
+    }
+
+    public void setGrade(CustomerGrade grade) { // <2>
+        this.grade = grade == null ? null : grade.getId();
+    }
+    // end::enum[]
+
     @DeletedBy
     @Column(name = "DELETED_BY")
     private String deletedBy;
