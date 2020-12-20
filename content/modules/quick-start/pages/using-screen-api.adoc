@@ -1,2 +1,59 @@
 [[qs-using-screen-api]]
 == Using screen API
+
+Let’s handle a click on a calendar’s entry and invoke the talk editor. For screen manipulations, Jmix provides a screen builder API that we will use.
+
+In the `talk-browse.xml` select `talksCalendar` and go to the *Handlers* tab in the Component Inspector window. Select *CalendarEventClickEvent* handler and click on the ▶ icon to generate the code and move to the controller.
+
+image::using-screen-api/generate-calendar-event-handler.png[align="center"]
+
+The empty method will be generated for you.
+
+[source%nowrap,java]
+----
+@Subscribe("talksCalendar")
+public void onTalksCalendarCalendarEventClick(Calendar.CalendarEventClickEvent<LocalDateTime> event) {
+
+}
+----
+
+We need to invoke the editor screen to change the talk’s properties. Jmix's screen builder API allows us to do it pretty easy by adding several method calls to a builder step by step:
+
+* Create an editor for the `Talk` entity using `this` instance of the browser screen as a parent
+* Then we specify the entity instance that will be edited by extracting it from the UI event
+* After that - define editor's open mode. It will be dialog for our case
+* Then we specify exact editor's screen class. In general, there might be more that one screen that can be used to edit the talk
+* Then we need to reload data in the screen if the editor was closed using the *Save* button
+* Finally, we show the editor
+
+The code below just illustrates all the steps.
+
+[source%nowrap,java]
+----
+@Subscribe("talksCalendar")
+public void onTalksCalendarCalendarEventClick(Calendar.CalendarEventClickEvent<LocalDateTime> event) {
+    screenBuilders.editor(Talk.class, this)
+            .editEntity((Talk)event.getEntity())
+            .withOpenMode(OpenMode.DIALOG)
+            .withScreenClass(TalkEdit.class)
+            .withAfterCloseListener(afterCloseEvent -> {
+                if (afterCloseEvent.closedWith(StandardOutcome.COMMIT)) {
+                    getScreenData().loadAll();
+                }
+            }).show();
+}
+----
+
+Now if you restart the application and click on an event, you will see the talk editor.
+
+image::using-screen-api/talk-editor-big.png[align="center"]
+
+The editor doesn’t look nice, so we need to adjust its width and height. In the IDE, open the screen’s XML descriptor - `talk-edit.xml`, select *dialogMode* component in the *Component Hierarchy* window and set width and height properties to `auto` in the *Component Inspector*.
+
+image::using-screen-api/dialog-mode-auto.png[align="center"]
+
+Restart the application, open the *Talk browser* and click on a talk on the calendar again - you should see the editor dialog displayed correctly.
+
+image::using-screen-api/talk-editor-auto.png[aligh="center"]
+
+Now the editor looks nicer.
