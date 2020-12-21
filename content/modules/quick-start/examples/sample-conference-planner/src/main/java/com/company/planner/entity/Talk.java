@@ -1,0 +1,115 @@
+package com.company.planner.entity;
+
+import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.metamodel.annotation.InstanceName;
+import io.jmix.core.metamodel.annotation.JmixEntity;
+
+import javax.persistence.*;
+import javax.validation.constraints.NotNull;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@JmixEntity
+@Table(name = "PLNNR_TALK")
+@Entity(name = "plnnr_Talk")
+public class Talk {
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
+
+    @Column(name = "TOPIC", nullable = false)
+    @NotNull
+    private String topic;
+
+    @Column(name = "START_DATE", nullable = false)
+    @NotNull
+    private LocalDateTime startDate;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "SPEAKER_ID", nullable = false)
+    private Speaker speaker;
+
+    @Column(name = "DURATION", nullable = false)
+    @NotNull
+    private Integer duration;
+
+    @InstanceName
+    @Column(name = "DESCRIPTION")
+    @Lob
+    private String description;
+
+    @Column(name = "END_DATE")
+    private LocalDateTime endDate;
+
+    public LocalDateTime getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDateTime endDate) {
+        this.endDate = endDate;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Integer getDuration() {
+        return duration;
+    }
+
+    public void setDuration(Integer duration) {
+        this.duration = duration;
+    }
+
+    public Speaker getSpeaker() {
+        return speaker;
+    }
+
+    public void setSpeaker(Speaker speaker) {
+        this.speaker = speaker;
+    }
+
+    public LocalDateTime getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate;
+    }
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    private LocalDateTime calculateEndDate() {
+        return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        endDate = calculateEndDate();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        endDate = calculateEndDate();
+    }
+}
