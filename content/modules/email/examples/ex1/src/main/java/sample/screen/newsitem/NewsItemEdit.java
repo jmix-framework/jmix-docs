@@ -23,8 +23,9 @@ import java.util.Collections;
 @EditedEntityContainer("newsItemDc")
 public class NewsItemEdit extends StandardEditor<NewsItem> {
 
-    private boolean justCreated; // <1>
-
+    // tag::just-created-1[]
+    private boolean justCreated;
+    // end::just-created-1[]
     @Autowired
     private Emailer emailer;
 
@@ -34,15 +35,19 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
     @Autowired
     protected Resources resources;
 
+    // tag::just-created-2[]
+
     @Subscribe
-    public void onInitEntity(InitEntityEvent<NewsItem> event) { // <2>
+    public void onInitEntity(InitEntityEvent<NewsItem> event) {
         justCreated = true;
     }
+    // end::just-created-2[]
 
+    // tag::post-commit-event[]
     @Subscribe(target = Target.DATA_CONTEXT)
-    public void onPostCommit(DataContext.PostCommitEvent event) { // <3>
-        if (justCreated) {
-            dialogs.createOptionDialog() // <4>
+    public void onPostCommit(DataContext.PostCommitEvent event) {
+        if (justCreated) { // <1>
+            dialogs.createOptionDialog() // <2>
                     .withCaption("Email")
                     .withMessage("Send the news item by email?")
                     .withActions(
@@ -50,7 +55,7 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
                                 @Override
                                 public void actionPerform(Component component) {
                                     try {
-                                        sendByEmail();
+                                        sendByEmail(); // <3>
                                     } catch (IOException e) {
                                         e.printStackTrace();
                                     }
@@ -61,37 +66,47 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
                     .show();
         }
     }
-    // end::news-item-edit1[]
+    // end::post-commit-event[]
 
-    // tag::text-attachment[]
-    private void sendWithAttachment() {
+    private EmailAttachment createEmailAttachment(String pathToResources) throws IOException {
+        InputStream resourceAsStream = resources.getResourceAsStream(pathToResources);
+        byte[] bytes = IOUtils.toByteArray(resourceAsStream);
+        // tag::create-attachment[]
+        EmailAttachment emailAtt = new EmailAttachment(bytes, "logo.png", "logoId");
+        // end::create-attachment[]
+        return emailAtt;
+    }
+
+
+    private void sendWithAttachment() throws EmailException {
+        // tag::text-attachment[]
         String att = "<html><body><h1>Content of attachment</h1></body></html>";
         EmailAttachment emailAtt = EmailAttachment.createTextAttachment(att, StandardCharsets.UTF_8.name(), "attachment.html");
-        EmailInfo emailInfo = EmailInfoBuilder.create("john.doe@company.com", "Email with attachment", "Email body")
-                .setAttachments(emailAtt)
+        // end::text-attachment[]
+        // tag::email-info[]
+        EmailInfo emailInfo = EmailInfoBuilder.create("john.doe@company.com",
+                "Email subject", "Email body")
                 .build();
-        emailer.sendEmailAsync(emailInfo);
+        emailer.sendEmail(emailInfo);
+        // end::email-info[]
     }
-    // end::text-attachment[]
 
-    // tag::news-item-edit2[]
 
-    private void sendByEmail() throws IOException { // <5>
-        InputStream resourceAsStream = resources.getResourceAsStream("/sample/logo.png");
-        byte[] bytes = IOUtils.toByteArray(resourceAsStream); // <6>
-        // tag::file-attachment[]
+    // tag::send-by-email[]
+    private void sendByEmail() throws IOException {
+        InputStream resourceAsStream = resources.getResourceAsStream("sample/logo.png");
+        byte[] bytes = IOUtils.toByteArray(resourceAsStream); // <1>
         EmailAttachment emailAtt = new EmailAttachment(bytes,
-                "logo.png", "logoId"); // <7>
-        // end::file-attachment[]
+                "logo.png", "logoId"); // <2>
         NewsItem newsItem = getEditedEntity();
         EmailInfo emailInfo = EmailInfoBuilder.create()
-                .setAddresses("john.doe@company.com,jane.roe@company.com") // <8>
-                .setSubject(newsItem.getCaption()) // <9>
-                .setFrom(null) // <10>
+                .setAddresses("john.doe@company.com,jane.roe@company.com") // <3>
+                .setSubject(newsItem.getCaption()) // <4>
+                .setFrom(null) // <5>
                 .setBody(newsItem.getContent())
-                .setAttachments(emailAtt) // <11>
+                .setAttachments(emailAtt) // <6>
                 .build();
         emailer.sendEmailAsync(emailInfo);
     }
+    // end::send-by-email[]
 }
-// end::news-item-edit2[]

@@ -1,0 +1,96 @@
+= Quick Start
+
+This section contains a practical guide on sending emails.
+
+Let’s consider that we want to send emails to some addresses every time a new instance of an entity is created through the entity browse screen.
+
+First, add Email Sending to your project according to the xref:index.adoc#installation[installation] section.
+
+== Creating Entity and Screens
+
+//some explanation what we are going to do
+
+1. Create `NewsItem` entity containing the following fields:
+
+* `date` with `LocalDate` type.
+* `caption` with `String` type.
+* `content` with `String` type and unlimited length.
+
+2. Create `NewsItemBrowse` and `NewsItemEdit` screens.
+
+== Adding Confirmation Dialog
+
+First, let's check if the editor opened to create a new entity.
+
+Add boolean attribute `justCreated` and subscribe to `InitEntity` event.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=just-created-1;just-created-2]
+----
+
+`justCreated` is set to `true` every time editor is opened for a new entity.
+
+Then, subscribe to `PostCommit` event and add the following code:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=post-commit-event]
+----
+
+<1> This method is invoked after commit of data context.
+<2> If a new entity was saved to the database, ask a user about sending an email.
+<3> Invokes a method that sends an email.
+
+== Adding Sending Email Method
+
+Let's add the `sendbyEmail` method that is invoked in the `postCommit` handler and sends an email asynchronously. To demonstrate how to add attachments, we will add a company's logo image as an attachment.
+
+Here is our method:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=send-by-email]
+----
+
+<1> Gets a file as a byte array.
+<2> Creates `EmailAttachment` object.
+<3> Recipients.
+<4> Email subject.
+<5> The `from` address will be taken from the xref:configuration.adoc#jmix.email.fromAddress[jmix.email.fromAddress] application property.
+<6> Attachments.
+
+== Setting Sending Parameters
+
+Set up the SMTP server xref:configuration.adoc#spring-boot-mail-properties[parameters]. You can set the parameters in the `application.properties` file of your application. Add the required parameters:
+
+[source,properties,indent=0]
+----
+spring.mail.host = mail.company.com
+jmix.email.fromAddress = info@company.com
+----
+
+Here is an example of connecting to the Google SMTP server:
+
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.protocol=smtp
+spring.mail.username=username
+spring.mail.password=password
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+----
+
+== Working with User Interface
+
+Launch the application, open the `NewsItem` entity browser and click *Create*. The editor screen will be opened. Fill in the fields and press *OK*. The confirmation dialog with the question about sending emails will be shown. Click *Yes*.
+
+image::confirmation.png[align="center"]
+
+Go to the *Administration > Email History* screen of your application. You will see a record with the `Queue` status. It means that the email is in the queue and not yet sent. Email information is displayed on the right.
+
+To send an email, choose it in the *Administration > Email History* screen and click *Resend email*. You can change or add recipients before sending. After successful sending, you will see a new line in the table with `Sent` status.
+
+image::resend.png[align="center"]

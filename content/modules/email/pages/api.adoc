@@ -1,0 +1,43 @@
+= Email Sending API
+
+== Sending Methods
+
+To send emails, you should use the following methods of the `Emailer` bean:
+
+* `sendEmail()` – synchronous message sending. The calling code is blocked while sending the message to the SMTP server. You can specify the message either by a set of parameters – the comma-separated list of recipients, subject, content, an array of attachments; or as a special `EmailInfo` object which encapsulates all this information and allows you to explicitly set the sender’s address.
++
+Here is an example of sending email using `EmailInfo` object:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=email-info]
+----
++
+During synchronous sending, the framework can throw `EmailException` with the information about failed recipient addresses and corresponding error messages.
++
+One `SendingMessage` instance is created in the database for all recipients during the execution of the method. It has the initial `SendingStatus.SENDING` status, and `SendingStatus.SENT` after successful sending. In case of a message sending error, the message status changes to `SendingStatus.NOT_SENT`.
++
+* sendEmailAsync() – asynchronous message sending. This method returns `SendingMessage` instance in `SendingStatus.QUEUE` status, which was created in the database. The actual sending is performed with the subsequent call of the `Emailer.processQueuedEmails()` method.
+
+== Email Attachments
+
+The `EmailAttachment` object is a wrapper that holds the attachment as a byte array, a file name, and, if necessary, an attachment identifier which is unique for this message. 
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=create-attachment]
+----
+
+The attachment identifier is an optional but useful field when you wand to insert images in the message body. For this, specify a unique `contentId` when creating `EmailAttachment`, as `logoId` in the example above. To insert the image in the message body, use an expression like `cid:logoId` as a path to attachment, for example:
+
+[source,html]
+----
+<img src="cid:logoId"/>
+----
+
+Also, you can create a text attachment from the string and specify an encoding and the name of the attachment file. In the example, an attachment is created and sent with email:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/screen/newsitem/NewsItemEdit.java[tags=text-attachment]
+----
