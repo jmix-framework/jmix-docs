@@ -8,6 +8,7 @@ import io.jmix.ui.component.Component;
 import io.jmix.ui.model.DataContext;
 import io.jmix.ui.screen.*;
 import org.apache.commons.io.IOUtils;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import sample.entity.NewsItem;
 
@@ -15,7 +16,9 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // tag::news-item-edit1[]
 @UiController("sample_NewsItem.edit")
@@ -25,18 +28,30 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
 
     // tag::just-created-1[]
     private boolean justCreated;
+
     // end::just-created-1[]
-    @Autowired
-    private Emailer emailer;
+
+    // tag::inject[]
+    private static final Logger log = LoggerFactory.getLogger(NewsItemEdit.class);
 
     @Inject
     protected Dialogs dialogs;
 
+    // end::inject[]
+
+    // tag::emailer[]
+    @Autowired
+    private Emailer emailer;
+
+    // end::emailer[]
+
+    // tag::resources[]
     @Autowired
     protected Resources resources;
 
-    // tag::just-created-2[]
+    // end::resources[]
 
+    // tag::just-created-2[]
     @Subscribe
     public void onInitEntity(InitEntityEvent<NewsItem> event) {
         justCreated = true;
@@ -57,7 +72,7 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
                                     try {
                                         sendByEmail(); // <3>
                                     } catch (IOException e) {
-                                        e.printStackTrace();
+                                        log.error("Error sending email", e);
                                     }
                                 }
                             },
@@ -77,19 +92,20 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
         return emailAtt;
     }
 
-
-    private void sendWithAttachment() throws EmailException {
+    // tag::email-info1[]
+    private void sendByEmailInfo() throws EmailException {
+        // end::email-info1[]
         // tag::text-attachment[]
         String att = "<html><body><h1>Content of attachment</h1></body></html>";
         EmailAttachment emailAtt = EmailAttachment.createTextAttachment(att, StandardCharsets.UTF_8.name(), "attachment.html");
         // end::text-attachment[]
-        // tag::email-info[]
+        // tag::email-info2[]
         EmailInfo emailInfo = EmailInfoBuilder.create("john.doe@company.com",
                 "Email subject", "Email body")
                 .build();
         emailer.sendEmail(emailInfo);
-        // end::email-info[]
     }
+    // end::email-info2[]
 
 
     // tag::send-by-email[]
