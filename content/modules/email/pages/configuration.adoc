@@ -1,33 +1,28 @@
 = Configuration
 
-Email sending parameters consist of two groups: 
-
-* https://docs.spring.io/spring-boot/docs/2.1.18.RELEASE/reference/html/boot-features-email.html[Spring Boot] mail properties such as host, port, protocol, etc.
-* Jmix application properties.
-
-You should set the necessary parameters in the `application.properties` file of your project.
-
 [[spring-boot-mail-properties]]
 == Spring Boot Mail Properties
 
-Spring Boot mail properties must be set in the following format – `spring.mail.*`.
+Use Spring Boot https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-application-properties.html#common-application-properties-mail[mail properties^] to define basic email sending parameters, such as protocol, host, port, and others.
 
-NOTE: Property `spring.mail.host` is required to send emails.
+For example:
 
 [source, properties,indent=0]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=spring-boot-properties]
 ----
 
-Also, you can specify JavaMail properties in the format `spring.mail.properties.*`. For example, the `mail.smtp.auth` property should be specified in the following way:
+Also, you can specify JavaMail properties in the format `spring.mail.properties.*`. For example, the `mail.smtp.auth` property can be provided as follows:
 
 [source, properties,indent=0]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=java-mail-properties]
 ----
 
-[[application-properties]]
-== Application Properties
+[[email-properties]]
+== Jmix Email Properties
+
+Jmix email properties allow you to configure the functionality described in the xref:api.adoc[] section.
 
 [[jmix.email.fromAddress]]
 === jmix.email.fromAddress
@@ -92,6 +87,52 @@ Defines the login of the system user, used by asynchronous email sending code to
 
 Default value: `admin`
 
+[[quartz]]
+== Configuring Quartz Scheduler
+
+When you call the `Emailer.sendEmailAsync()` method, an email is not sent but queued in the database. To send queued emails, you need to invoke the `Emailer.processQueuedEmails()` method.
+
+Follow the steps below to use https://www.quartz-scheduler.org/[Quartz Job Scheduler^] for periodic processing of the email queue.
+
+. Add the following line to the `dependencies` section of your `build.gradle` file:
++
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=quartz-dependency]
+----
+
+. Add the following properties to the `application.properties` file:
++
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=quartz]
+----
++
+If you use PostgreSQL and get the exception "org.quartz.JobPersistenceException: Couldn't retrieve job: Bad value for type long" on application start, set the following property:
++
+[source,properties]
+----
+spring.quartz.properties.org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+----
+
+. Create a job class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/EmailSendingJob.java[tags=quartz]
+----
+
+. Add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/sample/SampleEmailApplication.java[tags=quartz]
+----
++
+<1> This http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[Cron expression^] means "every minute".
+
+As a result, all queued emails will be sent once a minute.
+
 [[file-storage-usage]]
 == File Storage Usage
 
@@ -101,7 +142,7 @@ To use file storage:
 
 . Add the following line to the `dependencies` section of your `build.gradle` file:
 +
-[source,java,indent=0]
+[source,groovy,indent=0]
 ----
 include::example$/ex1/build.gradle[tags=fs-dependency]
 ----
