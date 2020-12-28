@@ -1,8 +1,10 @@
 package com.company.planner.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.metamodel.annotation.JmixProperty;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -40,16 +42,12 @@ public class Talk {
     @Lob
     private String description;
 
-    @Column(name = "END_DATE")
-    private LocalDateTime endDate;
-
+    @JmixProperty
+    @DependsOnProperties({"startDate", "duration"})
     public LocalDateTime getEndDate() {
-        return endDate;
+        return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
     }
 
-    public void setEndDate(LocalDateTime endDate) {
-        this.endDate = endDate;
-    }
 
     public String getDescription() {
         return description;
@@ -99,17 +97,4 @@ public class Talk {
         this.id = id;
     }
 
-    private LocalDateTime calculateEndDate() {
-        return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
-    }
-
-    @PrePersist
-    public void prePersist() {
-        endDate = calculateEndDate();
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        endDate = calculateEndDate();
-    }
 }
