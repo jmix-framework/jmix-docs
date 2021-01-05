@@ -1,4 +1,4 @@
-package sample.screen.main;
+package rest.sample.screen.main;
 
 import io.jmix.ui.component.AppWorkArea;
 import io.jmix.ui.component.Window;
