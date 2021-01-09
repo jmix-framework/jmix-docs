@@ -23,7 +23,7 @@ import java.util.UUID;
 public class User implements UserDetails, GrantedAuthorityContainer {
 
     @Id
-    @Column(name = "ID")
+    @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
     private UUID id;
 
@@ -51,8 +51,19 @@ public class User implements UserDetails, GrantedAuthorityContainer {
     @Column(name = "ENABLED")
     protected Boolean enabled = true;
 
+    @Column(name = "REGION")
+    private String region;
+
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+    }
 
     public UUID getId() {
         return id;

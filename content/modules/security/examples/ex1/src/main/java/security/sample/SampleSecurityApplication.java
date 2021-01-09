@@ -20,6 +20,7 @@ public class SampleSecurityApplication {
 	@Primary
 	@ConfigurationProperties(prefix="main.datasource")
 	DataSource dataSource() {
-		return DataSourceBuilder.create().build();
+		DataSource dataSource = DataSourceBuilder.create().build();
+		return dataSource;
 	}
 }
