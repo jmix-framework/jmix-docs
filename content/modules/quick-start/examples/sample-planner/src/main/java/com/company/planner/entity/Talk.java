@@ -41,12 +41,12 @@ public class Talk {
     @Column(name = "DESCRIPTION")
     @Lob
     private String description;
-
-    @JmixProperty
+    // tag::calculated-attribute[]
     @DependsOnProperties({"startDate", "duration"})
     public LocalDateTime getEndDate() {
         return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
     }
+    //end::calculated-attribute[]
 
 
     public String getDescription() {
