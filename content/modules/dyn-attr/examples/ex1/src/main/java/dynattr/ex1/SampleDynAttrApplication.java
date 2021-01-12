@@ -1,4 +1,4 @@
-package sample;
+package dynattr.ex1;
 
 import io.jmix.core.security.CoreSecurityConfiguration;
 import org.springframework.boot.SpringApplication;
