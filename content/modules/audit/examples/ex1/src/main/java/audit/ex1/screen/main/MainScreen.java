@@ -1,4 +1,4 @@
-package sample.screen.main;
+package audit.ex1.screen.main;
 
 import io.jmix.ui.component.AppWorkArea;
 import io.jmix.ui.component.Window;
