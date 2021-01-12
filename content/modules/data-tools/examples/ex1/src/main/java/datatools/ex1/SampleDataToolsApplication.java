@@ -1,4 +1,4 @@
-package sample;
+package datatools.ex1;
 
 import io.jmix.core.security.CoreSecurityConfiguration;
 import org.springframework.boot.SpringApplication;
