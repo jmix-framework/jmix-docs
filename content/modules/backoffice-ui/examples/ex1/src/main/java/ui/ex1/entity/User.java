@@ -16,9 +16,9 @@ import java.util.Collections;
 import java.util.UUID;
 
 @JmixEntity
-@Entity(name = "sample_User")
-@Table(name = "SAMPLE_USER", indexes = {
-        @Index(name = "IDX_SAMPLE_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
+@Entity(name = "uiex1_User")
+@Table(name = "UIEX1_USER", indexes = {
+        @Index(name = "IDX_UIEX1_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
 })
 public class User implements UserDetails, GrantedAuthorityContainer {
 

@@ -7,7 +7,7 @@ import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
 import ui.ex1.entity.User;
 
-@UiController("sample_User.browse")
+@UiController("uiex1_User.browse")
 @UiDescriptor("user-browse.xml")
 @LookupComponent("usersTable")
 @Route("users")

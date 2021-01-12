@@ -12,8 +12,8 @@ import javax.validation.constraints.Email;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "SAMPLE_CUSTOMER")
-@Entity(name = "sample_Customer")
+@Table(name = "UIEX1_CUSTOMER")
+@Entity(name = "uiex1_Customer")
 public class Customer {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

@@ -11,8 +11,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "SAMPLE_ORDER")
-@Entity(name = "sample_Order")
+@Table(name = "UIEX1_ORDER")
+@Entity(name = "uiex1_Order")
 public class Order {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

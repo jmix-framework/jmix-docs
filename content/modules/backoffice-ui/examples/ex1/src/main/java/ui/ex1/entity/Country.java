@@ -11,8 +11,8 @@ import javax.persistence.Table;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "SAMPLE_COUNTRY")
-@Entity(name = "sample_Country")
+@Table(name = "UIEX1_COUNTRY")
+@Entity(name = "uiex1_Country")
 public class Country {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

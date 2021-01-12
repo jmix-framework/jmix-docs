@@ -8,8 +8,8 @@ import javax.validation.constraints.NotNull;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "SAMPLE_ADDRESS")
-@Entity(name = "sample_Address")
+@Table(name = "UIEX1_ADDRESS")
+@Entity(name = "uiex1_Address")
 public class Address {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Address;
 import ui.ex1.entity.Country;
 
-@UiController("sample_Address.edit")
+@UiController("uiex1_Address.edit")
 @UiDescriptor("address-edit.xml")
 @EditedEntityContainer("addressDc")
 public class AddressEdit extends StandardEditor<Address> {
