@@ -1,4 +1,4 @@
-package sample.entity;
+package email.ex1.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;

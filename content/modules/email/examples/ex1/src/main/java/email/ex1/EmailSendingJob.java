@@ -1,4 +1,4 @@
-package sample;
+package email.ex1;
 
 import io.jmix.email.Emailer;
 import org.quartz.Job;

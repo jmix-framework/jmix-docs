@@ -1,4 +1,4 @@
-package sample.screen.newsitem;
+package email.ex1.screen.newsitem;
 
 import io.jmix.core.Resources;
 import io.jmix.email.*;
@@ -10,7 +10,7 @@ import io.jmix.ui.screen.*;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import sample.entity.NewsItem;
+import email.ex1.entity.NewsItem;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -18,7 +18,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // tag::news-item-edit1[]
 @UiController("sample_NewsItem.edit")
@@ -110,7 +109,7 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
 
     // tag::send-by-email[]
     private void sendByEmail() throws IOException {
-        InputStream resourceAsStream = resources.getResourceAsStream("sample/logo.png");
+        InputStream resourceAsStream = resources.getResourceAsStream("email/ex1/logo.png");
         byte[] bytes = IOUtils.toByteArray(resourceAsStream); // <1>
         EmailAttachment emailAtt = new EmailAttachment(bytes,
                 "logo.png", "logoId"); // <2>
