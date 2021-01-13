@@ -42,6 +42,7 @@ public class Talk {
     @Lob
     private String description;
     // tag::calculated-attribute[]
+    @JmixProperty
     @DependsOnProperties({"startDate", "duration"})
     public LocalDateTime getEndDate() {
         return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
