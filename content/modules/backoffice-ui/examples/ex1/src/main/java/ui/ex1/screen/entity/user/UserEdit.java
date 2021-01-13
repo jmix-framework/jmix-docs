@@ -1,4 +1,4 @@
-package ui.ex1.screen.user;
+package ui.ex1.screen.entity.user;
 
 import io.jmix.ui.navigation.Route;
 import io.jmix.ui.screen.EditedEntityContainer;

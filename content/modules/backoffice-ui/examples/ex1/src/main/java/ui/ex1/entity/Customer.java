@@ -20,6 +20,9 @@ public class Customer {
     @Id
     private UUID id;
 
+    @Column(name = "HOBBY")
+    private String hobby;
+
     @InstanceName
     @Column(name = "FIRST_NAME", length = 50)
     private String firstName;
@@ -33,6 +36,14 @@ public class Customer {
 
     @Column(name = "REWARD_POINTS")
     private Integer rewardPoints;
+
+    public Hobby getHobby() {
+        return hobby == null ? null : Hobby.fromId(hobby);
+    }
+
+    public void setHobby(Hobby hobby) {
+        this.hobby = hobby == null ? null : hobby.getId();
+    }
 
     public Integer getRewardPoints() {
         return rewardPoints;

@@ -1,4 +1,4 @@
-package ui.ex1.screen.address;
+package ui.ex1.screen.entity.address;
 
 import com.google.common.base.Strings;
 import io.jmix.core.DataManager;

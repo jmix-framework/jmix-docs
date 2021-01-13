@@ -1,4 +1,4 @@
-package ui.ex1.screen.order;
+package ui.ex1.screen.entity.order;
 
 import io.jmix.ui.screen.*;
 import ui.ex1.entity.Order;

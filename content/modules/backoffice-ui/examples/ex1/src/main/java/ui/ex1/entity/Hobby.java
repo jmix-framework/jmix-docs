@@ -11,13 +11,13 @@ public enum Hobby implements EnumClass<String> {
     MOVIES("mvs"),
     FISHING("fshg"),
     COMPUTER("cmpt"),
-    GARDENING("grdg"),
+    /*GARDENING("grdg"),
     WALKING("wlkg"),
     MUSIC("msc"),
     SPORT("strt"),
     SHOPPING("shpg"),
     TRAVELING("trvl"),
-    COOKING("ckng"),
+    COOKING("ckng"),*/
     TV("tv");
 
     private String id;

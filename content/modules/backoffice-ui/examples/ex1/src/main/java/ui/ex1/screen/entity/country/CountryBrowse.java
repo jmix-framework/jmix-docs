@@ -1,4 +1,4 @@
-package ui.ex1.screen.country;
+package ui.ex1.screen.entity.country;
 
 import io.jmix.ui.screen.*;
 import ui.ex1.entity.Country;

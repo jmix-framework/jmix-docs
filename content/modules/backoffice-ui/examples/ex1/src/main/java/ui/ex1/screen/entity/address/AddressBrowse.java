@@ -1,4 +1,4 @@
-package ui.ex1.screen.address;
+package ui.ex1.screen.entity.address;
 
 import io.jmix.ui.screen.*;
 import ui.ex1.entity.Address;
