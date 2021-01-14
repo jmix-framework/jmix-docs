@@ -64,7 +64,9 @@ public class EntityPickerScreen extends Screen {
         Customer customer = customerEntityPicker.getValue();
         if (customer != null) {
             notifications.create()
-                    .withCaption(customer.getFirstName() + " has " + customer.getRewardPoints() + " reward points")
+                    .withCaption(customer.getFirstName() +
+                            " has " + customer.getRewardPoints() +
+                            " reward points")
                     .show();
         } else {
             notifications.create()
