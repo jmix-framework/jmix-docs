@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-
+//tag::task-schedule-service[]
 @Service
 public class TalksScheduleService {
 
@@ -35,3 +35,4 @@ public class TalksScheduleService {
     }
 
 }
+//end::task-schedule-service[]

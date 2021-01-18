@@ -19,7 +19,7 @@ Create the class `TalksScheduleService`.
 
 image::adding-business-logic/name-new-class.png[align="center"]
 
-[source%nowrap,java]
+[source,java]
 ----
 public class TalksScheduleService {
 
@@ -28,7 +28,7 @@ public class TalksScheduleService {
 
 Mark this class with the `@Service` annotation and create a method `rescheduleTalk` that will accept a talk that should be rescheduled and new talk start time like in the snippet below. During the further service implementation you may need to import some classes.
 
-[source%nowrap,java]
+[source,java]
 ----
 @Service
 public class TalksScheduleService {
@@ -42,7 +42,7 @@ public class TalksScheduleService {
 
 First, let's calculate the start and end time of the day when the session is planned.
 
-[source%nowrap,java]
+[source,java]
 ----
 @Service
 public class TalksScheduleService {
@@ -68,34 +68,9 @@ image::adding-business-logic/inject-service-dialog.png[align="center"]
 
 The method implementation is on the snippet below:
 
-[source%nowrap,java]
+[source,java,indent=0]
 ----
-@Service
-public class TalksScheduleService {
-
-    @Autowired
-    private DataManager dataManager;
-
-    public Talk rescheduleTalk(Talk talk, LocalDateTime newStartDate){
-        LocalDateTime dayStart = newStartDate.truncatedTo(ChronoUnit.DAYS).withHour(8);
-        LocalDateTime dayEnd = newStartDate.truncatedTo(ChronoUnit.DAYS).withHour(19);
-
-        Long talksSameTime = dataManager.loadValue("select count(t) from plnnr_Talk t where " +
-                "(t.startDate between :dayStart and :dayEnd) " +
-                "and t.speaker = :speaker " +
-                "and t.id <> :talkId", Long.class)
-                .parameter("dayStart", dayStart)
-                .parameter("dayEnd", dayEnd)
-                .parameter("speaker", talk.getSpeaker())
-                .parameter("talkId", talk.getId())
-                .one();
-        if (talksSameTime >= 2) {
-            return talk;
-        }
-        talk.setStartDate(newStartDate);
-        return dataManager.save(talk);
-    }
-}
+include::example$sample-planner/src/main/java/com/company/planner/service/TalksScheduleService.java[tags=task-schedule-service]
 ----
 
 The service is ready, now let’s add it to the talks browser screen. It will be invoked for the drag-and-drop event in the calendar.
@@ -104,13 +79,9 @@ In the `talk-browse.xml` select `talksCalendar` and go to the *Handlers* tab in 
 
 In the method that is subscribed to the drag-and-drop event, we add some code to extract the talk entity from the calendar event and pass it to the service to reschedule this talk. After that, we just refresh the screen data programmatically. Please inject `TalksScheduleService` to the screen before implementing the event handler.
 
-[source%nowrap,java]
+[source,java,indent=0]
 ----
-@Subscribe("talksCalendar")
-public void onTalksCalendarCalendarEventMove(Calendar.CalendarEventMoveEvent<LocalDateTime> event) {
-    talksScheduleService.rescheduleTalk((Talk)event.getEntity(), event.getNewStart());
-    getScreenData().loadAll();
-}
+include::example$sample-planner/src/main/java/com/company/planner/screen/talk/TalkBrowse.java[tags=calendar-event-move]
 ----
 
 To have the new service redeployed, we need to restart the application. After restarting we can open the calendar - and voilà! We have drag-and-drop rescheduling functionality for the calendar! You can test it by adding an extra talk and trying to reschedule it.

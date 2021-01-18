@@ -148,11 +148,12 @@ public class User implements UserDetails, GrantedAuthorityContainer {
     public boolean isEnabled() {
         return enabled;
     }
-
+    //tag::instance-name[]
     @InstanceName
     @DependsOnProperties({"firstName", "lastName", "username"})
     public String getDisplayName() {
         return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
                 (lastName != null ? lastName : ""), username);
     }
+    //end::instance-name[]
 }

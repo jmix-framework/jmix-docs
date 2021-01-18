@@ -19,7 +19,7 @@ public class TalkBrowse extends StandardLookup<Talk> {
 
     @Autowired
     private TalksScheduleService talksScheduleService;
-
+    //tag::calendar-event-click[]
     @Subscribe("talksCalendar")
     public void onTalksCalendarCalendarEventClick(Calendar.CalendarEventClickEvent<LocalDateTime> event) {
         screenBuilders.editor(Talk.class, this)
@@ -32,13 +32,14 @@ public class TalkBrowse extends StandardLookup<Talk> {
                     }
                 }).show();
     }
+    //end::calendar-event-click[]
 
+    //tag::calendar-event-move[]
     @Subscribe("talksCalendar")
     public void onTalksCalendarCalendarEventMove(Calendar.CalendarEventMoveEvent<LocalDateTime> event) {
         talksScheduleService.rescheduleTalk((Talk)event.getEntity(), event.getNewStart());
         getScreenData().loadAll();
     }
-
-
+    //end::calendar-event-move[]
 
 }
