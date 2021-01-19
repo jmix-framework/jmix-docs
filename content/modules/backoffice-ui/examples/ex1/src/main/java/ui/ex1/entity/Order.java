@@ -19,6 +19,9 @@ public class Order {
     @Id
     private UUID id;
 
+    @Column(name = "RATING")
+    private Integer rating;
+
     @Column(name = "DATE_")
     private LocalDate date;
 
@@ -32,6 +35,14 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CUSTOMER_ID")
     private Customer customer;
+
+    public Integer getRating() {
+        return rating;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
 
     public Customer getCustomer() {
         return customer;
