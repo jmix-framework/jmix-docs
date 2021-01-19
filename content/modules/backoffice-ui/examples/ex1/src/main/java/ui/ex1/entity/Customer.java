@@ -20,6 +20,12 @@ public class Customer {
     @Id
     private UUID id;
 
+    @Column(name = "AGE")
+    private Integer age;
+
+    @Column(name = "MARITAL_STATUS")
+    private String maritalStatus;
+
     @Column(name = "HOBBY")
     private String hobby;
 
@@ -36,6 +42,22 @@ public class Customer {
 
     @Column(name = "REWARD_POINTS")
     private Integer rewardPoints;
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
 
     public Hobby getHobby() {
         return hobby == null ? null : Hobby.fromId(hobby);
