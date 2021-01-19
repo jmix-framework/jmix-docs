@@ -1,0 +1,96 @@
+=== AWS
+
+Before starting the guide, please create an account and ensure that you have an acces to the link:https://console.aws.amazon.com/console/home[AWS Console^]
+
+TIP: We will use PostgreSQL database as an example for this guide.
+
+==== Deploying Fat Jar
+The simplest way to deploy the application's fat jar to AWS is to use link:https://aws.amazon.com/elasticbeanstalk/[Elastic Beanstalk Service^] (EBS).
+
+===== Preparing The Application
+
+Since we have two database connections now (local for development and AWS), we need to configure additional properties file that will contain connection properties for AWS environment.
+
+To switch between different configurations, we will use link:https://docs.spring.io/spring-boot/docs/2.4.x/reference/html/spring-boot-features.html#boot-features-profiles[Runtime Profiles^]. For our case, we will use profile name `aws`.
+
+Let's create `application-aws.properties` file according to naming rules described in link:https://docs.spring.io/spring-boot/docs/2.4.x/reference/html/spring-boot-features.html#boot-features-external-config-files-profile-specific[Spring Boot Documentation].
+
+In this file, we will specify database connection properties using AWS Elastic Beanstalk environment variables:
+
+* `RDS_HOSTNAME` - internal EBS-specific database host name
+* `RDS_PORT` - database port allocated by EBS
+* `RDS_DB_NAME` - database name
+* `RDS_USERNAME` - database username
+* `RDS_PASSWORD` - database password
+
+TIP: Please note that these variables should be specified for the case when you create a database using EBS. If you created the database separately using RDS or another AWS service, you may not need these variables
+
+In addition to the datasource coordinates, we need to specify the following properties before the deployment:
+
+* `server.port` - should be set to 5000 by default. You can specify EBS environment property `SERVER_PORT` instead if you like. We will show how to set EBS environment later.
+* `spring.liquibase.change-log` - specifies database migration scripts, so they are executed on application startup.
+
+WARNING: Please be careful with the automatic DB update execution on production environments. You may want to disable it and run updates manually.
+
+So, the `application-aws.properties` file content may look like this:
+
+```[source,properties,indent=0]
+main.datasource.jdbcUrl = jdbc:postgresql://${RDS_HOSTNAME}:${RDS_PORT}/${RDS_DB_NAME}
+main.datasource.username = ${RDS_USERNAME}
+main.datasource.password = ${RDS_PASSWORD}
+
+server.port=5000
+
+spring.liquibase.change-log=com/company/planner/liquibase/changelog.xml
+```
+
+The application is ready, you can create a fat jar and move to the next step.
+
+===== Creating The AWS environment
+
+Log in to the AWS Console and select *Elastic Beanstalk* service from the list of services.
+
+After that, create the application by clicking on a corresponding link on the EBS main page. Enter application information:
+
+* Application name - any name you prefer
+* Platform - Java. Select platfrom branch according to your preferences. Default settings should do.
+
+In the *Application code* section select *Upload your code* option. In the *Source code origin* section for the *Local file* option click on *Choose file* button and upload your application's fat jar. It is usually located in `$project.root$/build/libs` folder.
+
+Add a database to the environment by clicking on *Configure more options* button. In the configuration page, edit the database parameters
+
+image::aws-ebs-add-database.png[align=center]
+
+Set database parameters similar to those on the picture
+
+image::aws-rds-parameters.png[align=center]
+
+TIP: Setting *Retention* to `Delete` is recommended for test environments. For production environments set it to `Create snapshot` to avoid data loss in case of the application is deleted accidentally.
+
+After creating the database, we have one more step specifying runtime profile to enable proper application configuration - `aws`. In order to do this, edit *Software* settings in the environment configuration page.
+
+image::aws-ebs-environment-settings.png[align=center]
+
+In the *Environment properties* section add one more property: `SPRING_PROFILES_ACTIVE` and set its value to `aws`.
+
+image::aws-ebs-environment-values.png[align=center]
+
+Save all settings and create the application. The creation and startup usually takes 5-10 minutes.
+
+===== Testing The Deploy
+
+When the application is created and deployed, open the environments list and click on the corresponding environment
+
+image:aws-ebs-app-env-list.png[align=center]
+
+In the environment page, click on the *Go to environment* link to open the deployed application page.
+
+image:aws-ebs-app-env-page.png[align=center]
+
+The application page should open.
+
+===== More Information
+
+The guide is based on the link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[AWS guide^], so you can refer to it for further details.
+
+Also, you may find the link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[guide on deploying Java applications]  useful.
