@@ -19,10 +19,12 @@ public class ComboBoxScreen extends Screen {
     // tag::options-list[]
     @Autowired
     private ComboBox<String> maritalStatusField;
+
     // end::options-list[]
     // tag::options-map[]
     @Autowired
     private ComboBox<Integer> ratingField;
+
     // end::options-map[]
     // tag::options-map-2[]
     // tag::options-list-2[]
