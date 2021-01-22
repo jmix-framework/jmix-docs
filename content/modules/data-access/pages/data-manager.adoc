@@ -1,15 +1,194 @@
 = Using DataManager
 
+`DataManager` is the main interface for CRUD (Create, Read, Update, Delete) operations on entities. It allows you to load graphs of entities by ID or query, to save changed instances or remove them. You can use <<entity-events,entity event>> listeners to perform actions on loading and saving of particular entities. `DataManager` maintains cross-datastore references for both JPA, DTO, and mixed entity graphs.
+
+You can inject `DataManager` to a Spring bean or a Backoffice UI screen controller, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=inject-dm]
+----
+
+In the examples below, we skip the definition and assume that the `dataManager` variable is a reference to `DataManager`.
+
+[[load]]
+== Loading Entities
+
+`DataManager` provides a fluent API for loading entities. Use `load()` methods accepting entity class or `Id` as entry points to this API.
+
+[[load-by-id]]
+=== Loading Entity by Id
+
+The following method loads an entity by its identifier value:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-id]
+----
+<1> Entry point to the fluent loader API.
+<2> `id()` method accepts the identifier value.
+<3> `one()` method loads the entity instance. If there is no entity with the given identifier, the method throws `IllegalStateException`.
+
+The identifier can also be specified using `Id<E>` class which contains information about the entity type. Then the application code doesn't need to use concrete type of the entity identifier (`UUID`, `Long`, etc.) and the loading code becomes even shorter:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-generic-id]
+----
+
+If the entity with the given identifier may not exist, instead of `one()` terminal method use `optional()` which returns `Optional<E>`. In the example below, if the entity not found, a new instance is created and returned:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-optional]
+----
+<1> Returns `Optional<Customer>`.
+
+You can also load a list of entities by their identifiers passed to the `ids()` method, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-ids]
+----
+
+Entities in the result list have the same order as provided identifiers.
+
+[[load-all]]
+=== Loading All Entities
+
+The following method loads all instances of the entity in a list:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-all]
+----
+
+CAUTION: Load all instances only if you are sure that the number of rows in the corresponding table is always low. Otherwise, use a <<load-by-query,query>>, <<load-by-conditions,conditions>> and/or <<paging-and-sorting,paging>>.
+
+[[load-by-query]]
+=== Loading Entities by Query
+
+When working with relational databases, use https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] queries to load data. See the xref:data-access:jpql-extensions.adoc[] for information on how JPQL in Jmix differs from the JPA standard. Also note that `DataManager` can execute only "select" queries.
+
+The following method loads a list of entities using a full JPQL query and two parameters:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-full-query]
+----
+
+The `query()` method of the fluent loader interface accepts both full and abbreviated query string. The latter should be created in accordance with the following rules:
+
+* You can always omit the `"select <alias>"` clause.
+
+* If the `"from"` clause contains a single entity and you don’t need a specific alias for it, you can omit the `"from <entity> <alias> where"` clause. In this case, the framework assumes that the alias is `e`.
+
+* You can use positional parameters and pass their values right to the `query()` method as additional arguments.
+
+Below is an abbreviated equivalent of the previous example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-query]
+----
+
+An example of a more complex abbreviated query with join:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-by-query]
+----
+
+[[load-by-conditions]]
+=== Loading Entities by Conditions
+
+You can use conditions instead of a JPQL query to filter results. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-conditions]
+----
+<1> `condition()` method accepts a single root condition.
+<2> `LogicalCondition.and()` method creates AND condition with the given nested conditions.
+<3> Property conditions compare entity attributes with the specified values.
+
+If you need a single property condition, pass it directly to the `condition()` method:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-condition]
+----
+
+`PropertyCondition` lets you specify properties of referenced entities, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-by-condition]
+----
+
+[[load-scalars]]
+=== Loading Scalar and Aggregate Values
+
+Besides entity instances, `DataManager` can load scalar and aggregate values in the form of xref:data-model:entities.adoc#key-value[key-value entities].
+
+The `loadValues(String query)` method loads a list of `KeyValueEntity` instances populated with a given query results. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-values]
+----
+<1> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+<2> Specify names of the resulting key-value entity attributes. The order of the properties must correspond to the columns in the query result set.
+<3> Get loaded values from the key-value entity attributes.
+
+The `loadValue(String query, Class valueType)` method loads a single value of the given type by the query. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-value]
+----
+<1> The type of the returned value.
+<2> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+
+[[paging-and-sorting]]
+=== Paging and Sorting
+
+When you load entities using `all()`, `query()` or `condition()` methods, you can also sort results and split them into pages.
+
+Use `firstResult()` and `maxResults()` methods for paging:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-page-by-query]
+----
+
+Use `sort()` method for sorting results:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-and-sort]
+----
+
+In the `Sort.by()` method, you can specify properties of referenced entities, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-sorted]
+----
+
+When loading by a JPQL query, you can also use the standard `order by` clause in the query:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-query-sorted]
+----
+
+[[save]]
+== Saving Entities
+
 Coming soon
 
-== Loading Data
-
-Coming soon
-
-== Saving Data
-
-Coming soon
-
-== Data Events
+[[entity-events]]
+== Entity Events
 
 Coming soon
