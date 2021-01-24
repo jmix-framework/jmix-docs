@@ -125,4 +125,9 @@ public class CustomerService {
     }
     // end::load-by-query-sorted[]
 
+    // tag::save[]
+    Customer saveCustomer(Customer entity) {
+        return dataManager.save(entity);
+    }
+    // end::save[]
 }

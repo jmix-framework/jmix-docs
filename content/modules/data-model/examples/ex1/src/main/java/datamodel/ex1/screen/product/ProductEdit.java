@@ -15,17 +15,21 @@ import datamodel.ex1.entity.ProductPart;
 public class ProductEdit extends StandardEditor<Product> {
 
     @Autowired
-    private CollectionPropertyContainer<ProductPart> partsDc;
-    @Autowired
     private InstanceContainer<Product> productDc;
+
+    // tag::data-context-create[]
     @Autowired
     private DataContext dataContext;
+
+    @Autowired
+    private CollectionPropertyContainer<ProductPart> partsDc;
 
     @Subscribe("partsTable.create")
     public void onPartsTableCreate(Action.ActionPerformedEvent event) {
         ProductPart part = dataContext.create(ProductPart.class);
         partsDc.getMutableItems().add(part);
     }
+    // end::data-context-create[]
 
     @Subscribe("partsTable.remove")
     public void onPartsTableRemove(Action.ActionPerformedEvent event) {

@@ -9,6 +9,7 @@ import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.JmixProperty;
 
+import javax.annotation.PostConstruct;
 import javax.persistence.*;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotNull;
@@ -90,6 +91,13 @@ public class Customer {
         this.grade = grade == null ? null : grade.getId();
     }
     // end::enum[]
+
+    // tag::post-construct[]
+    @PostConstruct
+    void init() {
+        setGrade(CustomerGrade.BRONZE);
+    }
+    // end::post-construct[]
 
     @DeletedBy
     @Column(name = "DELETED_BY")

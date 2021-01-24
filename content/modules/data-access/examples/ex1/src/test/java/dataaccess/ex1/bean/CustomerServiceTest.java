@@ -110,4 +110,18 @@ public class CustomerServiceTest {
         assertEquals(customer1, customers.get(0));
         assertEquals(customer2, customers.get(1));
     }
+
+    @Test
+    void testSave() {
+        customer1.setGrade(CustomerGrade.BRONZE);
+        Customer customer = customerService.saveCustomer(customer1);
+        assertEquals(CustomerGrade.BRONZE, customer.getGrade());
+        assertNotSame(customer1, customer);
+
+        Customer newCustomer = dataManager.create(Customer.class);
+        newCustomer.setName("Gomer");
+        newCustomer.setGrade(CustomerGrade.GOLD);
+        customer = customerService.saveCustomer(newCustomer);
+        assertNotSame(newCustomer, customer); // we always reload entity after save
+    }
 }

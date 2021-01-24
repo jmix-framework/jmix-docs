@@ -1,5 +1,6 @@
 package datamodel.ex1;
 
+import datamodel.ex1.entity.Order;
 import io.jmix.core.DataManager;
 import io.jmix.core.Id;
 import io.jmix.core.Metadata;
@@ -14,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import datamodel.ex1.entity.GeoPointEntity;
 import datamodel.ex1.entity.Metric;
 import datamodel.ex1.entity.OperationResult;
+
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -67,5 +70,11 @@ public class EntitiesTest {
 
         String instanceName = metadataTools.getInstanceName(geoPointEntity);
         assertEquals("Latitude: 53.20076, Longitude: 50.098603", instanceName);
+    }
+
+    @Test
+    void testPostConstruct() {
+        Order order = metadata.create(Order.class);
+        assertEquals(LocalDate.now(), order.getDate());
     }
 }

@@ -1,6 +1,7 @@
 package datamodel.ex1.entity;
 
 import io.jmix.core.DeletePolicy;
+import io.jmix.core.TimeSource;
 import io.jmix.core.annotation.DeletedBy;
 import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
@@ -13,6 +14,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
+import javax.annotation.PostConstruct;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -93,6 +95,13 @@ public class Order {
     private List<OrderLine> lines;
     // end::composition[]
     // end::on-delete[]
+
+    // tag::post-construct[]
+    @PostConstruct
+    void init(TimeSource timeSource) {
+        setDate(timeSource.now().toLocalDate());
+    }
+    // end::post-construct[]
 
     public List<OrderLine> getLines() {
         return lines;
