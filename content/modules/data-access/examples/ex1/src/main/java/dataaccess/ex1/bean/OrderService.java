@@ -2,8 +2,7 @@ package dataaccess.ex1.bean;
 
 import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.Order;
-import io.jmix.core.DataManager;
-import io.jmix.core.Sort;
+import io.jmix.core.*;
 import io.jmix.core.entity.KeyValueEntity;
 import io.jmix.core.querycondition.PropertyCondition;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +17,8 @@ public class OrderService {
 
     @Autowired
     private DataManager dataManager;
+    @Autowired
+    private FetchPlans fetchPlans;
 
     // tag::load-by-query[]
     List<Order> loadOrdersByProduct(String productName) {
@@ -77,4 +78,37 @@ public class OrderService {
     }
     // end::load-sorted[]
 
+    // tag::save-multiple[]
+    Order createOrderWithCustomer() {
+        Customer customer = dataManager.create(Customer.class);
+        customer.setName("Alice");
+
+        Order order = dataManager.create(Order.class);
+        order.setCustomer(customer);
+
+        EntitySet savedEntities = dataManager.save(order, customer); // <1>
+
+        return savedEntities.get(order); // <2>
+    }
+    // end::save-multiple[]
+
+    // tag::save-context[]
+    EntitySet saveUsingContext(List<Customer> entities) {
+        SaveContext saveContext = new SaveContext();
+        for (Customer entity : entities) {
+            saveContext.saving(entity);
+        }
+        return dataManager.save(saveContext);
+    }
+    // end::save-context[]
+
+    // tag::save-discard[]
+    void saveAndReturnNothing(List<Customer> entities) {
+        SaveContext saveContext = new SaveContext().setDiscardSaved(true);
+        for (Customer entity : entities) {
+            saveContext.saving(entity);
+        }
+        dataManager.save(saveContext);
+    }
+    // end::save-discard[]
 }

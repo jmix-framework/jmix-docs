@@ -5,6 +5,7 @@ import dataaccess.ex1.entity.Order;
 import dataaccess.ex1.entity.OrderLine;
 import dataaccess.ex1.entity.Product;
 import io.jmix.core.DataManager;
+import io.jmix.core.EntitySet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,5 +94,11 @@ public class OrderServiceTest {
     void testLoadSorted() {
         List<Order> orders = orderService.loadSorted();
         assertEquals(1, orders.size());
+    }
+
+    @Test
+    void testCreateOrderWithCustomer() {
+        Order order = orderService.createOrderWithCustomer();
+        assertNotNull(order.getCustomer());
     }
 }
