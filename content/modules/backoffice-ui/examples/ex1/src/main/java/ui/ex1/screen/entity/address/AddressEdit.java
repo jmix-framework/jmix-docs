@@ -1,27 +1,33 @@
 package ui.ex1.screen.entity.address;
 
 import com.google.common.base.Strings;
-import io.jmix.core.DataManager;
-import io.jmix.core.Metadata;
+import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.EntityPicker;
 import io.jmix.ui.component.ValuePicker;
+import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.DataContext;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Address;
 import ui.ex1.entity.Country;
 
-import javax.inject.Inject;
-
 @UiController("uiex1_Address.edit")
 @UiDescriptor("address-edit.xml")
 @EditedEntityContainer("addressDc")
 public class AddressEdit extends StandardEditor<Address> {
-    // tag::field-value-change[]
-    private Country country;
+    // tag::data[]
+    @Autowired
+    private CollectionContainer<Country> countriesDc;
 
-    @Inject
-    protected DataContext dataContext;
+    @Autowired
+    private EntityComboBox<Country> countryEntityComboBox;
+
+    // tag::field-value-change[]
+    @Autowired
+    private DataContext dataContext;
+
+    // end::data[]
+    private Country country;
 
     @Autowired
     private EntityPicker<Country> countryField;
@@ -36,4 +42,13 @@ public class AddressEdit extends StandardEditor<Address> {
         }
     }
     // end::field-value-change[]
+    // tag::new-option-handler[]
+    @Install(to = "countryEntityComboBox", subject = "newOptionHandler")
+    private void countryEntityComboBoxNewOptionHandler(String string) {
+        Country country = dataContext.create(Country.class); // <1>
+        country.setName(string); // <2>
+        countriesDc.getMutableItems().add(country); // <3>
+        countryEntityComboBox.setValue(country);
+    }
+    // end::new-option-handler[]
 }

@@ -270,6 +270,32 @@ After that, when you load `Customer` with a fetch plan including `address` attri
 
 When you save an entity graph which includes `Customer` with `Address`, `DataManager` saves the instances via corresponding `DataStore` implementations, and then saves the identifier of the address in the customer’s `addressId` attribute.
 
+[[instantiation]]
+== Instantiating Entities
+
+When creating instances of JPA and DTO entities, use the appropriate framework interface instead of invoking the class constructor with the `new` operator. Only in this case the framework can initialize fields annotated with <<jmix-generated-value,@JmixGeneratedValue>> and invoke <<post-construct,@PostConstruct>> methods.
+
+The most common core method for instantiating entities is `Metadata.create()`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/bean/OrderService.java[tags=metadata-create]
+----
+
+If you write business logic and already have xref:data-access:data-manager.adoc[DataManager] in your code, use its `create()` method, which just saves you from injecting also the `Metadata` bean. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/bean/OrderService.java[tags=data-manager-create]
+----
+
+In a Backoffice UI screen, you can use either of two methods described above. But you may also want the created instance to be saved automatically on the screen's `DataContext` commit. Then use the `DataContext.create()` method which creates an instance and immediately merges it to start tracking its changes. In the example below, we create an instance of `ProductPart` entity, merge it into `DataContext` and add to a data container to display in a UI table:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/product/ProductEdit.java[tags=data-context-create]
+----
+
 [[jmix-annotations]]
 == Jmix Entity Annotations
 
@@ -293,6 +319,7 @@ include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=composi
 
 `@DependsOnProperties` annotation specifies entity attributes that the annotated attribute depends on. These properties are taken into account when building fetch plans and when loading/saving references to entities from different data stores. Also, if the annotated property is read-only (without a setter), `EntityPropertyChangeEvent` is sent for this attribute when the specified attributes are changed.
 
+You can specify only immediate local and reference properties. Property paths like `customer.name` are not supported.
 
 [[instance-name]]
 === @InstanceName
@@ -338,7 +365,7 @@ The `annotatedPropertiesOnly` parameter specifies what object properties become 
 
 The annotated attribute must be of `Long`, `Integer` or `UUID` type, and the entity should not have more than one `UUID` attribute marked with this annotation.
 
-CAUTION: Note that the `@JmixGeneratedValue` annotation doesn't take any effect if you create an entity instance using the `new` operator. Always create entity instances using appropriate framework methods: `Metadata.create()`, `DataManager.create()` or `DataContext.create()`.
+CAUTION: Note that the `@JmixGeneratedValue` annotation doesn't take any effect if you create an entity instance using the `new` operator. See <<instantiation,instantiating entities>> for proper methods of creating new instances.
 
 [[jmix-id]]
 === @JmixId
@@ -368,6 +395,25 @@ private UUID id;
 `@JmixProperty` annotation indicates that an object field or method is an entity attribute. See <<attributes>> for more details.
 
 Use the `mandatory` parameter if you want to specify that the attribute requires a value, and the object field has no JPA `@Column` annotation where you could set `nullable = false`.
+
+[[post-construct]]
+=== @PostConstruct
+
+Use `javax.annotation.PostConstruct` annotation on a method that performs initialization of a new entity instance. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Customer.java[tags=post-construct]
+----
+
+The annotated method can accept any Spring beans. In the example below, we use `TimeSource` bean to initialize a `date` attribute:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=post-construct]
+----
+
+CAUTION: Note that the `@PostConstruct` annotated method is not invoked if you create an entity instance using the `new` operator. See <<instantiation,instantiating entities>> for proper methods of creating new instances.
 
 [[property-datatype]]
 === @PropertyDatatype

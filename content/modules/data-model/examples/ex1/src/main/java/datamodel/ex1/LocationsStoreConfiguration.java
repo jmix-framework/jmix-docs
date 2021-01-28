@@ -2,6 +2,7 @@ package datamodel.ex1;
 
 import io.jmix.autoconfigure.data.JmixLiquibase;
 import io.jmix.core.JmixModules;
+import io.jmix.core.Resources;
 import io.jmix.data.impl.JmixEntityManagerFactoryBean;
 import io.jmix.data.impl.JmixTransactionManager;
 import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
@@ -31,12 +32,15 @@ public class LocationsStoreConfiguration {
     }
 
     @Bean
-    LocalContainerEntityManagerFactoryBean locationsEntityManagerFactory(JpaVendorAdapter jpaVendorAdapter, DbmsSpecifics dbmsSpecifics, JmixModules jmixModules) {
-        return new JmixEntityManagerFactoryBean("locations", locationsDataSource(), jpaVendorAdapter, dbmsSpecifics, jmixModules);
+    LocalContainerEntityManagerFactoryBean locationsEntityManagerFactory(
+            JpaVendorAdapter jpaVendorAdapter, DbmsSpecifics dbmsSpecifics, JmixModules jmixModules, Resources resources) {
+        return new JmixEntityManagerFactoryBean(
+                "locations", locationsDataSource(), jpaVendorAdapter, dbmsSpecifics, jmixModules, resources);
     }
 
     @Bean
-    JpaTransactionManager locationsTransactionManager(@Qualifier("locationsEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
+    JpaTransactionManager locationsTransactionManager(
+            @Qualifier("locationsEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
         return new JmixTransactionManager("locations", entityManagerFactory);
     }
 
