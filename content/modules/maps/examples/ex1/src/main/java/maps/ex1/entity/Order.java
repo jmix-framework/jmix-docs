@@ -1,21 +1,15 @@
 package maps.ex1.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
-import io.jmix.core.entity.annotation.MetaAnnotation;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.JmixProperty;
 import io.jmix.core.metamodel.annotation.PropertyDatatype;
 import io.jmix.maps.Geometry;
-import io.jmix.maps.utils.GeometryUtils;
 import org.locationtech.jts.geom.Point;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import java.time.LocalDate;
+import javax.persistence.*;
+import java.util.Date;
 import java.util.UUID;
-
 
 @Table(name = "MAPST_ORDER")
 @Entity(name = "mapst_Order")
@@ -29,8 +23,9 @@ public class Order {
     @Id
     private UUID id;
 
+    @Temporal(TemporalType.DATE)
     @Column(name = "DATE_")
-    private LocalDate date;
+    private Date date;
 
     @Column(name = "PRODUCT")
     private String product;
@@ -45,6 +40,14 @@ public class Order {
     @JmixProperty
     private Point location;
     // end::geo-object[]
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    public Date getDate() {
+        return date;
+    }
 
     public Point getLocation() {
         return location;
@@ -68,14 +71,6 @@ public class Order {
 
     public void setProduct(String product) {
         this.product = product;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
     }
 
     public UUID getId() {

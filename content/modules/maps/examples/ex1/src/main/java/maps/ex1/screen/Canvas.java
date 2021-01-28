@@ -1,17 +1,12 @@
 package maps.ex1.screen;
 
-import io.jmix.maps.utils.GeometryUtils;
 import io.jmix.mapsui.component.*;
-import io.jmix.mapsui.component.layer.style.FontPointIcon;
 import io.jmix.mapsui.component.layer.style.GeometryStyles;
-import io.jmix.mapsui.component.layer.style.PointStyle;
 import io.jmix.mapsui.component.layer.style.PolygonStyle;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.component.Button;
 import io.jmix.ui.component.GroupTable;
-import io.jmix.ui.component.Table;
 import io.jmix.ui.icon.JmixIcon;
-import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
 import io.jmix.ui.screen.UiController;
@@ -19,7 +14,6 @@ import io.jmix.ui.screen.UiDescriptor;
 import maps.ex1.entity.Order;
 import org.locationtech.jts.geom.Point;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.parameters.P;
 
 import javax.inject.Inject;
 
@@ -30,15 +24,7 @@ public class Canvas extends Screen {
     @Inject
     private Notifications notifications;
 
-    @Autowired
-    private CollectionContainer<Order> ordersDc;
-
-    @Autowired
-    private GeometryStyles geometryStyles;
-
-
     // tag::canvas-methods[]
-
     // tag::map[]
     @Autowired
     private GeoMap map;
@@ -47,13 +33,14 @@ public class Canvas extends Screen {
     // tag::table[]
     @Autowired
     private GroupTable<Order> ordersTable;
-
     // end::table[]
+
+    @Autowired
+    private GeometryStyles geometryStyles;
+
     protected void drawGeometry() {
         Order order = ordersTable.getSingleSelected();
         CanvasLayer canvasLayer = map.getCanvas();
-        PopupWindow popupWindow = new PopupWindow(ordersTable.getSingleSelected().getLocation(), "hello");
-        map.openPopup(popupWindow);
 
         CanvasLayer.Point location = canvasLayer.addPoint(order.getLocation());
         location.setStyle(
@@ -62,7 +49,6 @@ public class Canvas extends Screen {
                         .setIconPathFillColor("#f4d142")
                         .setIconTextFillColor("black")
                         .setIconPathStrokeColor("black"))
-                .setPopupContent(order.getDate().toString())
                 .setEditable(true);
     }
     // end::canvas-methods[]
@@ -74,15 +60,16 @@ public class Canvas extends Screen {
                 .show();
     }
 
+    //tag::consumer[]
+
     @Subscribe("drawPoint")
     private void onDrawPointClick(Button.ClickEvent event) {
-        //tag::consumer[]
         CanvasLayer canvasLayer = map.getCanvas();
         canvasLayer.drawPoint(point -> {
             ordersTable.getSingleSelected().setLocation(point.getGeometry());
         });
-        //end::consumer[]
     }
+    //end::consumer[]
 
     @Subscribe("drawPolyline")
     private void onDrawPolylineClick(Button.ClickEvent event) {
@@ -103,6 +90,7 @@ public class Canvas extends Screen {
     }
 
     // tag::show-order[]
+
     @Subscribe("showOrder")
     public void onShowOrderClick(Button.ClickEvent event) {
         CanvasLayer canvasLayer = map.getCanvas();
@@ -111,13 +99,10 @@ public class Canvas extends Screen {
     }
     // end::show-order[]
 
-    protected void showPopup() {
-        Order order = ordersTable.getSingleSelected();
-
-        PopupWindow popupWindow = new PopupWindow(ordersTable.getSingleSelected().getLocation(), "hello");
-        map.openPopup(popupWindow);
-
+    @Subscribe("showPopup")
+    public void onShowPopupClick(Button.ClickEvent event) {
         // tag::popup[]
+        Order order = ordersTable.getSingleSelected();
         CanvasLayer canvasLayer = map.getCanvas();
         CanvasLayer.Point location = canvasLayer.addPoint(order.getLocation());
         PopupWindowOptions popupWindowOptions = new PopupWindowOptions()
@@ -126,15 +111,32 @@ public class Canvas extends Screen {
         location.setPopupContent(order.getProduct())
                 .setPopupOptions(popupWindowOptions);
         // end::popup[]
+    }
 
+    @Subscribe("drawGeometry")
+    public void onDrawGeometryClick(Button.ClickEvent event) {
+        drawGeometry();
+    }
+
+    // tag::popup-window[]
+    @Subscribe
+    public void onAfterShow(AfterShowEvent event) {
+        PopupWindow popupWindow = new PopupWindow(map.getCenter(), "Hello");
+        map.openPopup(popupWindow);
+    }
+    // end::popup-window[]
+
+    @Subscribe("showTooltip")
+    public void onShowTooltipClick(Button.ClickEvent event) {
         // tag::tooltip[]
+        Order order = ordersTable.getSingleSelected();
+        CanvasLayer canvasLayer = map.getCanvas();
         CanvasLayer.Point point = canvasLayer.addPoint(order.getLocation());
         TooltipOptions tooltipOptions = new TooltipOptions()
                 .setPermanent(true)
                 .setOpacity(0.7);
-        point.setTooltipContent(order.getDate().toString())
+        point.setTooltipContent(order.getProduct())
                 .setTooltipOptions(tooltipOptions);
         // end::tooltip[]
     }
-
 }
