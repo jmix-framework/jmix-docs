@@ -130,4 +130,22 @@ public class CustomerService {
         return dataManager.save(entity);
     }
     // end::save[]
+
+    // tag::remove[]
+    void removeCustomer(Customer entity) {
+        dataManager.remove(entity);
+    }
+    // end::remove[]
+
+    // tag::remove-list[]
+    void removeCustomers(List<Customer> entities) {
+        dataManager.remove(entities);
+    }
+    // end::remove-list[]
+
+    // tag::remove-by-id[]
+    void removeCustomer(UUID customerId) {
+        dataManager.remove(Id.of(customerId, Customer.class));
+    }
+    // end::remove-by-id[]
 }
