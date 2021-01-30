@@ -2,6 +2,7 @@ package dataaccess.ex1.bean;
 
 import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.Order;
+import dataaccess.ex1.entity.Product;
 import io.jmix.core.*;
 import io.jmix.core.entity.KeyValueEntity;
 import io.jmix.core.querycondition.PropertyCondition;
@@ -111,4 +112,20 @@ public class OrderService {
         dataManager.save(saveContext);
     }
     // end::save-discard[]
+
+    // tag::remove-multiple[]
+    void removeOrderWithCustomer(Order order) {
+        dataManager.remove(order, order.getCustomer());
+    }
+    // end::remove-multiple[]
+
+    // tag::hard-delete[]
+    void hardDelete(Product product) {
+        dataManager.save(
+                new SaveContext()
+                        .removing(product)
+                        .setSoftDeletion(false)
+        );
+    }
+    // end::hard-delete[]
 }

@@ -6,6 +6,7 @@ import dataaccess.ex1.entity.OrderLine;
 import dataaccess.ex1.entity.Product;
 import io.jmix.core.DataManager;
 import io.jmix.core.EntitySet;
+import io.jmix.core.Id;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,5 +101,27 @@ public class OrderServiceTest {
     void testCreateOrderWithCustomer() {
         Order order = orderService.createOrderWithCustomer();
         assertNotNull(order.getCustomer());
+    }
+
+    @Test
+    void testRemoveOrderWithCustomer() {
+        Order order = orderService.createOrderWithCustomer();
+        assertNotNull(order.getCustomer());
+
+        orderService.removeOrderWithCustomer(order);
+
+        assertFalse(dataManager.load(Order.class).id(order.getId()).optional().isPresent());
+        assertFalse(dataManager.load(Customer.class).id(order.getCustomer().getId()).optional().isPresent());
+    }
+
+    @Test
+    void testHardDelete() {
+        Product product1 = dataManager.create(Product.class);
+        product1.setName("MacBook Pro");
+        dataManager.save(product1);
+
+        orderService.hardDelete(product1);
+
+        assertFalse(dataManager.load(Id.of(product1)).softDeletion(false).optional().isPresent());
     }
 }
