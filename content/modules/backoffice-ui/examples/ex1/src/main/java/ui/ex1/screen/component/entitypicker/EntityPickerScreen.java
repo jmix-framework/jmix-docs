@@ -7,8 +7,8 @@ import io.jmix.ui.Notifications;
 import io.jmix.ui.UiComponents;
 import io.jmix.ui.action.Action;
 import io.jmix.ui.action.entitypicker.EntityClearAction;
-import io.jmix.ui.action.entitypicker.LookupAction;
-import io.jmix.ui.action.entitypicker.OpenAction;
+import io.jmix.ui.action.entitypicker.EntityLookupAction;
+import io.jmix.ui.action.entitypicker.EntityOpenAction;
 import io.jmix.ui.component.EntityPicker;
 import io.jmix.ui.component.HasValue;
 import io.jmix.ui.screen.*;
@@ -46,13 +46,13 @@ public class EntityPickerScreen extends Screen {
     @Subscribe
     public void onInit(InitEvent event) {
         // end::userPicker2[]
-        entityPicker.addAction(actions.create(OpenAction.class));
+        entityPicker.addAction(actions.create(EntityOpenAction.class));
         // end::addAction2[]
         // tag::userPicker3[]
         EntityPicker<User> userPicker = uiComponents.create(EntityPicker.of(User.class));
         userPicker.setMetaClass(metadata.getClass(User.class));
-        userPicker.addAction(actions.create(LookupAction.class));
-        userPicker.addAction(actions.create(OpenAction.class));
+        userPicker.addAction(actions.create(EntityLookupAction.class));
+        userPicker.addAction(actions.create(EntityOpenAction.class));
         userPicker.addAction(actions.create(EntityClearAction.class));
         getWindow().add(userPicker);
     }
