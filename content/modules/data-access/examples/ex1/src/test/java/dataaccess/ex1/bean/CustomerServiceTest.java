@@ -63,6 +63,7 @@ public class CustomerServiceTest {
     @AfterEach
     void tearDown() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("delete from CUSTOMER_GRADE_CHANGE");
         jdbc.execute("delete from CUSTOMER");
     }
 

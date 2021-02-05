@@ -64,6 +64,7 @@ public class OrderServiceTest {
         jdbc.execute("delete from ORDER_LINE");
         jdbc.execute("delete from ORDER");
         jdbc.execute("delete from PRODUCT");
+        jdbc.execute("delete from CUSTOMER_GRADE_CHANGE");
         jdbc.execute("delete from CUSTOMER");
     }
 
