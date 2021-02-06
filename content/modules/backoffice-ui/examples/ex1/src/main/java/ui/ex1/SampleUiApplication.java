@@ -24,8 +24,4 @@ public class SampleUiApplication {
     DataSource dataSource() {
         return DataSourceBuilder.create().build();
     }
-
-    @EnableWebSecurity
-    static class SampleSecurityConfiguration extends CoreSecurityConfiguration {
-    }
 }

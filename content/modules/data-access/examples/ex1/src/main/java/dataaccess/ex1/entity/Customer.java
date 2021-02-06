@@ -3,14 +3,19 @@ package dataaccess.ex1.entity;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.metamodel.annotation.JmixProperty;
 
 import javax.persistence.*;
 import java.util.UUID;
 
+// tag::entity[]
 @JmixEntity
 @Table(name = "CUSTOMER")
 @Entity(name = "sample_Customer")
 public class Customer {
+
+    // end::entity[]
+
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
@@ -29,6 +34,32 @@ public class Customer {
 
     @Column(name = "GRADE")
     private String grade;
+
+    // tag::encryption[]
+    @Column(name = "ENCRYPTED_DATA")
+    @Lob
+    private String encryptedData;
+
+    @Transient
+    @JmixProperty
+    private String sensitiveData;
+    // end::encryption[]
+
+    public String getSensitiveData() {
+        return sensitiveData;
+    }
+
+    public void setSensitiveData(String sensitiveData) {
+        this.sensitiveData = sensitiveData;
+    }
+
+    public String getEncryptedData() {
+        return encryptedData;
+    }
+
+    public void setEncryptedData(String encryptedData) {
+        this.encryptedData = encryptedData;
+    }
 
     public CustomerGrade getGrade() {
         return grade == null ? null : CustomerGrade.fromId(grade);

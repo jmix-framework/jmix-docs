@@ -20,6 +20,9 @@ public class Customer {
     @Id
     private UUID id;
 
+    @Column(name = "LEVEL_")
+    private String level;
+
     @Column(name = "AGE")
     private Integer age;
 
@@ -42,6 +45,14 @@ public class Customer {
 
     @Column(name = "REWARD_POINTS")
     private Integer rewardPoints;
+
+    public Level getLevel() {
+        return level == null ? null : Level.fromId(level);
+    }
+
+    public void setLevel(Level level) {
+        this.level = level == null ? null : level.getId();
+    }
 
     public String getMaritalStatus() {
         return maritalStatus;

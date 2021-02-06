@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import javax.sql.DataSource;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,6 +63,7 @@ public class CustomerServiceTest {
     @AfterEach
     void tearDown() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("delete from CUSTOMER_GRADE_CHANGE");
         jdbc.execute("delete from CUSTOMER");
     }
 
@@ -123,5 +125,21 @@ public class CustomerServiceTest {
         newCustomer.setGrade(CustomerGrade.GOLD);
         customer = customerService.saveCustomer(newCustomer);
         assertNotSame(newCustomer, customer); // we always reload entity after save
+    }
+
+    @Test
+    void testRemove() {
+        customerService.removeCustomer(customer1);
+        assertFalse(dataManager.load(Customer.class).id(customer1.getId()).optional().isPresent());
+
+        customerService.removeCustomer(customer2.getId());
+        assertFalse(dataManager.load(Customer.class).id(customer2.getId()).optional().isPresent());
+    }
+
+    @Test
+    void testRemoveList() {
+        customerService.removeCustomers(Arrays.asList(customer1, customer2));
+        assertFalse(dataManager.load(Customer.class).id(customer1.getId()).optional().isPresent());
+        assertFalse(dataManager.load(Customer.class).id(customer2.getId()).optional().isPresent());
     }
 }

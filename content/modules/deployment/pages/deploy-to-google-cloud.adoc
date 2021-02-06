@@ -1,0 +1,253 @@
+= Google Cloud
+
+Before starting the guide, please create an account and ensure that you have access to the https://console.cloud.google.com/[Google Cloud Console^] We will use Google App Engine for the application deploy.
+
+TIP: We will use PostgreSQL database as an example for this guide.
+
+== SDK Installation
+
+Install the Cloud SDK. link:https://cloud.google.com/sdk/docs/install[See the documentation^].
+
+Install the app-engine-java component:
+
+[source]
+----
+$ gcloud components install app-engine-java
+----
+
+== Google Cloud Project Setup
+
+To run the application in Google Cloud, you need to create a *Project*. Inside the project, you need to create an *Application* that will run the deployed Jar file and *Database* that will be used by the application. We will use Google Cloud SDK command line interface to do this, but it is also possible t use Google Cloud Web console.
+
+The first step is project creation. In the OS console type the following command:
+
+[source]
+----
+$ gcloud init
+----
+
+After issuing this command, you will be asked about init configuration. Init with new configuration using your account and create a new project. For this example, the name `jmix-application` will be used.
+
+[source]
+----
+This account has no projects.
+
+Would you like to create one? (Y/n)?  Y
+
+Enter a Project ID. Note that a Project ID CANNOT be changed later.
+Project IDs must be 6-30 characters (lowercase ASCII, digits, or
+hyphens) in length and start with a lowercase letter. *jmix-application*
+----
+
+After that, we need to associate billing account with the project. It may be free of charge, but it is required in order to be able to deploy applications.
+
+To do this, find your billing account ID:
+
+[source]
+----
+$ gcloud alpha billing accounts list
+----
+
+You should see output similar to this:
+[source]
+----
+ACCOUNT_ID            NAME                OPEN  MASTER_ACCOUNT_ID
+019961-BB112F-B3C8E6  My Billing Account  True
+----
+
+Link your project with the account ID by executing the command and use your account ID as a parameter:
+
+[source]
+----
+gcloud alpha billing projects link jmix-application --billing-account=019961-BB112F-B3C8E6
+----
+
+Next, we need to set up default project for the Google Cloud SDK and enable the following cloud APIs that we need to deploy the application:
+
+* SQL admin API
+* Cloud Build API
+* Cloud Debugger API
+
+[source]
+----
+$ gcloud config set project jmix-application
+$ gcloud services enable sqladmin.googleapis.com
+$ gcloud services enable cloudbuild.googleapis.com
+$ gcloud services enable clouddebugger.googleapis.com
+----
+
+The next step: create a Google App Engine application inside the project. This application will be responsible for running the uploaded Jar file. To create the application, issue the following command in the console:
+
+[source]
+----
+$ gcloud app create
+----
+
+In the list of the geographical locations select one for your application deploy. For this example we will use `europe-west2`.
+
+After the application is created, we can set up the database. The database name will be `sampledb`. It will be created inside the PostgreSQL instance named `sample`. The instance will be placed in the same region and zone as the application - `europe-west2`.
+
+For the PostgreSQL database type, we need to specify sever parameters. You can find all possible parameters (CPU and Memory) link:https://cloud.google.com/sql/docs/postgres/create-instance#machine-types[on this page].
+
+To create a PostgreSQL database instance, execute the following command:
+
+[source]
+----
+$ gcloud sql instances create sample --database-version=POSTGRES_12 --tier=db-custom-1-3840 --region=europe-west2
+----
+
+Create the database for the application and change the password for the default user using the following commands:
+
+[source]
+----
+$ gcloud sql databases create sampledb --instance=sample
+$ gcloud sql users set-password postgres --instance=sample --prompt-for-password
+----
+
+We have our database up and running. To continue, you need to write down the following information:
+
+* Database name (in this example `sampledb`)
+* Database username (by default it is `postgres`)
+* Database password (the password that you assigned during database creation)
+* Cloud-specific instance connection name.
+
+Get the connection name of the instance in the format `project-id:zone-id:instance-id` by running the following command:
+
+[source]
+----
+$ gcloud sql instances describe sample
+----
+
+Find *connectionName* property in the output data. For our case it will look like `jmix-application:europe-west2:sample`
+
+The cloud environment is set up and ready.
+
+== Preparing Application
+
+=== Defining Database Connection
+Since we have more than one database connections now (local for development and Google Cloud Database), we need to configure additional properties file that will contain connection properties specific for Google Cloud environment.
+
+To switch between different configurations, we will use link:https://docs.spring.io/spring-boot/docs/2.4.x/reference/html/spring-boot-features.html#boot-features-profiles[Runtime Profiles^]. For our case, we will use profile name `gae`.
+
+Let's create `application-gae.properties` file according to naming rules described in the link:https://docs.spring.io/spring-boot/docs/2.4.x/reference/html/spring-boot-features.html#boot-features-external-config-files-profile-specific[Spring Boot Documentation].
+
+In this file, we need to specify database connection properties, cloud-specific spring boot application diagnostic context path and Liquibase file location for automatic database update.
+
+For our application, the file may look like this:
+
+[source, properties]
+----
+gae.conn.name=jmix-application:europe-west2:sample
+gae.database=sampledb
+
+main.datasource.username = postgres
+main.datasource.password = -=password that you specified=-
+main.datasource.jdbcUrl = jdbc:postgresql://google/${gae.database}?useSSL=false&cloudSqlInstance=${gae.conn.name}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&amp;user=${main.datasource.username}& password=${main.datasource.password}
+
+management.contextPath=/_ah
+
+spring.liquibase.change-log=com/company/planner/liquibase/changelog.xml
+----
+
+=== Specifying Cloud-specific Settings
+
+To run the application in the Google Cloud AppEngine, we need to create the execution environment configuration file named `app.yaml`. Create this file in your source code, the path is: `src/main/appengine/app.yaml`.
+
+In this file we need to specify application execution runtime, environment variables and scaling parameters. You can find more information about configuration file in link:https://cloud.google.com/appengine/docs/flexible/java/configuring-your-app-with-app-yaml[the Google Cloud documentation].
+
+For our case, we specify the minimum set of parameters:
+
+* Java 11 as an execution environment
+* Active Spring runtime profile name (`gae`)
+* Temporary directory path
+* No scaling
+
+So the file may look like this:
+[source, properties]
+----
+runtime: java11
+env_variables:
+  SPRING_PROFILES_ACTIVE: "gae"
+  JMIX_CORE_WORKDIR: "/tmp/.jmix/work"
+manual_scaling:
+  instances: 1
+----
+
+The applicatin is configured, now we need to alter the build script to enable application deploy using Google Cloud SDK.
+
+=== Adding Deploy Task to the Build Script
+
+First, we need to add Google Cloud plugin to import Gradle tasks. You can do it by specifying the following in the beginning of the build script:
+
+[source, groovy]
+----
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.cloud.tools:appengine-gradle-plugin:2.4.1'
+    }
+}
+----
+
+Then we need to apply this plugin along with Spring Boot plugin. Add the following line as an addition to the Spring Boot plugin application:
+
+[source, groovy]
+----
+apply plugin: 'com.google.cloud.tools.appengine'
+----
+
+In the dependencies section, add the could connector and PostgreSQL JDBC driver:
+
+[source, groovy]
+----
+implementation('com.google.cloud.sql:postgres-socket-factory:1.2.0') {
+    exclude group: 'com.google.guava', module: 'guava'
+}
+
+compile 'org.postgresql:postgresql:42.1.4'
+----
+
+Finally, add the deployment task definition to the end of the build file and specify project ID in it:
+
+[source, groovy]
+----
+appengine {  // App Engine tasks configuration
+    deploy {   // deploy configuration
+        projectId = 'jmix-application'
+        version = '1'
+    }
+}
+----
+
+Now our application is ready for deploy.
+
+== Application Deploy
+
+In order to deploy the application to the Google Cloud, execute the following command in the command line:
+
+[source]
+----
+$ ./gradlew appengineDeploy
+----
+
+Gradle will use Google Cloud SDK and upload the application Jar file to the cloud execution environment.
+
+You should see a console output similar to the following:
+
+[source]
+----
+Beginning deployment of service [default]...
+Created .gcloudignore file. See `gcloud topic gcloudignore` for details.
+#============================================================#
+#= Uploading 1 file to Google Cloud Storage                 =#
+#============================================================#
+File upload done.
+Updating service [default].............................done.
+Setting traffic split for service [default]..................................done.
+Deployed service [default] to [https://jmix-application.nw.r.appspot.com]
+----
+
+Please note the URL in the last line. This is the address that you can use to get access to the deployed application.

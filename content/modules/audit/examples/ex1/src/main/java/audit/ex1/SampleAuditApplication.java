@@ -25,7 +25,4 @@ public class SampleAuditApplication {
         return DataSourceBuilder.create().build();
     }
 
-    @EnableWebSecurity
-    static class SecurityConfiguration extends CoreSecurityConfiguration {
-    }
 }
