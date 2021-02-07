@@ -1,10 +1,10 @@
 package datamodel.ex1;
 
-import io.jmix.autoconfigure.data.JmixLiquibase;
 import io.jmix.core.JmixModules;
 import io.jmix.core.Resources;
 import io.jmix.data.impl.JmixEntityManagerFactoryBean;
 import io.jmix.data.impl.JmixTransactionManager;
+import io.jmix.data.impl.liquibase.JmixLiquibase;
 import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import io.jmix.data.persistence.DbmsSpecifics;
 import liquibase.integration.spring.SpringLiquibase;
@@ -44,9 +44,10 @@ public class LocationsStoreConfiguration {
         return new JmixTransactionManager("locations", entityManagerFactory);
     }
 
-    @Bean
-    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
-        return JmixLiquibase.create(locationsDataSource(), new LiquibaseProperties(), processor, "locations");
-    }
+    // commented out until https://github.com/Haulmont/jmix-data/issues/20#issuecomment-774607159 is resolved
+//    @Bean
+//    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
+//        return JmixLiquibase.create(locationsDataSource(), new LiquibaseProperties(), processor, "locations");
+//    }
 }
 // end::add-data-source[]

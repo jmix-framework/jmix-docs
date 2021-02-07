@@ -1,6 +1,6 @@
 package datamodel.ex1;
 
-import io.jmix.autoconfigure.data.JmixLiquibase;
+import io.jmix.data.impl.liquibase.JmixLiquibase;
 import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
@@ -25,10 +25,11 @@ public class FakeStoreConfiguration {
         return new LiquibaseProperties();
     }
 
-    @Bean
-    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
-        return JmixLiquibase.create(locationsDataSource(),
-                locationsLiquibaseProperties(), processor, "locations");
-    }
+    // commented out until https://github.com/Haulmont/jmix-data/issues/20#issuecomment-774607159 is resolved
+//    @Bean
+//    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
+//        return JmixLiquibase.create(locationsDataSource(),
+//                locationsLiquibaseProperties(), processor, "locations");
+//    }
     // end::liquibase-props[]
 }
