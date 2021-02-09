@@ -1,9 +1,9 @@
 package ui.ex1.screen.component.suggestionfield;
 
 import io.jmix.core.DataManager;
-import io.jmix.core.LoadContext;
 import io.jmix.core.Messages;
 import io.jmix.core.QueryUtils;
+import io.jmix.core.common.util.ParamsMap;
 import io.jmix.core.querycondition.JpqlCondition;
 import io.jmix.ui.screen.Install;
 import io.jmix.ui.screen.Screen;
@@ -62,9 +62,9 @@ public class SuggestionFieldScreen extends Screen {
     @Install(to = "entitySuggestionField", subject = "searchExecutor")
     private List entitySuggestionFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
         searchString = QueryUtils.escapeForLike(searchString);
-        return dataManager.load(Country.class)
-                .condition(JpqlCondition.where("e.name like :name order by e.name escape '\\'"))
-                .parameter("name", "%" + searchString + "%")
+        return dataManager.load(Customer.class)
+                .condition(JpqlCondition.createWithParameters("e.firstName like :name order by e.firstName escape '\\'",
+                        null, ParamsMap.of("name", "%" + searchString + "%")))
                 .list();
     }
     // end::escape-for-like[]
@@ -86,4 +86,10 @@ public class SuggestionFieldScreen extends Screen {
         return null;
     }
     // end::option-style-provider[]
+    @Install(to = "customerSuggestionField", subject = "searchExecutor")
+    private List customerSuggestionFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+        return dataManager.load(Customer.class)
+                .query("e.firstName like ?1 order by e.firstName", "(?i)%" + searchString + "%")
+                .list();
+    }
 }
