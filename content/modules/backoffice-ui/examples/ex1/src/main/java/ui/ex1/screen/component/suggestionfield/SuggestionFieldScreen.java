@@ -15,10 +15,10 @@ import ui.ex1.entity.Country;
 import ui.ex1.entity.Customer;
 import ui.ex1.entity.Hobby;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @UiController("suggestionField-screen")
 @UiDescriptor("suggestionfield-screen.xml")
@@ -29,22 +29,18 @@ public class SuggestionFieldScreen extends Screen {
 
     @Install(to = "enumField", subject = "searchExecutor")
     private List enumFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
-        List<Hobby> enums = Arrays.asList(Hobby.values());
-        return enums.stream()
+        return Stream.of(Hobby.values())
                 .filter(status -> StringUtils.containsIgnoreCase(messages.getMessage(status), searchString))
                 .collect(Collectors.toList());
     }
-
     // end::enum-search-executor[]
     // tag::string-search-executor[]
     @Install(to = "stringField", subject = "searchExecutor")
     private List stringFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
-        List<String> strings = Arrays.asList("John", "Andy", "Dora", "Martin", "Peter", "George");
-        return strings.stream()
+        return Stream.of("John", "Andy", "Dora", "Martin", "Peter", "George")
                 .filter(str -> StringUtils.containsIgnoreCase(str, searchString))
                 .collect(Collectors.toList());
     }
-
     // end::string-search-executor[]
     // tag::entity-search-executor[]
     @Autowired
@@ -56,7 +52,6 @@ public class SuggestionFieldScreen extends Screen {
                 .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
                 .list();
     }
-
     // end::entity-search-executor[]
     // tag::escape-for-like[]
     @Install(to = "entitySuggestionField", subject = "searchExecutor")
