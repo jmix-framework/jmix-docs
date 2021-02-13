@@ -1,6 +1,6 @@
 package datamodel.ex1;
 
-import io.jmix.autoconfigure.data.JmixLiquibase;
+import io.jmix.autoconfigure.data.JmixLiquibaseCreator;
 import io.jmix.core.JmixModules;
 import io.jmix.core.Resources;
 import io.jmix.data.impl.JmixEntityManagerFactoryBean;
@@ -46,7 +46,7 @@ public class LocationsStoreConfiguration {
 
     @Bean
     public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
-        return JmixLiquibase.create(locationsDataSource(), new LiquibaseProperties(), processor, "locations");
+        return JmixLiquibaseCreator.create(locationsDataSource(), new LiquibaseProperties(), processor, "locations");
     }
 }
 // end::add-data-source[]

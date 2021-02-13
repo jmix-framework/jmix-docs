@@ -6,7 +6,6 @@ import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.JmixProperty;
-import io.jmix.core.security.GrantedAuthorityContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -21,7 +20,7 @@ import java.util.UUID;
 @Table(name = "SAMPLE_USER", indexes = {
         @Index(name = "IDX_SAMPLE_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
 })
-public class User implements UserDetails, GrantedAuthorityContainer {
+public class User implements UserDetails {
 
     @Id
     @Column(name = "ID")
@@ -136,11 +135,6 @@ public class User implements UserDetails, GrantedAuthorityContainer {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities != null ? authorities : Collections.emptyList();
-    }
-
-    @Override
-    public void setAuthorities(Collection<? extends GrantedAuthority> authorities) {
-        this.authorities = authorities;
     }
 
     @Override

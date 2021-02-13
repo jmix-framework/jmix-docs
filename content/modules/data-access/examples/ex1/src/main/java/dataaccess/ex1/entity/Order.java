@@ -23,6 +23,9 @@ public class Order {
     @Version
     private Integer version;
 
+    @Column(name = "NUMBER_")
+    private String number;
+
     @Column(name = "DATE_")
     private LocalDate date;
 
@@ -36,6 +39,14 @@ public class Order {
     @Composition
     @OneToMany(mappedBy = "order")
     private List<OrderLine> lines;
+
+    public String getNumber() {
+        return number;
+    }
+
+    public void setNumber(String number) {
+        this.number = number;
+    }
 
     public List<OrderLine> getLines() {
         return lines;

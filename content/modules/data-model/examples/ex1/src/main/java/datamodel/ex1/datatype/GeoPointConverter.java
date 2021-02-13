@@ -29,14 +29,14 @@ public class GeoPointConverter implements AttributeConverter<GeoPoint, String> {
     public String convertToDatabaseColumn(GeoPoint attribute) {
         if (attribute == null)
             return null;
-        return attribute.latitude + "," + attribute.longitude;
+        return attribute.latitude + "|" + attribute.longitude;
     }
 
     @Override
     public GeoPoint convertToEntityAttribute(String dbData) {
         if (dbData == null)
             return null;
-        String[] strings = dbData.split(",");
+        String[] strings = dbData.split("|");
         return new GeoPoint(Double.parseDouble(strings[0]), Double.parseDouble(strings[1]));
     }
 }

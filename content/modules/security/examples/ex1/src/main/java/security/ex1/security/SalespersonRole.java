@@ -6,13 +6,13 @@ import io.jmix.security.model.RowLevelPolicyAction;
 import io.jmix.security.role.annotation.*;
 import io.jmix.securityui.role.annotation.MenuPolicy;
 import io.jmix.securityui.role.annotation.ScreenPolicy;
+import security.ex1.entity.Customer;
 import security.ex1.entity.CustomerDetail;
 import security.ex1.entity.Order;
-import security.ex1.entity.Customer;
 
 import java.util.function.Predicate;
 
-@Role(name = "Salesperson", code = "salesperson")
+@ResourceRole(name = "Salesperson", code = "salesperson")
 public interface SalespersonRole {
 
     @MenuPolicy(menuIds = {"application"})

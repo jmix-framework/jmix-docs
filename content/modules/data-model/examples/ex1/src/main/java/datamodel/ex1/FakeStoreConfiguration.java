@@ -1,6 +1,6 @@
 package datamodel.ex1;
 
-import io.jmix.autoconfigure.data.JmixLiquibase;
+import io.jmix.autoconfigure.data.JmixLiquibaseCreator;
 import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
@@ -27,7 +27,7 @@ public class FakeStoreConfiguration {
 
     @Bean
     public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
-        return JmixLiquibase.create(locationsDataSource(),
+        return JmixLiquibaseCreator.create(locationsDataSource(),
                 locationsLiquibaseProperties(), processor, "locations");
     }
     // end::liquibase-props[]
