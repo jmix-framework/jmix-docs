@@ -1,5 +1,6 @@
 package security.ex1.screen.user;
 
+import io.jmix.ui.component.TextField;
 import security.ex1.entity.User;
 import io.jmix.core.EntityStates;
 import io.jmix.ui.Notifications;
@@ -27,6 +28,9 @@ public class UserEdit extends StandardEditor<User> {
     private PasswordField passwordField;
 
     @Autowired
+    private TextField usernameField;
+
+    @Autowired
     private PasswordField confirmPasswordField;
 
     @Autowired
@@ -37,6 +41,7 @@ public class UserEdit extends StandardEditor<User> {
 
     @Subscribe
     public void onInitEntity(InitEntityEvent<User> event) {
+        usernameField.setEditable(true);
         passwordField.setVisible(true);
         confirmPasswordField.setVisible(true);
     }

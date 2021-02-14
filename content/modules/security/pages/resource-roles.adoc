@@ -1,0 +1,133 @@
+= Resource Roles
+
+Resource roles give users permissions to specific objects and operations in the system: CRUD operations on entities, entity attributes, UI screens, and so on.
+
+NOTE: A user without resource roles has no permissions and cannot access the application's data and UI.
+
+[[create]]
+== Creating Roles
+
+You can create resource roles at design time using annotated Java interfaces or at runtime using UI screens available at *Administration -> Resource Roles*.
+
+A role has a user-friendly name and a code. The code is used when assigning the role to users, so don't change if some users already have this role assigned.
+
+Example of defining a design-time role:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/FullAccessRole.java[tags=role-1;role-2]
+----
+<1> The `@ResourceRole` annotation indicates that the interface defines a resource role.
+<2> A user-friendly name of the role.
+<3> The role's code.
+<4> The interface can have one or more methods to define policy annotations (see below). Different methods are used just to group related policies. Method names can be arbitrary, they are displayed as *Policy Group* when the role is shown in UI.
+
+[[policies]]
+== Resource Policies
+
+Resource roles define permissions by specifying _resource policies_. A resource policy combines a resource with a permitted type of access to it.
+
+[[entity-policy]]
+=== Entity Policy
+
+Entity policy specifies what CRUD operations are permitted for an entity.
+
+In a design-time role, the entity policy is defined using the `@EntityPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-policy;method]
+----
+
+The `entityClass` parameter specifies the entity. If you want to define a policy for all entities, use the `entityName` parameter with `*` value.
+
+The `actions` parameter specifies permitted CRUD operations. If you want to enable all operations, use `EntityPolicyAction.ALL` value.
+
+[[entity-attribute-policy]]
+=== Entity Attribute Policy
+
+Entity attribute policy specifies what entity attributes are permitted.
+
+In a design-time role, the entity attribute policy is defined using the `@EntityAttributePolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-attribute-policy;method]
+----
+
+The `entityClass` parameter specifies the entity. If you want to define a policy for all entities, use the `entityName` parameter with `*` value.
+
+The `attributes` parameter specifies entity attribute names. If you want to define a policy for all attributes of the entity, use `*` value.
+
+The `action` parameter specifies the permitted access level: "view" or "modify". The "modify" level automatically grants also the "view" access.
+
+[[screen-policy]]
+=== Screen Policy
+
+Screen policy specifies permitted Backoffice UI screens.
+
+In a design-time role, the screen policy is defined using the `@ScreenPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/permissions/CustomerNonConfidentialAccessRole.java[tags=screen-policy;method]
+----
+
+The `screenIds` parameter specifies identifiers of permitted UI screens. If you want to enable all screens, use `*` value.
+
+[[menu-policy]]
+=== Menu Policy
+
+Screen policy specifies permitted Backoffice UI main menu items.
+
+In a design-time role, the screen policy is defined using the `@MenuPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/permissions/CustomerNonConfidentialAccessRole.java[tags=menu-policy;method]
+----
+
+The `menuIds` parameter specifies identifiers of permitted menu items. If you want to enable all menu items, use `*` value.
+
+
+== Role Granularity
+
+A resource role can have any number of policies, and a user can have any number of roles. So you can design roles with different levels of granularity:
+
+* Fine-grained roles define permissions to closely related resources like an entity, its UI screens and menu items. For example, "Full access to Customers", "Can create and update Orders". You would normally assign several such roles to the user.
+
+* Coarse-grained roles define all permissions required for a specific job, like "Salesperson". Such a role can define all permissions itself or inherit them from child roles, so a course-grained role can be made as an aggregation of fine-grained ones.
+
+We recommend creating fine-grained roles at design time and using runtime capabilities only for combining them into different coarse-grained roles for simple assignment to users, and for rare ad-hoc changes in your security model.
+
+[[example]]
+== Example
+
+Below is a complete example of a design-time resource role that enables limited access to the following entities and their UI screens:
+
+[plantuml]
+....
+@startuml
+
+class Customer {
+    name : String
+    region : String
+    details : List<CustomerDetail>
+    confidentialInfo : String
+}
+
+class CustomerDetail {
+    customer : Customer
+    content : String
+    confidential : Boolean
+}
+
+Customer "1" *- "0..*" CustomerDetail : \t
+
+@enduml
+....
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/security/permissions/CustomerNonConfidentialAccessRole.java[tags=role]
+----

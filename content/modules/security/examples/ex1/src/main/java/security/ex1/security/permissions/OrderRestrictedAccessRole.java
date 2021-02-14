@@ -1,4 +1,4 @@
-package security.ex1.security.finegrained;
+package security.ex1.security.permissions;
 
 import io.jmix.security.model.EntityAttributePolicyAction;
 import io.jmix.security.model.EntityPolicyAction;
@@ -9,7 +9,9 @@ import io.jmix.securityui.role.annotation.MenuPolicy;
 import io.jmix.securityui.role.annotation.ScreenPolicy;
 import security.ex1.entity.Order;
 
-@ResourceRole(name = "Cannot delete orders", code = "OrderRestrictedAccessRole")
+@ResourceRole(
+        name = "Order restricted access (cannot delete)",
+        code = "order-restricted-access")
 public interface OrderRestrictedAccessRole {
 
     @MenuPolicy(menuIds = {"application"})
