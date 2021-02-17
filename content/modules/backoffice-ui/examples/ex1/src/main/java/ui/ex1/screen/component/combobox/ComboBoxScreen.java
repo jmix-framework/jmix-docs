@@ -40,8 +40,9 @@ public class ComboBoxScreen extends Screen {
         maritalStatusField.setOptionsList(list);
         // end::options-list-2[]
         // tag::new-option-handler[]
-        maritalStatusField.setNewOptionHandler(caption -> {
-            list.add(caption);
+        maritalStatusField.setEnterPressHandler(enterPressEvent -> {
+            String text = enterPressEvent.getText();
+            list.add(text);
             maritalStatusField.setOptionsList(list);
         });
         // end::new-option-handler[]
