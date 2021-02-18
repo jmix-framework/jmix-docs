@@ -6,18 +6,18 @@ import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
 import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import javax.inject.Inject;
 import java.util.Date;
 
 @UiController("sample_FormatterLabelScreen")
 @UiDescriptor("formatterLabel-screen.xml")
 public class FormatterLabelScreen extends Screen {
-    @Inject
+    @Autowired
     private Label<Date> dateLabel;
-    @Inject
+    @Autowired
     private Label<Long> numberLabel;
-    @Inject
+    @Autowired
     private TimeSource timeSource;
 
     @Subscribe

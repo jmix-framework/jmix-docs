@@ -5,8 +5,7 @@ import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
 import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
-
-import javax.inject.Inject;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @UiController("sample_HtmlLabelScreen")
 @UiDescriptor("htmlLabel-screen.xml")
@@ -20,7 +19,7 @@ public class HtmlLabelScreen extends Screen {
             "</ul> " +
             "are preserved.";
 
-    @Inject
+    @Autowired
     private Label<String> htmlLabel;
 
     @Subscribe

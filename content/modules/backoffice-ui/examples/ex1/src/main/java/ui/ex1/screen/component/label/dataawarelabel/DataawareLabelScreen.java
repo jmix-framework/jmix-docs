@@ -6,16 +6,15 @@ import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
 import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
 
-import javax.inject.Inject;
-
-@UiController("sample_DataawareLabelScreen")
-@UiDescriptor("dataawareLabel-screen.xml")
-public class DataawareLabelScreen extends Screen {
-    @Inject
+@UiController("DataAwareLabelScreen")
+@UiDescriptor("dataawarelabel-screen.xml")
+public class DataAwareLabelScreen extends Screen {
+    @Autowired
     private InstanceContainer<Customer> customerDc;
-    @Inject
+    @Autowired
     private Metadata metadata;
 
     @Subscribe
