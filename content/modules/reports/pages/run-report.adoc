@@ -1,0 +1,216 @@
+= Run report
+
+[[run_common]]
+== Running from the Generic Reports Browser
+
+The easiest way to run reports is from the generic browser, which is available in the *Reports* -> *Run Reports* screen. The user must have the right to access this screen. The list will contain all reports that are <<permissions, available to the user>> in accordance with their role. If the report has external parameters, they will be requested in a special form when running the report.
+
+[[run_actions]]
+== Running Reports from Screens
+
+You can run reports from arbitrary screens using special actions and associated buttons or component context menu items. In this case, the <<permissions, availability>> of the report directly in this screen is checked in addition to a user role.
+
+Action types and examples of their use are provided below.
+
+[[run_report_action]]
+* `com.haulmont.reports.gui.actions.list.RunReportAction` – a {manual_platform}/standard_actions.html[standard action] that displays the list of all available reports. It should be defined for a `Button` or a list component (`Table`, `DataGrid`, etc.).
++
+Below is an example of using the declarative action for the `GroupTable`:
++
+[source, xml]
+----
+include::{sourcesdir}/run_actions_example1.xml[]
+----
+<1> - the `type` attribute defines a specific `runReport` action type, provided by the framework.
++
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
++
+[source, java]
+----
+include::{sourcesdir}/run_actions_example2.java[]
+----
++
+When the action is performed, a modal **Report Run** dialog will open where reports related to the current screen will be displayed. When a user selects a report from the list, the parameters input form is displayed (if any were defined) and the report is run.
+
+[[list_print_form_action]]
+* `com.haulmont.reports.gui.actions.list.ListPrintFormAction` – a {manual_platform}/standard_actions.html[standard action] for printing reports for entity instances associated with a list component (`Table`, `DataGrid`, etc.).
++
+The action only selects reports having an external parameter of the *Entity* or the *List of entities* type and where the parameter entity type matches the entity type displayed by the list component. If only one report is available as a result of selection, it is invoked immediately. If several reports are available, their list is offered to the user for selection.
++
+The external parameter value is passed to the report using the following rules:
+
+** If the parameter has the *List of entities* type, the list of instances currently selected in the list component is passed into it.
+
+** If the parameter has the *Entity* type, and the list component has a single instance selected (one row is highlighted), then this instance is passed into the report.
+
+** If the parameter is of the *Entity* type, and the list component has several rows selected, then the report runs several times according to the number of selected instances. After execution, the user gets a single ZIP archive containing all generated reports.
++
+Below is an example of using the declarative action for the `GroupTable`:
++
+[source, xml]
+----
+include::{sourcesdir}/run_actions_example5.xml[]
+----
+<1> - the `type` attribute defines a specific `listPrintForm` action type, provided by the framework.
++
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
++
+[source, java]
+----
+include::{sourcesdir}/run_actions_example6.java[]
+----
++
+When the action is performed, if no entities were selected from the list component, a confirmation window will be displayed.
++
+.A confirmation window
+image::run_actions_listPrint_confirmation.png[align="center"]
++
+After that, the modal **Run reports** dialog will open where reports related to the current screen will be displayed. From this modal screen, the user can run some report for the selected entity.
+
+[[editor_print_form_action]]
+* `com.haulmont.reports.gui.actions.EditorPrintFormAction` – an action associated with an entity editor screen. The action only selects reports having an external parameter of the *Entity* or the *List of entities* type and where the parameter entity type matches the edited entity type. If only one report is available as a result of selection, it is invoked immediately. If several reports are available, their list is offered to user for selection.
++
+The external parameter value – edited entity instance – is passed into the report. If the parameter has the *List of entities* type, then a list containing a single item is passed.
++
+Below is an example of using the action in a button located near the standard *OK* and *Cancel* buttons:
++
+--
+** XML descriptor
++
+[source, xml]
+----
+include::{sourcesdir}/run_actions_example7.xml[]
+----
+
+** Controller
++
+[source, java]
+----
+include::{sourcesdir}/run_actions_example8.java[]
+----
+--
+
+[[execution_history_action]]
+* `com.haulmont.reports.gui.actions.list.ExecutionHistoryAction` – a {manual_platform}/standard_actions.html[standard action] for displaying the report <<execution_history,execution history>>. It should be defined for a `Button` or a list component (`Table`, `DataGrid`, etc.).
++
+To view the report execution history set the <<reporting.executionHistory.enabled,reporting.executionHistory.enabled>> application property to `true` in the **Administration > Application Properties** screen.
++
+Below is an example of using the declarative action for the `GroupTable`:
++
+[source, xml]
+----
+include::{sourcesdir}/run_actions_example3.xml[]
+----
+<1> - the `type` attribute defines a specific `executionHistory` action type, provided by the framework.
++
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
++
+[source, java]
+----
+include::{sourcesdir}/run_actions_example4.java[]
+----
++
+When the action is performed, a modal **Execution history** dialog will open where reports related to the current screen will be displayed. After clicking on the **Execution History** button, the execution history for the selected reports will be displayed. If no reports have been selected, then execution history will be displayed for all reports associated with the screen.
+
+[[run_cancel]]
+== Cancelling Reports
+
+If the report execution is running as a background task, it can be interrupted by the user.
+
+To add the cancel option, set the <<reporting.useBackgroundReportProcessing,reporting.useBackgroundReportProcessing>> property in the *Administration > Application Properties* screen.
+
+[source, groovy]
+----
+reporting.useBackgroundReportProcessing = true
+----
+
+Thus, the window with the progress bar and the *Cancel* button will be displayed:
+
+.Cancel report
+image::run_cancel.png[align="center"]
+
+You can also set the processing timeout using the <<reporting.backgroundReportProcessingTimeoutMs,reporting.backgroundReportProcessingTimeoutMs>> property:
+
+[source, groovy]
+----
+reporting.backgroundReportProcessingTimeoutMs = 30000
+----
+
+When the time is up, the task will be canceled regardless the result, and the user will receive an error message:
+
+.Report error
+image::run_cancel_2.png[align="center"]
+
+To cancel the report execution programmatically, use the `cancelReportExecution()` method of the `ReportService` interface that takes the identifiers of the user session and the report:
+
+[source, java]
+----
+reportService.cancelReportExecution(userSessionId, report.getId());
+----
+
+[[execution_history]]
+== Report Execution History
+
+The platform provides a mechanism of a report execution history management with the following features:
+
+. Save execution history for each report. The system administrator can use the report execution history to find out how often a report is executed, how many seconds of processing time is spent on a report, by which user and when a report was run, what errors occurred during the execution.
+. Clean outdated report execution history.
+
+The report execution history is disabled by default and can be enabled by setting the <<reporting.executionHistory.enabled,reporting.executionHistory.enabled>> application property to `true`. You can do it in the *Administration > Application Properties* screen.
+
+The execution history screen is considered administrative and was not added to the main menu. To view the execution history, go to the reports browser (the *Reports>Reports* menu item) and click on the *Execution history* button.
+
+If any report was selected in the *Reports* table, then the execution history is additionally filtered by the selected report.
+If no reports were selected in the *Reports* table, the execution history of all system reports is displayed on the execution history screen.
+
+.The execution history screen
+image::report_execution_history.png[align="center"]
+
+"Cancelled" flag means that the user launched the report as a background task, and then canceled it.
+
+Execution history is also recorded even for reports which are not yet saved to the database, but launched from the report editor (by clicking the *Run* button).
+
+[[history_output_documents]]
+Output documents::
++
+--
+The mechanism provides an ability to save output documents – report results files – in the {manual_platform}/file_storage.html[file storage]. This feature consumes a file storage disk space; it is configured separately and is disabled by default. To enable it, define the <<reporting.executionHistory.saveOutputDocument,reporting.executionHistory.saveOutputDocument>> application property in the *Administration > Application Properties* screen:
+
+[source, properties]
+----
+reporting.executionHistory.saveOutputDocument = true
+----
+
+Now, if you select an item in the execution history table, the *Download document* button becomes available. Click the button to download a document that is a report result file.
+
+Reports with output types <<template_chart,chart>>, <<pivotTable_output,pivot table>>, and <<table_output,table>> do not have result files, so the execution history of such reports does not save any output documents.
+
+If you run the report programmatically using the `createAndSaveReport()` method, it saves another copy of the same result document to the file storage. These two files are put to the file storage independently.
+--
+
+[[execution_history_cleanup]]
+Cleanup the history::
++
+--
+You can configure the execution history cleanup procedure to regularly remove unnecessary data.
+
+* Create and activate a {manual_platform}/scheduled_tasks_cuba.html[scheduled task]. Go to the *Administration > Scheduled Tasks* screen of your application. Create a new task and set the following parameters:
+
+** *Bean Name* = `reporting_ExecutionHistoryRecorder`
+** *Method Name* = `cleanupHistory()`
+** *Cron* = nightly, e.g. `0 0 1 * * *`
+** *Singleton* – yes (this is important only for a cluster of middleware servers)
++
+Save the task and click *Activate* on it.
+
++
+If you did not set up the execution of the scheduled tasks for this project before, nothing would happen on this stage – the task will not be executed until you start the whole scheduling mechanism with the {manual_platform}/app_properties_reference.html#cuba.schedulingActive[cuba.schedulingActive] application property.
+
+* Set up the configuration properties:
+
+** <<reporting.executionHistory.cleanup.days,reporting.executionHistory.cleanup.days>> – 730 days by default.
+** <<reporting.executionHistory.cleanup.itemsPerReport,reporting.executionHistory.cleanup.itemsPerReport>> – 1000 by default.
+
++
+When the report execution history is cleaned up, the associated output document is also deleted from the file storage.
+--
