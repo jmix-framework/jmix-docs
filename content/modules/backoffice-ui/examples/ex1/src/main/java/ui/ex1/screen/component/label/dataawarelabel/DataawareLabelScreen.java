@@ -9,9 +9,9 @@ import io.jmix.ui.screen.UiDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
 
-@UiController("DataAwareLabelScreen")
+@UiController("DataawareLabelScreen")
 @UiDescriptor("dataawarelabel-screen.xml")
-public class DataAwareLabelScreen extends Screen {
+public class DataawareLabelScreen extends Screen {
     @Autowired
     private InstanceContainer<Customer> customerDc;
     @Autowired
