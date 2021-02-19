@@ -1,4 +1,4 @@
-package dynattr.ex1.main;
+package dynattr.ex1.screen.main;
 
 import io.jmix.ui.component.AppWorkArea;
 import io.jmix.ui.component.Window;
