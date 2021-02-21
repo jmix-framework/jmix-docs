@@ -7,13 +7,17 @@ import security.ex1.entity.CustomerDetail;
 
 import java.util.function.Predicate;
 
+// tag::role[]
 @RowLevelRole(
         name = "Can see only non-confidential rows",
         code = "nonconfidential-rows")
 public interface NonConfidentialRowsRole {
 
-    @PredicateRowLevelPolicy(entityClass = CustomerDetail.class, actions = {RowLevelPolicyAction.READ})
+    @PredicateRowLevelPolicy(
+            entityClass = CustomerDetail.class,
+            actions = {RowLevelPolicyAction.READ})
     default Predicate<CustomerDetail> customerDetailNotConfidential() {
         return customerDetail -> !Boolean.TRUE.equals(customerDetail.getConfidential());
     }
 }
+// end::role[]
