@@ -20,16 +20,28 @@ public class TextFieldScreen extends Screen {
     private TextField textField;
     @Autowired
     private Notifications notifications;
+    @Autowired
+    private TextField styledField;
 
+    // tag::conversion-text-field[]
+    // tag::styled-text-field[]
+    // tag::text-field-change-listener[]
+    // tag::text-field-press-listener[]
     @Subscribe
-    protected void onInit(InitEvent event) {
+    protected void onInit(InitEvent initEvent) {
+        // end::conversion-text-field[]
+        // end::styled-text-field[]
+        // end::text-field-change-listener[]
+        // end::text-field-press-listener[]
+
         // tag::conversion-text-field[]
         textField.setConversionErrorMessage("This field can work only with Integers");
         // end::conversion-text-field[]
-    }
 
-    @Subscribe
-    public void onBeforeShow(BeforeShowEvent beforeShowEvent) {
+        // tag::styled-text-field[]
+        styledField.setStyleName("align-center");
+        // end::styled-text-field[]
+
         // tag::text-field-change-listener[]
         shortTextField.addTextChangeListener(event -> {
             int length = event.getText().length();
@@ -44,5 +56,14 @@ public class TextFieldScreen extends Screen {
                         .withCaption("Enter pressed")
                         .show());
         // end::text-field-press-listener[]
+
+        // tag::conversion-text-field[]
+        // tag::styled-text-field[]
+        // tag::text-field-change-listener[]
+        // tag::text-field-press-listener[]
     }
+    // end::conversion-text-field[]
+    // end::styled-text-field[]
+    // end::text-field-change-listener[]
+    // end::text-field-press-listener[]
 }
