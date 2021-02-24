@@ -28,7 +28,6 @@ public class Order {
     @Column(name = "CREATED_BY")
     private String createdBy;
 
-    @Temporal(TemporalType.DATE)
     @CreatedDate
     @Column(name = "CREATED_DATE")
     private Date createdDate;

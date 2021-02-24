@@ -24,8 +24,4 @@ public class SampleDynAttrApplication {
     DataSource dataSource() {
         return DataSourceBuilder.create().build();
     }
-
-    @EnableWebSecurity
-    static class SecurityConfiguration extends CoreSecurityConfiguration {
-    }
 }

@@ -66,9 +66,12 @@ public class Speaker {
         this.id = id;
     }
 
+    //tag::instance-name[]
     @InstanceName
     @DependsOnProperties({"firstName", "lastName"})
     public String getFullName() {
         return String.format("%s %s", firstName, lastName);
     }
+    //end::instance-name[]
+
 }

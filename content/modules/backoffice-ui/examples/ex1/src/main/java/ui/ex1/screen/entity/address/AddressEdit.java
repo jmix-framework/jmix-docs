@@ -3,6 +3,7 @@ package ui.ex1.screen.entity.address;
 import com.google.common.base.Strings;
 import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.EntityPicker;
+import io.jmix.ui.component.HasEnterPressHandler;
 import io.jmix.ui.component.ValuePicker;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.DataContext;
@@ -43,10 +44,10 @@ public class AddressEdit extends StandardEditor<Address> {
     }
     // end::field-value-change[]
     // tag::new-option-handler[]
-    @Install(to = "countryEntityComboBox", subject = "newOptionHandler")
-    private void countryEntityComboBoxNewOptionHandler(String string) {
+    @Install(to = "countryEntityComboBox", subject = "enterPressHandler")
+    private void countryEntityComboBoxEnterPressHandler(HasEnterPressHandler.EnterPressEvent enterPressEvent) {
         Country country = dataContext.create(Country.class); // <1>
-        country.setName(string); // <2>
+        country.setName(enterPressEvent.getText()); // <2>
         countriesDc.getMutableItems().add(country); // <3>
         countryEntityComboBox.setValue(country);
     }
