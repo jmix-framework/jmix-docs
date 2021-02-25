@@ -58,8 +58,7 @@ public class SuggestionFieldScreen extends Screen {
     private List entitySuggestionFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
         searchString = QueryUtils.escapeForLike(searchString);
         return dataManager.load(Customer.class)
-                .condition(JpqlCondition.createWithParameters("e.firstName like :name order by e.firstName escape '\\'",
-                        null, ParamsMap.of("name", "%" + searchString + "%")))
+                .query("e.firstName like ?1 escape '\\' order by e.firstName", "(?i)%" + searchString + "%")
                 .list();
     }
     // end::escape-for-like[]
