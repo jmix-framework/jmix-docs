@@ -1,42 +1,69 @@
 = Entities API
 
-The Entities API provides different capabilities to interact with entity instances. This API mainly consists of CRUD operations that can be performed on the entities. The ability to fetch entity data is extended to also allow filtering capabilities as well as more complicated queries via JPQL. When performing operations on entities through this generic API, the regular Jmix security permission are applied from the user obtaining the authentication token.
+The Entities API provides different capabilities to interact with entity instances. This API mainly consists of CRUD operations that can be performed on the entities. The ability to load entity data is extended by different ways of filtering and JPQL.
+
+NOTE: When performing operations on entities through this generic API, the regular Jmix security permission are applied from the user obtaining the authentication token.
 
 
 == Load Entities
 
 The Entities API allows different ways to load entities through the API:
 
-* <<Load Entity by ID,Load Entity by ID>> allows to load an entity by its database ID
+* <<Load Entity by ID,Load Entity by ID>> allows to load a single entity by its unique identifier (ID)
 
 * <<Load List of Entities,Load List of Entities>> allows to load all entities without filtering, including pagination.
 
-* <<Load Entities via Search Filter,Load Entities via Search Filter>> allows specifying filter criteria to only load particular entities
+* <<Load Entities via Search Filter,Load Entities via Search Filter>> allows specifying filters to only load entities that match those criteria
 
 * <<Load Entities via JPQL,Load Entities via JPQL>> allows pre-configuring JPQL queries in the application and use them in the API as named queries
 
 
 === Load Entity by ID
 
-TIP: new
+The first way of loading an entity via the Entities API is by loading it via its ID. The corresponding endpoint for this is the Load Entity endpoint `entities/:entityName/:entityId`.
 
-It is also possible to load information about an entity by its identifier. The corresponding endpoint for this is `entities/:entityName/:entityId`. The endpoint returns a single instance in case it is found by its identifier. Otherwise, HTTP 404 response code is returned.
+The `:entityName` Path parameter defines which entity type it is. The value is defined in the entity definition:
 
-Example:
-`http://localhost:8080/rest/entities/rstex11_Order/21021f78-edac-224b-e6f8-6e71e02a0f0d?fetchPlan=order-with-details`
+[source,java]
+.Order.java
+----
+
+@JmixEntity
+@Table(name = "RSTEX11_ORDER")
+@Entity(name = "rstex11_Order") //<1>
+public class Order {
+    // ...
+}
+----
+<1> the name attribute value `rstex11_Order` of the `@Entity` JPA annotation indicates the `entityName` parameter in the Entities API
+
+The Load Entity endpoint returns a single instance in case it is found by its identifier. Otherwise, HTTP status code `404 - Not found` is returned.
+
+In the example the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded. Furthermore, in this example the optional URL query parameter `fetchPlan` is used to define which attributes to return as part of the response.
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
 
 [source, json]
+.Response: 200 - OK
 ----
 {
-  "_entityName": "rstex11_Order",
+  "_entityName": "rstex11_Order", //<1>
   "_instanceName": "rest.sample.entity.Order-21021f78-edac-224b-e6f8-6e71e02a0f0d [detached]",
   "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
-  "date": "2020-12-13",
+  "date": "2020-12-13", //<2>
   "amount": 49.99,
   "createdDate": "2021-02-06T12:03:38.049",
   "createdBy": "admin",
   "lastModifiedDate": "2021-02-06T12:03:38.049",
-  "lines": [
+  "lines": [ //<3>
     {
       "_entityName": "rstex11_OrderLine",
       "_instanceName": "rest.sample.entity.OrderLine-64e4fbb0-7fd6-818b-984e-a8769c4fbe88 [detached]",
@@ -67,31 +94,85 @@ Example:
   }
 }
 ----
+<1> some metadata about the entity instance is returned as JSON keys (`entityName`, `_instanceName` and `id`)
+<2> the business attributes of the entity are returned as JSON keys
+<3> due to the fetch plan `order-with-details` used in the URL, additional reference attributes are also included like `lines` and `customer`
 
 === Load List of Entities
 
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_get_entities_list
+The next way of loading entities through the Entities API is to load a list of entities via the Load Entity List API: `/entities/:entityName`. Generally this API allows loading all entity instances of a given type. The API includes pagination, sorting and fetch plans.
 
-Let's suppose that the system has a `rstex11_Order` entity and we need to get a list of this entity instances. Besides, we need to get not all the records, but only 5 records, starting with the 10th one. A response must contain not only simple properties of the `rstex11_Order` entity but also an information about the order customer (a reference field named `customer`). Orders must be sorted by date.
-
-A base URL for getting all instances of the `rstex11_Order` entity is as follows:
-
-`\http://localhost:8080/rest/entities/rstex11_Order`
-
-To implement all the conditions described above the following request parameters must be specified:
-
-* *fetchPlan* - a {manual}/fetchPlans.html[fetchPlan], that will be used for loading entities. In our case the `order-with-details` contains a `customer` reference.
-* *limit* - a number of instances to be returned.
-* *offset* - a position of the first extracted record.
-* *sort* - an entity attribute name that will be used for sorting. `+attribute` for ascending order (optional), `-attribute` for descending order.
-
-The following *`GET`* request URL contains the parameters for fetching the correct data:
-
-`http://localhost:8080/rest/entities/rstex11_Order?fetchPlan=order-with-details&limit=50&offset=5&sort=+date`
-
-The corresponding JSON response contains the orders with additional attributes sorted by `date`:
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest/entities/rstex11_Customer
+----
 
 [source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Sidney Chandler",
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "createdDate": "2021-02-06T12:00:53.72",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-02-06T12:00:53.72",
+    "name": "Sidney Chandler",
+    "version": 1
+  },
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Randall Bishop",
+    "id": "22efc597-69a9-aeef-4e4a-7afccd8e5767",
+    "createdDate": "2021-03-01T08:19:08.871",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-01T08:19:08.871",
+    "name": "Randall Bishop",
+    "version": 1
+  },
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Shelby Robinson",
+    "id": "bd1c8e90-3d35-cbe2-9efd-167202c758d2",
+    "createdDate": "2021-02-06T12:02:05.328",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-02-06T12:02:05.328",
+    "name": "Shelby Robinson",
+    "version": 1
+  }
+]
+----
+
+It is also possible to further control the behavior of the API by using the following URL query parameter.
+
+[NOTE]
+.Load Entity List API Query Parameters
+====
+[horizontal]
+fetchPlan:: name of an entity types xref:data-access:fetch-plans.adoc[fetch plan], that will determine the JSON attributes each entity contains `(String)`
+limit:: the number of entities to be returned by the API `(int)`
+offset:: the position of the first returned entity `(int)`
+sort:: an entity attribute that will be used for sorting. `+attribute` or `attribute` for ascending order, `-attribute` for descending order `(String)`
+====
+
+In the following example the third "page" of 5 `Order` entities should be loaded (the 10 - 15 entity) sorted by the `date` attribute containing all attributes of the `order-with-details` fetch plan.
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Order
+            ?fetchPlan=order-with-details
+            &limit=5
+            &offset=10
+            &sort=+date
+----
+
+[source, json]
+.Response: HTTP 200 - OK
 ----
 [
   {
@@ -192,23 +273,31 @@ NOTE: Every entity in the response has a `_entityName` attribute with the name o
 
 === Load Entities via Search Filter
 
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_search_filter
-
 It is possible to specify filter criteria when fetching entities. For this use-case the entity search endpoint is available via `/entities/:entityName/search`.
 
 Both HTTP methods `GET` and `POST` are possible when interacting with the search endpoint. In both cases the filter criterion has to be provided as part of the request.
 
 The filter definition is a JSON structure that contains a set of conditions. A condition contains of the attributes' `property`, `operator` and `value`.
 
-* `property` represents the entity attribute that is being filtered on (like `amount` on the Order entity). In case the property is an reference to another entity, it can also be a property path like `customer.name` to reference the name attribute of the customer that is associated with the Order.
-* `operator` represents the filter operator. The following values are possible: `=`, `>`, `>=`, `<`, `&lt;=`, `<>`, `startsWith`, `endsWith`, `contains`, `doesNotContain`, `in`, `notIn`, `notEmpty`, `isNull`.
-* `value` represents the value to search for. Value is required expect for the operators `notEmpty` and `isNull`.
+[NOTE]
+.Filter Condition
+====
+[horizontal]
+property:: the entity attribute that is being filtered on (like `amount` on the Order entity).
++
+In case the attribute is a reference to another entity, it can also be a property path like `customer.name`
 
-Additionally, conditions can be combined via `AND`, `OR` group conditions in order to define more complex filter criterion.
+operator:: the filter operator. The following values are possible (depending on the property type):
++
+`=`, `>`, `>=`, `<`, `&lt;=`, `<>`, `startsWith`, `endsWith`, `contains`, `doesNotContain`, `in`, `notIn`, `notEmpty`, `isNull`
 
-The JSON structure of the filter definitions looks like this:
+value:: the value to search for. Value is required expect for the operators `notEmpty` and `isNull`
+====
+
+Additionally, conditions can be combined via `AND`, `OR` group conditions in order to define more complex filter criterion. The JSON structure of the filter definitions looks like this:
 
 [source,json]
+.Filter Criterion JSON structure
 ----
 {
   "conditions": [
@@ -240,9 +329,8 @@ This is a representation of the Filter criterion: `((stringField = stringValue) 
 
 When using the HTTP POST method, the filter is part of the request body.
 
-Example:
-
 [source,http request]
+.Filter POST Request
 ----
 POST http://localhost:8080/rest/entities/rstex11_Order/search
 
@@ -259,19 +347,23 @@ POST http://localhost:8080/rest/entities/rstex11_Order/search
 }
 ----
 
-When using the `GET` method, the filter criterion needs to be transferred via a URL parameter like this:
+When using the `GET` method, the filter criterion needs to be transferred via the URL Query parameter `filter`:
 
 [source, http request]
+.Filter GET Request
 ----
-GET http://localhost:8080/rest/entities/rstex11_Order/search?filter={"conditions":[{"property":"customer.name","operator":"contains","value":"Shelby"}]}
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Order
+            /search
+            ?filter={"conditions":[{"property":"customer.name","operator":"contains","value":"Shelby"}]}
 ----
 
 === Load Entities via JPQL
 
 One additional mechanism to retrieve entity data from the application is to use predefined JPQL queries. The endpoint `/queries/:entityName/:queryName` is responsible for providing this capability. Queries can contain a list of parameters, that need to be provided by the client. Additionally, the endpoint contains the same general parameters for pagination, fetchPlans etc.
 
-==== Predefined JPQL Query Configuration
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_queries_config
+==== JPQL Query Configuration
 
 In order to use the query endpoint, the published queries need to be defined within the application. Queries are configured via a XML configuration file. This file needs to be registered as an application property:
 
@@ -316,19 +408,24 @@ In the `<jpql>` tag the actual query is configured. Parameters can be referenced
 The parameters itself need to be listed within the `params` tag defining their name and Java type.
 
 Invoking the queries endpoint can be done by `GET` or `POST` method. In case of the get method, the parameters are appended
-as URL query parameters:
+as URL query parameters.
 
 [source, http request]
+.Query API GET Request
 ----
-GET http://localhost:8080/rest/queries/rstex11_Order/ordersByDate?orderDate=2020-02-02
+GET http://localhost:8080/rest
+        /queries
+        /rstex11_Order
+        /ordersByDate
+        ?orderDate=2020-02-02
 ----
 
-In the case of using HTTP POST, the query parameter are transferred by a JSON body containing all the parameters as keys in the JSON object:
+In the case of using HTTP POST, the query parameter are transferred by a JSON body containing all the parameters as keys in the JSON object.
 
 [source, http request]
+.Query API POST Request
 ----
 POST http://localhost:8080/rest/queries/rstex11_Order/ordersByCustomerName
-Authorization: Bearer {{auth_token}}
 
 {
   "customerName": "Shelby Robinson"
@@ -337,40 +434,41 @@ Authorization: Bearer {{auth_token}}
 
 In case the parameter is a list, the parameter definition needs to contain a `[]` after the type (like: `java.util.UUID[]`).
 
-The corresponding invocation looks like this:
-
-
 [source, http request]
+.Query API POST Request
 ----
 POST http://localhost:8080/rest/queries/rstex11_Order/ordersByIds
 
 {
-"ids": ["41aae331-b46b-85ee-b0bc-2de8cbf1ab86", "21021f78-edac-224b-e6f8-6e71e02a0f0d"]
+  "ids": [
+    "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
+    "21021f78-edac-224b-e6f8-6e71e02a0f0d"
+  ]
 }
 ----
 
 == Create Entities
 
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_create_entity
-
-The Entities API also allows to create entities through the Create Entity endpoint. An entity can be created via performing a `POST` request against the endpoint: `/entities/:entityName`.
+The Entities API allows creating entities through the Create Entity endpoint. An entity can be created via performing a `POST` request against the endpoint: `/entities/:entityName`.
 
 The request body contains a JSON object with the attributes of the entity. System Attributes do not need to be send in like `ID` or `createdBy`. Those attributes are automatically added by Jmix during persistence. Here is an example on how to create a new Customer entity through the Create Entities API:
 
 When the entity is created, the HTTP Status `201 - Created` is returned. By default, a JSON metadata representation of the entity is returned mainly containing the newly created `id` attribute for further reference.
 
 [source, http request]
+.Request
 ----
 POST http://localhost:8080/rest/entities/rstex11_Customer
 
 {
   name: "Randall Bishop"
 }
+----
 
-HTTP/1.1 201
-Location: http://localhost:8080/rest/entities/rstex11_Customer/78e7996d-8b69-6526-8e9f-16262a1c4113
-Content-Type: application/json;charset=UTF-8
 
+[source, json]
+.Response: 201 - Created
+----
 {
   "_entityName": "rstex11_Customer",
   "_instanceName": "Randall Bishop",
@@ -380,13 +478,14 @@ Content-Type: application/json;charset=UTF-8
 
 Alternatively it is possible to define which attributes should be returned once the entity is created. This can be achieved through the URL query parameter `responseFetchPlan`. E.g. `/entities/rstex11_Order?responseFetchPlan=order-with-details` would return the complete order with all its details containing order lines, customer references etc.
 
-The HTTP Header `Location` indicates also the URL to the newly created entity instance for further operations (like fetching, updating or deleting).
+TIP: The HTTP response Header `Location` indicates also the URL to the newly created entity instance for further operations (like fetching, updating or deleting).
 
 === Association Attributes
 
 When the entity to create should be linked to another, already existing entity it is required to reference the other entity in the request. This is done through a JSON object containing only the ID of the existing entity. In the Order example, a `customer` needs to be referenced when an Order is created. Jmix performs a lookup of the customer by the provided ID from the JSON request and links the customer to the new order.
 
 [source, http request]
+.Request
 ----
 POST http://localhost:8080/rest/entities/rstex11_Order
 
@@ -423,9 +522,10 @@ public class Product {
 }
 ----
 
-In the request the `ProductTag` entity instances are references by their ids. This time, the JSON object is put into an array, as there are multiple product tags to reference:
+In the request the `ProductTag` entity instances are references by their ids. This time, the JSON object is put into an array, as there are multiple product tags to reference.
 
 [source, http request]
+.Request
 ----
 POST http://localhost:8080/rest/entities/rstex11_Product?responseFetchPlan=product-with-tags
 
@@ -441,10 +541,11 @@ POST http://localhost:8080/rest/entities/rstex11_Product?responseFetchPlan=produ
     }
   ]
 }
+----
 
-HTTP/1.1 201
-Location: http://localhost:8080/rest/entities/rstex11_Product/f0e04748-dcdf-d856-2482-2904f2126fcc
-
+[source, json]
+.Response: 201 - Created
+----
 {
   "_entityName": "rstex11_Product",
   "_instanceName": "123",
@@ -479,6 +580,7 @@ Location: http://localhost:8080/rest/entities/rstex11_Product/f0e04748-dcdf-d856
 For attributes that are marked as `@Composition` the situation is slightly different. As this relationship type indicates that the child entities only exists as part of the parent entity, it is also possible to directly create child entites as part of the request to create a parent. In the next example, the `OrderLine` entity is a child entity of the `Order` entity. This is expressed through the `@Composition` annotation on the `lines` attribute of the `Order` entity.
 
 [source, java]
+.Order.java
 ----
 public class Order {
     @JmixGeneratedValue
@@ -499,6 +601,7 @@ When an order is created through the API it is possible to directly create its o
 The following JSON request will create an order with its order lines:
 
 [source, http request]
+.Request
 ----
 POST http://localhost:8080/rest/entities/rstex11_Order
 
@@ -529,5 +632,3 @@ POST http://localhost:8080/rest/entities/rstex11_Order
 
 
 == Update Entities
-
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_update_entity
