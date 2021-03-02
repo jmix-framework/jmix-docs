@@ -201,7 +201,7 @@ Both HTTP methods `GET` and `POST` are possible when interacting with the search
 The filter definition is a JSON structure that contains a set of conditions. A condition contains of the attributes' `property`, `operator` and `value`.
 
 * `property` represents the entity attribute that is being filtered on (like `amount` on the Order entity). In case the property is an reference to another entity, it can also be a property path like `customer.name` to reference the name attribute of the customer that is associated with the Order.
-* `operator` represents the filter operator. The following values are possible: `=`, `>`, `>=`, `<`, `<=`, `<>`, `startsWith`, `endsWith`, `contains`, `doesNotContain`, `in`, `notIn`, `notEmpty`, `isNull`.
+* `operator` represents the filter operator. The following values are possible: `=`, `>`, `>=`, `<`, `&lt;=`, `<>`, `startsWith`, `endsWith`, `contains`, `doesNotContain`, `in`, `notIn`, `notEmpty`, `isNull`.
 * `value` represents the value to search for. Value is required expect for the operators `notEmpty` and `isNull`.
 
 Additionally, conditions can be combined via `AND`, `OR` group conditions in order to define more complex filter criterion.
@@ -351,10 +351,13 @@ POST http://localhost:8080/rest/queries/rstex11_Order/ordersByIds
 
 == Create Entities
 
-An entity can be created via performing a POST request against the create entity endpoint: `/entities/:entityName`.
+TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_create_entity
 
-The request body contains a JSON object of the new entity.
+The Entities API also allows to create entities through the Create Entity endpoint. An entity can be created via performing a `POST` request against the endpoint: `/entities/:entityName`.
 
+The request body contains a JSON object with the attributes of the entity. System Attributes do not need to be send in like `ID` or `createdBy`. Those attributes are automatically added by Jmix during persistence. Here is an example on how to create a new Customer entity through the Create Entities API:
+
+When the entity is created, the HTTP Status `201 - Created` is returned. By default, a JSON metadata representation of the entity is returned mainly containing the newly created `id` attribute for further reference.
 
 [source, http request]
 ----
@@ -363,13 +366,6 @@ POST http://localhost:8080/rest/entities/rstex11_Customer
 {
   name: "Randall Bishop"
 }
-----
-
-When the entity is created, `201 - Created` is returned as the status code. By default, a JSON representation of the entity is returned as the response body as well:
-
-[source, http request]
-----
-POST http://localhost:8080/rest/entities/rstex11_Customer
 
 HTTP/1.1 201
 Location: http://localhost:8080/rest/entities/rstex11_Customer/78e7996d-8b69-6526-8e9f-16262a1c4113
@@ -382,17 +378,17 @@ Content-Type: application/json;charset=UTF-8
 }
 ----
 
-Normally, the JSON contains the `id` as well as the `_instanceName` for further reference. Optionally it is possible to define within the request, which attributes should be returned once the entity is created. This can be achieved through the URL query parameter `responseFetchPlan` (see also next example).
+Alternatively it is possible to define which attributes should be returned once the entity is created. This can be achieved through the URL query parameter `responseFetchPlan`. E.g. `/entities/rstex11_Order?responseFetchPlan=order-with-details` would return the complete order with all its details containing order lines, customer references etc.
 
 The HTTP Header `Location` indicates also the URL to the newly created entity instance for further operations (like fetching, updating or deleting).
 
 === Association Attributes
 
-Oftentimes it is required to reference other entities during entity creation. In the Order example, a `customer` needs to be referenced when an Order is created. Jmix performs a lookup of the customer by the provided ID from the JSON request and links the customer to the new order.
+When the entity to create should be linked to another, already existing entity it is required to reference the other entity in the request. This is done through a JSON object containing only the ID of the existing entity. In the Order example, a `customer` needs to be referenced when an Order is created. Jmix performs a lookup of the customer by the provided ID from the JSON request and links the customer to the new order.
 
 [source, http request]
 ----
-POST http://localhost:8080/rest/entities/rstex11_Order?responseFetchPlan=order-with-details
+POST http://localhost:8080/rest/entities/rstex11_Order
 
 {
   "customer": {
@@ -403,9 +399,84 @@ POST http://localhost:8080/rest/entities/rstex11_Order?responseFetchPlan=order-w
 }
 ----
 
+Independent of the kind of associations like `1:N`, `N:1`, `M:N` the way to reference other entities is the same.
+
+Another example shows how to link a `Product` to multiple `ProductTag` entities via an `M:N` relationship.
+
+[source,java]
+.Product.java
+----
+
+@JmixEntity
+@Table(name = "RSTEX11_PRODUCT")
+@Entity(name = "rstex11_Product")
+public class Product {
+
+    @JoinTable(name = "RSTEX11_PRODUCT_PRODUCT_TAG_LINK",
+            joinColumns = @JoinColumn(name = "PRODUCT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PRODUCT_TAG_ID"))
+    @ManyToMany
+    private List<ProductTag> tags;
+
+    // ...
+
+}
+----
+
+In the request the `ProductTag` entity instances are references by their ids. This time, the JSON object is put into an array, as there are multiple product tags to reference:
+
+[source, http request]
+----
+POST http://localhost:8080/rest/entities/rstex11_Product?responseFetchPlan=product-with-tags
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695" // <1>
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+
+HTTP/1.1 201
+Location: http://localhost:8080/rest/entities/rstex11_Product/f0e04748-dcdf-d856-2482-2904f2126fcc
+
+{
+  "_entityName": "rstex11_Product",
+  "_instanceName": "123",
+  "id": "f0e04748-dcdf-d856-2482-2904f2126fcc",
+  "createdDate": "2021-03-02",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-03-02",
+  "price": 99.95,
+  "name": "123",
+  "version": 1,
+  "tags": [
+    {
+      "_entityName": "rstex11_ProductTag",
+      "_instanceName": "shiny",
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695", // <2>
+      "name": "shiny"
+    },
+    {
+      "_entityName": "rstex11_ProductTag",
+      "_instanceName": "great",
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502",
+      "name": "great"
+    }
+  ]
+}
+----
+<1> the tags are referenced as a list of JSON objects containing the ID of the already existing `ProductTag`
+<2> the response contains the stored association to the two `ProductTag` entities
+
 === Composition Attributes
 
-It is also possible to create child entities directly via the create entity endpoint as part of this one transaction. For this to work the attribute needs to be  annotated with `@Composition`, like the `lines` attribute of the `Order` entity.
+For attributes that are marked as `@Composition` the situation is slightly different. As this relationship type indicates that the child entities only exists as part of the parent entity, it is also possible to directly create child entites as part of the request to create a parent. In the next example, the `OrderLine` entity is a child entity of the `Order` entity. This is expressed through the `@Composition` annotation on the `lines` attribute of the `Order` entity.
 
 [source, java]
 ----
@@ -423,7 +494,9 @@ public class Order {
 }
 ----
 
-In this case an order and its order lines can be created via the API with the following JSON body:
+When an order is created through the API it is possible to directly create its order lines as part of one request. In this case all the attributes of the child entity needed to be provided, just as if it would be a parent object itself. The relationship does not need to be additionally referenced. Putting the child entity into the JSON array is enough to establish the connection.
+
+The following JSON request will create an order with its order lines:
 
 [source, http request]
 ----
@@ -435,24 +508,24 @@ POST http://localhost:8080/rest/entities/rstex11_Order
   },
   "date": "2021-03-01",
   "amount": 130.08,
-  "lines": [
+  "lines": [ // <1>
     {
+      "quantity": 2,
       "product": {
-        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83"
-      },
-      "quantity": 2
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83"  // <2>
+      }
     },
     {
+      "quantity": 1,
       "product": {
         "code": "1ed85c7a-89f1-c339-a738-16307ed6003a"
-      },
-      "quantity": 1
+      }
     }
   ]
 }
 ----
-
-TIP: https://doc.cuba-platform.com/restapi-7.1/#rest_api_v2_ex_create_entity
+<1> order lines are created as an array of JSON objects containing all the attributes of the entity
+<2> in case a child entity needs to reference another entity (like the `N:1` reference from the `OrderLine` to `Product`), the same rules of referencing via JSON object containing the ID apply
 
 
 == Update Entities
