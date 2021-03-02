@@ -12,14 +12,14 @@ import javax.sql.DataSource;
 @SpringBootApplication
 public class JmixreportsApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(JmixreportsApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(JmixreportsApplication.class, args);
+    }
 
-	@Bean
-	@Primary
-	@ConfigurationProperties(prefix="main.datasource")
-	DataSource dataSource() {
-		return DataSourceBuilder.create().build();
-	}
+    @Bean
+    @Primary
+    @ConfigurationProperties(prefix = "main.datasource")
+    DataSource dataSource() {
+        return DataSourceBuilder.create().build();
+    }
 }
