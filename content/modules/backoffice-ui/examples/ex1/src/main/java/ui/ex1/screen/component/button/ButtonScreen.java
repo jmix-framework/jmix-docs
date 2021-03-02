@@ -20,8 +20,8 @@ public class ButtonScreen extends Screen {
     }
     // end::click-handler[]
 
-    @Subscribe("saveButton1")
-    protected void onSaveButton1Click(Button.ClickEvent event) {
+    @Subscribe("saveButton")
+    protected void onSaveButtonClick(Button.ClickEvent event) {
         save(event.getSource().getId());
     }
 
