@@ -12,17 +12,40 @@ import org.springframework.beans.factory.annotation.Autowired;
 @UiController("sample_TextFieldScreen")
 @UiDescriptor("textField-screen.xml")
 public class TextFieldScreen extends Screen {
+    // tag::text-field-change-listener[]
     @Autowired
-    private TextField shortTextField;
+    private TextField<String> shortTextField;
     @Autowired
-    private Label shortTextLabel;
-    @Autowired
-    private TextField textField;
+    private Label<String> shortTextLabel;
+
+    // end::text-field-change-listener[]
+
+    // tag::text-field-press-listener[]
     @Autowired
     private Notifications notifications;
-    @Autowired
-    private TextField styledField;
+    // end::text-field-press-listener[]
 
+    // tag::text-field-press-listener[]
+    // tag::conversion-text-field[]
+    @Autowired
+    private TextField<Integer> textField;
+
+    // end::conversion-text-field[]
+    // end::text-field-press-listener[]
+
+    // tag::styled-text-field[]
+    @Autowired
+    private TextField<String> styledField;
+
+    // end::styled-text-field[]
+
+    // tag::value-change-listener[]
+    @Autowired
+    private TextField<Integer> integerField;
+
+    // end::value-change-listener[]
+
+    // tag::value-change-listener[]
     // tag::conversion-text-field[]
     // tag::styled-text-field[]
     // tag::text-field-change-listener[]
@@ -33,6 +56,7 @@ public class TextFieldScreen extends Screen {
         // end::styled-text-field[]
         // end::text-field-change-listener[]
         // end::text-field-press-listener[]
+        // end::value-change-listener[]
 
         // tag::conversion-text-field[]
         textField.setConversionErrorMessage("This field can work only with Integers");
@@ -51,17 +75,29 @@ public class TextFieldScreen extends Screen {
         // end::text-field-change-listener[]
 
         // tag::text-field-press-listener[]
+
         textField.addEnterPressListener(enterPressEvent ->
                 notifications.create()
                         .withCaption("Enter pressed")
                         .show());
+
         // end::text-field-press-listener[]
 
+        // tag::value-change-listener[]
+        integerField.addValueChangeListener(stringValueChangeEvent ->
+                notifications.create()
+                        .withCaption("Before: " + stringValueChangeEvent.getPrevValue() +
+                                ". After: " + stringValueChangeEvent.getValue())
+                        .show());
+        // end::value-change-listener[]
+
+        // tag::value-change-listener[]
         // tag::conversion-text-field[]
         // tag::styled-text-field[]
         // tag::text-field-change-listener[]
         // tag::text-field-press-listener[]
     }
+    // end::value-change-listener[]
     // end::conversion-text-field[]
     // end::styled-text-field[]
     // end::text-field-change-listener[]

@@ -4,11 +4,9 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import javax.validation.constraints.Email;
+import java.util.List;
 import java.util.UUID;
 
 @JmixEntity
@@ -45,6 +43,20 @@ public class Customer {
 
     @Column(name = "REWARD_POINTS")
     private Integer rewardPoints;
+
+    @JoinTable(name = "UIEX1_CUSTOMER_BRAND_LINK",
+            joinColumns = @JoinColumn(name = "CUSTOMER_ID"),
+            inverseJoinColumns = @JoinColumn(name = "BRAND_ID"))
+    @ManyToMany
+    private List<Brand> favoriteBrands;
+
+    public List<Brand> getFavoriteBrands() {
+        return favoriteBrands;
+    }
+
+    public void setFavoriteBrands(List<Brand> favoriteBrands) {
+        this.favoriteBrands = favoriteBrands;
+    }
 
     public Level getLevel() {
         return level == null ? null : Level.fromId(level);

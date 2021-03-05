@@ -3,6 +3,7 @@ package ui.ex1.entity;
 import io.jmix.core.DeletePolicy;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.entity.annotation.OnDeleteInverse;
+import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
@@ -25,6 +26,7 @@ public class Order {
     @Column(name = "DATE_")
     private LocalDate date;
 
+    @InstanceName
     @Column(name = "NUM")
     private String num;
 

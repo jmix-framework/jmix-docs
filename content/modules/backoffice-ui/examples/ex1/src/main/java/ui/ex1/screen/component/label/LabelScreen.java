@@ -1,7 +1,6 @@
 package ui.ex1.screen.component.label;
 
 import io.jmix.core.Metadata;
-import io.jmix.core.TimeSource;
 import io.jmix.ui.component.Label;
 import io.jmix.ui.model.InstanceContainer;
 import io.jmix.ui.screen.Screen;
@@ -10,8 +9,6 @@ import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
-
-import java.util.Date;
 
 @UiController("sample_LabelScreen")
 @UiDescriptor("label-screen.xml")
@@ -22,19 +19,20 @@ public class LabelScreen extends Screen {
     private Metadata metadata;
     // tag::dynamic-label[]
     @Autowired
-    private Label dynamicLabel;
+    private Label<String> dynamicLabel;
 
     // end::dynamic-label[]
     // tag::styled-label[]
     @Autowired
-    private Label styledLabel;
+    private Label<String> styledLabel;
 
     // end::styled-label[]
     // tag::html-label[]
     @Autowired
     private Label<String> htmlLabel;
 
-    private static final String UNSAFE_HTML = "<i>Jackdaws </i><u>love</u> <font size=\"javascript:alert(1)\" " +
+    private static final String UNSAFE_HTML = "<i>Jackdaws </i><u>love</u> " +
+            "<font size=\"javascript:alert(1)\" " +
             "color=\"moccasin\">my</font> " +
             "<font size=\"7\">big</font> <sup>sphinx</sup> " +
             "<font face=\"Verdana\">of</font> <span style=\"background-color: " +
