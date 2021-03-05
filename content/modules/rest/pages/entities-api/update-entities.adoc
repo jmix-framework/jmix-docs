@@ -29,14 +29,14 @@ PUT http://localhost:8080/rest
 }
 ----
 
-Generally the Update Entity API behalves similar to the <<Create Entities,Create Entity API>> regards validation and entity referencing. The main difference is how associations and composition references are handled. It also allows to partially update entities by only having those attributes in the request JSON.
+The Update Entity API behaves similar to the <<Create Entities,Create Entity API>> regards validation and entity referencing. The main difference is how `1:N` associations and compositions are handled. The endpoint also allows you to <<Partial Updates,partially update entities>> by only having those attributes in the request JSON.
 
 
 === Association Attributes
 
-In case you want to update an `1:*` association attribute, a different reference to another entity can be send in by using a different ID. For `*:N` associations an updated list of entity references changes what the entity is associated to.
+In case you want to update an `1:1` or `N:1` association attribute, it is enough to send the new ID of the entity to reference to. For `1:N` or `M:N` associations an updated list of entity references changes what the entity is associated to.
 
-IMPORTANT: the Update Entity endpoint will _replace_ the existing collection for a `*:N` association with what is part of the request. For every entity reference that is not part of the request the association will be removed. But, the entity that has been referenced _will not be removed_ from the application.
+IMPORTANT: the Update Entity endpoint will _replace_ the existing association collection for a `1:N` or `M:N` association with what is part of the request. For every entity reference that is not part of the request the reference will be removed. But, the entity that has been referenced _will not be deleted_ from the application.
 
 In this example you will see how to update an `M:N` association between `Product` and `ProductTag`. Assuming that the stored Product before the update looks like this:
 
@@ -136,15 +136,17 @@ NOTE: As the ID of the product tag `great (c4c028f0-fec1-7512-83cd-c17537d1f502)
 <1> The `shiny` reference is still there, as it was part of the request
 <2> The `amazing` reference has been added, whereas the tag `great` is not part of the association anymore.
 
-==== Remove `*:1` Entity References
-
+[CAUTION]
+.Remove `*:1` Entity References
+====
 In order to remove a reference for `N:1` or `1:1` associations, you need to send in `null` as a value. The absence of the attribute in the request will _not_ lead that the reference is removed, because of the <<Partial Updates>> feature. In this case the attribute would just be ignored and not changed as part of the request.
+====
 
 === Composition Attributes
 
-In case you want to update a Composition attribute, just as in the Create Entity API, it is possible to directly update the content of the child entity. This is true for `1:1` as well as `1:N` compositions.
+In case you want to update a Composition attribute, it is possible to directly update the content of the child entity as part of the update request for the parent entity. This is true for `1:1` as well as `1:N` compositions.
 
-IMPORTANT: the Update Entity endpoint will _replace_ the existing collection with what is part of the request. For every entity reference that is not part of the request the association will be removed. Further: the entity that has been referenced before _will be removed_ from the application as well.
+IMPORTANT: the Update Entity endpoint will _replace_ the existing composition collection with what is part of the request. For every entity reference that is not part of the request the reference will be removed. Further: the entity that has been referenced before _will be deleted_ from the application as well.
 
 In this example you will see how to update an `1:N` composition between `Order` and `OrderLine`. Assuming that the stored Order before the update looks like this:
 
@@ -254,7 +256,7 @@ PUT http://localhost:8080/rest
 <2> The `quantity` value is set to `3.0` for the `Solar-One HUP Flooded Battery 48V` product
 <3> A new order line is added for the product `Outback Power Remote Power System`
 
-WARNING: When updating a child entity, like the order line in the example above, the ID of the existing order line needs to be added, so that Jmix recognises it as an update, not as a new entity.
+WARNING: When updating a child entity, like the order line in the example above, the ID of the existing order line needs to be added, so that Jmix recognises it as an update. Otherwise, it would treat the child entity as a new entity.
 
 The response to this update request contains the desired changes:
 
@@ -323,10 +325,11 @@ The response to this update request contains the desired changes:
 <2> The `version` attribute was increased to indicate the update.
 <3> The new order line for `Outback Power Remote Power System` has been added to the order.
 
+With this response, the order lines of the Order have been successfully updated.
 
 [IMPORTANT]
 ====
-When a child entity should not be updated, but kept in the composition, the ID of the existing order line needs to be part of the request. This way Jmix recognises it as still being part of the composition and does not delete it _accidentally_.
+When a child entity should not be updated, but still be kept in the composition, the ID of the existing order line needs to be part of the request nevertheless. This way Jmix recognises it as still being part of the composition and does not delete it. Not putting that ID into the request would lead to Jmix deleting the entity (as this is how `@Composition` is handled), which might be considered accidental behaviour, but actually is behaving as designed.
 
 In the example from above when the order line for `Cotek Battery Charger (55b925e5-9f3a-a725-9eb3-1240f9c1fe9)` should not be changed at all, in the update it still needs to be listed with its ID:
 
@@ -364,7 +367,7 @@ In the example from above when the order line for `Cotek Battery Charger (55b925
 
 It is possible to only send in the attributes that should be changed. In this case, all other attributes of the entity will stay untouched.
 
-In the example below, you can send in an updated order date of the `Order` entity. The Order entity actually contains more attributes like `customer`, `amount`, `lines` that have been set during the creation of the entity.
+In the example below, you can send in an updated order date of the `Order` entity. Although the Order entity actually contains more attributes like `customer`, `amount`, `lines`.
 
 [source, http request]
 .Partial Order Update Request
@@ -373,7 +376,6 @@ PUT http://localhost:8080
          /entities
          /rstex11_Order
          /5a8adc2f-f4ef-17a9-9f97-1e715b3ade3d
-         ?responseFetchPlan=order-with-details
 
 {
   "date": "2020-12-06"
@@ -394,51 +396,7 @@ PUT http://localhost:8080
   "createdBy": "admin",
   "lastModifiedDate": "2021-03-04T07:46:11.041",
   "lastModifiedBy": "admin",
-  "lines": [
-    {
-      "_entityName": "rstex11_OrderLine",
-      "_instanceName": "rest.sample.entity.OrderLine-50a21098-9fec-0a0a-ab51-76705bd3a672 [detached]",
-      "id": "50a21098-9fec-0a0a-ab51-76705bd3a672",
-      "product": {
-        "_entityName": "rstex11_Product",
-        "_instanceName": "Cotek Battery Charger",
-        "id": "1ed85c7a-89f1-c339-a738-16307ed6003a",
-        "name": "Cotek Battery Charger"
-      },
-      "quantity": 1.0,
-      "createdDate": "2021-03-05T08:51:00.645",
-      "createdBy": "admin",
-      "lastModifiedDate": "2021-03-05T08:51:00.645",
-      "version": 1
-    },
-    {
-      "_entityName": "rstex11_OrderLine",
-      "_instanceName": "rest.sample.entity.OrderLine-be0e5392-2cc1-ee05-7720-63c46c5260c1 [detached]",
-      "id": "be0e5392-2cc1-ee05-7720-63c46c5260c1",
-      "product": {
-        "_entityName": "rstex11_Product",
-        "_instanceName": "Solar-One HUP Flooded Battery 48V",
-        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
-        "name": "Solar-One HUP Flooded Battery 48V"
-      },
-      "quantity": 2.0,
-      "createdDate": "2021-03-05T08:51:00.644",
-      "createdBy": "admin",
-      "lastModifiedDate": "2021-03-05T08:51:00.644",
-      "version": 1
-    }
-  ],
-  "version": 2, //<3>
-  "customer": {
-    "_entityName": "rstex11_Customer",
-    "_instanceName": "Randall Bishop",
-    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835",
-    "createdDate": "2021-03-01T08:33:25.326",
-    "createdBy": "admin",
-    "lastModifiedDate": "2021-03-01T08:33:25.326",
-    "name": "Randall Bishop",
-    "version": 1
-  }
+  "version": 2 //<3>
 }
 ----
 <1> The `date` attribute was updated to the new order date.
