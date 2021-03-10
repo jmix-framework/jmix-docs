@@ -1,0 +1,283 @@
+
+= Create Entities
+
+The Entities API lets you create entities by performing a `POST` request against the `/entities/:entityName` endpoint.
+
+The request body contains a JSON object with the attributes of the entity.
+
+NOTE: Attributes from xref:data-model:entities.adoc#traits[Entity Traits] like `id` or `createdBy` should not be part of the request. Those attributes are automatically added by Jmix while storing the entity.
+
+When the entity is created successfully, the HTTP response status code `201 - Created` is returned. By default, a JSON metadata representation of the entity is returned mainly containing the newly created `id` attribute for further reference.
+
+[source, http request]
+.Create Customer Request
+----
+POST http://localhost:8080/rest/entities/rstex11_Customer
+
+{
+  name: "Randall Bishop"
+}
+----
+
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "_entityName": "rstex11_Customer",
+  "_instanceName": "Randall Bishop",
+  "id": "78e7996d-8b69-6526-8e9f-16262a1c4113"
+}
+----
+
+Alternatively, it is possible to define which attributes should be returned once the entity is created. This can be achieved through the URL query parameter `responseFetchPlan`.
+
+For example, the URL `/entities/rstex11_Order?responseFetchPlan=order-with-details` would return the complete order with all its details containing order lines, customer references etc.
+
+TIP: The HTTP response Header `Location` indicates also the URL to the newly created entity instance for further operations (like fetching, updating, or deleting).
+
+== Entity Validation
+
+When an entity is created or updated, the regular entity validation is active and enforced by default. This means that invalid input (according to the entity validation annotations) from the API is rejected with the HTTP response status code `400 - Bad Request`.
+
+The API returns detailed error messages for each validation violation in the following form of a JSON array. Each entry follows the structure:
+
+message:: the (translated) human-readable error message of the violation
+messageTemplate:: the non-interpolated error message for this constraint violation
+path:: the attribute name (or property path) of the attribute that caused the violation
+invalidValue:: the value that was part of the request for the attribute, which causes the violation
+
+
+The following request contains two errors in the request, as 1. the `customer` attribute is required and 2. the `date` should not be in the future.
+
+[source, http request]
+.Invalid Order Request
+----
+POST http://localhost:8080/rest/entities/rstex11_Order
+
+{
+  "date": "2048-01-01",
+  "amount": 49.99,
+  "customer": null
+}
+----
+
+The API then returns the list of violations of the entity validations.
+
+[source, json]
+.Response: 400 - Bad Request
+----
+[
+  {
+    "message": "javax.validation.constraints.PastOrPresent.message",
+    "messageTemplate": "{javax.validation.constraints.PastOrPresent.message}",
+    "path": "date",
+    "invalidValue": "2048-01-01"
+  },
+  {
+    "message": "may not be null",
+    "messageTemplate": "{javax.validation.constraints.NotNull.message}",
+    "path": "customer",
+    "invalidValue": null
+  }
+]
+----
+
+
+== Association Attributes
+
+When the entity to create should be linked to another existing entity, it is required to reference the other entity in the request.
+
+In the Order example, you want to reference a Customer via the `customer` attribute when you create the Order. This is done through a JSON object containing only the ID of the existing entity. Jmix performs a lookup of the customer by the provided ID from the JSON request and links the customer to the new order.
+
+[source, http request]
+.Request with N:1 reference
+----
+POST http://localhost:8080/rest/entities/rstex11_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08
+}
+----
+
+For all kinds of associations: `1:N`, `N:1`, `M:N` the way to reference other entities is always via its ID.
+
+The second example shows how to link a `Product` to multiple `ProductTag` entities via an `M:N` relationship, as described in the Product entity definition.
+
+[source,java]
+.Product.java
+----
+
+@JmixEntity
+@Table(name = "RSTEX11_PRODUCT")
+@Entity(name = "rstex11_Product")
+public class Product {
+
+    @JoinTable(name = "RSTEX11_PRODUCT_PRODUCT_TAG_LINK",
+            joinColumns = @JoinColumn(name = "PRODUCT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PRODUCT_TAG_ID"))
+    @ManyToMany
+    private List<ProductTag> tags;
+
+    // ...
+
+}
+----
+
+In the request, the `ProductTag` entity instances are references by their ids. This time, the JSON object is put into an array, as there are multiple product tags to reference.
+
+[source, http request]
+.Request with `M:N` references
+----
+POST http://localhost:8080/rest/entities/rstex11_Product?responseFetchPlan=product-with-tags
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695" // <1>
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+----
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "_entityName": "rstex11_Product",
+  "_instanceName": "123",
+  "id": "f0e04748-dcdf-d856-2482-2904f2126fcc",
+  "createdDate": "2021-03-02",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-03-02",
+  "price": 99.95,
+  "name": "123",
+  "version": 1,
+  "tags": [
+    {
+      "_entityName": "rstex11_ProductTag",
+      "_instanceName": "shiny",
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695", // <2>
+      "name": "shiny"
+    },
+    {
+      "_entityName": "rstex11_ProductTag",
+      "_instanceName": "great",
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502",
+      "name": "great"
+    }
+  ]
+}
+----
+<1> The tags are referenced as a list of JSON objects containing the ID of the already existing `ProductTag`.
+<2> The response contains the stored association to the two `ProductTag` entities.
+
+== Composition Attributes
+
+For attributes that are marked as `@Composition` the situation is slightly different. As this relationship type indicates that the child entities only exist as part of the parent entity, it is also possible to directly create child entities as part of the request to create a parent.
+
+In the next example, the `OrderLine` entity is a child entity of the `Order` entity. This is expressed through the `@Composition` annotation on the `lines` attribute of the `Order` entity.
+
+[source, java]
+.Order.java
+----
+public class Order {
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
+
+    @Composition
+    @OneToMany(mappedBy = "order")
+    private List<OrderLine> lines;
+
+    // ...
+}
+----
+
+When you create an order through the API you can directly create its order lines as part of the request. In this case, all the attributes of the child entity need to be provided. The relationship from the parent to the child does not need to be additionally referenced. Putting the child entity into the JSON array is enough to establish the connection.
+
+The following JSON request will create an order with its order lines:
+
+[source, http request]
+.Request with child entities
+----
+POST http://localhost:8080/rest/entities/rstex11_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": [ // <1>
+    {
+      "quantity": 2,
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83"  // <2>
+      }
+    },
+    {
+      "quantity": 1,
+      "product": {
+        "code": "1ed85c7a-89f1-c339-a738-16307ed6003a"
+      }
+    }
+  ]
+}
+----
+<1> Order lines are created as an array of JSON objects containing all the attributes of the entity.
+<2> In case a child entity needs to reference another entity (like the `N:1` reference from the `OrderLine` to `Product`), the same rules of referencing via JSON object containing the ID apply.
+
+== Bulk Creation
+
+The Create-Entity API also allows you to create multiple entities within one request. For this the JSON request body should contain an array of JSON objects representing each entity.
+
+[source, http request]
+.Bulk Creation Request
+----
+POST http://localhost:8080/rest
+            /entities
+            /rstex11_Customer
+
+[
+  {
+    "name": "Randall Bishop"
+  },
+  {
+    "name": "Sarah Doogle"
+  }
+]
+----
+
+[source, json]
+.Response: 201 - Created
+----
+[
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Randall Bishop",
+    "id": "c5fea05d-9062-6ac8-e9b1-7051616de102"
+  },
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Sarah Doogle",
+    "id": "4a6a3aa0-ecf5-dcf4-7b37-a268a4cd3720"
+  }
+]
+----
+
+In case of a violation of an entity validation, the entities will not be created, and a corresponding Error message will be returned. See  <<Entity Validation, Entity Validation>> for further details.
+
+////
+NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.
+////
