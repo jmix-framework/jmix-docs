@@ -32,16 +32,14 @@ public class Order {
 
 The Load Entity endpoint returns a single instance in case it is found by its identifier. Otherwise, HTTP status code `404 - Not Found` is returned.
 
-In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded. Furthermore, in this example, the optional URL query parameter `fetchPlan` is used to define which attributes to return as part of the response.
 
 [source, http request]
-.Request
+.Load Order Request
 ----
 GET http://localhost:8080/rest
             /entities
             /rstex11_Order
             /21021f78-edac-224b-e6f8-6e71e02a0f0d
-            ?fetchPlan=order-with-details
 ----
 
 [source, json]
@@ -56,7 +54,68 @@ GET http://localhost:8080/rest
   "createdDate": "2021-02-06T12:03:38.049",
   "createdBy": "admin",
   "lastModifiedDate": "2021-02-06T12:03:38.049",
-  "lines": [ //<3>
+  "version": 1
+}
+----
+<1> Some metadata about the entity instance is returned as JSON keys (`entityName`, `_instanceName` and `id`).
+<2> The JSON Object contains each business attribute as a key.
+
+Some attributes of the `Order` entity are missing in the JSON, as by default only local attributes of the entity are loaded. In case of reference attributes should also be included in the response you need to use <<Using Fetch Plans,Fetch Plans>> as described below.
+
+=== Using Fetch Plans
+
+Which attributes are needed normally varies based on the clients' use-case, UIs, or integration scenario. Loading only the direct attributes of an entity is oftentimes not enough.
+
+With only the ability to load each entity type in a dedicated request, it would require loading referenced entity information in subsequent requests. This would lead to N+1 query problems in the overall application. In particular, when interacting through HTTP, the corresponding overhead can be tremendous.
+
+Therefore, the concept of xref:data-access:fetch-plans.adoc[Fetch Plans] is also supported in the Load Entities API. With Fetch Plans you can configure a tree of attributes that should be loaded all in one batch from the database and transferred through the Load Entities API to the client.
+
+The following example demonstrates how to load a list of Orders with additional information about the corresponding customer, the linked order lines, and even information about the product of that product line.
+
+First, you need to register the fetch plan `order-with-details` in the `fetch-plans.xml` configuration file:
+
+[source,xml]
+.fetch-plans.xml
+----
+<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
+    <fetchPlan class="rest.sample.entity.Order"
+               extends="_base"
+               name="order-with-details">
+        <property name="customer"/>
+        <property name="lines" fetchPlan="_base">
+            <property name="product" fetchPlan="_instance_name" />
+        </property>
+    </fetchPlan>
+</fetchPlans>
+----
+
+With that fetch plan configuration in place, you can perform the request and reference the fetch plan through the `fetchPlan` URL parameter.
+
+In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded with the fetch plan `order-with-details` in order to additionally load `customer` and `lines` data:
+
+[source, http request]
+.Load Order with Fetch Plan Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "rstex11_Order",
+  "_instanceName": "rest.sample.entity.Order-21021f78-edac-224b-e6f8-6e71e02a0f0d [detached]",
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13",
+  "amount": 49.99,
+  "createdDate": "2021-02-06T12:03:38.049",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-02-06T12:03:38.049",
+  "lines": [ //<1>
     {
       "_entityName": "rstex11_OrderLine",
       "_instanceName": "rest.sample.entity.OrderLine-64e4fbb0-7fd6-818b-984e-a8769c4fbe88 [detached]",
@@ -87,9 +146,8 @@ GET http://localhost:8080/rest
   }
 }
 ----
-<1> Some metadata about the entity instance is returned as JSON keys (`entityName`, `_instanceName` and `id`).
-<2> The JSON contains each business attribute as a JSON key.
-<3> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
+<1> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
+
 
 == Load List of Entities
 
@@ -138,6 +196,8 @@ GET http://localhost:8080/rest/entities/rstex11_Customer
 ]
 ----
 
+NOTE: Every entity in the response has a `_entityName` attribute with the name of the entity, and an `_instanceName` attribute with the xref:data-model:entities.adoc#instance-name[Instance Name] of the entity.
+
 It is also possible to further control the behavior of the API by using the following URL query parameters:
 
 fetchPlan:: name of an entity's xref:data-access:fetch-plans.adoc[fetch plan] `(String)`.
@@ -148,18 +208,61 @@ sort:: an entity attribute that will be used for sorting `(String)`.
 * `+attribute` or simply `attribute` for ascending order
 * `-attribute` for descending order.
 
-The following example demonstrates how to load the third "page" of 5 `Order` entities (the 10 - 15 entity) sorted by the date attribute and containing all attributes of the `order-with-details` fetch plan.
+=== Using Sorting
+
+The Load Entities API supports the sorting of the result by entity attributes. You can use the `sort` URL parameter for controlling the order of entities.
+
+NOTE: When the `sort` parameter is not specified, the default sort order depends on the database implementation. Normally databases sort by the timestamp of record creation, but this behavior is not guaranteed and can vary in different situations.
+
+Jmix has a special syntax to define the sort order. Ascending order is expressed through a `+` before the attribute name. This is optional though, as it is the default behavior sorting order. For descending order, you need to prefix the entity attribute with a `-` character.
+
+The following example shows how you can sort Customers by their `name` attribute ascending.
 
 [source, http request]
 .Request
 ----
 GET http://localhost:8080/rest
             /entities
-            /rstex11_Order
-            ?fetchPlan=order-with-details
-            &limit=5
-            &offset=10
-            &sort=+date
+            /rstex11_Customer
+            ?sort=name
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Klaudia Kleinert",
+    "id": "d83c9d66-cb23-075a-8d3c-d4035d338705",
+    "createdDate": "2021-03-08T12:49:44.429",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-08T12:49:44.429",
+    "name": "Klaudia Kleinert",
+    "version": 1
+  },
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Randall Bishop",
+    "id": "8985ba1e-1cc8-eb5c-f9e0-738aee9d2ef1",
+    "createdDate": "2021-03-05T13:05:11.642",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-05T13:05:11.642",
+    "name": "Randall Bishop",
+    "version": 1
+  }
+]
+----
+
+You can also sort by multiple attributes. In this case, the sort order takes a comma-separated list of attributes to sort by.
+
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Order?sort=+date,-amount
 ----
 
 [source, json]
@@ -168,99 +271,93 @@ GET http://localhost:8080/rest
 [
   {
     "_entityName": "rstex11_Order",
-    "_instanceName": "rest.sample.entity.Order-21021f78-edac-224b-e6f8-6e71e02a0f0d [detached]",
-    "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
-    "date": "2020-12-13",
-    "amount": 49.99,
-    "createdDate": "2021-02-06T12:03:38.049",
-    "createdBy": "admin",
-    "lastModifiedDate": "2021-02-06T12:03:38.049",
-    "lines": [
-      {
-        "_entityName": "rstex11_OrderLine",
-        "_instanceName": "rest.sample.entity.OrderLine-64e4fbb0-7fd6-818b-984e-a8769c4fbe88 [detached]",
-        "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
-        "product": {
-          "_entityName": "rstex11_Product",
-          "_instanceName": "Outback Power Remote Power System",
-          "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
-          "name": "Outback Power Remote Power System"
-        },
-        "quantity": 1.0,
-        "createdDate": "2021-02-06T12:03:38.049",
-        "createdBy": "admin",
-        "lastModifiedDate": "2021-02-06T12:03:38.049",
-        "version": 1
-      }
-    ],
-    "version": 1,
-    "customer": {
-      "_entityName": "rstex11_Customer",
-      "_instanceName": "Sidney Chandler",
-      "id": "0826806e-6074-90fa-f241-564b5c94d018",
-      "createdDate": "2021-02-06T12:00:53.72",
-      "createdBy": "admin",
-      "lastModifiedDate": "2021-02-06T12:00:53.72",
-      "name": "Sidney Chandler",
-      "version": 1
-    }
-  },
-  {
-    "_entityName": "rstex11_Order",
     "_instanceName": "rest.sample.entity.Order-41aae331-b46b-85ee-b0bc-2de8cbf1ab86 [detached]",
     "id": "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
-    "date": "2021-02-02",
+    "date": "2021-02-02", // <1>
     "amount": 283.55,
     "createdDate": "2021-02-06T12:04:37.372",
     "createdBy": "admin",
     "lastModifiedDate": "2021-02-06T12:04:37.372",
-    "lines": [
-      {
-        "_entityName": "rstex11_OrderLine",
-        "_instanceName": "rest.sample.entity.OrderLine-d89df652-9d06-8d3e-2f26-5387e96e5b5d [detached]",
-        "id": "d89df652-9d06-8d3e-2f26-5387e96e5b5d",
-        "product": {
-          "_entityName": "rstex11_Product",
-          "_instanceName": "Cotek Battery Charger",
-          "id": "1ed85c7a-89f1-c339-a738-16307ed6003a",
-          "name": "Cotek Battery Charger"
-        },
-        "quantity": 1.0,
-        "createdDate": "2021-02-06T12:04:37.372",
-        "createdBy": "admin",
-        "lastModifiedDate": "2021-02-06T12:04:37.372",
-        "version": 1
-      },
-      {
-        "_entityName": "rstex11_OrderLine",
-        "_instanceName": "rest.sample.entity.OrderLine-7ccd45ec-8878-2a4a-2c24-b5ac053b6d4c [detached]",
-        "id": "7ccd45ec-8878-2a4a-2c24-b5ac053b6d4c",
-        "product": {
-          "_entityName": "rstex11_Product",
-          "_instanceName": "Solar-One HUP Flooded Battery 48V",
-          "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
-          "name": "Solar-One HUP Flooded Battery 48V"
-        },
-        "quantity": 1.0,
-        "createdDate": "2021-02-06T12:04:37.372",
-        "createdBy": "admin",
-        "lastModifiedDate": "2021-02-06T12:04:37.372",
-        "version": 1
-      }
-    ],
-    "version": 1,
-    "customer": {
-      "_entityName": "rstex11_Customer",
-      "_instanceName": "Shelby Robinson",
-      "id": "bd1c8e90-3d35-cbe2-9efd-167202c758d2",
-      "name": "Shelby Robinson",
-      "version": 1
-    }
+    "version": 1
+  },
+  {
+    "_entityName": "rstex11_Order",
+    "_instanceName": "rest.sample.entity.Order-288a5d75-f06f-d150-9b70-efee1272b96c [detached]",
+    "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
+    "date": "2021-03-01",
+    "amount": 249.99, // <2>
+    "createdDate": "2021-03-05T10:45:21.678",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-05T10:45:29.31",
+    "lastModifiedBy": "admin",
+    "version": 2
+  },
+  {
+    "_entityName": "rstex11_Order",
+    "_instanceName": "rest.sample.entity.Order-1068c217-5868-faf4-16aa-23655e9492da [detached]",
+    "id": "1068c217-5868-faf4-16aa-23655e9492da",
+    "date": "2021-03-01",
+    "amount": 130.08,
+    "createdDate": "2021-03-04T07:03:09.372",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-04T07:03:09.372",
+    "version": 1
   }
 ]
 ----
+<1> the result with the oldest date is returned first
+<2> when the `date` attribute is the same, the `amount` is used to sort the results
 
-NOTE: Every entity in the response has a `_entityName` attribute with the name of the entity, and an `_instanceName` attribute with the xref:data-model:entities.adoc#instance-name[Instance Name] of the entity.
+=== Using Pagination
+
+The Entities API support Pagination to respect the data processing limitation that might be present on the server or client-side. In case you want to load only a particular subset of the entities, you can provide the URL parameters `offset` and `limit`.
+
+[NOTE]
+====
+Pagination is active by default, even if it is not explicitly requested by the client. In case no `limit` value is present in the request, the Load APIs will return only the first `10,000` entities.
+
+This default value is configurable globally via xref:configuration.adoc#jmix.rest.defaultMaxFetchSize[jmix.rest.defaultMaxFetchSize] or on an entity-by-entity basis via xref:configuration.adoc#jmix.rest.entityMaxFetchSize[jmix.rest.entityMaxFetchSize].
+====
+
+The following example demonstrates how to load the third Page containing two `Customer` entities (5. & 6. entity):
+
+[source, http request]
+.Load Customer Request with Pagination
+----
+GET http://localhost:8080/rest
+            /entities
+            /rstex11_Customer
+            ?limit=2
+            &offset=4
+            &sort=createdDate
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Maria Mitchell",
+    "id": "2d620164-1e80-0696-c3aa-45b7b5c81f2c",
+    "createdDate": "2021-03-01T09:00:00.000",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-01T09:00:00.000",
+    "name": "Maria Mitchell",
+    "version": 1
+  },
+  {
+    "_entityName": "rstex11_Customer",
+    "_instanceName": "Anthony Knutson",
+    "id": "3c7ec69d-9b85-c6e9-387b-42a5bccb79de",
+    "createdDate": "2021-03-04T11:30:00.000",
+    "createdBy": "admin",
+    "lastModifiedDate": "2021-03-04T11:30:00.000",
+    "name": "Anthony Knutson",
+    "version": 1
+  }
+]
+----
 
 == Load Entities via Search Filter
 
@@ -274,36 +371,26 @@ property:: the entity attribute that is being filtered on (like `amount` on the 
 +
 In case the attribute is a reference to another entity, it can also be a property path like `customer.name`
 
-operator:: the filter operator. The following values are possible (depending on the property datatype):
+operator:: the filter operator. An operator describes how to filter for a particular attribute. There are multiple :
 +
-[cols="2,1,1,1"]
+* Standard Operators: `=`, `<>`, `notEmpty`, `isNull`
+* List Operators: `in`, `notIn`
+
+Additionally, some operators are only possible for particular datatypes:
+[cols="1,1"]
 |===
-|Datatype | Standard Operators | List Operators | Specific Operators
+|Datatype | Specific Operators
 
 |String, UUID
-|`=`, `<>`, `notEmpty`, `isNull`
-| `in`, `notIn`
 |`startsWith`, `endsWith`, `contains`, `doesNotContain`
 
-|Boolean
-|`=`, `<>`, `notEmpty`, `isNull`
-|`in`, `notIn`
-|
 
 |Integer, Long, Double, BigDecimal
-|`=`, `<>`, `notEmpty`, `isNull`
-| `in`, `notIn`
 |`=`, `<>`, `>`, `>=`, `<`, `&lt;=`
 
 |Date, DateTime, Time, LocalDate, LocalDateTime,  LocalTime, OffsetDateTime, OffsetTime
-|`=`, `<>`, `notEmpty`, `isNull`
-| `in`, `notIn`
 |`=`, `<>`, `>`, `>=`, `<`, `&lt;=`
 
-|Entity references
-|`=`, `<>`, `notEmpty`, `isNull`
-| `in`, `notIn`
-|
 |===
 
 value:: the value to search for. Value is not required for the `notEmpty` and `isNull` operators.
