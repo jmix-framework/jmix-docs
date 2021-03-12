@@ -1,0 +1,128 @@
+= Manage Files
+
+This API uses the xref:files:index.adoc[Files mechanism] provided by Jmix and exposes it through the REST API to let client applications upload and download files to / from a Jmix application.
+
+== Uploading Files
+
+The Upload Files API endpoint `/files` used with a `POST` HTTP method allows you to transfer a file to the Jmix application.
+
+There are two different ways of transferring the data:
+
+1. Using `multipart/form-data`
+2. Using different content types with the body containing the binary data
+
+Depending on the use-case either of those two options might be a better fit. In both situations the API returns `201 - Created` to indicate that the file was successfully stored.
+
+=== Using Multipart/form-data
+
+When using a standard browser form to submit the file to the Jmix application, the preferred way is to use the first option, as browsers by default use the Content-Type `multipart/form-data` in this case. The form data that contains the file binary needs to be named `file` so that Jmix takes this part as the file content.
+
+In this example you can see a `multipart/form-data` request, that upload the file `cat.jpg` in its raw HTTP form:
+
+[source, http request]
+.Upload File as Multipart/form-data Request
+----
+POST http://localhost:8080/rest/files
+Content-Type: multipart/form-data; boundary=WebAppBoundary // <1>
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="cat.jpg" // <2>
+Content-Type: image/jpeg
+
+< ./cat.jpg // <3>
+--WebAppBoundary--
+----
+<1> The `Content-Type` of the HTTP request is `multipart/form-data`
+<2> The `Content-Disposition` part with the name `file` expresses the file to upload. The filename there as well.
+<3> `< ./cat.jpg` stands for the binary data of the file (_the actual binary content is not displayed here_).
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileReference": "fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg", // <1>
+  "name": "cat.jpg",
+  "size": 85862
+}
+----
+<1> The `fileReference` contains the reference or ID for downloading / referencing the file later.
+
+In case you want to control the file name under which the file is stored, you can set the URL parameter `name` like this:
+`POST http://localhost:8080/rest/files?name=dog.jpg`. In this case, Jmix will pick up the filename from the parameter and not take the `Content-Disposition` into consideration.
+
+TIP: When using an HTML form it is not directly possible to set the `Authorization` header. For this reason, the Generic REST API alternatively allows to attach the access token as a URL parameter. You can find more information about authenticate via URL parameter in the security section xref:security.adoc#_authenticate_via_url_parameter[Authenticate via URL Parameter].
+
+[NOTE]
+====
+When using an HTML `<form src="" />` tag to upload a file it is _not_ directly possible to set the `Authorization` header.
+
+The Generic REST API therefore also to xref:security.adoc#_authenticate_via_url_parameter[authenticate via URL Parameter] as an alternative.
+====
+
+=== Using Direct Upload
+
+It is also possible to upload a file without using the `multipart/form-data` content type. Instead, you can use the content type of the file directly. Then, the body of the HTTP request directly contains the binary information.
+
+You need to provide the URL parameter `name` to indicate which filename to use for the file. In this example you can see how to use the Direct Request to upload a file:
+
+[source, http request]
+.Upload File as Direct Request
+----
+POST http://localhost:8080/rest/files?name=cat-via-direct-request.jpg // <1>
+Content-Type: image/jpeg // <2>
+
+< ./cat.jpg // <3>
+----
+<1> The `name` URL parameter provides the filename to store.
+<2> The `Content-Type` is the actual content type of the file.
+<3> `< ./cat.jpg` stands for the binary data of the file (_the actual binary content is not displayed here_).
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileReference": "fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg",
+  "name": "cat-via-direct-request.jpg",
+  "size": 85862
+}
+----
+
+
+== Downloading Files
+
+Files that are already stored in your Jmix application, can also be downloaded or displayed. For this you should use the Downloading Files endpoint: `/files?fileRef=:fileRef` via HTTP `GET`. The API returns `200 - OK` if the file was found together with the file binary content as part of the HTTP body.
+
+In the following example the previously uploaded file is downloaded via the API:
+
+[source, http request]
+.Download File Request
+----
+GET http://localhost:8080/rest
+            /files
+            ?fileRef=fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg // <1>
+----
+<1> `fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg` identifies the file by its reference.
+
+[source, http request]
+.Response: 200 - OK
+----
+Content-Disposition: inline; filename="cat-via-direct-content-type.jpg" // <1>
+Content-Type: image/jpeg // <2>
+
+> ./cat-via-direct-content-type.jpg // <3>
+----
+<1> The `Content-Disposition` contains the filename as well as information on how to treat the file while downloading (`inline` or `attachment`).
+<2> The `Content-Type` returns the content type of the file.
+<3> `> ./cat-via-direct-content-type.jpg` stands for the binary data of the file (_the actual binary content is not displayed here_).
+
+[NOTE]
+====
+When using an HTML link or rendering an image through the `<img src="" />` tag to a file it is _not_ directly possible to set the `Authorization` header.
+
+The Generic REST API therefore also to xref:security.adoc#_authenticate_via_url_parameter[authenticate via URL Parameter] as an alternative.
+====
+
+
+== Referencing Files to an Entity
+
+TIP: new
