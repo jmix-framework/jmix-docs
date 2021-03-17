@@ -2,14 +2,10 @@
 
 The Generic REST API comes with different built-in functionalities to interact with a Jmix application:
 
-* <<Metadata,Metadata>> Endpoints for introspection of various information, like data-model descriptions, information about the current user and their permission or localized messages.
 
+== Localized Messages
 
-== Metadata
-
-=== Localized Messages
-
-When interacting with a frontend application (like a React UI or a mobile app), it is often needed to display localised messages of the application. As those translated values are already defined in the Jmix `.messages` files, the Messages API provides the ability to exposing those values through the REST API.
+When interacting with a frontend application (like the xref:frontend-ui:index.adoc[Frontend UI] or a mobile application), it is often needed to display localised messages of the application. As those translated values are already defined in the Jmix `.messages` files, the Messages API provides the ability to exposing those values through the REST API.
 
 There are the following endpoints that you can use to retrieve translated messages:
 
@@ -62,16 +58,223 @@ Accept-Language: de
 ----
 
 
-=== Permissions
+== Permissions
 
-TIP: https://files.cuba-platform.com/swagger/7.1/#/Permissions
-
-
-=== User Info
-
-TIP: https://files.cuba-platform.com/swagger/7.1/#/UserInfo
+The Permissions API allows you to retrieve information about the permission that are applied on the current user session.
 
 
-=== Model Introspection
+== User Info
 
-TIP: https://files.cuba-platform.com/swagger/7.1/#/Metadata
+The User Info Endpoint allows you to fetch information about the current user: `GET /userInfo` returns a `200 - OK` with the following information:
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "username": "admin",
+  "locale": "en"
+}
+----
+
+
+== Metadata API
+
+It is possible to introspect the entity structure and relationships between entities in Jmix via the xref:data-model:metadata.adoc[Metadata] mechanism. You can also access these capabilities through the REST API with the different metadata endpoints starting with `/metadata`.
+
+The Metadata API consists of the following endpoints:
+
+
+* <<Entity Metadata,Entity Metadata>> Information about the entity and detailed information about the entity attributes
+* <<Fetch Plan Information,Fetch Plan Information>> Information about available Fetch Plans for entities, and their attributes
+* <<Enum Values,Enum Values>> Information about available Enums, and their possible values
+
+
+=== Entity Metadata
+
+The Entity Metadata API consists of two endpoints that allow to retrieve information about the entity attributes:
+
+`/metadata/entities`:: Metadata descriptions for all entities
+`/metadata/entities/:entityName`:: Metadata descriptions of the given entity
+
+[source, http request]
+.Order Entity Metadata Request
+----
+GET http://localhost:8080/rest
+            /metadata
+            /entities
+            /rstex11_Order
+----
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "entityName": "rstex11_Order",
+  "ancestor": null,
+  "properties": [
+    {
+      "name": "date",
+      "attributeType": "DATATYPE",
+      "type": "localDate",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Date",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "amount",
+      "attributeType": "DATATYPE",
+      "type": "decimal",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Amount",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "id",
+      "attributeType": "DATATYPE",
+      "type": "uuid",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Id",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "lines",
+      "attributeType": "COMPOSITION",
+      "type": "rstex11_OrderLine",
+      "cardinality": "ONE_TO_MANY",
+      "mandatory": false,
+      "readOnly": false,
+      "description": "Lines",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "customer",
+      "attributeType": "ASSOCIATION",
+      "type": "rstex11_Customer",
+      "cardinality": "MANY_TO_ONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Customer",
+      "persistent": true,
+      "transient": false
+    }
+  ]
+}
+----
+
+=== Fetch Plan Information
+
+The Fetch Plan Metadata API exposes information of the structure of the available xref:data-access:fetch-plans.adoc[fetch plans] for a given entity. It consists of the two endpoints:
+
+`/metadata/entities/:entityName/fetchPlans`:: All available fetch plans of the given entity
+`/metadata/entities/:entityName/fetchPlans/:fetchPlanName`:: Information about a particular fetch plan
+
+In the following example all fetch plans are requested for the `rstex11_Order` entity:
+
+[source, http request]
+.Available Order Fetch Plans Request
+----
+GET http://localhost:8080/rest
+            /metadata
+            /entities
+            /rstex11_Order
+            /fetchPlans
+----
+
+[source,json]
+.Response: 200 - OK
+----
+[
+  {
+    "name": "order-with-details",
+    "entity": "rstex11_Order",
+    "properties": [
+      "date",
+      "amount",
+      "createdDate",
+      "createdBy",
+      "lastModifiedDate",
+      "deletedDate",
+      "lastModifiedBy",
+      "id",
+      "version",
+      "deletedBy",
+      "customer",
+      {
+        "name": "lines",
+        "fetchPlan": {
+          "name": "_base",
+          "properties": [
+            "quantity",
+            "createdDate",
+            "createdBy",
+            "lastModifiedDate",
+            "deletedDate",
+            "lastModifiedBy",
+            "id",
+            "version",
+            "deletedBy",
+            {
+              "name": "product",
+              "fetchPlan": {
+                "name": "_instance_name",
+                "properties": [
+                  "name"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
+----
+=== Enum Values
+
+The Enum Metadata API provides information about possible values for Enums.
+
+`/metadata/enums`:: Translation for the enum name and values of all enums
+`/metadata/enums/:enumClassName`:: Translation for the enum name and values of the given enum
+
+NOTE: The parameter `:enumClassName` should contains the full qualified classname of the enum. Example: `rest.sample.entity.CustomerType` instead of just `CustomerType`.
+
+In the following example information about the `rest.sample.entity.CustomerType` enum are requested:
+
+[source, http request]
+.Enum Values Request
+----
+GET http://localhost:8080/rest
+            /metadata
+            /enums
+            /rest.sample.entity.CustomerType
+----
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "name": "rest.sample.entity.CustomerType",
+  "values": [
+    {
+      "name": "BUSINESS",
+      "id": "BUSINESS",
+      "caption": "Business"
+    },
+    {
+      "name": "PRIVATE",
+      "id": "PRIVATE",
+      "caption": "Private"
+    }
+  ]
+}
+----
