@@ -5,9 +5,8 @@ import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
-import io.jmix.security.authentication.GrantedAuthorityContainer;
+import io.jmix.security.authentication.JmixUserDetails;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -20,7 +19,7 @@ import java.util.UUID;
 @Table(name = "SMPL_USER", indexes = {
         @Index(name = "IDX_SMPL_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
 })
-public class User implements UserDetails, GrantedAuthorityContainer {
+public class User implements JmixUserDetails {
 
     @Id
     @Column(name = "ID")
