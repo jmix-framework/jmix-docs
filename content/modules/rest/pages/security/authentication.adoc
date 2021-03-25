@@ -1,0 +1,99 @@
+== Authentication
+
+To interact with the REST API as a client, it is required to authenticate against the API through an OAuth2 flow. The following sequence diagram explains the general interaction with the REST API:
+
+[plantuml]
+....
+@startuml
+actor "API Client"
+participant "Jmix Authentication"
+collections "Entities API"
+
+== Token Retrieval ==
+
+"API Client" -> "Jmix Authentication": Authentication Request\n + Username & Password
+activate "Jmix Authentication"
+return Access Token
+
+== Business Interactions ==
+"API Client" -> "Jmix Authentication": Get Entities Request\n + Access Token
+activate "Jmix Authentication"
+"Jmix Authentication" -> "Jmix Authentication" : Token Verification
+"Jmix Authentication" -> "Entities API": Get Entities Request
+deactivate "Jmix Authentication"
+deactivate "Jmix Authentication"
+activate "Entities API"
+"Entities API" --> "API Client": List of Entities
+deactivate "Entities API"
+
+@enduml
+....
+
+First, the API client needs to request an access token through the "Authentication Request". For that the client presents its username and password as part of the request to Jmix:
+
+.Authentication Request
+[source, http request]
+----
+POST http://localhost:8080/oauth/token
+Authorization: Basic {{client_id}} {{client_secret}} // <1>
+Content-Type: application/x-www-form-urlencoded // <2>
+
+grant_type=password // <3>
+&username={{username}} // <4>
+&password={{password}}
+----
+<1> The Authentication Request itself is authenticated with Basic Auth xref:configuration.adoc#jmix.rest.client.id[client_id] and xref:configuration.adoc#jmix.rest.client.secret[client_secret].
+<2> The content of the authentication request is `application/x-www-form-urlencoded`.
+<3> The `grant_type` is `password` to indicate the type of login that is performed.
+<4> The user credentials are provided as part of the form with the keys `username` and `password`.
+
+After a successful login, Jmix returns the access token as part of the HTTP response:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token": "CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=",
+  "token_type": "bearer",
+  "refresh_token": "Hh2xCuZ7fgd35obagEBNGevF4ws=",
+  "expires_in": 31535999,
+  "scope": "rest-api",
+  "OAuth2.SESSION_ID": "5C46CDF266E8C8C15372887830B74F59"
+}
+----
+
+=== Authenticate via Header
+
+With the received access token `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`, you can now perform requests against the REST API. The access token needs to be passed in as the `Authorization` Header in every request, like in the following example:
+
+.Create Customers Request
+[source, http request]
+----
+POST http://localhost:8080/rest
+            /entities
+            /rstex11_Customer
+Authorization: Bearer CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=  //<1>
+
+{
+  name: "Randall Bishop"
+}
+----
+<1> The API request is authenticated with the authorization type `Bearer`, and the received access token.
+
+
+=== Authenticate via URL Parameter
+
+It is also possible to pass the access token as a URL query parameter. This is necessary when the HTTP headers cannot be set. In case of the browser linking to a file or render an image.
+
+In the following example an image from the xref:files-api.adoc[Files API] should be rendered via `<img src="..." />` on a website.
+
+In this case, it is not possible to set the HTTP headers. Therefore, you can pass in the `access_token` as a URL as a query parameter:
+
+[source,html]
+----
+<img
+    src="http://localhost:8080/files
+            ?access_token=CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=
+            &fileRef=fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg"
+/>
+----
