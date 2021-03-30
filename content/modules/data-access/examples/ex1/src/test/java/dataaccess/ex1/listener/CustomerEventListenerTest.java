@@ -32,6 +32,7 @@ public class CustomerEventListenerTest {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         jdbc.execute("delete from CUSTOMER_GRADE_CHANGE");
         jdbc.execute("delete from CUSTOMER");
+        jdbc.execute("delete from SAMPLE_SENT_EMAIL");
     }
 
     @Test

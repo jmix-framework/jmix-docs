@@ -82,6 +82,11 @@ public class InMemoryStore implements DataStore {
         return new ArrayList<>();
     }
 
+    @Override
+    public long getCount(ValueLoadContext context) {
+        return 0;
+    }
+
     @Nullable
     private Object cloneInstance(@Nullable Object instance) {
         return instance == null ? null : metadataTools.deepCopy(instance);

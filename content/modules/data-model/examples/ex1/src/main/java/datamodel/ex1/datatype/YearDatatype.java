@@ -3,6 +3,7 @@ package datamodel.ex1.datatype;
 // tag::datatype[]
 import com.google.common.base.Strings;
 import io.jmix.core.metamodel.annotation.DatatypeDef;
+import io.jmix.core.metamodel.annotation.Ddl;
 import io.jmix.core.metamodel.datatype.Datatype;
 
 import javax.annotation.Nullable;
@@ -14,6 +15,7 @@ import java.util.Locale;
         id = "year", // <1>
         javaClass = Integer.class // <2>
 )
+@Ddl("int")
 public class YearDatatype implements Datatype<Integer> {
 
     private static final String PATTERN = "##00";
