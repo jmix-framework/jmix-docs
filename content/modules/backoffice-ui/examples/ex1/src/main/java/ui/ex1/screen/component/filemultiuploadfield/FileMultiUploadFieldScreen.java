@@ -24,6 +24,7 @@ public class FileMultiUploadFieldScreen extends Screen {
     private TemporaryStorage temporaryStorage;
     @Autowired
     private Notifications notifications;
+
     @Subscribe
     public void onInit(InitEvent event) {
         // <2>

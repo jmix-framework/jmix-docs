@@ -11,6 +11,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
+import java.util.UUID;
 
 // tag::file-storage-upload-field[]
 // tag::file-upload-field[]
@@ -21,10 +22,10 @@ public class Person {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
-    private java.util.UUID id;
+    private UUID id;
 
     @InstanceName
-    @Column(name = "NAME", nullable = false, length = 63)
+    @Column(name = "NAME", nullable = false)
     @NotNull
     private String name;
 
@@ -34,8 +35,9 @@ public class Person {
 
     // end::file-upload-field[]
 
+    //todo: Check why studio is generating @PropertyDatatype annotation. Works correctly without it.
+    //@PropertyDatatype("fileRef")
     // tag::file-storage-upload-field[]
-    @PropertyDatatype("fileRef")
     @Column(name = "IMAGE")
     private FileRef image;
     // end::file-storage-upload-field[]
