@@ -1,6 +1,8 @@
 package bpm.ex1.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.metamodel.annotation.DependsOnProperties;
+import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
@@ -92,4 +94,9 @@ public class Order {
         this.id = id;
     }
 
+    @InstanceName
+    @DependsOnProperties({"customer", "product", "amount"})
+    public String getInstanceName() {
+        return String.format("%s - %s - %s", customer.getName(), product, amount);
+    }
 }
