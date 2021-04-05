@@ -7,4 +7,7 @@ import ui.ex1.entity.Brand;
 @UiDescriptor("brand-browse.xml")
 @LookupComponent("brandsTable")
 public class BrandBrowse extends StandardLookup<Brand> {
+    public void setSomeParameter(int param){
+        int i = param;
+    }
 }
