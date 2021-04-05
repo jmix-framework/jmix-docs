@@ -104,11 +104,9 @@ public class CustomerEdit extends StandardEditor<Customer> {
     }
     // end::action-performed-event[]
 
-
     // tag::action-performed-event-2[]
-    /*
-    @Subscribe("favoriteBrandsTable.add")
-    public void onFavoriteBrandsTableAdd(Action.ActionPerformedEvent event) {
+    @Subscribe("favoriteBrandsTable.addAction")
+    public void onFavoriteBrandsTableAddAction(Action.ActionPerformedEvent event) {
         screenBuilders.lookup(favoriteBrandsTable)
                 .withOpenMode(OpenMode.DIALOG)
                 .withScreenClass(BrandBrowse.class)
@@ -123,6 +121,5 @@ public class CustomerEdit extends StandardEditor<Customer> {
                 .build()
                 .show();
     }
-    */
     // end::action-performed-event-2[]
 }
