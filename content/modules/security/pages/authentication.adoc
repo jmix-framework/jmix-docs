@@ -1,0 +1,60 @@
+= Authentication
+
+Authentication is the process of verifying the identity of a user or process that interacts with the system. For example, the system can authenticate users by their username and password. For authenticated users, the system can perform authorization, which is a check of permissions to a particular resource.
+
+Jmix directly uses Spring Security https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication[servlet authentication^], so if you are familiar with this framework, you can easily extend or override the standard authentication mechanism provided by Jmix out-of-the-box.
+
+[[current]]
+== Current User
+
+To determine who is currently authenticated, use the `CurrentAuthentication` bean. It has the following methods:
+
+* `getUser()` returns the currently authenticated user as https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/userdetails/UserDetails.html[UserDetails^]. You can cast it to the class of xref:users.adoc#entity[users] defined in your project.
+
+* `getAuthentication()` returns the https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/Authentication.html[Authentication^] object set in the current execution thread. You can use it to get the collection of current user https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/GrantedAuthority.html[authorities^]. In the standard Jmix security implementation, the collection contains authority objects for each xref:resource-roles.adoc[resource] and xref:row-level-roles.adoc[row-level] role assigned to the user.
+
+* `getLocale()` and `getTimeZone()` return the locale and time zone of the current user.
+
+* `isSet()` returns true if the current execution thread is authenticated, that is contains information about the user. If it's not, `getUser()`, `getLocale()` and `getTimeZone()` methods described above will throw the `IllegalStateException`.
+
+Below is an example of getting the information about the current user:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/screen/auth/AuthTestScreen.java[tags=current-auth]
+----
+
+NOTE: `CurrentAuthentication` is just a wrapper around https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/context/SecurityContextHolder.html[SecurityContextHolder^], so it is fully compatible with all Spring Security mechanisms.
+
+[[client]]
+== Client Authentication
+
+The backend of a Jmix application can have different clients, for example, Backoffice UI, GraphQL, or REST API. Each client has its own standard authentication mechanism explained in the respective sections of the documentation:
+
+* xref:backoffice-ui:login.adoc[Login to Backoffice UI]
+* xref:rest:security.adoc[Security in REST]
+
+[[system]]
+== System Authentication
+
+The execution thread can be not authenticated if it was started by an internal scheduler or handles a request from the JMX interface. At the same time, your business logic or data access code usually requires information on who is currently working with the system for logging or authorization.
+
+To temporarily associate the current execution thread with a user, use the `SystemAuthenticator` bean. It has the following methods:
+
+* `withSystem()` - accepts a lambda and executes it as the xref:users.adoc#built-in[system] user.
+
+* `withUser()` - accepts a username of a regular application user and a lambda and executes the lambda as the given user with their permissions.
+
+Below is an example of authenticating an MBean operation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/mbean/SettingsManagementFacade.java[tags=system-authenticator;current-authentication;system-auth-code]
+----
+
+You can also use the `@Authenticated` annotation to authenticate an entire bean method as executed by the `system` user. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/mbean/SettingsManagementFacade.java[tags=current-authentication;system-auth-ann]
+----
