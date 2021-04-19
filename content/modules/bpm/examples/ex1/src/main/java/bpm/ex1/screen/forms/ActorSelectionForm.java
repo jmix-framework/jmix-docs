@@ -1,6 +1,7 @@
 package bpm.ex1.screen.forms;
 
 import bpm.ex1.entity.User;
+import io.jmix.bpm.data.form.FormParam;
 import io.jmix.bpmui.processform.ProcessFormContext;
 import io.jmix.bpmui.processform.annotation.Param;
 import io.jmix.bpmui.processform.annotation.ProcessForm;
@@ -15,9 +16,11 @@ import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
+
 @UiController("smpl_ActorSelectionForm")
 @UiDescriptor("actor-selection-form.xml")
-// tag::actor-form[]
+// tag::actor-form1[]
 // tag::params[]
 @ProcessForm(
         params = {
@@ -35,11 +38,9 @@ public class ActorSelectionForm extends Screen {
     private EntityPicker<String> userEntityPicker;
 
     // tag::params-annotation[]
-    @Autowired
     @ProcessFormParam
     private String variableName;
 
-    @Autowired
     @ProcessFormParam
     private String entityPickerCaption;
     // end::params-annotation[]
@@ -56,5 +57,14 @@ public class ActorSelectionForm extends Screen {
                 .complete();
         closeWithDefaultAction();
     }
+    // end::actor-form1[]
+
+    private void getParametersList() {
+        // tag::param-list[]
+        List<FormParam> formParams = processFormContext.getFormData().getFormParams();
+        //end::param-list[]
+    }
+
+    // tag::actor-form2[]
 }
-// end::actor-form[]
+// end::actor-form2[]
