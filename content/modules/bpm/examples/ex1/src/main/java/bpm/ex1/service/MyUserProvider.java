@@ -20,10 +20,10 @@ public class MyUserProvider implements UserProvider {
 
     @Override
     public UserDetails getValue(String executionId) {
-        String userLogin = (String) runtimeService.getVariable(executionId, "userLogin");
+        String manager = (String) runtimeService.getVariable(executionId, "manager");
         return dataManager.load(User.class)
                 .query("select u from smpl_User u where u.username = :username")
-                .parameter("username", userLogin)
+                .parameter("username", manager)
                 .one();
     }
 }
