@@ -8,22 +8,24 @@ import io.jmix.ui.Notifications;
 import io.jmix.ui.RemoveOperation;
 import io.jmix.ui.ScreenBuilders;
 import io.jmix.ui.action.Action;
+import io.jmix.ui.action.BaseAction;
 import io.jmix.ui.action.DialogAction;
 import io.jmix.ui.action.list.*;
+import io.jmix.ui.action.tagpicker.TagLookupAction;
 import io.jmix.ui.app.bulk.ColumnsMode;
 import io.jmix.ui.bulk.BulkEditors;
-import io.jmix.ui.component.GroupTable;
-import io.jmix.ui.component.PopupButton;
+import io.jmix.ui.component.*;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
+import ui.ex1.screen.entity.customer.CustomerBrowse;
 import ui.ex1.screen.entity.customer.CustomerEdit;
 
 import javax.inject.Named;
 import java.util.*;
 
-@UiController("sample_ActionScreen")
+@UiController("action-screen")
 @UiDescriptor("action-screen.xml")
 public class ActionScreen extends Screen {
     // tag::for-bulk-action[]
@@ -58,6 +60,7 @@ public class ActionScreen extends Screen {
     // tag::table[]
     @Autowired
     private GroupTable<Customer> customersGroupTable;
+
     // end::table[]
     // tag::create-action[]
     @Named("customersGroupTable.create")
@@ -116,6 +119,25 @@ public class ActionScreen extends Screen {
 
     // end::inject-view-action[]
 
+    // tag::inject-tagLookupAction[]
+    @Named("customerTagPicker.tagLookup")
+    private TagLookupAction<Customer> tagLookupAction;
+
+    // end::inject-tagLookupAction[]
+
+    // tag::inject-customerTagPicker[]
+    @Autowired
+    private TagPicker<Customer> customerTagPicker;
+
+    // end::inject-customerTagPicker[]
+    // tag::inject-sayHelloBtn[]
+    @Autowired
+    private Button sayHelloBtn;
+    @Autowired
+    private Button sayGoodbyeBtn;
+
+    // end::inject-sayHelloBtn[]
+
     // tag::on-init-start[]
     @Subscribe
     public void onInit(InitEvent event) {
@@ -142,6 +164,34 @@ public class ActionScreen extends Screen {
         viewAction.setOpenMode(OpenMode.DIALOG);
         viewAction.setScreenClass(CustomerEdit.class);
         // end::view-action-set[]
+        // tag::tagLookup-action-set[]
+        tagLookupAction.setOpenMode(OpenMode.DIALOG);
+        tagLookupAction.setScreenClass(CustomerBrowse.class);
+        // end::tagLookup-action-set[]
+        // tag::base-action-button[]
+        sayHelloBtn.setAction(new BaseAction("hello") {
+            @Override
+            public boolean isPrimary() {
+                return true;
+            }
+
+            @Override
+            public void actionPerform(Component component) {
+                notifications.create()
+                        .withCaption("Hello!")
+                        .withType(Notifications.NotificationType.TRAY)
+                        .show();
+            }
+        });
+
+        sayGoodbyeBtn.setAction(new BaseAction("goodbye")
+                .withPrimary(true)
+                .withHandler(e ->
+                        notifications.create()
+                                .withCaption("Goodbye!")
+                                .withType(Notifications.NotificationType.TRAY)
+                                .show()));
+        // end::base-action-button[]
         // tag::on-init-end[]
     }
     // end::on-init-end[]
@@ -340,7 +390,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (Customer)((StandardEditor)(afterScreenCloseEvent.getScreen())).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
                         System.out.println("Created " + committedCustomer);
                     }
                 })
@@ -403,7 +453,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (Customer)((StandardEditor)(afterScreenCloseEvent.getScreen())).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
                         System.out.println("Updated " + committedCustomer);
                     }
                 })
@@ -507,7 +557,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (Customer)((StandardEditor)(afterScreenCloseEvent.getScreen())).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
                         System.out.println("Updated " + committedCustomer);
                     }
                 })
@@ -515,7 +565,78 @@ public class ActionScreen extends Screen {
         customerEdit.setReadOnly(true);
         customerEdit.show();
     }
-    // end::view-action-performed-event[]
 
+    // end::view-action-performed-event[]
+    // tag::tag-lookup-screen-options-supplier[]
+    @Install(to = "customerTagPicker.tagLookup", subject = "screenOptionsSupplier")
+    private ScreenOptions customerTagPickerTagLookupScreenOptionsSupplier() {
+        return new MapScreenOptions(ParamsMap.of("someParameter", 10));
+    }
+    // end::tag-lookup-screen-options-supplier[]
+    // tag::tag-lookup-screen-configurer[]
+    @Install(to = "customerTagPicker.tagLookup", subject = "screenConfigurer")
+    private void customerTagPickerTagLookupScreenConfigurer(Screen screen) {
+        ((CustomerBrowse) screen).setSomeParameter(10);
+    }
+    // end::tag-lookup-screen-configurer[]
+    // tag::tag-lookup-select-validator[]
+    @Install(to = "customerTagPicker.tagLookup", subject = "selectValidator")
+    private boolean customerTagPickerTagLookupSelectValidator(LookupScreen.ValidationContext<Customer> validationContext) {
+        boolean valid = validationContext.getSelectedItems().size() == 1;
+        if (!valid) {
+            notifications.create().withCaption("Select a single customer").show();
+        }
+        return valid;
+    }
+    // end::tag-lookup-select-validator[]
+    // tag::tag-lookup-transformation[]
+    @Install(to = "customerTagPicker.tagLookup", subject = "transformation")
+    private Collection<Customer> customerTagPickerTagLookupTransformation(Collection<Customer> collection) {
+        return reloadCustomers(collection);
+    }
+    // end::tag-lookup-transformation[]
+    private Collection<Customer> reloadCustomers(Collection<Customer> customers){
+        return customers;
+    }
+    // tag::tag-lookup-after-close-handler[]
+    @Install(to = "customerTagPicker.tagLookup", subject = "afterCloseHandler")
+    private void customerTagPickerTagLookupAfterCloseHandler(AfterCloseEvent afterCloseEvent) {
+        if (afterCloseEvent.closedWith(StandardOutcome.SELECT)) {
+            System.out.println("Selected");
+        }
+    }
+    // end::tag-lookup-after-close-handler[]
+    // tag::tag-lookup-action-performed-event[]
+    @Subscribe("customerTagPicker.tagLookup")
+    public void onCustomerTagPickerTagLookup(Action.ActionPerformedEvent event) {
+        dialogs.createOptionDialog()
+                .withCaption("Please confirm")
+                .withMessage("Do you really want to select a customer?")
+                .withActions(
+                        new DialogAction(DialogAction.Type.YES)
+                                .withHandler(e -> tagLookupAction.execute()), // <1>
+                        new DialogAction(DialogAction.Type.NO)
+                )
+                .show();
+    }
+    // end::tag-lookup-action-performed-event[]
+    // tag::tag-lookup-action-performed-event-2[]
+    @Subscribe("customerTagPicker.tag")
+    public void onCustomerTagPickerTag(Action.ActionPerformedEvent event) {
+        screenBuilders.lookup(customerTagPicker)
+                .withOpenMode(OpenMode.DIALOG)
+                .withScreenClass(CustomerBrowse.class)
+                .withSelectValidator(customerValidationContext -> {
+                    boolean valid = customerValidationContext.getSelectedItems().size() == 1;
+                    if (!valid) {
+                        notifications.create().withCaption("Select a single customer").show();
+                    }
+                    return valid;
+
+                })
+                .build()
+                .show();
+    }
+    // end::tag-lookup-action-performed-event-2[]
 
 }
