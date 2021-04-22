@@ -47,6 +47,7 @@ public class Person {
     @PropertyDatatype("fileRef")
     @Column(name = "IMAGE")
     private FileRef image;
+    // end::file-storage-upload-field[]
 
     public Date getBirthday() {
         return birthday;
@@ -55,7 +56,6 @@ public class Person {
     public void setBirthday(Date birthday) {
         this.birthday = birthday;
     }
-    // end::file-storage-upload-field[]
 
     public FileRef getImage() {
         return image;
