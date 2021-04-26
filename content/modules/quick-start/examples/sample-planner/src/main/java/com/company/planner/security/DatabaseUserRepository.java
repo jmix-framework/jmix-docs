@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 @Primary
-@Component("plnnr_UserRepository")
+@Component("planner_UserRepository")
 public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
 
     @Override

@@ -18,7 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import java.util.Locale;
 
-@UiController("plnnr_LoginScreen")
+@UiController("planner_LoginScreen")
 @UiDescriptor("login-screen.xml")
 @Route(path = "login", root = true)
 public class LoginScreen extends Screen {

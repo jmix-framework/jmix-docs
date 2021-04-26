@@ -15,9 +15,9 @@ import java.util.Collections;
 import java.util.UUID;
 
 @JmixEntity
-@Entity(name = "plnnr_User")
-@Table(name = "PLNNR_USER", indexes = {
-        @Index(name = "IDX_PLNNR_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
+@Entity(name = "planner_User")
+@Table(name = "PLANNER_USER", indexes = {
+        @Index(name = "IDX_PLANNER_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
 })
 public class User implements JmixUserDetails {
 
