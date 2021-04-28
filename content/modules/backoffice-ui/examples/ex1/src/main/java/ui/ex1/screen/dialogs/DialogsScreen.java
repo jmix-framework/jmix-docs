@@ -46,8 +46,11 @@ public class DialogsScreen extends Screen {
     private Dialogs dialogs;
 
     // end::inject-dialogs[]
+    // tag::inject-notifications[]
     @Autowired
     private Notifications notifications;
+
+    // end::inject-notifications[]
     // tag::inject-uiComponents[]
     @Autowired
     private UiComponents uiComponents;
@@ -277,21 +280,115 @@ public class DialogsScreen extends Screen {
                 .withCancelAllowed(true)
                 .show();
     }
-
-    /*// tag::create-input-dialog-FileDescriptor[]
-    @Subscribe("inpDlgFileDescBtn")
-    public void onInpDlgFileDescBtnClick(Button.ClickEvent event) {
-        dialogs.createInputDialog(this)
-                .withCaption("Select the file")
-                .withParameters(
-                        InputParameter.fileParameter("fileField")// <1>
-                                .withCaption("File"))
-                .withCloseListener(closeEvent -> {
-                    if (closeEvent.closedWith(DialogOutcome.OK)) {
-                        FileDescriptor fileDescriptor = closeEvent.getValue("fileField");// <2>
-                    }
-                })
+    // tag::create-simple-notification[]
+    @Subscribe("simple")
+    public void onSimpleClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Upload successful!")
                 .show();
     }
-    // end::create-input-dialog-FileDescriptor[]*/
+    // end::create-simple-notification[]
+    // tag::create-simple-notification-desc[]
+    @Subscribe("withDescription")
+    public void onWithDescriptionClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Upload complete!")
+                .withDescription("Your file was uploaded successfully")
+                .show();
+    }
+    // end::create-simple-notification-desc[]
+    // tag::create-simple-notification-content[]
+    @Subscribe("withContent")
+    public void onWithContentClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("<i>Upload complete!</i>")
+                .withContentMode(ContentMode.HTML)
+                .show();
+    }
+    // end::create-simple-notification-content[]
+    // tag::create-simple-notification-sanitize[]
+    @Subscribe("showNotificationOnBtn")
+    public void onShowNotificationOnBtnClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Notification with Sanitizer")
+                .withDescription(UNSAFE_HTML)
+                .withContentMode(ContentMode.HTML)
+                .withHtmlSanitizer(true)
+                .show();
+    }
+
+    @Subscribe("showNotificationOffBtn")
+    public void onShowNotificationOffBtnClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Notification without Sanitizer")
+                .withDescription(UNSAFE_HTML)
+                .withContentMode(ContentMode.HTML)
+                .withHtmlSanitizer(false)
+                .show();
+    }
+    // end::create-simple-notification-sanitize[]
+    // tag::create-simple-notification-tray[]
+    @Subscribe("withType")
+    public void onWithTypeClick(Button.ClickEvent event) {
+        notifications.create(Notifications.NotificationType.TRAY)
+                .withCaption("Upload complete!")
+                .withDescription("Your file was uploaded successfully")
+                .show();
+    }
+    // end::create-simple-notification-tray[]
+    @Subscribe("humanized")
+    public void onHumanizedClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Humanized notification!")
+                .withType(Notifications.NotificationType.HUMANIZED)
+                .withDescription("Description text goes here")
+                .show();
+    }
+
+    @Subscribe("warning")
+    public void onWarningClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Warning notification")
+                .withType(Notifications.NotificationType.WARNING)
+                .withDescription("Description text goes here")
+                .show();
+    }
+
+    @Subscribe("error")
+    public void onErrorClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Error notification")
+                .withType(Notifications.NotificationType.ERROR)
+                .withDescription("Description text goes here")
+                .show();
+    }
+
+    @Subscribe("system")
+    public void onSystemClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("System notification!")
+                .withType(Notifications.NotificationType.SYSTEM)
+                .withDescription("Description text goes here")
+                .show();
+    }
+
+    @Subscribe("tray")
+    public void onTrayClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Tray notification")
+                .withType(Notifications.NotificationType.TRAY)
+                .withDescription("Description text goes here")
+                .show();
+    }
+
+    @Subscribe("position")
+    public void onPositionClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("Tray notification")
+                .withType(Notifications.NotificationType.TRAY)
+                .withDescription("Description text goes here")
+                .withPosition(Notifications.Position.DEFAULT)
+                .show();
+    }
+
 }
