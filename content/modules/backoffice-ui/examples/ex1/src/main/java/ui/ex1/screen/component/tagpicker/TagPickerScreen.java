@@ -15,7 +15,9 @@ public class TagPickerScreen extends Screen {
 
     @Subscribe
     public void onInit(InitEvent event) {
-        dataTypeTagPicker.setOptionsList(Arrays.asList("Headphones", "Keyboard", "Mouse"));
+        dataTypeTagPicker.setOptionsList(Arrays.asList(
+                "Headphones", "Keyboard", "Mouse")
+        );
     }
     // end::data-type[]
 }

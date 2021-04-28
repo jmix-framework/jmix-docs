@@ -13,11 +13,6 @@ import java.util.UUID;
 @Table(name = "UIEX1_DEPARTMENT")
 @Entity(name = "uiex1_Department")
 public class Department {
-    @JmixGeneratedValue
-    @Column(name = "ID", nullable = false)
-    @Id
-    private UUID id;
-
     @InstanceName
     @Column(name = "NAME")
     private String name;
@@ -25,6 +20,11 @@ public class Department {
     @OneToMany(mappedBy = "department")
     private List<Employee> employee;
     // end::tag-field[]
+
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
 
     public void setEmployee(List<Employee> employee) {
         this.employee = employee;

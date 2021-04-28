@@ -12,25 +12,25 @@ import java.util.UUID;
 @Table(name = "UIEX1_EMPLOYEE")
 @Entity(name = "uiex1_Employee")
 public class Employee {
+    @InstanceName
+    @Column(name = "NAME")
+    private String name;
+
+    @JoinColumn(name = "DEPARTMENT_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Department department;
+    // end::tag-field[]
+
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
 
-    @InstanceName
-    @Column(name = "NAME")
-    private String name;
-
     @Column(name = "SALARY")
     private Double salary;
 
-    @JoinColumn(name = "DEPARTMENT_ID")
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Department department;
-
     @Column(name = "POSITION_")
     private String position;
-    // end::tag-field[]
 
     public Position getPosition() {
         return position == null ? null : Position.fromId(position);
