@@ -9,22 +9,18 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 // tag::user-provider[]
-@Component("smpl_MyUserProvider")
-public class MyUserProvider implements UserProvider {
+@UserProvider(value = "smpl_MyUserProvider")
+public class MyUserProvider {
 
     @Autowired
     private DataManager dataManager;
 
-    @Autowired
-    private RuntimeService runtimeService;
-
-    @Override
-    public UserDetails getValue(String executionId) {
-        String manager = (String) runtimeService.getVariable(executionId, "manager");
+    public String getUserByEmail(String parameter) {
         return dataManager.load(User.class)
-                .query("select u from smpl_User u where u.username = :username")
-                .parameter("username", manager)
-                .one();
+                .query("select u from smpl_User u where u.email = :email")
+                .parameter("email", parameter)
+                .one()
+                .getUsername();
     }
 }
 // end::user-provider[]

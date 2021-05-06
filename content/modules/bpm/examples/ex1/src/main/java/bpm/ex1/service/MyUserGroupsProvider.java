@@ -6,11 +6,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component("smpl_MyUserGroupsProvider")
-public class MyUserGroupsProvider implements UserGroupListProvider {
+@UserGroupListProvider("smpl_MyUserGroupsProvider")
+public class MyUserGroupsProvider {
 
-    @Override
-    public List<UserGroup> getValue(String executionId) {
+    public List<String> getValue(String executionId) {
         return null;
     }
 }
