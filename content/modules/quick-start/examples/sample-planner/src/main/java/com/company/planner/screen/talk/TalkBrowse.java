@@ -1,6 +1,6 @@
 package com.company.planner.screen.talk;
 
-import com.company.planner.service.TalksScheduleService;
+import com.company.planner.service.TalkScheduleService;
 import io.jmix.ui.ScreenBuilders;
 import io.jmix.ui.component.Calendar;
 import io.jmix.ui.screen.*;
@@ -18,12 +18,13 @@ public class TalkBrowse extends StandardLookup<Talk> {
     private ScreenBuilders screenBuilders;
 
     @Autowired
-    private TalksScheduleService talksScheduleService;
+    private TalkScheduleService talkScheduleService;
+
     //tag::calendar-event-click[]
     @Subscribe("talksCalendar")
     public void onTalksCalendarCalendarEventClick(Calendar.CalendarEventClickEvent<LocalDateTime> event) {
         screenBuilders.editor(Talk.class, this) // <1>
-                .editEntity((Talk)event.getEntity()) // <2>
+                .editEntity((Talk) event.getEntity()) // <2>
                 .withOpenMode(OpenMode.DIALOG) // <3>
                 .withScreenClass(TalkEdit.class) // <4>
                 .withAfterCloseListener(afterCloseEvent -> { // <5>
@@ -37,7 +38,7 @@ public class TalkBrowse extends StandardLookup<Talk> {
     //tag::calendar-event-move[]
     @Subscribe("talksCalendar")
     public void onTalksCalendarCalendarEventMove(Calendar.CalendarEventMoveEvent<LocalDateTime> event) {
-        talksScheduleService.rescheduleTalk((Talk)event.getEntity(), event.getNewStart()); // <1>
+        talkScheduleService.rescheduleTalk((Talk) event.getEntity(), event.getNewStart()); // <1>
         getScreenData().loadAll(); // <2>
     }
     //end::calendar-event-move[]

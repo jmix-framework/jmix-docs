@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 //tag::task-schedule-service[]
-@Component("planner_TaskScheduleService")
-public class TalksScheduleService {
+@Component("planner_TalkScheduleService")
+public class TalkScheduleService {
 
     @Autowired
     private DataManager dataManager;
