@@ -4,17 +4,17 @@ import bpm.ex1.entity.User;
 import io.jmix.email.EmailInfo;
 import io.jmix.email.EmailInfoBuilder;
 import io.jmix.email.Emailer;
-import jdk.internal.joptsimple.internal.Strings;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.flowable.common.engine.api.delegate.Expression;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 // tag::java-delegate[]
 @Component("smpl_SendEmailJavaDelegate")
+@Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class SendEmailJavaDelegate implements JavaDelegate {
 
     private Expression addressee; // <1>
