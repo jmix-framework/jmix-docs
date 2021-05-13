@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 // tag::user-provider[]
-@UserProvider(value = "smpl_MyUserProvider")
+@UserProvider(value = "smpl_MyUserProvider", description = "Returns a user with the specified email")
 public class MyUserProvider {
 
     @Autowired
