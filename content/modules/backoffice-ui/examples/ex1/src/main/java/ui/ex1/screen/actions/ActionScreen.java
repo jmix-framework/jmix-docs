@@ -390,7 +390,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getSource()).getEditedEntity();
                         System.out.println("Created " + committedCustomer);
                     }
                 })
@@ -453,7 +453,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getSource()).getEditedEntity();
                         System.out.println("Updated " + committedCustomer);
                     }
                 })
@@ -557,7 +557,7 @@ public class ActionScreen extends Screen {
                 .withScreenClass(CustomerEdit.class)
                 .withAfterCloseListener(afterScreenCloseEvent -> {
                     if (afterScreenCloseEvent.closedWith(StandardOutcome.COMMIT)) {
-                        Customer committedCustomer = (afterScreenCloseEvent.getScreen()).getEditedEntity();
+                        Customer committedCustomer = (afterScreenCloseEvent.getSource()).getEditedEntity();
                         System.out.println("Updated " + committedCustomer);
                     }
                 })
