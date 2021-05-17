@@ -56,8 +56,8 @@ public class LoginScreen extends Screen {
     }
 
     private void initLocalesField() {
-        localesField.setOptionsMap(coreProperties.getAvailableLocales());
-        localesField.setValue(coreProperties.getAvailableLocales().values().iterator().next());
+        localesField.setOptionsList(coreProperties.getAvailableLocales());
+        localesField.setValue(coreProperties.getAvailableLocales().iterator().next());
     }
 
     private void initDefaultCredentials() {
