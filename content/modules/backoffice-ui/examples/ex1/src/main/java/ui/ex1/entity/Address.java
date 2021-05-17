@@ -16,10 +16,21 @@ public class Address {
     @Id
     private UUID id;
 
+    @Column(name = "ADDRESS")
+    private String address;
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "COUNTRY_ID", nullable = false)
     private Country country;
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
 
     public Country getCountry() {
         return country;
