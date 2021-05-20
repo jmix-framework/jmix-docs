@@ -20,8 +20,8 @@ public class DrawerScreen extends Screen {
 
     @Subscribe("collapseDrawerButton")
     public void onCollapseDrawerButtonClick(Button.ClickEvent event) {
-        drawer.toggle();
-        if (drawer.isCollapsed()) {
+        drawer.toggle(); // <1>
+        if (drawer.isCollapsed()) { // <2>
             collapseDrawerButton.setIconFromSet(JmixIcon.CHEVRON_RIGHT);
         } else {
             collapseDrawerButton.setIconFromSet(JmixIcon.CHEVRON_LEFT);
