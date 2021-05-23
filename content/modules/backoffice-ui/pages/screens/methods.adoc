@@ -1,0 +1,56 @@
+= Screen Controller Methods
+
+In this section, we describe some methods of screen controller base classes that can be invoked or overridden in the application code.
+
+== Methods of All Screens
+
+* `show()` - shows the screen. This method is usually used after creating the screen as described in the xref:backoffice-ui:opening-screens.adoc[Opening Screens] section.
+* `close()` - closes the screen with the passed `StandardOutcome` enum value or a `CloseAction` object. For example:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderScreen.java[tags=close]
+----
++
+The parameter value is propagated to the xref:backoffice-ui:screens/screen-events.adoc#before-close-event[BeforeCloseEvent] and xref:backoffice-ui:screens/screen-events.adoc#after-close-event[AfterCloseEvent], so the information about the reason why the screen was closed can be obtained in the listeners. For more information on using these listeners, see xref:backoffice-ui:opening-screens.adoc#executing-code-after-close[Executing code after close and returning values].
++
+* `getScreenData()` - returns the `ScreenData` object that serves as a registry for all xref:backoffice-ui:data-components.adoc[data components] defined in the screen XML descriptor. You can use its `loadAll()` method to trigger all data loaders of the screen:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderScreen.java[tags=get-screen-data]
+----
+
+== Methods of StandardEditor 
+
+* `getEditedEntity()` - when the screen is shown, returns an instance of the entity being edited. It’s the instance that is set in the data container specified in the xref:backoffice-ui:screens/annotations.adoc#edited-entity-container[@EditedEntityContainer] annotation.
++
+In the xref:backoffice-ui:screens/screen-events.adoc#init-event[InitEvent] and xref:backoffice-ui:screens/screen-events.adoc#after-init-event[AfterInitEvent] listeners, this method returns `null`. In the xref:backoffice-ui:screens/screen-events.adoc#before-show-event[BeforeShowEvent] listener, this method returns the instance passed to the screen for editing (later in the screen opening process the entity is reloaded and a different instance is set to the data container).
+
+The following methods can be used to close the edit screen:
+
+* `closeWithCommit()` - validates and saves data, then closes the screen with StandardOutcome.COMMIT.
+* `closeWithDiscard()` - ignores any unsaved changes and closes the screen with StandardOutcome.DISCARD.
+
+If the screen has unsaved changes in `DataContext`, a dialog with a corresponding message will be displayed before the screen is closed. You can adjust the notification type using the xref:backoffice-ui:app-properties.adoc#jmix.ui.screen.useSaveConfirmation[jmix.ui.screen.useSaveConfirmation] application property. If you use the `closeWithDiscard()` or `close(StandardOutcome.DISCARD)` methods, unsaved changes are ignored without any message.
+
+* `commitChanges()` - saves changes without closing the screen. 
+You can call this method from a custom event listener or override the default `windowCommit` action listener to perform some operations after the data has been saved, for example:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=commit]
+----
+<1> This flag is used for returning the correct outcome on subsequent screen closing.
+<2> You can perform actions after the data has been saved.
+* `validateAdditionalRules()` method can be overridden for additional validation before saving changes. The method should store the information about validation errors in the `ValidationErrors` object which is passed to it. Afterwards, this information is displayed together with the errors of standard validation. For example:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=validate]
+----
+
+== Methods of MasterDetailScreen
+
+* `getEditedEntity()` - when the screen is in the edit mode, returns an instance of the entity being edited. It’s the instance that is set in the data container of the form component. If the screen is not in edit mode, the method throws `IllegalStateException`.
+* `validateAdditionalRules()` method can be overridden for additional validation on saving changes as described above for `StandardEditor`.
