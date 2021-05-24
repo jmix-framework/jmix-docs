@@ -14,7 +14,7 @@ public class FancyMessageScreen extends Screen {
 
     // tag::label[]
     @Autowired
-    private Label<String> messageLabel;
+    private Label<String> messageLabel; // <1>
 
     // end::label[]
 
