@@ -57,11 +57,6 @@ public class AddressFragment extends ScreenFragment {
         FrameOwner hostController = getHostController();
         log.info("onAttach to screen {} with controller {}", hostScreen, hostController);
     }
-
-    @Subscribe
-    private void onDetach(DetachEvent event) {
-        log.info("onDetach");
-    }
     // end::events[]
 
     // tag::target[]
