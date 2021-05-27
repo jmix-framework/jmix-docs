@@ -18,6 +18,10 @@ public class Customer {
     @Id
     private UUID id;
 
+    @JoinColumn(name = "CITY_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private City city;
+
     @Column(name = "LEVEL_")
     private String level;
 
@@ -48,14 +52,22 @@ public class Customer {
             joinColumns = @JoinColumn(name = "CUSTOMER_ID"),
             inverseJoinColumns = @JoinColumn(name = "BRAND_ID"))
     @ManyToMany
-    private List<Brand> favoriteBrands;
+    private List<Brand> favouriteBrands;
 
-    public List<Brand> getFavoriteBrands() {
-        return favoriteBrands;
+    public City getCity() {
+        return city;
     }
 
-    public void setFavoriteBrands(List<Brand> favoriteBrands) {
-        this.favoriteBrands = favoriteBrands;
+    public void setCity(City city) {
+        this.city = city;
+    }
+
+    public List<Brand> getFavouriteBrands() {
+        return favouriteBrands;
+    }
+
+    public void setFavouriteBrands(List<Brand> favouriteBrands) {
+        this.favouriteBrands = favouriteBrands;
     }
 
     public Level getLevel() {
