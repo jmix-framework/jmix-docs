@@ -112,9 +112,7 @@ public class DialogsScreen extends Screen {
                 .withMessage("Do you really want to add a customer?")
                 .withActions(
                         new DialogAction(DialogAction.Type.YES, Action.Status.PRIMARY)
-                                .withHandler(e -> {
-                            doSomething();
-                        }),
+                                .withHandler(e -> doSomething()),
                         new DialogAction(DialogAction.Type.NO)
                 )
                 .show();

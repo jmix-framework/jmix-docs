@@ -3,8 +3,6 @@ package ui.ex1.screen.component.suggestionfield;
 import io.jmix.core.DataManager;
 import io.jmix.core.Messages;
 import io.jmix.core.QueryUtils;
-import io.jmix.core.common.util.ParamsMap;
-import io.jmix.core.querycondition.JpqlCondition;
 import io.jmix.ui.screen.Install;
 import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.UiController;
