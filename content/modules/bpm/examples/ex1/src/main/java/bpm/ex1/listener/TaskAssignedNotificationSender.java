@@ -2,13 +2,12 @@ package bpm.ex1.listener;
 
 import bpm.ex1.entity.User;
 import io.jmix.bpm.engine.events.UserTaskAssignedEvent;
-import io.jmix.bpm.entity.TaskData;
 import io.jmix.core.DataManager;
 import io.jmix.email.EmailInfo;
 import io.jmix.email.EmailInfoBuilder;
 import io.jmix.email.Emailer;
+import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.context.event.EventListener;
 
@@ -28,10 +27,10 @@ public class TaskAssignedNotificationSender {
                 .query("select u from smpl_User u where u.username = :username")
                 .parameter("username", event.getUsername())
                 .one();
-        TaskData taskData = event.getTaskData(); // <4>
-        String emailTitle = "New process task " + taskData.getName();
+        Task task = event.getTask(); // <4>
+        String emailTitle = "New process task " + task.getName();
         String emailBody = "Hi " + user.getFirstName() + "\n" +
-                "The task " + taskData.getName() + " has been assigned.";
+                "The task " + task.getName() + " has been assigned.";
         EmailInfo emailInfo = EmailInfoBuilder.create()
                 .setAddresses(user.getEmail())
                 .setSubject(emailTitle)
@@ -45,17 +44,17 @@ public class TaskAssignedNotificationSender {
     // tag::specific-process-1[]
     @EventListener
     protected void onOtherProcessTaskAssigned(UserTaskAssignedEvent event) {
-        if ("order-approval".equals(event.getProcessDefinitionData().getKey())) {
+        if ("order-approval".equals(event.getProcessDefinition().getKey())) {
             // ...
             // end::specific-process-1[]
             User user = dataManager.load(User.class)
-                    .query("selecto u from smpl_User u where u.username = "+":username")
+                    .query("select u from smpl_User u where u.username = "+":username")
                     .parameter("username", event.getUsername())
                     .one();
-            TaskData taskData = event.getTaskData();
-            String emailTitle = "New process task " + taskData.getName();
+            Task task = event.getTask();
+            String emailTitle = "New process task " + task.getName();
             String emailBody = "Hi " + user.getFirstName() + "\n" +
-                    "The task" + taskData.getName() + "has been assigned.";
+                    "The task" + task.getName() + "has been assigned.";
             EmailInfo emailInfo = EmailInfoBuilder.create()
                     .setAddresses(user.getEmail())
                     .setSubject(emailTitle)

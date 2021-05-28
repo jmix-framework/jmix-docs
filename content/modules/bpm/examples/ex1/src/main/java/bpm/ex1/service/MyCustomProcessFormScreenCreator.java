@@ -27,9 +27,9 @@ public class MyCustomProcessFormScreenCreator implements ProcessFormScreenCreato
                 .withScreenId(creationContext.getFormData().getScreenId())
                 .withOpenMode(OpenMode.DIALOG)
                 .build();
-        if (screen instanceof AcceptsProcessDefinitionData) { // <4>
-            ((AcceptsProcessDefinitionData) screen)
-                    .setProcessDefinitionData(creationContext.getProcessDefinitionData());
+        if (screen instanceof AcceptsProcessDefinition) { // <4>
+            ((AcceptsProcessDefinition) screen)
+                    .setProcessDefinition(creationContext.getProcessDefinition());
         }
         return screen;
     }
@@ -40,8 +40,8 @@ public class MyCustomProcessFormScreenCreator implements ProcessFormScreenCreato
                 .withScreenId(creationContext.getFormData().getScreenId())
                 .withOpenMode(OpenMode.DIALOG)
                 .build();
-        if (screen instanceof AcceptsTaskData) { // <6>
-            ((AcceptsTaskData) screen).setTaskData(creationContext.getTaskData());
+        if (screen instanceof AcceptsTask) { // <6>
+            ((AcceptsTask) screen).setTask(creationContext.getTask());
         }
         return screen;
     }
