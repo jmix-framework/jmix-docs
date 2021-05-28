@@ -5,6 +5,7 @@ import io.jmix.ui.Notifications;
 import io.jmix.ui.UiComponents;
 import io.jmix.ui.component.GroupTable;
 import io.jmix.ui.component.Image;
+import io.jmix.ui.component.ResourceView;
 import io.jmix.ui.component.UrlResource;
 import io.jmix.ui.component.data.value.ContainerValueSource;
 import io.jmix.ui.screen.Screen;
@@ -69,19 +70,21 @@ public class ImageScreen extends Screen {
         // end::set-source[]
 
         // tag::listener[]
-        programmaticImage.addClickListener(clickEvent -> {
-            if (clickEvent.isDoubleClick())
-                notifications.create()
-                        .withCaption("Double clicked")
-                        .show();
-        });
-        // end::listener[]
-
-        // tag::listener[]
         // tag::value-source[]
         // tag::set-source[]
     }
+
     // end::value-source[]
     // end::set-source[]
     // end::listener[]
+
+    // tag::source-change-event[]
+    @Subscribe("image")
+    public void onImageSourceChange(ResourceView.SourceChangeEvent event) {
+        notifications.create()
+                .withCaption("Old source was: " + event.getOldSource() +
+                        "; new source is: " + event.getNewSource());
+    }
+    // end::source-change-event[]
+    
 }
