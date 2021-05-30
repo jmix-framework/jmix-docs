@@ -9,6 +9,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import java.util.UUID;
 
+// tag::color-picker[]
 @JmixEntity
 @Table(name = "UIEX1_CAR")
 @Entity(name = "uiex1_Car")
@@ -26,6 +27,7 @@ public class Car {
 
     @Column(name = "COLOR_HEX")
     private String colorHex;
+    // end::color-picker[]
 
     public String getColorHex() {
         return colorHex;
@@ -58,4 +60,6 @@ public class Car {
     public void setId(UUID id) {
         this.id = id;
     }
+    // tag::color-picker[]
 }
+// end::color-picker[]
