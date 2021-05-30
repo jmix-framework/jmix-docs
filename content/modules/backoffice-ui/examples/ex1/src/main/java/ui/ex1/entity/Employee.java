@@ -8,6 +8,7 @@ import javax.persistence.*;
 import java.util.UUID;
 
 // tag::tag-field[]
+// tag::twin-column[]
 @JmixEntity
 @Table(name = "UIEX1_EMPLOYEE")
 @Entity(name = "uiex1_Employee")
@@ -15,16 +16,20 @@ public class Employee {
     @InstanceName
     @Column(name = "NAME")
     private String name;
+    // end::twin-column[]
 
     @JoinColumn(name = "DEPARTMENT_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Department department;
     // end::tag-field[]
 
+    // tag::twin-column[]
+
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+    // end::twin-column[]
 
     @Column(name = "SALARY")
     private Double salary;
@@ -72,5 +77,7 @@ public class Employee {
         this.id = id;
     }
     // tag::tag-field[]
+    // tag::twin-column[]
 }
+// end::twin-column[]
 // end::tag-field[]

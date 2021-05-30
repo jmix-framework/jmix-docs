@@ -1,5 +1,6 @@
 package ui.ex1.screen.component.textfield;
 import io.jmix.ui.Notifications;
+import io.jmix.ui.component.HasValue;
 import io.jmix.ui.component.Label;
 import io.jmix.ui.component.TextField;
 import io.jmix.ui.component.TextInputField;
@@ -12,26 +13,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 @UiController("sample_TextFieldScreen")
 @UiDescriptor("textField-screen.xml")
 public class TextFieldScreen extends Screen {
-    // tag::text-field-change-listener[]
-    @Autowired
-    private TextField<String> shortTextField;
-    @Autowired
-    private Label<String> shortTextLabel;
-
-    // end::text-field-change-listener[]
-
-    // tag::text-field-press-listener[]
+    // tag::notifications[]
     @Autowired
     private Notifications notifications;
-    // end::text-field-press-listener[]
 
-    // tag::text-field-press-listener[]
+    // end::notifications[]
+
     // tag::conversion-text-field[]
     @Autowired
     private TextField<Integer> textField;
 
     // end::conversion-text-field[]
-    // end::text-field-press-listener[]
 
     // tag::styled-text-field[]
     @Autowired
@@ -39,24 +31,49 @@ public class TextFieldScreen extends Screen {
 
     // end::styled-text-field[]
 
-    // tag::value-change-listener[]
+    // tag::value-change-event[]
+    @Subscribe("textField")
+    public void onTextFieldValueChange(HasValue.ValueChangeEvent event) {
+        notifications.create()
+                .withCaption("Before: " + event.getPrevValue() +
+                        ". After: " + event.getValue())
+                .show();
+    }
+    // end::value-change-event[]
+
+    // tag::enter-press-event[]
+    @Subscribe("textField")
+    public void onTextFieldEnterPress(TextInputField.EnterPressEvent event) {
+        notifications.create()
+                .withCaption("Enter pressed")
+                .show();
+    }
+    // end::enter-press-event[]
+
+    // tag::text-field-change-event[]
     @Autowired
-    private TextField<Integer> integerField;
+    private Label<String> shortTextLabel;
+    // tag::event-mode[]
+    @Autowired
+    private TextField<String> shortTextField;
 
-    // end::value-change-listener[]
+    // end::event-mode[]
+    @Subscribe("shortTextField")
+    public void onShortTextFieldTextChange(TextInputField.TextChangeEvent event) {
+        int length = event.getText().length();
+        shortTextLabel.setValue(length + " of " + shortTextField.getMaxLength());
+    }
 
-    // tag::value-change-listener[]
+    // end::text-field-change-event[]
+
     // tag::conversion-text-field[]
     // tag::styled-text-field[]
-    // tag::text-field-change-listener[]
-    // tag::text-field-press-listener[]
+    // tag::event-mode[]
     @Subscribe
     protected void onInit(InitEvent initEvent) {
+        // end::event-mode[]
         // end::conversion-text-field[]
         // end::styled-text-field[]
-        // end::text-field-change-listener[]
-        // end::text-field-press-listener[]
-        // end::value-change-listener[]
 
         // tag::conversion-text-field[]
         textField.setConversionErrorMessage("This field can work only with Integers");
@@ -66,40 +83,15 @@ public class TextFieldScreen extends Screen {
         styledField.setStyleName("align-center");
         // end::styled-text-field[]
 
-        // tag::text-field-change-listener[]
-        shortTextField.addTextChangeListener(event -> {
-            int length = event.getText().length();
-            shortTextLabel.setValue(length + " of " + shortTextField.getMaxLength());
-        });
+        // tag::event-mode[]
         shortTextField.setTextChangeEventMode(TextInputField.TextChangeEventMode.LAZY);
-        // end::text-field-change-listener[]
+        // end::event-mode[]
 
-        // tag::text-field-press-listener[]
-
-        textField.addEnterPressListener(enterPressEvent ->
-                notifications.create()
-                        .withCaption("Enter pressed")
-                        .show());
-
-        // end::text-field-press-listener[]
-
-        // tag::value-change-listener[]
-        integerField.addValueChangeListener(stringValueChangeEvent ->
-                notifications.create()
-                        .withCaption("Before: " + stringValueChangeEvent.getPrevValue() +
-                                ". After: " + stringValueChangeEvent.getValue())
-                        .show());
-        // end::value-change-listener[]
-
-        // tag::value-change-listener[]
         // tag::conversion-text-field[]
         // tag::styled-text-field[]
-        // tag::text-field-change-listener[]
-        // tag::text-field-press-listener[]
+        // tag::event-mode[]
     }
-    // end::value-change-listener[]
+    // end::event-mode[]
     // end::conversion-text-field[]
     // end::styled-text-field[]
-    // end::text-field-change-listener[]
-    // end::text-field-press-listener[]
 }
