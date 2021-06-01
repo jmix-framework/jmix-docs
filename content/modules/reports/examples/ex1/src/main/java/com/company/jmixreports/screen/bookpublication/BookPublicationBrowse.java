@@ -25,5 +25,5 @@ public class BookPublicationBrowse extends StandardLookup<BookPublication> {
         ExecutionHistoryAction action = actions.create(ExecutionHistoryAction.class, "execHistoryReport");
         execHistoryBtn.setAction(action);
     }
-    // tag::report-history-button[]
+    // end::report-history-button[]
 }
