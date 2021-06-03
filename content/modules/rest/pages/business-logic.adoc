@@ -1,19 +1,207 @@
 = Business Logic
 
-== Service Invocation
+When interacting with the REST API it is oftentimes needed to have an application-level layer of business logic in place that represents the Invocation point for the API. It can be used for orchestration, validation, or other tasks that should happen when the API Client interacts with the system. The xref:rest:entities-api.adoc[Entities API] does not allow placing additional orchestration business logic in place. The Client in this case directly interacts with the entity layer.
+
+For exposing the ability to invoke business logic to the API Client, Jmix provides two ways of doing that:
+
+1. Services API
+2. Custom Controllers
+
+The Services API allows exposing an arbitrary Spring bean as an HTTP endpoint. In this case, Jmix will take care of the HTTP interactions like providing HTTP response codes, etc.
+
+On the other side, there is the ability to use custom HTTP controllers to invoke business logic from the client-side. The main difference is that in this case, it is also possible to influence the HTTP interactions (like status codes, security, etc.).
+
+== Services API
+
+Let's look at the first approach to expose business logic to the API Client: the Services API.
+
+To use a Spring bean as part of the Jmix Services API, it needs to fulfill the following criteria:
+
+1. The Spring bean needs to implement an Interface (the Service Interface), that exposes the method signatures.
+2. The Spring bean needs to be registered in the `rest-services.xml` configuration file
+
+=== Service Exposure
+
+To fulfill the first requirement of implementing a Java interface, let's look at the following example:
+
+The Service Interface allows to expose the methods via the REST Services API:
+
+[source,java]
+.CalculationService.java
+----
+public interface CalculationService {
+
+    String NAME = "sample_CalculationService"; // <1>
+
+    int calculate(int a, int b); // <2>
+}
+----
+<1> the NAME attribute is used as the Spring component name and referenced later in the `rest-services.xml` configuration file.
+<2> `calculate` is the exposed method through the Service Interface.
+
+The implementation of the Service Interface contains the implementation of the calculation logic:
+
+[source,java]
+.CalculationServiceBean.java
+----
+import org.springframework.stereotype.Service;
+
+@Service(CalculationService.NAME) //<1>
+public class CalculationServiceBean implements CalculationService {
+
+    public int calculate(int a, int b) {
+        return a + b;
+    }
+}
+----
+<1> The `CalculationServiceBean` is registered as the Spring component `sample_CalculationService`.
+
 
 === Service Configuration
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_services_config
+To use the Services API endpoint you need to define the exposed services. This happens via an XML configuration file, normally called `rest-services.xml`. You need to create this new file in your Jmix application under `src/main/resources`. It lists all exposed service methods with information about their parameters.
+
+
+
+[source,xml]
+.rest-services.xml
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns="http://jmix.io/schema/rest/services">
+    <service name="sample_CalculationService"> // <1>
+        <method name="calculate"> // <2>
+            <param name="a" type="int"/> // <3>
+            <param name="b" type="int"/>
+        </method>
+    </service>
+</services>
+----
+<1> the service is registered by its Spring component name.
+<2> each exposed method is registered by its name.
+<3> the parameter needs to be described by its name and optionally by its type.
+
+After the file has been created, and the services have been defined, you need to register the `rest-services.xml` configuration in the `application.properties` of your Jmix application:
+
+[source,properties]
+.application.properties
+----
+jmix.rest.servicesConfig = rest/sample/rest-services.xml
+----
+
+Once the Service is exposed through the Services API, it is possible to invoke the service as an API Client.
 
 === Invoke a Service (GET)
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ex_service_get
+Invoking the Service can be performed by HTTP GET as well as HTTP POST. In the case of GET, you need to provide the method parameter values as URL query parameters:
+
+[source, http request]
+.Invoke Calculation via HTTP GET
+----
+GET http://localhost:8080/rest/services/sample_CalculationService/calculate?a=2&b=3
+Authorization: Bearer {{access_token}}
+----
+
+[source, json]
+.Response: 200 - OK
+----
+5
+----
+
+NOTE: When using HTTP GET for invoking a Service through the Services API, the OAuth Access token still needs to be provided by the HTTP Authorization header. It is not possible to append the access token as a URL query parameter.
+
+A service method may return a result of a simple data type, an entity, an entity collection, or a serializable POJO. In our case an `int` is returned, so the response body contains just a number.
 
 === Invoke a Service (POST)
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ex_service_post
+REST API allows execution not only of methods that have arguments of simple data types but also of methods with the following arguments:
 
+* Entities
+* Entity Collections
+* serializable POJOs
+
+Suppose we added a new method to the OrderService created in the previous section:
+
+[source,java]
+.CalculationServiceBean.java
+----
+@Service(CalculationService.NAME)
+public class CalculationServiceBean implements CalculationService {
+
+    @Override
+    public OrderValidationResult validateOrder(Order order, Date validationDate){
+        OrderValidationResult result=new OrderValidationResult();
+        result.setSuccess(false);
+        result.setErrorMessage("Validation of order "+order.getNumber()+" failed. validationDate parameter is: "+validationDate);
+        return result;
+    }
+}
+----
+
+
+[source,java]
+.CalculationServiceBean.java
+----
+import java.io.Serializable;
+
+public class OrderValidationResult implements Serializable {
+
+    private boolean success;
+
+    private String errorMessage;
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+}
+----
+
+The new method has an Order entity in the arguments list and returns a POJO.
+
+Before the invocation of the REST API the method also must be allowed in the <<_service_configuration, Service Configuration>>.
+
+
+[source, http request]
+.Invoke Order Validation via HTTP POST
+----
+POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
+
+{
+  "order" : {
+    "number": "00050",
+    "date" : "2016-01-01"
+  },
+  "validationDate": "2016-10-01"
+}
+----
+
+Parameter values must be passed in a format defined for the corresponding datatype. For example:
+
+* if the parameter type is `java.util.Date`, then the value pattern is taken from the DateTimeDatatype. By default it is `yyyy-MM-dd HH:mm:ss.SSS`.
+* for `java.sql.Date` parameter type, the value pattern is taken from the DateDatatype and it is `yyyy-MM-dd` by default.
+* for `java.sql.Time` the datatype is TimeDatatype and the default format is `HH:mm:ss`.
+
+The REST API method returns a serialized `OrderValidationResult` POJO:
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "success": false,
+  "errorMessage": "Validation of order 00050 failed. validationDate parameter is: 2016-10-01"
+}
+----
 
 == Custom Controller
 
