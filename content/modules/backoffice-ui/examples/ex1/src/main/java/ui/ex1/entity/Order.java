@@ -9,8 +9,10 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.UUID;
 
+// tag::order-starts[]
 @JmixEntity
 @Table(name = "UIEX1_ORDER")
 @Entity(name = "uiex1_Order")
@@ -19,6 +21,14 @@ public class Order {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    // end::order-starts[]
+
+    // tag::time[]
+    @Column(name = "DELIVERY_TIME")
+    @Temporal(TemporalType.TIME)
+    private Date deliveryTime;
+    // end::time[]
 
     @Column(name = "RATING")
     private Integer rating;
@@ -37,6 +47,14 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CUSTOMER_ID")
     private Customer customer;
+
+    public Date getDeliveryTime() {
+        return deliveryTime;
+    }
+
+    public void setDeliveryTime(Date deliveryTime) {
+        this.deliveryTime = deliveryTime;
+    }
 
     public Integer getRating() {
         return rating;
@@ -85,4 +103,6 @@ public class Order {
     public void setId(UUID id) {
         this.id = id;
     }
+    // tag::order-ends[]
 }
+// end::order-ends[]

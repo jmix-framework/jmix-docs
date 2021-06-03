@@ -11,7 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Objects;
 
-@UiController("plnnr_User.edit")
+@UiController("planner_User.edit")
 @UiDescriptor("user-edit.xml")
 @EditedEntityContainer("userDc")
 @Route(value = "users/edit", parentPrefix = "users")

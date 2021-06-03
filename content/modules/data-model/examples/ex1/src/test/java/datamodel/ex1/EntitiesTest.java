@@ -6,7 +6,7 @@ import io.jmix.core.Id;
 import io.jmix.core.Metadata;
 import io.jmix.core.MetadataTools;
 import io.jmix.core.entity.EntityValues;
-import io.jmix.core.security.Authenticator;
+import io.jmix.core.security.SystemAuthenticator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +30,7 @@ public class EntitiesTest {
     @Autowired
     MetadataTools metadataTools;
     @Autowired
-    Authenticator authenticator;
+    SystemAuthenticator authenticator;
 
     @BeforeEach
     void setUp() {

@@ -1,0 +1,127 @@
+= User Task
+
+== Single User Assignment
+
+You can specify a task assignee using one of the following options from the *Assignee source* drop-down list in the properties panel:
+
+image::user-tasks/single-assignee.png[align="center"]
+
+=== Expression
+
+You will need to write an expression that evaluates a username of an assignee. For example, if the `User` entity is stored in a process variable called `manager`, then the expression will be `${manager.username}`. If you want to assign a task to a specific user, you can write a username directly.
+
+Also, you can invoke Spring bean method that returns username: `${smpl_MyBean.evaluateManager(methodParam1, 'methodParam2')}`.
+
+=== Process variable
+
+If you select `Process variable` assignee source, the `ComboBox` component will be displayed in the properties panel. This field displays those fields and process variables that are of the `Entity` type, and their entity class implements the `UserDetails` interface.
+
+When a process is started without using the start process form, process variables values can be passed using API. In this case, if you need to assign a task to a user from one of the process variables, you can either write an explicit expression for the assignee or add information about the process variable to the *Process variables* section.
+
+=== User provider
+
+If an assignee is evaluated at runtime, you can use a user provider. User providers are Spring beans that should be annotated with the `@UserProvider` annotation. The annotation has two attributes: 
+
+* `value` - a name that will be displayed in the modeler.
+* `description` - an explanation of the method's purpose, optional.
+
+User provider should implement one or more methods with the `String` returned type. A method gets parameter values that are specified in the modeler and returns a username of the user that should become a task assignee. Here is an example of the user provider that reads a process variable with the user email and finds the user in the database.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/service/MyUserProvider.java[tags=user-provider]
+----
+
+In the modeler, you can select created bean and its methods from the drop-down list. After the method is selected, a panel for entering method argument values is displayed. 
+
+image::user-tasks/provider.png[align="center"]
+
+Pay attention to the *is var* check box. It makes sense mostly for string parameters. If the check box is not selected, then the argument value will be written to the resulting expression in apostrophes. If the check box is selected, no apostrophes will be added and a variable with a provided name will be passed to the method.
+
+== Multi-Instance Tasks
+
+A user task can be assigned to multiple users. For example, you may need several people to approve the task. Approvers can do their work in parallel or one after another. See https://flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs/#multi-instance-for-each[Flowable documentation^]  for basic information.
+
+Let’s look at the `userTask` element in the process model XML:
+
+[source,xml,indent=0]
+----
+<userTask id="myTask" name="My Task" flowable:assignee="${assignee}">
+  <multiInstanceLoopCharacteristics isSequential="true"
+     flowable:collection="${collectionVariable}" flowable:elementVariable="assignee" >
+  </multiInstanceLoopCharacteristics>
+</userTask>
+----
+
+When modeling a process, you will need to fill the expression for the `collection` field of the `multiInstanceLoopCharacteristics` element and the `elementVariable` field. After that, the `elementVariable` value will be used as an assignee for the `userTask` element.
+
+BPM modeler helps you to fill all these attributes in case you have a list of users in the process variable. `User Task` model element has *Multi instance* section in the properties panel. When you change the multi-instance type from `None` to `Parallel` or `Sequential`, new fields appear on the panel.
+
+Let’s assume, that in the start process form you defined the `approvers` field with the `Entity list` type and the entity class ipmplements the `UserDetails` interface, for example `User`. This field value holds a collection of users. For the current user task, you can select `Process variable` collection source and then select the `approvers` field in the `Process variable` combo box.
+
+image::user-tasks/multi-instance.png[align="center"]
+
+In this case, the system suggests you filled `collection`, `elementVariable` and `assignee` fields mentioned above automatically.
+
+image::user-tasks/collection.png[align="center"]
+
+== Task Candidate Users and Groups
+
+You can specify a list of potential task assignees for a user task, see https://flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs/#user-assignment[Flowable documentation^] for basic information. The task with candidates appears in the *My tasks* screen in the *Group tasks* list for each candidate. After any of the candidates claims the task, the task moves to the *Assigned tasks* list of the user who claimed the task and disappears from the *Group tasks* list of other candidates.
+
+Candidates are defined using *Candidate groups* or *Candidate users* fields in the user task properties panel.
+
+In the *Candidate groups edit* dialog, you can define one of the following *Group source* values:
+
+* *User groups*. You can select one or more user groups from the list. See xref:bpm:user-groups.adoc[User groups] section for more information.
+* *User groups provider*. Use this type if groups should be evaluated programmatically. A Spring bean with the `@UserGroupListProvider` annotation should be selected.
+The annotation has two attributes: 
++
+--
+** `value` - a name that will be displayed in the modeler.
+** `description` - an explanation of the method's purpose, optional.
+--
++
+The bean should implement one or more methods with the `List<String>` returned type. A method gets parameter values that are specified in the modeler and returns a list of user group codes.
+* *Expression*. You should provide an expression used by the process engine. The expression should return a list of user group codes. It will be written to the `flowable:candidateGroups` attribute of the `userTask` element.
+
+In the *Candidate users edit* dialog,  you can define one of the following *User source* values:
+
+* *Users*. You can select one or more users from the list.
+* *Users provider*. Use this type if a list of users should be evaluated programmatically. A Spring bean with the `@UserListProvider` annotation should be selected.
+The annotation has two attributes: 
++
+--
+** `value` - a name that will be displayed in the modeler.
+** `description` - an explanation of the method's purpose, optional.
+--
++
+The bean should implement one or more methods with the `List<String>` returned type. A method gets parameter values that are specified in the modeler and returns a list of usernames.
+* *Expression*. You should provide an expression used by the process engine. The expression should return a list of usernames. It will be written to the `flowable:candidateUsers` attribute of the `userTask` element.
+
+== User Task Outcomes
+
+When users complete a user task, they often have to make a decision, for example, approve or reject the task. After that, the process should go one or another way. You can use task outcomes for modeling such cases. 
+
+For xref:bpm:jmix-screen.adoc#declare-task-outcomes[Jmix screen] forms, outcomes are defined in the screen controller. For xref:bpm:input-dialog.adoc[input dialog] process forms, outcomes are defined in the *Outcomes* section in the properties panel. 
+
+image::user-tasks/panel-outcomes.png[align="center"]
+
+When a user completes a task, outcomes will be displayed as buttons in the form.
+
+image::user-tasks/complete-task.png[align="center"]
+
+When the user clicks one of the outcome buttons, the task is completed and the decision is written to a special process variable which name is built according to the following name pattern: `<user-task-id>_result`. The variable value holds information about the users that completed the task and outcomes they selected.
+
+After you set outcomes for the task, you need to specify conditions for sequence flows after the exclusive gateway element. You can write a condition expression or select an outcome from the drop-down list.
+
+Let's look at the example of configuring a sequence flow. The `Approve` task is multi-instance. 
+
+image::user-tasks/multi-instance-task.png[align="center"]
+
+To specify conditions for the `approved` sequence flow, select it on the canvas and configure its properties:
+
+image::user-tasks/flow-conditions.png[align="center"]
+
+. Change the *Condition source* to the *User task outcome* and select the task and its outcome in the drop-down lists. Also, you can choose the *Expression* condition source.
+. As the user task is multi-instance, you need to specify an additional parameter – *Condition type*. In our case, the process will continue its execution using this sequence flow only if all of the parallel approvers completed the task with the `approve` outcome.

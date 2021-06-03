@@ -7,6 +7,7 @@ import dataaccess.ex1.entity.Product;
 import io.jmix.core.DataManager;
 import io.jmix.core.EntitySet;
 import io.jmix.core.Id;
+import io.jmix.data.PersistenceHints;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,6 @@ public class OrderServiceTest {
 
         orderService.hardDelete(product1);
 
-        assertFalse(dataManager.load(Id.of(product1)).softDeletion(false).optional().isPresent());
+        assertFalse(dataManager.load(Id.of(product1)).hint(PersistenceHints.SOFT_DELETION, false).optional().isPresent());
     }
 }

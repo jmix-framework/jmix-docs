@@ -1,0 +1,217 @@
+= Message Bundles
+
+The most common task of localization is to provide messages depending on the current user locale. To achieve this, messages must be extracted from code and placed in special property files, one file per language. A collection of such files is called a _message bundle_.
+
+Apart from messages, the message bundle can also contain xref:data-model:data-types.adoc#localized-format-strings[localized data format strings].
+
+The default message bundle of your project is a set of `messages_<language>.properties` files located in the base package under the `src/main/resources` folder.
+
+CAUTION: Message bundle files must have the UTF-8 encoding.
+
+[[setting-locales]]
+== Setting Up Locales
+
+When you create a new project using Studio, you can set up the list of supported locales in the *Locales* field of the project wizard. This field allows you to select a language code and set its name.
+
+Studio writes the list of language codes to the `jmix.core.availableLocales` application property and language names to the corresponding `messages_<language>.properties` files with `localeDisplayName.<language>` key. You can later edit these properties manually or use the *Locales* tab of the *Project Properties* window in Studio.
+
+//The first language in the list becomes the default one. The messages in default language are located in the `messages.properties` file without a language suffix. The framework always looks up for messages in this file if it didn't find the message in the specific `messages_<language>.properties` file. It helps translate your application to additional languages gradually: you can just configure a new locale and start translating in the new `messages_<language>.properties` file. Not yet translated messages will be loaded from the default `messages.properties` file.
+
+For example, if you have defined two languages for your application: `en - English` and `ru - Русский`, you have the following file structure in the project (provided that the base package is `localization_demo.ex1`):
+
+[source]
+----
+ src/
+    main/
+        resources/
+            localization_demo/
+                ex1/
+                    messages_en.properties
+                    messages_ru.properties
+            application.properties
+----
+
+And the files have the following contents:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=localeDisplayName]
+----
+
+.messages_ru.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_ru.properties[tags=localeDisplayName]
+----
+
+.application.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=availableLocales]
+----
+
+[[creating-messages]]
+== Creating Messages
+
+[[group-and-key]]
+=== Group and Key
+
+Usually, an application contains a single message bundle. Because the number of messages even in a simple application can be quite large, we recommend making property keys of two parts: the group and the message key, separated by the forward slash (`/`). It allows you to group related messages and avoid naming conflicts. In the following example, `localization_demo.ex1.screen.main` is the group and `application.caption` is the message key:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=structure]
+----
+
+But you can also define a message without a group, for example:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=structure-2]
+----
+
+[[localizing-data-model]]
+=== Localizing Data Model
+
+Jmix introduces some conventions on localization of the data model elements: entity and attribute names, enumeration values. It allows the framework to find the localized names when displaying entities and enumerations in UI components.
+
+Entity name is localized using the `<package>/<class>` format, attribute name - using the `<package>/<class>.<attribute>` format. For example:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=entity]
+----
+
+Enumeration name is localized using the `<package>/<class>` format, enumeration value - using the `<package>/<class>.<value>` format. For example:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=enum]
+----
+
+TIP: You can easily create localized names of the data model elements in Studio visual designers. Click the 🌐 (globe) button next to the element name and enter localized values for available locales in the *Localized Message* dialog.
+
+[[additional-bundles]]
+=== Additional Bundles
+
+In a big application with a lot of messages you can maintain a reasonable size of the property files by defining additional message bundles:
+
+. Create a set of property files with arbitrary name in any directory under `src/main/resources`. In the example below, we created `additional_messages` files in the same base package as the main message bundle:
++
+[source]
+----
+ src/
+    main/
+        resources/
+            localization_demo/
+                ex1/
+                    additional_messages_en.properties
+                    additional_messages_ru.properties
+                    messages_en.properties
+                    messages_ru.properties
+----
+
+. Write localized messages in the additional files in the same way as in the main bundle.
+
+. Add the `@MessageSourceBasenames` annotation to the application class and set the path and name of the additional bundle in it:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/localization_demo/ex1/LocalizationExampleApplication.java[tags=additional-bundle]
+----
+
+CAUTION: Messages from all bundles of the application are loaded into a single list, so property keys must be unique among all your bundles.
+
+[[using-messages]]
+== Using Messages
+
+[[using-messages-in-java]]
+=== In Java Code
+
+To get localized messages from the message bundle, use the `Messages` bean. The most common use case is to invoke its `getMessage()` method and provide the message group and key. The method will return a message for the current user locale, or the given message key if the message is not found.
+
+In the following example, we define a message in a message bundle and get it using different methods of the `Messages` bean:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=using-messages]
+----
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/localization_demo/ex1/MessagesTest.java[tags=using-messages-1]
+----
+
+All three methods return the same value: `Something has happened`.
+
+<1> The whole property key is specified.
+<2> The group and the message key are specified separately.
+<3> If the first argument is `Class`, the method uses the package of the class as the group.
+
+There is also an overloaded `getMessage()` method accepting `Enum`. Use it to retrieve a localized enum value, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/localization_demo/ex1/MessagesTest.java[tags=using-messages-enum]
+----
+
+[[using-messages-in-ui]]
+=== In Backoffice UI Screens
+
+Backoffice UI screen descriptors and menu configuration files recognize the `msg://` prefix in messages and load such messages from the message bundle.
+
+Let's consider different options of using `msg://` with examples.
+
+. The group of the message is inferred from the screen's package.
++
+--
+For example, if you have defined a message with `localization_demo.ex1.screen.user` group:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=screen]
+----
+
+you can retrieve it in a screen descriptor located in the `localization_demo.ex1.screen.user` package simply by specifying the message key without the group:
+
+.localization_demo/ex1/screen/user/user-browse.xml
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/screen/user/user-browse.xml[tags=message-1]
+----
+--
+
+. Getting a message with an arbitrary group.
++
+--
+You can retrieve the message from the previous example in any screen by specifying both the group and the key after the `msg://` prefix, for example:
+
+.localization_demo/ex1/screen/main/main-screen.xml
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/screen/main/main-screen.xml[tags=message]
+----
+--
+
+. Getting a message without a group.
++
+--
+To retrieve a message without a group, use triple slash in the prefix `msg:///`, followed by the message key.
+
+For example, if you have defined a message like this:
+
+[source,properties]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/messages_en.properties[tags=structure-2]
+----
+
+you can get it in any screen descriptor as follows:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/localization_demo/ex1/screen/user/user-browse.xml[tags=message-2]
+----
+--

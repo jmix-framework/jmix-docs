@@ -6,6 +6,7 @@ import dataaccess.ex1.entity.Product;
 import io.jmix.core.*;
 import io.jmix.core.entity.KeyValueEntity;
 import io.jmix.core.querycondition.PropertyCondition;
+import io.jmix.data.PersistenceHints;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -124,7 +125,7 @@ public class OrderService {
         dataManager.save(
                 new SaveContext()
                         .removing(product)
-                        .setSoftDeletion(false)
+                        .setHint(PersistenceHints.SOFT_DELETION, false)
         );
     }
     // end::hard-delete[]

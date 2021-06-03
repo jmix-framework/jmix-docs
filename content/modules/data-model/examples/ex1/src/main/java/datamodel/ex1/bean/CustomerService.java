@@ -33,14 +33,14 @@ public class CustomerService {
         dataManager.save(
                 new SaveContext()
                         .removing(customer)
-                        .setSoftDeletion(false)
+                        .setHint(PersistenceHints.SOFT_DELETION, false)
         );
     }
     // end::hard-delete[]
 
     // tag::load-hard-deleted[]
     public Customer loadHardDeletedCustomer(Id<Customer> customerId) {
-        return dataManager.load(customerId).softDeletion(false).one();
+        return dataManager.load(customerId).hint(PersistenceHints.SOFT_DELETION, false).one();
     }
     // end::load-hard-deleted[]
 

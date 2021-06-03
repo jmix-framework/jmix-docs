@@ -1,87 +1,52 @@
 [[qs-adding-business-logic]]
 == Adding Business Logic
 
-Now we will use Jmix Studio to create a service that implements business logic and use this service in a screen. It will be a service for the talks rescheduling that will ensure that one speaker doesn’t have more than two talks in one day.
+Now we will use Jmix Studio to create a service that implements business logic and use this service in a screen. It will be a Spring bean for the talks rescheduling that will ensure that one speaker doesn’t have more than two talks in one day.
 
-Right-click on the root project package in the source project tree and select *New ->Package*.
-
-image::adding-business-logic/create-new-package.png[align="center"]
-
-Create the package `com.company.planner.service`.
-
-image::adding-business-logic/name-new-package.png[align="center"]
-
-Right-click on the created package and select *New ->Java Class*.
+Use a toolbar in the xref:studio:tool-window.adoc[Jmix tool window] to open commonly used actions. Select *Spring Bean*.
 
 image::adding-business-logic/create-new-class.png[align="center"]
 
-Create the class `TalksScheduleService`.
+Enter the package name - `service` and the class name - `TalksScheduleService`.
 
-image::adding-business-logic/name-new-class.png[align="center"]
+image::adding-business-logic/create-new-package.png[align="center"]
 
-[source,java]
-----
-public class TalksScheduleService {
+Studio will generate an empty Spring bean.
 
-}
-----
+image::adding-business-logic/empty-class.png[align="center"]
 
-Mark this class with the `@Service` annotation and create a method `rescheduleTalk` that will accept a talk that should be rescheduled and new talk start time like in the snippet below. During the further service implementation you may need to import some classes.
-
-[source,java]
-----
-@Service
-public class TalksScheduleService {
-
-    public Talk rescheduleTalk(Talk talk, LocalDateTime newStartDate){
-        return null;
-    }
-
-}
-----
-
-First, let's calculate the start and end time of the day when the session is planned.
-
-[source,java]
-----
-@Service
-public class TalksScheduleService {
-
-    public Talk rescheduleTalk(Talk talk, LocalDateTime newStartDate){
-        LocalDateTime dayStart = newStartDate.truncatedTo(ChronoUnit.DAYS).withHour(8);
-        LocalDateTime dayEnd = newStartDate.truncatedTo(ChronoUnit.DAYS).withHour(19);
-        return null;
-    }
-
-}
-----
-
-For the service, we will use Jmix API for data access - `DataManager` class. With this class we create a JPQL query to check if there are any talks scheduled for the speaker in a defined time span and add parameter values to it. Then we check the query result and, depending on the result, we update the talk with a new start date or just return the original talk instance.
-
-Inject the DataManager into the service into the class body. You can use *Inject* button on the top left corner in the code editor.
-
-image::adding-business-logic/inject-button.png[align="center"]
-
-Select *DataManager* in the popup screen.
-
-image::adding-business-logic/inject-service-dialog.png[align="center"]
-
-The method implementation is on the snippet below:
+Let's create the `rescheduleTalk` method. You can see its implementation below:  
 
 [source,java,indent=0]
 ----
-include::example$sample-planner/src/main/java/com/company/planner/service/TalksScheduleService.java[tags=task-schedule-service]
+include::example$sample-planner/src/main/java/com/company/planner/service/TalkScheduleService.java[tags=task-schedule-service]
 ----
 
-The service is ready, now let’s add it to the talks browser screen. It will be invoked for the drag-and-drop event in the calendar.
+<1> The `rescheduleTalk` method accepts a talk that should be rescheduled and new talk start time. 
+<2> Calculates new start time of the working day when the session is planned.
+<3> Calculates new end time of the working day when the session is planned.
+<4> We use Jmix API for data access - xref:data-access:data-manager.adoc[DataManager] class. With this class, we create a JPQL query to check if there are any talks scheduled for the speaker in a defined time span and add parameter values to it. To inject `DataManager` into the service, use the *Inject* button on the top of the code editor, and then select `DataManager` in the pop-up screen.
+<5> Checks the query result.
+<6> Returns the original talk instance if a speaker has two or more talks for the day.
+<7> Updates the talk with a new start date if a speaker has less than two talks for the day.
+<8> Returns the updated talk.
 
-In the `talk-browse.xml` select `talksCalendar` and go to the *Handlers* tab in the *Component Inspector* window. Select *CalendarEventMoveEvent* and click the ▶ icon to generate method stub and move to the controller. We did similar work before in the link:using-screen-api.adoc#qs-using-screen-api["Using screen API"] chapter.
+The service is ready, let’s add it to the talks browser screen. It will be invoked for the drag-and-drop event in the calendar.
 
-In the method that is subscribed to the drag-and-drop event, we add some code to extract the talk entity from the calendar event and pass it to the service to reschedule this talk. After that, we just refresh the screen data programmatically. Please inject `TalksScheduleService` to the screen before implementing the event handler.
+In the `talk-browse.xml` select `talksCalendar` and go to the *Handlers* tab in the *Component Inspector* window. Select *CalendarEventMoveEvent* and click the ▶ icon to generate the method stub and move to the controller. 
+
+image::adding-business-logic/generate-event-handler.png[align="center"]
+
+You need to inject `TalksScheduleService` to the screen before implementing the event handler. Here is the implementation of the method:
 
 [source,java,indent=0]
 ----
 include::example$sample-planner/src/main/java/com/company/planner/screen/talk/TalkBrowse.java[tags=calendar-event-move]
 ----
 
-To have the new service redeployed, we need to restart the application. After restarting we can open the calendar - and voilà! We have drag-and-drop rescheduling functionality for the calendar! You can test it by adding an extra talk and trying to reschedule it.
+<1> We extract the talk entity from the calendar event and pass it to the service to reschedule this talk. 
+<2> After that, we refresh the screen data programmatically.
+
+Let's restart the application to deploy the service. After restarting, we can open the calendar. We have drag-and-drop rescheduling functionality for the calendar. You can test it by adding an extra talk and trying to reschedule it.
+
+image::adding-business-logic/move-talks.gif[align="center"]

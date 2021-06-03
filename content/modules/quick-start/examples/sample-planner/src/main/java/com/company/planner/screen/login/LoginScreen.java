@@ -1,6 +1,7 @@
 package com.company.planner.screen.login;
 
 import io.jmix.core.CoreProperties;
+import io.jmix.core.MessageTools;
 import io.jmix.core.Messages;
 import io.jmix.securityui.authentication.AuthDetails;
 import io.jmix.securityui.authentication.LoginScreenAuthenticationSupport;
@@ -18,7 +19,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import java.util.Locale;
 
-@UiController("plnnr_LoginScreen")
+@UiController("planner_LoginScreen")
 @UiDescriptor("login-screen.xml")
 @Route(path = "login", root = true)
 public class LoginScreen extends Screen {
@@ -42,6 +43,9 @@ public class LoginScreen extends Screen {
     private Messages messages;
 
     @Autowired
+    private MessageTools messageTools;
+
+    @Autowired
     private LoginScreenAuthenticationSupport authenticationSupport;
 
     @Autowired
@@ -55,8 +59,8 @@ public class LoginScreen extends Screen {
     }
 
     private void initLocalesField() {
-        localesField.setOptionsMap(coreProperties.getAvailableLocales());
-        localesField.setValue(coreProperties.getAvailableLocales().values().iterator().next());
+        localesField.setOptionsMap(messageTools.getAvailableLocalesMap());
+        localesField.setValue(coreProperties.getAvailableLocales().get(0));
     }
 
     private void initDefaultCredentials() {

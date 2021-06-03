@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "PLNNR_TALK")
-@Entity(name = "plnnr_Talk")
+@Table(name = "PLANNER_TALK")
+@Entity(name = "planner_Talk")
 public class Talk {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
@@ -41,14 +41,15 @@ public class Talk {
     @Column(name = "DESCRIPTION")
     @Lob
     private String description;
+
     // tag::calculated-attribute[]
+    @Transient
     @JmixProperty
     @DependsOnProperties({"startDate", "duration"})
     public LocalDateTime getEndDate() {
         return (startDate != null && duration != null) ? startDate.plusHours(duration) : null;
     }
     //end::calculated-attribute[]
-
 
     public String getDescription() {
         return description;

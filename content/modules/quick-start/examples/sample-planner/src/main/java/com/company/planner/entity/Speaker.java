@@ -14,8 +14,8 @@ import javax.validation.constraints.NotNull;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "PLNNR_SPEAKER")
-@Entity(name = "plnnr_Speaker")
+@Table(name = "PLANNER_SPEAKER")
+@Entity(name = "planner_Speaker")
 public class Speaker {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
