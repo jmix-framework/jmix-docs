@@ -4,6 +4,8 @@ import io.jmix.core.annotation.DeletedBy;
 import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
 
 import javax.persistence.*;
 import java.util.Date;
@@ -24,6 +26,9 @@ public class BookInstance {
     @Column(name = "INVENTORY_NUMBER")
     private Long inventoryNumber;
 
+    @Column(name = "BOOK_COUNT")
+    private Integer bookCount;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "BOOK_PUBLICATION_ID")
     private BookPublication bookPublication;
@@ -39,6 +44,31 @@ public class BookInstance {
     @DeletedDate
     @Column(name = "DELETED_DATE")
     private Date deletedDate;
+
+    @CreatedBy
+    @Column(name = "CREATED_BY")
+    private String createdBy;
+
+    @CreatedDate
+    @Column(name = "CREATED_DATE")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdDate;
+
+    public Date getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(Date createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
 
     public LibraryDepartment getLibraryDepartment() {
         return libraryDepartment;
@@ -62,6 +92,14 @@ public class BookInstance {
 
     public void setInventoryNumber(Long inventoryNumber) {
         this.inventoryNumber = inventoryNumber;
+    }
+
+    public Integer getBookCount() {
+        return bookCount;
+    }
+
+    public void setBookCount(Integer bookCount) {
+        this.bookCount = bookCount;
     }
 
     public Boolean getIsReference() {

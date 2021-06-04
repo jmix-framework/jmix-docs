@@ -4,11 +4,14 @@
 [[example_xls]]
 == Sample XLS Report
 
-First of all, install Reporting Add-on by following xref:index.adoc#installation[installation] instruction.
+The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
-Open the *Reports* -> *Reports* screen and click on the *Import* button to import the report. Choose Reports.zip in the project root directory. Two reports will appear in the table, one of them will be Books by author. This report displays the list of book publications for selected author; books will be grouped by book name and publisher. The output format is XLS.
+In this example, we will generate a report for an book author. Given an author, the report will list his books, publisher of each book, in which library department the book was stored and how many books stored in each department. The result looks like this:
 
-. <<structure,Report data structure>>.
+.Books by author
+image::sample1_result.png[align="center"]
+
+. xref:creation/data-structure.adoc[Report data structure].
 +
 --
 .Report data structure
@@ -16,7 +19,7 @@ image::sample1_structure.png[align="center"]
 
 Let us consider report bands.
 
-* *header* band – report header. It contains the dataset with the Groovy script which outputs the report <<parameters, external parameters>> values:
+* *header* band – report header. It contains the dataset with the Groovy script which outputs the report xref:creation/parameter-and-format.adoc#parameters[external parameters] values:
 
 [source, groovy]
 ----
@@ -28,9 +31,9 @@ Let us consider report bands.
 [source, sql]
 ----
 select b.name as book_name, b.id as book_id
-from library_book b 
-    join library_book_author_link ba on ba.book_id = b.id
-    join library_author a on a.id = ba.author_id
+from JMXRPR_BOOK b
+    join JMXRPR_AUTHORS_BOOKS ba on ba.book_id = b.id
+    join JMXRPR_AUTHOR a on a.id = ba.author_id
 where a.id = ${author}
 ----
 
@@ -40,9 +43,9 @@ This query uses the external report parameter – `author`. The parameter has th
 
 [source, sql]
 ----
-select p.name as publisher, bp.year, p.id as publisher_id
-from library_book_publication bp
-    join library_publisher p on p.id = bp.publisher_id
+select p.name as publisher, bp.year_, p.id as publisher_id
+from JMXRPR_BOOK_PUBLICATION bp
+    join JMXRPR_PUBLISHER p on p.id = bp.publisher_id
 where bp.book_id = ${book.book_id}
 ----
 
@@ -52,10 +55,10 @@ This query uses the parent band field `++book_id++` as a parameter. This provide
 
 [source, sql]
 ----
-select ld.name as department, count(bi.id) as amount
-from library_book_instance bi
-    join library_book_publication bp on bp.id = bi.book_publication_id
-    join library_library_department ld on ld.id = bi.library_department_id
+select ld.name as department, sum(bi.book_count) as amount
+from JMXRPR_BOOK_INSTANCE bi
+    join JMXRPR_BOOK_PUBLICATION bp on bp.id = bi.book_publication_id
+    join JMXRPR_LIBRARY_DEPARTMENT ld on ld.id = bi.library_department_id
 where bp.publisher_id = ${publisher.publisher_id} and bp.book_id = ${book.book_id}
 group by ld.name
 ----
@@ -63,23 +66,23 @@ group by ld.name
 This query uses both parent bands fields as parameters – `++book_id++` and `++publisher_id++`.
 --
 
-. Report <<parameters, parameters>>.
+. Report xref:creation/parameter-and-format.adoc#parameters[parameters].
 +
 The *Parameters and Formats* tab contains one declared report external parameter – `Author`:
 +
 .Report parameters
 image::sample1_param.png[align="center"]
 +
-When running the report, the user will have to enter this parameter. The author selection will be performed via the `library$Author.browse` screen, available in the application.
+When running the report, the user will have to enter this parameter. The author selection will be performed via the `Author.browse` screen, available in the application.
 
-. Report <<template, templates>>.
+. Report xref:creation/templates.adoc#template_xls[templates].
 +
-The *Templates* tab contains a single defined XLS template, loaded from `BooksByAuthor.xls`
+The *Templates* tab contains a single defined XLS template, loaded from link:{attachmentsdir}/BooksByAuthor.xls[BooksByAuthor.xls]
 +
 .Report templates
 image::sample1_template.png[align="center"]
 
-. Report Name <<localization, Localization>>.
+. Report Name xref:creation/localization.adoc[Localization].
 +
 The *Localization* tab contains the report name for the Russian locale:
 +
@@ -88,12 +91,19 @@ The *Localization* tab contains the report name for the Russian locale:
 ru = Книги по автору
 ----
 
-You can <<running, run>> the report from the generic browser in the *Reports* -> *Run Reports* screen.
+You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.
 
 [[crosstab_xls]]
 == Sample Crosstab Report
 
-To create a crosstab report, select *Crosstab* band orientation on the <<structure,Report structure>> tab of the report editor. This orientation automatically adds three datasets to the band:
+The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
+
+In this example, we will create a crosstab report for the library departments, to list how many books each department buys in every month. The report is extended both vertically and horizontally and aggregates the book amounts for each department and each month:
+
+.Crosstab result
+image::crosstab_result.png[align="center"]
+
+To create the report, add a band and select *Crosstab* band orientation on the xref:creation/data-structure.adoc[Report structure] tab of the report editor. This orientation automatically adds three datasets to the band:
 
 . `<band_name>`*_dynamic_header* – the data from this dataset is copied to the right like a vertical band with table columns header.
 
@@ -101,77 +111,81 @@ To create a crosstab report, select *Crosstab* band orientation on the <<structu
 
 . `<band_name>` – the dataset named the same as the band, it belongs to. It is the main content band that will fulfill the matrix cells.
 
-These datasets can have any of available dataset types: <<structure_sql,SQL>>, <<structure_jpql,JPQL>>, <<structure_groovy,Groovy>>, and so on.
+These datasets can have any of available dataset types: xref:creation/data-structure.adoc#structure_sql[SQL], xref:creation/data-structure.adoc#structure_jpql[JPQL], xref:creation/data-structure.adoc#structure_groovy[Groovy], and so on.
 
-For example, a crosstab report for the `Order` entity of the https://github.com/cuba-platform/sample-sales-cuba7[Sales] sample application has the following structure:
+For example, a crosstab report for the `BookInstance` entity of the *Library* sample application has the following structure:
 
 .Crosstab Report
 image::crosstab_structure.png[align="center"]
 
-. Report data <<structure,structure>>
+. Report data xref:creation/data-structure.adoc[structure]. There are three datasets:
 +
-Let us consider report bands.
-
-* Here, the `orders_dynamic_header` dataset will return the list of months names:
+* The `bi_dynamic_header` dataset will return the list of months names:
 +
 [source, groovy]
-.orders_dynamic_header dataset
+.bi_dynamic_header dataset
 ----
-include::{sourcesdir}/crosstab_dynamic_header.groovy[]
-----
+import java.text.DateFormatSymbols
 
-* The `orders_master_data` dataset returns names and identifiers of the customers selected by the user as an <<parameters,external report parameter>>:
+List result = new ArrayList()
+DateFormatSymbols dateFormatSymbols = DateFormatSymbols.getInstance(Locale.ENGLISH)
+for (i in 0..dateFormatSymbols.months.length - 1) {
+    result.add(["header_id" : i + 1, "month_name" : dateFormatSymbols.months[i]])
+}
+return result
+----
++
+* The `bi_master_data` dataset returns names and identifiers of the library departments selected by the user as an xref:creation/parameter-and-format.adoc#parameters[external report parameter]:
 +
 [source, sql]
-.orders_master_data dataset
+.bi_master_data dataset
 ----
-include::{sourcesdir}/crosstab_master_data.sql[]
+select name as name, id as department_id
+from JMXRPR_LIBRARY_DEPARTMENT
+where id in (${selected_departments})
 ----
-
-* The `orders` dataset will provide data for the matrix cells, which is the order amounts sum for the particular month and customer. It takes `orders_master_data@customer_id` (the customer id) as the vertical coordinate of the cell, and `orders_dynamic_header@header_id` (the month name) as the horizontal coordinate, and fills the matrix cell with the `amount` value.
 +
-In the example below the report has two more external parameters: the `start_date` and the `end_date` that define the range of order dates. It would be a good idea to set up <<report_parameter_validation,cross-parameter validation>> to make sure the range makes sense.
+* The `bi` dataset will provide data for the matrix cells, which is the book amounts sum for the particular month and department. It takes `bi_master_data@department_id` (the department id) as the vertical coordinate of the cell, and `bi_dynamic_header@header_id` (the month name) as the horizontal coordinate, and fills the matrix cell with the `amount` value.
++
+In the example below the report has two more external parameters: the `start_date` and the `end_date` that define the range of book instance creation dates. It would be a good idea to set up xref:creation/parameter-and-format.adoc#report_parameter_validation[cross-parameter validation] to make sure the range makes sense.
 +
 [source, sql]
-.orders dataset
+.bi dataset
 ----
-include::{sourcesdir}/crosstab_orders.sql[]
+select bi.library_department_id as bi_master_data@department_id,
+       month(bi.created_date) as bi_dynamic_header@header_id,
+       sum(bi.book_count) as "amount"
+from JMXRPR_BOOK_INSTANCE bi
+where bi.created_date >= ${start_date} and bi.created_date<= ${end_date}
+and bi.library_department_id in (${bi_master_data@department_id})
+and month(bi.created_date) in (${bi_dynamic_header@header_id})
+group by bi.library_department_id,month(bi.created_date)
+order by bi.library_department_id,month(bi.created_date)
 ----
 
-. Report <<parameters, parameters>>.
+. Report xref:creation/parameter-and-format.adoc#parameters[parameters].
 +
-The *Parameters and Formats* tab contains three declared report external parameters – `selected_customers`, `start_date`, `end_date`:
+The *Parameters and Formats* tab contains three declared report external parameters – `selected_departments`, `start_date`, `end_date`:
 +
 .Report parameters
 image::crosstab_external_params.png[align="center"]
 +
-When running the report, the user will have to enter these parameters. The customer selection will be performed via the `sales_Customer.browse` screen, available in the application.
+When running the report, the user will have to enter these parameters. The department selection will be performed via the `jmxrpr_LibraryDepartment.browse` screen, available in the application.
 
-. Report <<template, template>>.
+. Report xref:creation/templates.adoc[template].
 +
-Then you can create a report template using Microsoft Office or LibreOffice.
+Then you can create a XLS report template using Microsoft Office or LibreOffice.
 +
-The report template should contain <<template_xls_regions,named regions>> for all three datasets of the crosstab band and, additionally, the named region for the column header: `<band_name>_header`. In our case it is `orders_header`.
+The link:{attachmentsdir}/DepartmentBooks.xls[DepartmentBooks.xls] is an example of a template which outputs the list of `Departments` vertically and `Books` for each department horizontally grouped by the months the books were created.
++
+This report template contains xref:creation/templates.adoc#template_xls_regions[named regions] for all three datasets of the crosstab band and, additionally, the named region for the column header: `<band_name>_header`. In our case it is `bi_header`.
 
-Below is an example of a template which outputs the list of `Customers` vertically and `Orders` made by each customer horizontally grouped by the months the orders were placed.
-
-.Crosstab template
-image::crosstab_template_2.png[align="center"]
-
-.Named regions
-image::crosstab_names_regions.png[align="center"]
-
-As a result, the report is extended both vertically and horizontally and aggregates the order amounts for each customer and each month:
-
-.Crosstab result
-image::crosstab_result.png[align="center"]
-
-If you want to add totals for the report, you should do it in separate bands with their own datasets.
+You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.
 
 [[example_jasper]]
 == Sample JRXML Report
 
-First of all, install Reporting Add-on by following xref:index.adoc#installation[installation] instruction.
+The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
 Open the *Reports* -> *Reports* screen and click on the *Import* button to import the report. Choose Reports.zip in the project root directory. Two reports will appear in the table, one of them will be Book availability in department. This report displays the list of book publications in the selected department; the default output format is XLS. Let's create the new JasperReports template for this report.
 
@@ -237,6 +251,8 @@ image::sample_jasper_4.png[align="center"]
 
 [[example_html]]
 == Sample HTML/PDF Report with Paging, Headers and Footers
+
+The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
 Let's imagine that we now want to create a report with landscape orientation, page numbers, fixed header and footer on each page, configured using special CSS rules and properties. The output format is HTML exported to PDF.
 
@@ -323,6 +339,8 @@ image::example_html_2.png[align="center"]
 
 [[example_html_groovy_template]]
 == HTML Report with Groovy template engine
+
+The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
 Let’s create a report that displays the list of book publications for the selected city. The output format is HTML.
 
