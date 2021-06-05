@@ -20,49 +20,37 @@ image::sample1_structure.png[align="center"]
 Let us consider report bands.
 
 * *header* band – report header. It contains the dataset with the Groovy script which outputs the report xref:creation/parameter-and-format.adoc#parameters[external parameters] values:
-
++
 [source, groovy]
 ----
 [['authorName' : (params['author'].firstName + ' ' + params['author'].lastName)]]
 ----
 
 * The *book* band outputs the list of books by running the following SQL query:
-
++
 [source, sql]
 ----
-select b.name as book_name, b.id as book_id
-from JMXRPR_BOOK b
-    join JMXRPR_AUTHORS_BOOKS ba on ba.book_id = b.id
-    join JMXRPR_AUTHOR a on a.id = ba.author_id
-where a.id = ${author}
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_xls.sql[tags=book-dataset]
 ----
-
++
 This query uses the external report parameter – `author`. The parameter has the *Entity* type, however, in SQL queries you can compare it directly with entity identifier fields; the conversion will be done automatically.
 
 * The *publisher* band, which is a child band of the *book*, outputs the book publishers by running the following SQL query:
-
++
 [source, sql]
 ----
-select p.name as publisher, bp.year_, p.id as publisher_id
-from JMXRPR_BOOK_PUBLICATION bp
-    join JMXRPR_PUBLISHER p on p.id = bp.publisher_id
-where bp.book_id = ${book.book_id}
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_xls.sql[tags=publisher-dataset]
 ----
-
++
 This query uses the parent band field `++book_id++` as a parameter. This provides dependency between the parent and child bands.
 
 * The *publication* band, which is a child of the *publisher* band, outputs the book publications by running the following SQL query:
-
++
 [source, sql]
 ----
-select ld.name as department, sum(bi.book_count) as amount
-from JMXRPR_BOOK_INSTANCE bi
-    join JMXRPR_BOOK_PUBLICATION bp on bp.id = bi.book_publication_id
-    join JMXRPR_LIBRARY_DEPARTMENT ld on ld.id = bi.library_department_id
-where bp.publisher_id = ${publisher.publisher_id} and bp.book_id = ${book.book_id}
-group by ld.name
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_xls.sql[tags=publication-dataset]
 ----
-
++
 This query uses both parent bands fields as parameters – `++book_id++` and `++publisher_id++`.
 --
 
@@ -125,14 +113,7 @@ image::crosstab_structure.png[align="center"]
 [source, groovy]
 .bi_dynamic_header dataset
 ----
-import java.text.DateFormatSymbols
-
-List result = new ArrayList()
-DateFormatSymbols dateFormatSymbols = DateFormatSymbols.getInstance(Locale.ENGLISH)
-for (i in 0..dateFormatSymbols.months.length - 1) {
-    result.add(["header_id" : i + 1, "month_name" : dateFormatSymbols.months[i]])
-}
-return result
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_crosstab.groovy[]
 ----
 +
 * The `bi_master_data` dataset returns names and identifiers of the library departments selected by the user as an xref:creation/parameter-and-format.adoc#parameters[external report parameter]:
@@ -140,9 +121,7 @@ return result
 [source, sql]
 .bi_master_data dataset
 ----
-select name as name, id as department_id
-from JMXRPR_LIBRARY_DEPARTMENT
-where id in (${selected_departments})
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_crosstab.sql[tags=master-data-dataset]
 ----
 +
 * The `bi` dataset will provide data for the matrix cells, which is the book amounts sum for the particular month and department. It takes `bi_master_data@department_id` (the department id) as the vertical coordinate of the cell, and `bi_dynamic_header@header_id` (the month name) as the horizontal coordinate, and fills the matrix cell with the `amount` value.
@@ -152,15 +131,7 @@ In the example below the report has two more external parameters: the `start_dat
 [source, sql]
 .bi dataset
 ----
-select bi.library_department_id as bi_master_data@department_id,
-       month(bi.created_date) as bi_dynamic_header@header_id,
-       sum(bi.book_count) as "amount"
-from JMXRPR_BOOK_INSTANCE bi
-where bi.created_date >= ${start_date} and bi.created_date<= ${end_date}
-and bi.library_department_id in (${bi_master_data@department_id})
-and month(bi.created_date) in (${bi_dynamic_header@header_id})
-group by bi.library_department_id,month(bi.created_date)
-order by bi.library_department_id,month(bi.created_date)
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_crosstab.sql[tags=bi-dataset]
 ----
 
 . Report xref:creation/parameter-and-format.adoc#parameters[parameters].
@@ -183,21 +154,24 @@ This report template contains xref:creation/templates.adoc#template_xls_regions[
 You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.
 
 [[example_jasper]]
-== Sample JRXML Report
+== Sample JasperReports Report
 
 The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
-Open the *Reports* -> *Reports* screen and click on the *Import* button to import the report. Choose Reports.zip in the project root directory. Two reports will appear in the table, one of them will be Book availability in department. This report displays the list of book publications in the selected department; the default output format is XLS. Let's create the new JasperReports template for this report.
+In this example, we will create a JRXML report to display the list of book publications in the selected department:
 
-. <<structure,Report data structure>>.
+.Report result
+image::sample_jasper_result.png[align="center"]
+
+. xref:creation/data-structure.adoc[Report data structure].
 +
 --
 .Report data structure
-image::sample_jasper.png[align="center"]
+image::sample_jasper_structure.png[align="center"]
 
 Let's consider report bands.
 
-* *Header* band – report header. It contains the dataset with the Groovy script which outputs the report <<parameters, external parameters>> value:
+* *Header* band – report header. It contains the dataset with the Groovy script which outputs the report xref:creation/parameter-and-format.adoc#parameters[external parameters] value:
 +
 [source, groovy]
 ----
@@ -208,32 +182,30 @@ Let's consider report bands.
 +
 [source, groovy]
 ----
-include::{sourcesdir}/example_jasper.groovy[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/sample_jasper.groovy[]
 ----
 +
 This query uses the external report parameter – `library_department`. The parameter has the *Entity* type, however you can compare it directly with entity identifier fields; the conversion will be done automatically.
 --
 
-. Report <<parameters, parameters>>.
+. Report xref:creation/parameter-and-format.adoc[parameters].
 +
 The *Parameters and Formats* tab contains one declared report external parameter – `Department`:
 +
 .Report parameters
-image::sample_jasper_2.png[align="center"]
+image::sample_jasper_paramters.png[align="center"]
 +
-When running the report, the user will have to enter this parameter. The department selection will be performed via the `library$LibraryDepartment.browse` screen, available in the application.
+When running the report, the user will have to enter this parameter. The department selection will be performed via the `jmxrpr_LibraryDepartment.browse` screen, available in the application.
 
-. Report <<template_jasper, template>>.
+. Report xref:creation/templates.adoc#template_jasper[template].
 +
 --
-The *Templates* tab contains a single defined XLS template, loaded from `BookAvailability.xls`.
-
-Create the new JRXML file with the following content:
+Create the new JRXML file or download link:{attachmentsdir}/BookAvailability.jrxml[BookAvailability.jrxml] with the following content:
 
 [source, xml]
 .BookAvailability.jrxml
 ----
-include::{sourcesdir}/jasper.jrxml[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/BookAvailability.jrxml[]
 ----
 
 The table in this template is bound to a subDataset. The `title` element uses the *Header* band data directly. You can open the template file in JasperReports visual designer to see the report layout.
@@ -241,100 +213,76 @@ The table in this template is bound to a subDataset. The `title` element uses th
 Upload the new template to the application, selecting any output type, and make it default:
 
 .Report templates
-image::sample_jasper_3.png[align="center"]
+image::sample_jasper_template.png[align="center"]
 --
 
-<<running, Run>> the report to make sure it works:
-
-.Report result
-image::sample_jasper_4.png[align="center"]
+You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.
 
 [[example_html]]
 == Sample HTML/PDF Report with Paging, Headers and Footers
 
 The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
-Let's imagine that we now want to create a report with landscape orientation, page numbers, fixed header and footer on each page, configured using special CSS rules and properties. The output format is HTML exported to PDF.
+In this example, we now want to create a report about book summaries with landscape orientation, page numbers, fixed header and footer on each page, configured using special CSS rules and properties. The output format is HTML exported to PDF:
 
-This sample report with its demo project is also available on https://github.com/cuba-labs/reports-pdf-page-settings[Jmix GitHub].
+.Report result
+image::example_html_result.png[align="center"]
 
-. Data model
-
+. The report data xref:creation/data-structure.adoc[structure]
 +
 --
-Our report will display information on the `Client` entity. It contains two String attributes: `title` and `summary`, we will use them in our report structure.
-
-[source, java]
-----
-include::{sourcesdir}/examples_html.java[]
-----
---
-
-. <<structure,Creating a report>>
-+
---
-Let's create a simple report without parameters. The JPQL query will select all clients with their local attributes: `title` and `summary`.
+Let's create a simple report without parameters. The JPQL query will select all books with their local attributes: `name` and `summary`.
 
 .Report data structure
-image::example_html_1.png[align="center"]
+image::example_html_structure.png[align="center"]
 --
 
-. <<template_html, Report template>>.
+. Report xref:creation/templates.adoc#template_html[template].
 
 +
 --
-Now let's create the report template file. Here we define header and footer blocks that will be printed on each PDF page. Also we use special `page-break-before`: `always` CSS property. It will generate a page break before each client info block.
+Now let's create the report template file. Here we define header and footer blocks that will be printed on each PDF page. Also we use special `page-break-before`: `always` CSS property. It will generate a page break before each book info block.
 
 As you can see, we use *FreeMarker* statements to insert data to our template. See complete FreeMarker reference here: https://freemarker.apache.org/docs/.
 
 [source, html]
 ----
-include::{sourcesdir}/examples_html.html[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/BookSummary.html[tags=html-body]
 ----
 --
 
 . CSS rules
 +
 --
-We will use the following CSS code to tune our PDF page representation:
+We will use the following CSS code to set header/footer postions:
 
-[source, css]
+[source, css,indent=0]
 ----
-include::{sourcesdir}/examples_html_1.css[]
-----
-
-This CSS code will set header/footer positions:
-
-[source, css]
-----
-include::{sourcesdir}/examples_html_2.css[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/BookSummary.html[tags=hf-css]
 ----
 
-After that we need to fix paddings of the main content to prevent content and header/footer overlapping:
+And following CSS code to tune our PDF page representation, as well as paddings of the main content to prevent content and header/footer overlapping:
 
-[source, css]
+[source, css,indent=0]
 ----
-include::{sourcesdir}/examples_html_3.css[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/BookSummary.html[tags=body-css]
 ----
 
-So, the complete `paging-template.html` file will look as below:
+So, the complete link:{attachmentsdir}/BookSummary.html[BookSummary.html] file will look as below:
 
 [source, html]
 ----
-include::{sourcesdir}/examples_html_5.html[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/BookSummary.html[tags=**]
 ----
 --
 
-. Upload the template file and run the report.
+. Create the report template, here we select *Freemarker* template type:
 +
 --
 .Template editor
-image::example_html_3.png[align="center"]
+image::example_html_template.png[align="center"]
 
-As you can see, the report contains the title page and page breaks before each client's page. There are headers and footers on each page as well.
-
-.Report result
-image::example_html_2.png[align="center"]
+You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.
 --
 
 [[example_html_groovy_template]]
@@ -342,67 +290,70 @@ image::example_html_2.png[align="center"]
 
 The example is based on the sample *Library* application, please follow the xref:quick-start.adoc#project_setup_report[instruction] to setup your project then create entities and screens.
 
-Let’s create a report that displays the list of book publications for the selected city. The output format is HTML.
+Let’s create a report that displays the list of book publications for the selected town. The output format is HTML:
+
+.Report result
+image::html_groovy_result.png[align="center"]
 
 . Create a report with JPQL dataset:
 +
 .Report data structure
-image::html_groovy_template_structure.png[align="center"]
-
+image::html_groovy_structure.png[align="center"]
 +
 The `BookPublications` band outputs the list of book's publications by running the following JPQL query:
 +
 [source, sql]
 .BookPublications dataset
 ----
-include::{sourcesdir}/bookPublications_example_groovy_html.jpql[]
+select
+b.name as "book",
+p.name as "publisher"
+from jmxrpr_BookPublication bp
+left join bp.book b
+left join bp.publisher p
+ where bp.town.id = ${town}
 ----
 +
-This query uses the external report parameter – `city`. The parameter has the *Entity* type; however, in JPQL queries you can compare it directly with entity identifier fields; the conversion will be done automatically.
+This query uses the external report parameter – `town`. The parameter has the *Entity* type; however, in JPQL queries you can compare it directly with entity identifier fields; the conversion will be done automatically.
 
-. Describe the report parameter:
+. Describe the report xref:creation/parameter-and-format.adoc[parameter]:
 +
-The *Parameters and Formats* tab contains one declared report external parameter – `City`:
+The *Parameters and Formats* tab contains one declared report external parameter – `Town`:
 +
 .The report parameter
-image::html_groovy_template_parameter.png[align="center"]
+image::html_groovy_parameter.png[align="center"]
 +
-When running the report, the user will have to enter this parameter. The city selection will be performed via the `library$Town.browse` screen, available in the application.
+When running the report, the user will have to enter this parameter. The town selection will be performed via the `jmxrpr_Town.browse` screen, available in the application.
 
-. Create a report template
+. Create a report xref:creation/templates.adoc#template_html[template]
 +
-The *Templates* tab contains a single defined HTML template, generated by default with FreeMarker tags.
-+
-Create the new HTML file with the following content:
+Create the new HTML file or download link:{attachmentsdir}/PublicationByTown.html[PublicationByTown.html] with the following content:
 +
 [source, html]
 .PublicationsTemplate
 ----
-include::{sourcesdir}/PublicationsTemplate.html[]
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/PublicationByTown.html[tags=**]
 ----
 +
-The value of the input parameter is used to generate the report title: `${Root.fields.city.name}`.
+The value of the input parameter is used to generate the report title: `${Root.fields.town.name}`.
 +
 The variable `bookPublications` is defined below:
 +
-[source, groovy]
+[source, groovy,indent=0]
 ----
-<% def bookPublications = Root.bands.BookPublications.fields %>
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/PublicationByTown.html[tags=bookPublications]
 ----
 +
 This variable is used in the table's body to display the report fields.
 +
-[source, groovy]
+[source, groovy,indent=0]
 ----
-<% bookPublications.title.eachWithIndex{elem, index -> out << "<tr><td> ${bookPublications.book[index]} </td><td> ${bookPublications.publisher[index]} </td></tr>"}%>
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/PublicationByTown.html[tags=report-fields]
 ----
 +
 Upload the new template to the application, select HTML output type, select *Groovy template* in the *Template type* radiobutton and make it default:
 +
 .Report template editor
-image::publicationsTemplate_editor.png[align="center"]
+image::html_groovy_template.png[align="center"]
 
-Run the report to make sure it works:
-
-.Report result
-image::publications_report.png[align="center"]
+You can run the report from the generic browser in the *Reports* -> *Run Reports* screen.

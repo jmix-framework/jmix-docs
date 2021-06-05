@@ -26,6 +26,10 @@ public class Book {
     @Column(name = "NAME", nullable = false, length = 50)
     private String name;
 
+    @Column(name = "SUMMARY")
+    @Lob
+    private String summary;
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "LITERATURE_TYPE_ID", nullable = false)
@@ -44,6 +48,14 @@ public class Book {
             inverseJoinColumns = @JoinColumn(name = "AUTHOR_ID"))
     @ManyToMany
     private List<Author> authors;
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
 
     public LiteratureType getLiteratureType() {
         return literatureType;
