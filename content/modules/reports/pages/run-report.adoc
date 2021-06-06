@@ -91,42 +91,42 @@ include::example$/ex1/src/main/resources/com/company/jmixreports/screen/book/boo
 include::example$/ex1/src/main/java/com/company/jmixreports/screen/book/BookEdit.java[tags=editor-print-button]
 ----
 --
+// TODO cancel report #22
+// [[run_cancel]]
+// == Cancelling Reports execution
 
-[[run_cancel]]
-== Cancelling Reports execution
+// If the report execution is running as a background task, it can be interrupted by the user.
 
-If the report execution is running as a background task, it can be interrupted by the user.
+// To add the cancel option, set the xref:configuration.adoc#jmix.reports.client.useBackgroundReportProcessing[jmix.reports.client.useBackgroundReportProcessing] property to `true`:
 
-To add the cancel option, set the xref:configuration.adoc#jmix.reports.client.useBackgroundReportProcessing[jmix.reports.client.useBackgroundReportProcessing] property to `true`:
+// [source, groovy]
+// ----
+// jmix.reports.client.useBackgroundReportProcessing = true
+// ----
 
-[source, groovy]
-----
-jmix.reports.client.useBackgroundReportProcessing = true
-----
+// Thus, the window with the progress bar and the *Cancel* button will be displayed:
 
-Thus, the window with the progress bar and the *Cancel* button will be displayed:
+// .Cancel report
+// image::run_cancel.png[align="center"]
 
-.Cancel report
-image::run_cancel.png[align="center"]
+// You can also set the processing timeout using the xref:configuration.adoc#jmix.reports.client.backgroundReportProcessingTimeoutMs[jmix.reports.client.backgroundReportProcessingTimeoutMs] property:
 
-You can also set the processing timeout using the xref:configuration.adoc#jmix.reports.client.backgroundReportProcessingTimeoutMs[jmix.reports.client.backgroundReportProcessingTimeoutMs] property:
+// [source, groovy]
+// ----
+// jmix.reports.client.backgroundReportProcessingTimeoutMs = 30000
+// ----
 
-[source, groovy]
-----
-jmix.reports.client.backgroundReportProcessingTimeoutMs = 30000
-----
+// When the time is up, the task will be canceled regardless the result, and the user will receive an error message:
 
-When the time is up, the task will be canceled regardless the result, and the user will receive an error message:
+// .Report error
+// image::run_timeout.png[align="center"]
 
-.Report error
-image::run_timeout.png[align="center"]
+// To cancel the report execution programmatically, use the `cancelReportExecution()` method of the `ReportService` interface that takes the identifiers of the user session and the report:
 
-To cancel the report execution programmatically, use the `cancelReportExecution()` method of the `ReportService` interface that takes the identifiers of the user session and the report:
-
-[source, java]
-----
-reportService.cancelReportExecution(userSessionId, report.getId());
-----
+// [source, java]
+// ----
+// reportService.cancelReportExecution(userSessionId, report.getId());
+// ----
 
 [[execution_history]]
 == Report Execution History
@@ -196,21 +196,47 @@ If you run the report programmatically using the `createAndSaveReport()` method,
 Cleanup the history::
 +
 --
-You can configure the execution history cleanup procedure to regularly remove unnecessary data.
-// TODO schedule task doc link
-* Create and activate a {manual_platform}/scheduled_tasks_cuba.html[scheduled task]. Go to the *Administration > Scheduled Tasks* screen of your application. Create a new task and set the following parameters:
+You can use https://www.quartz-scheduler.org/[Quartz Job Scheduler^] for cleanup report execution history periodically. 
 
-** *Bean Name* = `reporting_ExecutionHistoryRecorder`
-** *Method Name* = `cleanupHistory()`
-** *Cron* = nightly, for example, `0 0 1 * * *`
-** *Singleton* – yes (this is important only for a cluster of middleware servers)
+. First, add Spring boot Quartz starter to your `build.gradle`:
 +
-Save the task and click *Activate* on it.
-// TODO schedule active doc link
-+
-If you did not set up the execution of the scheduled tasks for this project before, nothing would happen on this stage – the task will not be executed until you start the whole scheduling mechanism with the {manual_platform}/app_properties_reference.html#cuba.schedulingActive[cuba.schedulingActive] application property.
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=quartz-dependency]
+----
 
-* Set up the configuration properties:
+. Add the following properties to the `application.properties` file:
++
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=quartz]
+----
++
+If you use PostgreSQL and get the exception "org.quartz.JobPersistenceException: Couldn't retrieve job: Bad value for type long" on application start, set the following property:
++
+[source,properties]
+----
+spring.quartz.properties.org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+----
+
+. Create job class and call `ReportExecutionHistoryRecorder.cleanupHistory()`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/app/ReportHistoryCleanJob.java[tags=quartz]
+----
+
+. Add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/JmixreportsApplication.java[tags=quartz]
+----
++
+<1> schedule for nightly, for example, `0 0 1 * * ?`
+
+
+. Set up the report history clean configuration properties:
 
 ** xref:configuration.adoc#jmix.reports.historyCleanupMaxDays[jmix.reports.historyCleanupMaxDays] – 730 days by default.
 ** xref:configuration.adoc#jmix.reports.historyCleanupMaxItemsPerReport[jmix.reports.historyCleanupMaxItemsPerReport] – 1000 by default.

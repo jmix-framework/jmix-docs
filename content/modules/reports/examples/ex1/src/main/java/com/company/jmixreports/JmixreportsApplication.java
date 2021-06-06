@@ -1,5 +1,7 @@
 package com.company.jmixreports;
 
+import com.company.jmixreports.app.ReportHistoryCleanJob;
+import org.quartz.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -22,4 +24,23 @@ public class JmixreportsApplication {
     DataSource dataSource() {
         return DataSourceBuilder.create().build();
     }
+    // tag::quartz[]
+    @Bean
+    JobDetail reportHistoryCleanJob() {
+        return JobBuilder.newJob()
+                .ofType(ReportHistoryCleanJob.class)
+                .storeDurably()
+                .withIdentity("reportHistoryClean")
+                .build();
+    }
+
+    @Bean
+    Trigger reportHistoryCleanTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(reportHistoryCleanJob())
+                .startNow()
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 1 * * ?")) // <1>
+                .build();
+    }
+    // end::quartz[]
 }

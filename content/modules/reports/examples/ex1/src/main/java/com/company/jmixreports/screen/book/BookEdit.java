@@ -22,8 +22,9 @@ public class BookEdit extends StandardEditor<Book> {
 
     @Subscribe
     public void onInit(InitEvent event) {
-//        EditorPrintFormAction action = actions.create(EditorPrintFormAction.class, "editPrint");
         EditorPrintFormAction action = actions.create(EditorPrintFormAction.class);
+        action.setEditor(this);
+        action.setReportOutputName(null);
         reportButton.setAction(action);
     }
     // end::editor-print-button[]
