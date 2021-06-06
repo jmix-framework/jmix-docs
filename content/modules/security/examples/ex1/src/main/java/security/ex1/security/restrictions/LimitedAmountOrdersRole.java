@@ -1,4 +1,4 @@
-package security.ex1.security.constraints;
+package security.ex1.security.restrictions;
 
 import io.jmix.security.role.annotation.JpqlRowLevelPolicy;
 import io.jmix.security.role.annotation.RowLevelRole;
