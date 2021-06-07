@@ -4,15 +4,14 @@ import io.jmix.ui.ScreenBuilders;
 import io.jmix.ui.Screens;
 import io.jmix.ui.component.Button;
 import io.jmix.ui.component.HasValue;
-import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
+import io.jmix.ui.model.DataComponents;
 import io.jmix.ui.model.DataContext;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
 import ui.ex1.entity.Person;
 import ui.ex1.screen.entity.person.PersonEdit;
-import ui.ex1.screen.screens.open.FancyMessageScreen;
 
 @UiController("uiex1_PersonCondition.browse")
 @UiDescriptor("person-browse-condition.xml")
@@ -20,7 +19,8 @@ import ui.ex1.screen.screens.open.FancyMessageScreen;
 public class PersonBrowseCondition extends StandardLookup<Customer> {
 
     @Autowired
-    private CollectionContainer<Person> personsDc;
+    private DataComponents dataComponents;
+
     // tag::loader[]
     @Autowired
     private CollectionLoader<Person> personsDl;
@@ -67,15 +67,8 @@ public class PersonBrowseCondition extends StandardLookup<Customer> {
     }
     // end::condition[]
 
-    private Screen showFancyMessage(String message) {
-        FancyMessageScreen screen = screens.create(FancyMessageScreen.class);
-        screen.setFancyMessage(message);
-        return screen;
-    }
-
     // tag::person-edit[]
-    @Subscribe("opentBtn")
-    public void onOpentBtnClick(Button.ClickEvent event) {
+    private void editScreenWithCurrentDataContextAsParent() {
         PersonEdit personEdit = screenBuilders.editor(Person.class, this)
                 .withScreenClass(PersonEdit.class)
                 .withParentDataContext(dataContext)
@@ -84,6 +77,10 @@ public class PersonBrowseCondition extends StandardLookup<Customer> {
     }
     // end::person-edit[]
 
+    @Subscribe("openBtn")
+    public void onOpenBtnClick(Button.ClickEvent event) {
+        editScreenWithCurrentDataContextAsParent();
+    }
 
     // tag::sample-screen[]
     private void openSmplScreenWithCurrentDataContextAsParent() {
@@ -96,5 +93,11 @@ public class PersonBrowseCondition extends StandardLookup<Customer> {
     @Subscribe("openSampleBtn")
     public void onOpenSampleBtnClick(Button.ClickEvent event) {
         openSmplScreenWithCurrentDataContextAsParent();
+    }
+
+    @Subscribe
+    public void onBeforeShow(BeforeShowEvent event) {
+        dataContext = dataComponents.createDataContext();
+        getScreenData().setDataContext(dataContext);
     }
 }

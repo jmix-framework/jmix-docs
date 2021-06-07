@@ -40,8 +40,4 @@ public class DepartmentBrowseData2 extends StandardLookup<Department> {
     }
     // end::load[]
 
-    @Autowired
-    private Button editBtn;
-
-
 }
