@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Employee;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 @UiController("sample_TwinColumnScreen")
 @UiDescriptor("twin-column-screen.xml")
@@ -31,18 +32,17 @@ public class TwinColumnScreen extends Screen {
     @Subscribe("button")
     protected void onButtonClick(Button.ClickEvent event) {
         StringBuilder sb = new StringBuilder();
-        Collection<Employee> value = twinColumn.getValue();
-        if (value == null) {
-            sb.append("null");
-        } else {
-            for (Employee employee : value) {
-                sb.append(metadataTools.getInstanceName(employee))
-                        .append("\n");
-            }
+        Collection<Employee> employees = twinColumn.getValue();
+        if (employees != null) {
+            notifications.create()
+                    .withCaption(
+                            employees.stream()
+                                    .map(employee -> metadataTools.getInstanceName(employee))
+                                    .collect(Collectors.joining("\n"))
+                    )
+                    .show();
+
         }
-        notifications.create()
-                .withCaption(sb.toString())
-                .show();
     }
     // end::show-values[]
 }
