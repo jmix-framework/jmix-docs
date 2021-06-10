@@ -2,13 +2,13 @@ import com.company.jmixreports.entity.LiteratureType
 
 def result = []
 
-def ltList = dataManager.load(LiteratureType.class).all().list();
+def ltList = dataManager.load(LiteratureType).all().list();
 ltList.each(lt->{
-    def count = dataManager.loadValue("select sum(bi.bookCount) from jmxrpr_BookInstance bi where bi.libraryDepartment = :department and bi.bookPublication.book.literatureType = :lt ", Long.class)
+    def count = dataManager.loadValue("select sum(bi.bookCount) from jmxrpr_BookInstance bi where bi.libraryDepartment = :department and bi.bookPublication.book.literatureType = :lt ", Long)
             .parameter("department", params['library_department']).parameter("lt", lt)
             .one();
 
-    def refCount = dataManager.loadValue("select sum(bi.bookCount) from jmxrpr_BookInstance bi where bi.libraryDepartment = :department and bi.bookPublication.book.literatureType = :lt and bi.isReference = true", Long.class)
+    def refCount = dataManager.loadValue("select sum(bi.bookCount) from jmxrpr_BookInstance bi where bi.libraryDepartment = :department and bi.bookPublication.book.literatureType = :lt and bi.isReference = true", Long)
             .parameter("department", params['library_department']).parameter("lt", lt)
             .one();
             
