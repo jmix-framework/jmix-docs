@@ -1,4 +1,4 @@
-package security.ex1.security.constraints;
+package security.ex1.security.restrictions;
 
 import io.jmix.security.model.RowLevelPolicyAction;
 import io.jmix.security.role.annotation.PredicateRowLevelPolicy;

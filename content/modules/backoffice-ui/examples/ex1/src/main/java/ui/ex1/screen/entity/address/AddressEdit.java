@@ -57,7 +57,8 @@ public class AddressEdit extends StandardEditor<Address> {
     // end::field-value-change[]
     // tag::new-option-handler[]
     @Install(to = "countryEntityComboBox", subject = "enterPressHandler")
-    private void countryEntityComboBoxEnterPressHandler(HasEnterPressHandler.EnterPressEvent enterPressEvent) {
+    private void countryEntityComboBoxEnterPressHandler(HasEnterPressHandler.EnterPressEvent
+                                                                    enterPressEvent) {
         Country country = dataContext.create(Country.class); // <1>
         country.setName(enterPressEvent.getText()); // <2>
         countriesDc.getMutableItems().add(country); // <3>

@@ -23,6 +23,9 @@ public class Person {
     @Id
     private UUID id;
 
+    @Column(name = "STATUS")
+    private java.lang.Boolean status;
+
     @InstanceName
     @Column(name = "NAME", nullable = false)
     @NotNull
@@ -47,6 +50,14 @@ public class Person {
     @PropertyDatatype("fileRef")
     @Column(name = "IMAGE")
     private FileRef image;
+
+    public java.lang.Boolean getStatus() {
+        return status;
+    }
+
+    public void setStatus(java.lang.Boolean status) {
+        this.status = status;
+    }
     // end::file-storage-upload-field[]
 
     public Date getBirthday() {

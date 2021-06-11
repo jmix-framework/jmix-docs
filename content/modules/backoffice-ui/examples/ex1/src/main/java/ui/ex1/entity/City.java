@@ -4,10 +4,7 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.util.UUID;
 
 @JmixEntity
@@ -19,9 +16,21 @@ public class City {
     @Id
     private UUID id;
 
+    @JoinColumn(name = "COUNTRY_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Country country;
+
     @InstanceName
     @Column(name = "NAME")
     private String name;
+
+    public Country getCountry() {
+        return country;
+    }
+
+    public void setCountry(Country country) {
+        this.country = country;
+    }
 
     public String getName() {
         return name;

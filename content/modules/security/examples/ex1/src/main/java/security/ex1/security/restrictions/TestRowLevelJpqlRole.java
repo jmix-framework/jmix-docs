@@ -1,15 +1,14 @@
-package security.ex1.security.constraints;
+package security.ex1.security.restrictions;
 
 import io.jmix.security.role.annotation.JpqlRowLevelPolicy;
 import io.jmix.security.role.annotation.RowLevelRole;
 import security.ex1.entity.Customer;
 import security.ex1.entity.Order;
 
-// tag::role[]
 @RowLevelRole(
-        name = "Can see Customers and Orders of their region",
-        code = "same-region-rows")
-public interface SameRegionRowsRole {
+        name = "Can see Orders with amount < 1000, Can see Customers of their region",
+        code = "test-row-level-jpql-role")
+public interface TestRowLevelJpqlRole {
 
     @JpqlRowLevelPolicy(
             entityClass = Customer.class,
@@ -18,7 +17,6 @@ public interface SameRegionRowsRole {
 
     @JpqlRowLevelPolicy(
             entityClass = Order.class,
-            where = "{E}.customer.region = :current_user_region")
+            where = "{E}.amount < 1000")
     void order();
 }
-// end::role[]
