@@ -1,0 +1,92 @@
+## Execute 'authenticate.http' first to get have a valid access token for the API
+
+POST http://localhost:8080/rest/files
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{access_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="cat.jpg"
+Content-Type: image/jpeg
+
+< ./cat.jpg
+--WebAppBoundary--
+
+> {%
+    client.test("Response Code is 201", function() {
+      client.assert(
+          response.status === 201,
+          "Response status is not 201 - Created"
+      );
+    });
+
+    client.test("new Entities are returned", function() {
+      client.assert(
+          response.body["name"] === "cat.jpg",
+          "The file was not stored unter cat.jpg"
+      );
+    });
+
+    client.global.set("fileReferenceId", response.body["fileReference"])
+  %}
+
+###
+
+# download file as attachment
+
+GET http://localhost:8080/rest/files?fileRef={{fileReferenceId}}&attachment=true
+Authorization: Bearer {{access_token}}
+
+
+> {%
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("content type matches uploaded file", function() {
+      client.assert(
+          response.contentType.mimeType === "image/jpeg",
+          "The downloaded content is not a jpg image"
+      );
+    });
+    client.test("filename matches uploaded filename", function() {
+        client.log(response.headers.valueOf("Content-Disposition"))
+      client.assert(
+          response.headers.valueOf("Content-Disposition") === 'attachment; filename="cat.jpg"',
+          "The downloaded content has not the original filename"
+      );
+    });
+
+  %}
+
+###
+
+# download file as inline content using auth token in the URL
+
+GET http://localhost:8080/rest/files?fileRef={{fileReferenceId}}&access_token={{access_token}}
+
+> {%
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("content type matches uploaded file", function() {
+      client.assert(
+          response.contentType.mimeType === "image/jpeg",
+          "The downloaded content is not a jpg image"
+      );
+    });
+    client.test("filename matches uploaded filename", function() {
+        client.log(response.headers.valueOf("Content-Disposition"))
+      client.assert(
+          response.headers.valueOf("Content-Disposition") === 'inline; filename="cat.jpg"',
+          "The downloaded content has not the original filename"
+      );
+    });
+
+  %}

@@ -1,38 +1,40 @@
 package rest.sample.entity;
 
+import io.jmix.core.FileRef;
 import io.jmix.core.annotation.DeletedBy;
 import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
+import io.jmix.core.metamodel.annotation.PropertyDatatype;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @JmixEntity
 @Table(name = "SAMPLE_PRODUCT")
 @Entity(name = "sample_Product")
 public class Product {
-    @JmixGeneratedValue
-    @Column(name = "ID", nullable = false)
-    @Id
-    private UUID id;
-
-    @InstanceName
-    @Column(name = "NAME", nullable = false)
-    @NotNull
-    private String name;
-
-    @Column(name = "PRICE", nullable = false, precision = 19, scale = 2)
-    @NotNull
-    private BigDecimal price;
+    @PropertyDatatype("fileRef")
+    @Column(name = "IMAGE")
+    private FileRef image;
 
     @Column(name = "VERSION", nullable = false)
     @Version
@@ -44,7 +46,13 @@ public class Product {
 
     @CreatedDate
     @Column(name = "CREATED_DATE")
+    @Temporal(TemporalType.DATE)
     private Date createdDate;
+
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
 
     @LastModifiedBy
     @Column(name = "LAST_MODIFIED_BY")
@@ -52,6 +60,7 @@ public class Product {
 
     @LastModifiedDate
     @Column(name = "LAST_MODIFIED_DATE")
+    @Temporal(TemporalType.DATE)
     private Date lastModifiedDate;
 
     @DeletedBy
@@ -60,7 +69,39 @@ public class Product {
 
     @DeletedDate
     @Column(name = "DELETED_DATE")
+    @Temporal(TemporalType.DATE)
     private Date deletedDate;
+
+    @InstanceName
+    @Column(name = "NAME", nullable = false)
+    @NotNull
+    private String name;
+
+    @Column(name = "PRICE", nullable = false, precision = 19, scale = 2)
+    @NotNull
+    private BigDecimal price;
+
+    @JoinTable(name = "RSTEX11_PRODUCT_PRODUCT_TAG_LINK",
+            joinColumns = @JoinColumn(name = "PRODUCT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PRODUCT_TAG_ID"))
+    @ManyToMany
+    private List<ProductTag> tags;
+
+    public FileRef getImage() {
+        return image;
+    }
+
+    public void setImage(FileRef image) {
+        this.image = image;
+    }
+
+    public void setTags(List<ProductTag> tags) {
+        this.tags = tags;
+    }
+
+    public List<ProductTag> getTags() {
+        return tags;
+    }
 
     public BigDecimal getPrice() {
         return price;
