@@ -5,6 +5,7 @@ import io.jmix.security.model.EntityPolicyAction;
 import io.jmix.security.role.annotation.EntityAttributePolicy;
 import io.jmix.security.role.annotation.EntityPolicy;
 import io.jmix.security.role.annotation.ResourceRole;
+import io.jmix.security.role.annotation.SpecificPolicy;
 import io.jmix.securityui.role.annotation.MenuPolicy;
 import io.jmix.securityui.role.annotation.ScreenPolicy;
 import security.ex1.entity.Customer;
@@ -31,7 +32,11 @@ public interface CustomerFullAccessRole {
             screenIds = {"sample_Customer.browse", "sample_Customer.edit"})
     @MenuPolicy(
             menuIds = {"sample_Customer.browse"})
+    // tag::specific-permission[]
+    @SpecificPolicy(
+            resources = {"customer.notify"})
     void customer();
+    // end::specific-permission[]
 
     @EntityPolicy(
             entityClass = CustomerDetail.class,
