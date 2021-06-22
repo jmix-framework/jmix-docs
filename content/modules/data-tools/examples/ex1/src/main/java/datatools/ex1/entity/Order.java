@@ -9,7 +9,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @JmixEntity
-@Table(name = "SAMPLE_ORDER")
+@Table(name = "ORDER_")
 @Entity(name = "sample_Order")
 public class Order {
     @JmixGeneratedValue
