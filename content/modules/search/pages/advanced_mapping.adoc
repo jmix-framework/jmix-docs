@@ -1,0 +1,239 @@
+= Advanced Mapping
+
+`@AutoMappedField` has the following parameters:
+
+* includeProperties - list of full names of properties that should be indexed. None by default - no properties are indexed and searchable.
+* excludeProperties - list of full names of properties that shouldn't be indexed. None by default.
+* analyzer - name of analyzer defined in Elasticsearch that will be used in index field mapping. If nothing is specified - the ES default analyzer is used.
+* indexFileContent - boolean flag defines if the content of file found in matched file properties should be indexed. True by default.
+
+Both `includeProperties` and `excludeProperties` support '*' wildcard. It is expanded to local properties on the corresponded level:
+
+* "**" -> local properties of indexed entity
+* "refField.*" -> local properties of entity referenced by `refField` property
+
+Wildcard doesn't cover system (version, soft-delete related properties etc) and back-reference properties.
+
+`excludeProperties` is useful only if `includeProperties` is configured using wildcard - to limit its expansion. Otherwise it doesn't make sense.
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(
+            includeProperties = {"*", "customer.*"},
+            excludeProperties = {"description", "customer.country"})
+    void orderMapping();
+}
+----
+
+An analyzer is used to transform incoming text values in different ways including some language morphologies. A specified analyzer is used on both indexing and searching steps.
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(
+            includeProperties = {"*"},
+            analyzer = "russian")
+    void orderMapping();
+}
+----
+
+Multiple Mapping annotation can be set on single method. Or they can be split between multiple methods for some kind of grouping. The following cases represent the same definition:
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(includeProperties = {"name", "description", "customer.name", "customer.description"})
+    void orderMapping();
+}
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(includeProperties = {"name", "description"})
+    @AutoMappedField(includeProperties = {"customer.name", "customer.description"})
+    void orderMapping();
+}
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(includeProperties = {"name", "description"})
+    void orderMapping();
+
+    @AutoMappedField(includeProperties = {"customer.name", "customer.description"})
+    void customerMapping();
+}
+----
+
+Properties supported by `@AutoMappedField`:
+
+* Textual
+* Reference
+* FileRef
+* Enum
+* Embedded
+
+All of these properties are captured by wildcard.
+
+== Textual property
+The most common case, value of property is used as indexed value.
+ES index field is as follows:
+
+[source,json]
+----
+"textualFieldName": "value"
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"textualFieldName": ["value1", "value2"]
+----
+
+== Reference property
+
+Only the instance name of the reference instance is used as the indexed value. None of the nested properties are included. To index nested properties of reference entity you should directly include "refProperty.nestedProperty" or "refProperty.*" to your mapping.
+
+ES indexes field is as follows:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": "instanceNameValue"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": ["instanceNameValue1", "instanceNameValue2"]
+}
+----
+
+== FileRef property
+Both file name and content are used as indexed values by default.
+If you want to index file name only you need to set the indexFileContent parameter of `@AutoMappedField` to false
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+    @AutoMappedField(
+            includeProperties = {"*"},
+            indexFileContent = false)
+    void orderMapping();
+}
+----
+
+ES indexes field is as follows:
+
+[source,json]
+----
+"fileRefField": {
+	"_file_name" : "File name",
+	"_content" : "File content if enabled"
+}
+----
+In case of multiple values:
+
+[source,json]
+----
+"fileRefField": [
+	{
+		"_file_name" : "File name 1",
+		"_content" : "File content 1"
+	},
+	{
+		"_file_name" : "File name 2",
+		"_content" : "File content 2"
+	}
+]
+----
+
+== Enum property
+
+Localized values of all available locales are used as indexed values
+
+ES indexes field is as follows:
+
+[source,json]
+----
+"enumFieldName": ["enValue", "ruValue"]
+----
+
+In case of multiple enum values there is multiplication - all values in all available locales:
+
+[source,json]
+----
+"enumFieldName": ["enValue1", "ruValue1", "enValue2", "ruValue2"]
+----
+
+== Embedded property
+Inclusion of Embedded property is equal to inclusion of all its nested properties `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. Index value depends on the type of final properties. Unsupported types will be ignored.
+
+Example:
+
+Root entity has property `person` related to the embedded entity `Person` with `firstName` and `lastName` properties
+
+If you include property `person` it will lead to the implicit inclusion of properties `person.firstName` and `person.lastName`.
+
+== Multilevel properties & collections
+
+You can specify multilevel properties using a dot as the delimiter `refProperty.nestedRefProperty.finalDataProperty`.
+
+Collection properties are also supported including nested collections on multiple levels. In this case index stores values in plain style - "multiplicity" appears at the last-level property and accumulates all found values:
+
+Property `collectionOfReferences.nestedCollectionOfAnotherReferences.name` is stored as
+
+[source,json]
+----
+"collectionOfReferenceInstances": {
+	"nestedCollectionOfAnotherReferenceInstances": {
+		"name": ["value1", ..., "valueN"]
+	}
+}
+----
+
+Array of values contains all name values of all `AnotherReference` instances of all `Reference` instances within the root entity.
+
+== Programmatic mapping
+
+Also, you can build Mapping Definition manually, without using annotation.
+
+For that purpose you need to create a method in your Index Definition interface:
+
+* default
+* with any name
+* without parameters
+* with return type MappingDefinition
+
+You can create a Mapping Definition within the method body using `MappingDefinition.builder()`.
+
+Note: there can be only one method with manual mapping. And if there is such a method all field-mapping annotations will be ignored.
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .newElement()
+                .includeProperties("*")
+                .usingFieldMappingStrategyClass(AutoMappingStrategy.class)
+                .buildElement()
+                .buildMappingDefinition();
+    }
+}
+----
