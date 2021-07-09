@@ -10,8 +10,17 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.PastOrPresent;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
@@ -27,29 +36,27 @@ public class Order {
     @Id
     private UUID id;
 
-    @Column(name = "DATE_", nullable = false)
-    @NotNull
-    private LocalDate date;
-
-    @Column(name = "AMOUNT", precision = 19, scale = 2)
-    private BigDecimal amount;
-
     @Composition
     @OneToMany(mappedBy = "order")
     private List<OrderLine> lines;
+
+    @Column(name = "AMOUNT", nullable = false, precision = 19, scale = 2)
+    @NotNull
+    private BigDecimal amount;
+
+    @PastOrPresent(message = "{msg://rest.sample.entity/Order.date.validation.PastOrPresent}")
+    @Column(name = "DATE_", nullable = false)
+    @NotNull
+    private LocalDate date;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "CUSTOMER_ID", nullable = false)
     private Customer customer;
 
-    @LastModifiedBy
-    @Column(name = "LAST_MODIFIED_BY")
-    private String lastModifiedBy;
-
-    @LastModifiedDate
-    @Column(name = "LAST_MODIFIED_DATE")
-    private Date lastModifiedDate;
+    @Column(name = "VERSION", nullable = false)
+    @Version
+    private Integer version;
 
     @CreatedBy
     @Column(name = "CREATED_BY")
@@ -59,9 +66,13 @@ public class Order {
     @Column(name = "CREATED_DATE")
     private Date createdDate;
 
-    @Column(name = "VERSION", nullable = false)
-    @Version
-    private Integer version;
+    @LastModifiedBy
+    @Column(name = "LAST_MODIFIED_BY")
+    private String lastModifiedBy;
+
+    @LastModifiedDate
+    @Column(name = "LAST_MODIFIED_DATE")
+    private Date lastModifiedDate;
 
     @DeletedBy
     @Column(name = "DELETED_BY")
@@ -79,12 +90,12 @@ public class Order {
         this.customer = customer;
     }
 
-    public List<OrderLine> getLines() {
-        return lines;
+    public LocalDate getDate() {
+        return date;
     }
 
-    public void setLines(List<OrderLine> lines) {
-        this.lines = lines;
+    public void setDate(LocalDate date) {
+        this.date = date;
     }
 
     public BigDecimal getAmount() {
@@ -95,12 +106,12 @@ public class Order {
         this.amount = amount;
     }
 
-    public LocalDate getDate() {
-        return date;
+    public List<OrderLine> getLines() {
+        return lines;
     }
 
-    public void setDate(LocalDate date) {
-        this.date = date;
+    public void setLines(List<OrderLine> lines) {
+        this.lines = lines;
     }
 
     public Date getDeletedDate() {
@@ -119,12 +130,20 @@ public class Order {
         this.deletedBy = deletedBy;
     }
 
-    public Integer getVersion() {
-        return version;
+    public Date getLastModifiedDate() {
+        return lastModifiedDate;
     }
 
-    public void setVersion(Integer version) {
-        this.version = version;
+    public void setLastModifiedDate(Date lastModifiedDate) {
+        this.lastModifiedDate = lastModifiedDate;
+    }
+
+    public String getLastModifiedBy() {
+        return lastModifiedBy;
+    }
+
+    public void setLastModifiedBy(String lastModifiedBy) {
+        this.lastModifiedBy = lastModifiedBy;
     }
 
     public Date getCreatedDate() {
@@ -143,20 +162,12 @@ public class Order {
         this.createdBy = createdBy;
     }
 
-    public Date getLastModifiedDate() {
-        return lastModifiedDate;
+    public Integer getVersion() {
+        return version;
     }
 
-    public void setLastModifiedDate(Date lastModifiedDate) {
-        this.lastModifiedDate = lastModifiedDate;
-    }
-
-    public String getLastModifiedBy() {
-        return lastModifiedBy;
-    }
-
-    public void setLastModifiedBy(String lastModifiedBy) {
-        this.lastModifiedBy = lastModifiedBy;
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 
     public UUID getId() {

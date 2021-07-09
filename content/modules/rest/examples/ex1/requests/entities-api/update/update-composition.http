@@ -1,0 +1,87 @@
+## Execute 'authenticate.http' first to get have a valid access token for the API
+
+# Update an Order with many order lines
+# 1:N Composition
+
+
+POST {{baseRestUrl}}
+         /entities
+         /rstex11_Order?responseFetchPlan=order-with-details
+Authorization: Bearer {{access_token}}
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": [
+    {
+      "product": {
+        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19"
+      },
+      "quantity": 2
+    },
+    {
+      "product": {
+        "id": "1ed85c7a-89f1-c339-a738-16307ed6003a"
+      },
+      "quantity": 1
+    }
+  ]
+}
+
+> {%
+    client.test("Response Code is 201", function() {
+      client.assert(
+          response.status === 201,
+          "Response status is not 201 - Created"
+      );
+    });
+
+    client.test("new Entities are returned", function() {
+      client.assert(
+          response.body["id"],
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+
+    client.global.set("orderId", response.body["id"])
+    client.global.set("firstOrderLineId", response.body["lines"][0]["id"])
+    client.global.set("secondOrderLineId", response.body["lines"][1]["id"])
+  %}
+
+###
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Order
+         /{{orderId}}?responseFetchPlan=order-with-details
+Authorization: Bearer {{access_token}}
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 249.99,
+  "lines": [
+  {
+      "id": "{{firstOrderLineId}}",
+      "product": {
+        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
+        "name": "Solar-One HUP Flooded Battery 48V"
+      },
+      "quantity": 3.0
+    },
+    {
+      "product": {
+        "id": "f6884077-19c4-546f-33d4-a788399337f7",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ]
+}
+
+###

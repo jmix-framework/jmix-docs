@@ -3,8 +3,14 @@ package rest.sample.screen.user;
 import io.jmix.core.EntityStates;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.component.PasswordField;
+import io.jmix.ui.component.TextField;
 import io.jmix.ui.navigation.Route;
-import io.jmix.ui.screen.*;
+import io.jmix.ui.screen.EditedEntityContainer;
+import io.jmix.ui.screen.MessageBundle;
+import io.jmix.ui.screen.StandardEditor;
+import io.jmix.ui.screen.Subscribe;
+import io.jmix.ui.screen.UiController;
+import io.jmix.ui.screen.UiDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import rest.sample.entity.User;
@@ -27,6 +33,9 @@ public class UserEdit extends StandardEditor<User> {
     private PasswordField passwordField;
 
     @Autowired
+    private TextField<String> usernameField;
+
+    @Autowired
     private PasswordField confirmPasswordField;
 
     @Autowired
@@ -37,8 +46,16 @@ public class UserEdit extends StandardEditor<User> {
 
     @Subscribe
     public void onInitEntity(InitEntityEvent<User> event) {
+        usernameField.setEditable(true);
         passwordField.setVisible(true);
         confirmPasswordField.setVisible(true);
+    }
+
+    @Subscribe
+    public void onAfterShow(AfterShowEvent event) {
+        if (entityStates.isNew(getEditedEntity())) {
+            usernameField.focus();
+        }
     }
 
     @Subscribe

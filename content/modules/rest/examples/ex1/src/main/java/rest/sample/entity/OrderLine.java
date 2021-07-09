@@ -9,7 +9,14 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.UUID;
@@ -23,13 +30,13 @@ public class OrderLine {
     @Id
     private UUID id;
 
-    @Column(name = "QUANTITY")
-    private Double quantity;
-
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "PRODUCT_ID", nullable = false)
     private Product product;
+
+    @Column(name = "QUANTITY")
+    private Double quantity;
 
     @Column(name = "VERSION", nullable = false)
     @Version
@@ -58,6 +65,7 @@ public class OrderLine {
     @DeletedDate
     @Column(name = "DELETED_DATE")
     private Date deletedDate;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ORDER_ID", nullable = false)
     private Order order;
@@ -70,20 +78,20 @@ public class OrderLine {
         this.order = order;
     }
 
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product product) {
-        this.product = product;
-    }
-
     public Double getQuantity() {
         return quantity;
     }
 
     public void setQuantity(Double quantity) {
         this.quantity = quantity;
+    }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
     }
 
     public Date getDeletedDate() {
