@@ -7,14 +7,72 @@ Entity Log is a mechanism for tracking changes in your JPA entities. It records 
 * When the entity was changed.
 * Which user changed the entity.
 
-[[installation]]
-== Installation
-
-Follow the instructions in the xref:ROOT:add-ons.adoc[Add-ons] section to install the add-on into your application.
-
-[[usage]]
-== Usage
+[[register-changes]]
+== Registering Changes
 
 Entity Log automatically tracks changes of JPA entities when they are saved using xref:data-access:data-manager.adoc[DataManager]. It doesn't work if you use `EntityManager` or native SQL.
 
 You can also use the `EntityLog` bean to register changed entities from your application code. In this case, invoke `registerCreate()`, `registerModify()` and `registerDelete()` methods with `auto` parameter set to false. When the entity log is called automatically by the framework, this parameter is set to true.
+
+[[setup]]
+== Setting Up Entity Log
+
+You can set up entity log in the *Administration -> Entity Log* application screen.
+
+image::entity-log-set.png[algne=centre]
+
+Also, you can set up entity log by entering some records in the database if you want to include the configuration to the database initialization.
+
+Logging is configured using the `LoggedEntity` and `LoggedAttribute` entities corresponding to `AUDIT_LOGGED_ENTITY` and `AUDIT_LOGGED_ATTR` tables.
+
+`LoggedEntity` defines the types of entities that should be logged. `LoggedEntity` has the following attributes:
+
+* `name` – the name of the entity meta-class, for example, `sample_Order`.
+* `auto` – defines if the system should log the changes when `EntityLog` is called with `auto` = `true` parameter (called by entity listeners).
+* `manual` – defines if the system should log the changes when `EntityLog` is called with auto = `false` parameter.
+
+`LoggedAttribute` defines the entity attribute to be logged and contains a link to the `LoggedEntity` and the attribute name.
+
+To set up logging for a certain entity, add the corresponding entries into the `AUDIT_LOGGED_ENTITY` and `AUDIT_LOGGED_ATTR` tables.
+
+In the example, logging changes of the `phone` attribute of the `Customer` entity is set up while database initialization:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/audit/ex1/liquibase/changelog/2021/02/03-040-1a13ea07.xml[tags=changelog]
+----
+
+[[view]]
+== Viewing Entity Log
+
+To view the entity log content, go to the *Administration -> Entity Log* screen. Set necessary filters to find log entries.
+
+image::entity-log-view.png[algne=centre]
+
+Also, you can access the log for a certain entity from any application screen.
+
+Log entries are stored in the `AUDIT_ENTITY_LOG` table corresponding to the `EntityLogItem` entity. Changed attribute values are stored in the `CHANGES` column and are converted to instances of `EntityLogAttr` entity.
+
+In the example below, an edit screen for the `Order` entity shows tables with the entity log content.
+
+Here is a fragment of the screen XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/audit/ex1/screen/order/order-edit.xml[tags=order-xml]
+----
+
+<1> Loading a collection of `EntityLogItem` into the `entityLogItemsDc` data container.
+<2> Loading associated `EntityLogAttr` instances into the `entityLogAttrDc` data container.
+<3> A table connected to the `entityLogItemsDc` container.
+<4> A table connected to the `entityLogAttrDc` container.
+
+`Order` screen controller looks like this:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/audit/ex1/screen/order/OrderEdit.java[tags=order-java]
+----
+
+<1> The `onBeforeShow` method loads data before showing the screen.
+<2> In the `ItemChangeEvent` handler of the `orderDc` container, a parameter is set to the dependent loader and it is triggered.

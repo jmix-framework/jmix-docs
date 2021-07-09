@@ -1,9 +1,11 @@
 package ui.ex1.screen.component.combobox;
 
 import com.vaadin.server.FontAwesome;
-import io.jmix.ui.component.ComboBox;
+import io.jmix.ui.UiComponents;
+import io.jmix.ui.component.*;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.entity.Hobby;
 
 
 import java.util.*;
@@ -11,6 +13,13 @@ import java.util.*;
 @UiController("comboBox-screen")
 @UiDescriptor("combobox-screen.xml")
 public class ComboBoxScreen extends Screen {
+    // tag::image[]
+    private Image imageResource;
+
+    // end::image[]
+    @Autowired
+    private UiComponents uiComponents;
+
     // tag::icon-combo-box[]
     @Autowired
     private ComboBox iconComboBox;
@@ -61,6 +70,9 @@ public class ComboBoxScreen extends Screen {
         iconMap.put("TXT file", FontAwesome.FILE_TEXT_O);
         iconComboBox.setOptionsMap(iconMap);
         // end::icon-map[]
+        // tag::image-create[]
+        imageResource = uiComponents.create(Image.NAME);
+        // end::image-create[]
         // tag::init-end[]
     }
 
@@ -89,4 +101,18 @@ public class ComboBoxScreen extends Screen {
         return null;
     }
     // end::style-provider[]
+    // tag::options-caption-filter[]
+    @Install(to = "hobbyField", subject = "optionsCaptionFilter")
+    private boolean hobbyFieldOptionsCaptionFilter(ComboBox.OptionsCaptionFilteringContext
+                                                               optionsCaptionFilteringContext) {
+        return optionsCaptionFilteringContext.getItemCaption()
+                .contains(optionsCaptionFilteringContext.getSearchString());
+    }
+    // end::options-caption-filter[]
+    // tag::option-image-provider[]
+    @Install(to = "comboBoxWithImages", subject = "optionImageProvider")
+    private Resource comboBoxWithImagesOptionImageProvider(Hobby hobby) {
+        return imageResource.setSource(ThemeResource.class).setPath("icons/check-mark.png");
+    }
+    // end::option-image-provider[]
 }

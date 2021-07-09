@@ -2,6 +2,7 @@ package ui.ex1.screen.component.entitycombobox;
 
 import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.HasEnterPressHandler;
+import io.jmix.ui.component.ValuePicker;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.model.DataContext;

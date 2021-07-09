@@ -1,0 +1,100 @@
+= Data Loaders
+
+Loaders are designed to load data to xref:backoffice-ui:data/data-containers.adoc[containers].
+
+There are slightly different interfaces of loaders depending on containers they work with:
+
+* `InstanceLoader` loads a single instance to `InstanceContainer` by an entity id or JPQL query.
+* `CollectionLoader` loads a collection of entities to `CollectionContainer` by a JPQL query. You can specify paging, sorting and other optional parameters.
+* `KeyValueCollectionLoader` loads a collection of `KeyValueEntity` instances to `KeyValueCollectionContainer`. In addition to `CollectionLoader` parameters, you can specify a data store name.
+
+In screen XML descriptors, all loaders are defined by the same `<loader>` element and the type of a loader is determined by what container it is enclosed in.
+
+Loaders are optional because you can just load data using `DataManager` or your custom service and set it directly to containers, but they simplify this process in declaratively defined screens, especially with the xref:backoffice-ui:vcl/components/filter.adoc[Filter] component.
+
+Usually, a collection loader obtains a JPQL query from the screen XML descriptor and query parameters from the filter component, creates `LoadContext` and invokes `DataManager` to load entities. So the typical XML descriptor looks like this:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/data/customer-browse-data2.xml[tags=loaders1;loaders2;loaders3]
+----
+
+In the entity editor screen, the loader XML element is usually empty, because the instance loader requires an entity identifier that is specified programmatically by the `StandardEditor` base class:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/data/customer-edit-data2.xml[tags=loaders1]
+----
+
+Loaders can delegate actual loading to a function that can be provided using the `setLoadDelegate()` method or declaratively using the `@Autowired` annotation in the screen controller, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=data-manager;delegate]
+----
+<1> The `customersDlLoadDelegate()` method will be used by the `customersDl` loader to load the list of `Customer` entities.
+<2> The method accepts `LoadContext` that will be created by the loader based on its parameters: query, filter (if any), etc.
+<3> In the example, the loading is done via `DataManager` that is effectively the same as the standard loader implementation, but you can use a custom service or perform any post-processing of the loaded entities. 
+
+You can listen to `PreLoadEvent` and `PostLoadEvent` to add some logic before or after loading:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=load]
+----
+
+A loader can also be created and configured programmatically, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerTable.java[tags=data-components;loader;create-loader]
+----
+
+When `DataContext` is set for a loader (which is always the case when the loader is defined in XML descriptor), all loaded entities are automatically merged into the data context.
+
+[[quiery-conditions]]
+== Query Conditions
+
+Sometimes you need to modify a data loader query at runtime to filter the loaded data at the database level. The simplest way to provide filtering based on parameters entered by users is to connect the xref:backoffice-ui:vcl/components/filter.adoc[Filter] visual component to the data loader.
+
+Instead of the universal filter or in addition to it, you can create a set of conditions for the loader query. A condition is a set of query fragments with parameters. These fragments are added to the resulting query text only when all parameters used in the fragments are set for the query. Conditions are processed on the data store level, so they can contain fragments of different query languages supported by data stores. The framework provides conditions for JPQL.
+
+Let’s consider creating a set of conditions for filtering the `Persone` entity by the `name` attribute.
+
+Loader query conditions can be defined either declaratively in the <condition> XML element, or programmatically using the `setCondition()` method. Below is an example of configuring the conditions in descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/data/person-browse-condition.xml[tags=condition-data]
+----
+<1> Adds the JPQL conditions namespace.
+<2> Defines the `condition` element inside the query.
+<3> If you have more than one condition, add `and` or `or` element
+<4> Defines a JPQL condition with optional `join` element and mandatory `where` element.
+
+Suppose that the screen has two UI components for entering the condition parameters: `nameFilterField` text field and `statusFilterField` check box. In order to refresh the data when a user changes their values, add the following event listeners to the screen controller:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=loader;condition]
+----
+
+As mentioned above, a condition is included in the query only when its parameters are set. So the resulting query executed on the database will depend on what is entered in the UI components:
+
+.Only nameFilterField has a value
+[source,jpql,indent=0]
+----
+select e from uiex1_Person e where e.name like :name
+----
+
+.Only statusFilterField has a value
+[source,jpql,indent=0]
+----
+select e from uiex1_Person e where e.status = :status
+----
+
+.Both nameFilterField and statusFilterField have values
+[source,jpql,indent=0]
+----
+select e from uiex1_Person e where (e.name like :name) and (e.status = :status)
+----

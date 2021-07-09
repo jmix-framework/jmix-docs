@@ -1,10 +1,10 @@
 package ui.ex1.screen.login;
 
-import io.jmix.core.CoreProperties;
 import io.jmix.core.MessageTools;
 import io.jmix.core.Messages;
 import io.jmix.securityui.authentication.AuthDetails;
-import io.jmix.securityui.authentication.LoginScreenAuthenticationSupport;
+import io.jmix.securityui.authentication.LoginScreenSupport;
+import io.jmix.ui.JmixApp;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.action.Action;
 import io.jmix.ui.component.CheckBox;
@@ -50,10 +50,10 @@ public class LoginScreen extends Screen {
     private MessageTools messageTools;
 
     @Autowired
-    private LoginScreenAuthenticationSupport authenticationSupport;
+    private LoginScreenSupport loginScreenSupport;
 
     @Autowired
-    private CoreProperties coreProperties;
+    private JmixApp app;
 
     @Subscribe
     private void onInit(InitEvent event) {
@@ -64,7 +64,7 @@ public class LoginScreen extends Screen {
 
     private void initLocalesField() {
         localesField.setOptionsMap(messageTools.getAvailableLocalesMap());
-        localesField.setValue(coreProperties.getAvailableLocales().get(0));
+        localesField.setValue(app.getLocale());
     }
 
     private void initDefaultCredentials() {
@@ -79,7 +79,7 @@ public class LoginScreen extends Screen {
 
     private void login() {
         String username = usernameField.getValue();
-        String password = passwordField.getValue() != null ? passwordField.getValue() : "";
+        String password = passwordField.getValue();
 
         if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
             notifications.create(Notifications.NotificationType.WARNING)
@@ -89,7 +89,7 @@ public class LoginScreen extends Screen {
         }
 
         try {
-            authenticationSupport.authenticate(
+            loginScreenSupport.authenticate(
                     AuthDetails.of(username, password)
                             .withLocale(localesField.getValue())
                             .withRememberMe(rememberMeCheckBox.isChecked()), this);

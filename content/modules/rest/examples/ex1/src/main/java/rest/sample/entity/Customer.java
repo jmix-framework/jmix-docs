@@ -10,7 +10,11 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.UUID;
@@ -23,6 +27,9 @@ public class Customer {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    @Column(name = "TYPE_")
+    private String type;
 
     @InstanceName
     @Column(name = "NAME", nullable = false)
@@ -56,6 +63,14 @@ public class Customer {
     @DeletedDate
     @Column(name = "DELETED_DATE")
     private Date deletedDate;
+
+    public CustomerType getType() {
+        return type == null ? null : CustomerType.fromId(type);
+    }
+
+    public void setType(CustomerType type) {
+        this.type = type == null ? null : type.getId();
+    }
 
     public String getName() {
         return name;

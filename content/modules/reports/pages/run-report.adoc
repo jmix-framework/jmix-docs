@@ -1,0 +1,129 @@
+= Running Reports
+
+[[run_common]]
+== Running from Reports Browser
+
+The easiest way to run reports is from the generic browser, which is available in the *Reports* -> *Run Reports* screen. The user must have the right to access this screen. The list will contain all reports that are xref:creation/permissions.adoc[available to the user] in accordance with their role. If the report has external parameters, they will be requested in a special form when running the report.
+
+[[run_actions]]
+== Running from Screens
+
+You can run reports from arbitrary screens using special actions and associated buttons or component context menu items. In this case, the xref:creation/permissions.adoc[availability] of the report directly in this screen is checked in addition to a user role.
+
+Action types and examples of their use are provided below.
+
+[[run_report_action]]
+* `io.jmix.reportsui.action.list.RunReportAction` – a xref:backoffice-ui:actions/standard-actions.adoc[standard action] that displays the list of all available reports. It should be defined for a `Button` or a list component (`Table`, `DataGrid`, etc.).
++
+Below is an example of using the declarative action for the `GroupTable`:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/screen/book/book-browse.xml[tags=run-action]
+----
+<1> - the `type` attribute defines a specific `runReport` action type, provided by the framework.
+<2> - add a button with run report action.
++
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
++
+[source, java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/screen/town/TownBrowse.java[tags=run-report-button]
+----
++
+When the action is performed, a modal **Report Run** dialog will open where reports related to the current screen will be displayed. When a user selects a report from the list, the parameters input form is displayed (if any were defined) and the report is run.
+
+[[list_print_form_action]]
+* `io.jmix.reportsui.action.list.ListPrintFormAction` – a xref:backoffice-ui:actions/standard-actions.adoc[standard action] for printing reports for entity instances associated with a list component (`Table`, `DataGrid`, etc.).
++
+The action only selects reports having an external parameter of the *Entity* or the *List of entities* type and where the parameter entity type matches the entity type displayed by the list component. If only one report is available as a result of selection, it is invoked immediately. If several reports are available, their list is offered to the user for selection.
++
+The external parameter value is passed to the report using the following rules:
+
+** If the parameter has the *List of entities* type, the list of instances currently selected in the list component is passed into it.
+
+** If the parameter has the *Entity* type, and the list component has a single instance selected (one row is highlighted), then this instance is passed into the report.
+
+** If the parameter is of the *Entity* type, and the list component has several rows selected, then the report runs several times according to the number of selected instances. After execution, the user gets a single ZIP archive containing all generated reports.
++
+Below is an example of using the declarative action for the `GroupTable`:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/screen/author/author-browse.xml[tags=list-print-action]
+----
+<1> - the `type` attribute defines a specific `listPrintForm` action type, provided by the framework.
+<2> - add a button with run report action.
++
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
++
+[source, java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/screen/publisher/PublisherBrowse.java[tags=list-print-button]
+----
++
+When the action is performed, if no entities were selected from the list component, a confirmation window will be displayed.
++
+.A confirmation window
+image::run_actions_listPrint_confirmation.png[align="center"]
++
+After that, the modal **Run reports** dialog will open where reports related to the current screen will be displayed. From this modal screen, the user can run some report for the selected entity.
+
+[[editor_print_form_action]]
+* `io.jmix.reportsui.action.list.EditorPrintFormAction` – an action associated with an entity editor screen. The action only selects reports having an external parameter of the *Entity* or the *List of entities* type and where the parameter entity type matches the edited entity type. If only one report is available as a result of selection, it is invoked immediately. If several reports are available, their list is offered to user for selection.
++
+The external parameter value – edited entity instance – is passed into the report. If the parameter has the *List of entities* type, then a list containing a single item is passed.
++
+Below is an example of using the action in a button located near the standard *OK* and *Cancel* buttons:
++
+--
+** XML descriptor
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/screen/book/book-edit.xml[tags=editor-print-button]
+----
+
+** Controller
++
+[source, java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/screen/book/BookEdit.java[tags=editor-print-button]
+----
+--
+// TODO cancel report #22
+// [[run_cancel]]
+// == Cancelling Reports Execution
+
+// If the report execution is running as a background task, it can be interrupted by the user.
+
+// To add the cancel option, set the xref:configuration.adoc#jmix.reports.client.useBackgroundReportProcessing[jmix.reports.client.useBackgroundReportProcessing] property to `true`:
+
+// [source, groovy,indent=0]
+// ----
+// jmix.reports.client.useBackgroundReportProcessing = true
+// ----
+
+// Thus, the window with the progress bar and the *Cancel* button will be displayed:
+
+// .Cancel report
+// image::run_cancel.png[align="center"]
+
+// You can also set the processing timeout using the xref:configuration.adoc#jmix.reports.client.backgroundReportProcessingTimeoutMs[jmix.reports.client.backgroundReportProcessingTimeoutMs] property:
+
+// [source, groovy,indent=0]
+// ----
+// jmix.reports.client.backgroundReportProcessingTimeoutMs = 30000
+// ----
+
+// When the time is up, the task will be canceled regardless the result, and the user will receive an error message:
+
+// .Report error
+// image::run_timeout.png[align="center"]
+
+// To cancel the report execution programmatically, use the `cancelReportExecution()` method of the `ReportService` interface that takes the identifiers of the user session and the report:
+
+// [source, java,indent=0]
+// ----
+// reportService.cancelReportExecution(userSessionId, report.getId());
+// ----

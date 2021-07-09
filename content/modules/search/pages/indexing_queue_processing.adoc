@@ -1,0 +1,98 @@
+= Indexing Queue Processing
+
+Indexing Queue - is a table in the database stores Indexing Queue Events.  Every Indexing Queue Event represents one action (index or delete) on one entity instance.
+
+**By default, events are not passed to the Elasticsearch engine**. It means that data will not be available for search. To make data appear in the Elasticsearch, we need to enable event processing explicitly.
+
+Search provides default configuration of Quartz Job Scheduler. To process events stored in Indexing Queue on a regular basis using default configuration, we need to do the following:
+
+. Add Quartz library to the application.
+. Configure necessary properties.
+
+Follow the steps below to use https://www.quartz-scheduler.org[Quartz Job Scheduler] for periodic processing of the Indexing Queue:
+
+. Add the following line to the `dependencies` section of your `build.gradle` file:
+
+[source,groovy]
+----
+   implementation 'org.springframework.boot:spring-boot-starter-quartz'
+----
+[start=2]
+. Add the following properties to the `application.properties` file:
+
+   System properties
+
+[source,properties]
+----
+spring.quartz.job-store-type=jdbc
+spring.quartz.jdbc.initialize-schema=always
+main.datasource.studio.liquibase.excludePrefixes=qrtz_
+----
+
+Schedule as CRON expression (optional, every 5 seconds by default)
+
+[source,properties]
+----
+jmix.search.indexingQueueProcessingCron=0/10 * * * * ?
+----
+
+If you use PostgreSQL and get the exception `org.quartz.JobPersistenceException: Couldn’t retrieve job: Bad value for type long` on application start, set the following property:
+
+[source,properties]
+----
+spring.quartz.properties.org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+----
+
+Default configuration creates and schedule job with identity `IndexingQueueProcessing`.
+
+If custom Quartz configuration should be used instead of the default one in addition to the previous steps we need to do the following:
+
+. Add the following property to the `application.properties` file to disable default configuration:
+
+[source,properties]
+----
+jmix.search.useDefaultIndexingQueueProcessingQuartzConfiguration=false
+----
+
+[start = 2]
+. Create custom job class that will invoke IndexingQueueManager.processNextBatch(). This method is responsible for sending events to the Elasticsearch:
+
+[source,java]
+----
+public class MyCustomQueueProcessingJob implements Job {
+
+   @Autowired
+   private IndexingQueueManager indexingQueueManager;
+
+   @Override
+   public void execute(JobExecutionContext context) throws JobExecutionException {
+         indexingQueueManager.processNextBatch();
+   }
+}
+----
+
+[start = 3]
+. Register the following beans in application:
+
+[source,java]
+----
+@Bean
+JobDetail myCustomIndexingQueueProcessingJob() {
+    return JobBuilder.newJob()
+            .ofType(IndexingQueueProcessingJob.class)
+            .storeDurably()
+            .withIdentity("MyCustomIndexingQueueProcessing")
+            .build();
+}
+
+@Bean
+Trigger myCustomIndexingQueueProcessingTrigger() {
+    return TriggerBuilder.newTrigger()
+            .forJob(myCustomIndexingQueueProcessingJob())
+            .startNow()
+            .withSchedule(CronScheduleBuilder.cronSchedule("0/5 * * * * ?"))
+            .build();
+}
+----
+
+Value of the property `jmix.search.indexingQueueProcessingCron` can be found in `io.jmix.search.SearchProperties` class.

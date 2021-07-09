@@ -8,7 +8,13 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.security.authentication.JmixUserDetails;
 import org.springframework.security.core.GrantedAuthority;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+import javax.persistence.Version;
 import javax.validation.constraints.Email;
 import java.util.Collection;
 import java.util.Collections;
@@ -152,6 +158,6 @@ public class User implements JmixUserDetails {
     @DependsOnProperties({"firstName", "lastName", "username"})
     public String getDisplayName() {
         return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
-                (lastName != null ? lastName : ""), username);
+                (lastName != null ? lastName : ""), username).trim();
     }
 }

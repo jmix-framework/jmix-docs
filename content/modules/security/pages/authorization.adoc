@@ -1,0 +1,126 @@
+= Authorization
+
+In this section, we cover the topics related to the access control performed by the framework.
+
+[[data-access-checks]]
+== Data Access Checks
+
+The following table explains how data access xref:resource-roles.adoc[permissions] and xref:row-level-roles.adoc[restrictions] are used by different framework mechanisms.
+
+[cols="2,1,1,1,1,1"]
+|===
+|
+|Entity Operations
+|Entity Attributes
+|Row-level JPQL Policy <<row-level-jpql-policy,(1)>>
+|Row-level READ Predicate Policy <<row-level-read-predicate-policy,(2)>>
+|Row-level CREATE/UPDATE/DELETE Predicate Policy
+
+// ------------------
+|`DataManager`
+|Yes <<entity-operations,(3)>>
+|No
+|Yes
+|Yes
+|Yes
+
+// ------------------
+|`UnconstrainedDataManager`, `EntityManager`
+|No
+|No
+|No
+|No
+|No
+
+// ------------------
+|Backoffice UI data-aware components
+|Yes
+|Yes
+|- <<ui-components,(4)>>
+|- <<ui-components,(4)>>
+|- <<ui-components,(4)>>
+
+// ------------------
+|REST API `/entities`
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
+
+// ------------------
+|REST API `/queries`
+|Yes
+|Yes
+|Yes
+|Yes
+|- <<rest_queries,(5)>>
+
+// ------------------
+|REST API `/services`
+|Yes
+|Yes
+|- <<rest_serv,(6)>>
+|- <<rest_serv,(6)>>
+|- <<rest_serv,(6)>>
+|===
+
+Notes:
+
+[[row-level-jpql-policy]]
+1) Row-level JPQL policy affects only the root entity.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[tags=data-access-checks-1]
+----
+
+[[row-level-read-predicate-policy]]
+2) Row-level predicate policy affects the root entity and all linked entities in the loaded graph.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[tags=data-access-checks-2]
+----
+
+[[entity-operations]]
+3) Entity operation check in `DataManager` is performed for the root entity only.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[tags=data-access-checks-3]
+----
+
+[[ui-components]]
+4) UI components do not check row-level policies themselves, but when data is loaded through standard mechanisms, the policies are applied by `DataManager`. As a result, if an entity instance is filtered out by a row-level policy, the corresponding UI component is shown but it is empty. Also, for any action based on the `ItemTrackingAction` class, you can specify a certain entity operation using the `setConstraintEntityOp()` method. Then the action will be enabled only if the entity operation for the selected entity instance is allowed.
+
+[[rest_queries]]
+5) REST queries are read-only.
+
+[[rest_serv]]
+6) REST service method parameters and results are not checked for compliance to row-level policies. The service behavior with respect to row-level security is defined by how it loads and saves data, for example whether it uses `DataManager` or `UnconstrainedDataManager`.
+
+[[access-constraints]]
+== Access Constraints
+
+In this part, we briefly explain how Jmix authorization works. This information will be helpful if you want to extend or replace the standard system of permissions based on roles and policies.
+
+Framework mechanisms contain authorization points, where they check whether an operation or data is permitted. For each authorization point, there is an _access context_, which is a class implementing the `AccessContext` interface and having attributes that describe the authorization subject.
+
+Any module of the framework, an add-on, or the target application, can define and register a set of _access constraints_ for a certain access context (that is for the authorization point). A constraint is a class implementing the `AccessConstraint` interface with the `applyTo(AccessContext)` method. In this method, a constraint implementation decides whether the authorization subject is allowed and updates the access context state with information about this decision.
+
+At the authorization point, the mechanism being authorized applies the existing constraints using the `AccessManager` bean. As a result, the mechanism has the information about authorization from all constraints in the context state and decides whether to continue or abort the operation with the subject.
+
+Let's illustrate this process with an example of checking rights to load an entity by `DataManager`.
+
+* In the framework core, there is `CrudEntityContext` class that implements `AccessContext` and has the following attributes:
+** `entityClass` - `DataManager` specifies here what entity is being loaded. Together with the context class, this value describes the authorization point.
+** `readPermitted` - access constraints populate this attribute, so `DataManager` can decide whether to continue loading the entity.
+
+* In the security subsystem, there is `CrudEntityConstraint` class that implements `AccessConstraint` and its methods:
+** `getContextType()` returns `CrudEntityContext.class` to indicate that the constraint is designed for this context.
+** `applyTo()` sets the `CrudEntityContext.readPermitted` attribute according to xref:resource-roles.adoc#entity-policy[entity policies] defined for the current user.
+
+* When `DataManager` loads an entity, it creates an instance of `CrudEntityContext`, sets the `entityClass` attribute, and invokes `AccessManager.applyConstraints()`. After that, it analyzes the value of `CrudEntityContext.readPermitted` attribute and whether continues loading the entity or aborts the operation.
+
+With this approach, authorization points are completely decoupled from the information required to make authorization decisions. In the example above, the authorization point is in the framework core, while the code that determines the authorization outcome is in the optional security module. Likewise, you can define an additional constraint for the same `CrudEntityContext` in your application to affect the standard `DataManager` authorization process.

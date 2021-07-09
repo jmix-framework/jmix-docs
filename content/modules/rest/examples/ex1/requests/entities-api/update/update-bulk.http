@@ -1,0 +1,105 @@
+## Execute 'authenticate.http' first to get have a valid access token for the API
+
+# Create multiple Customers
+
+POST {{baseRestUrl}}
+         /entities
+         /rstex11_Customer
+Authorization: Bearer {{access_token}}
+
+[
+  {
+    "name": "Randall Bishop"
+  },
+  {
+    "name": "Sarah Doogle"
+  }
+]
+
+
+> {%
+
+    client.test("Response Code is 201", function() {
+      client.assert(
+          response.status === 201,
+          "Response status is not 201 - Created"
+      );
+    });
+
+    client.test("new Entities are returned", function() {
+      client.assert(
+          response.body.length == 2,
+          "there are two entities created"
+      );
+
+
+      client.global.set("firstCustomerId", response.body[0]["id"])
+      client.global.set("secondCustomerId", response.body[1]["id"])
+    });
+  %}
+
+###
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Customer
+Authorization: Bearer {{access_token}}
+
+[
+  {
+    "id": "{{firstCustomerId}}",
+    "name": "Randall Bishop 2"
+  },
+  {
+    "id": "{{secondCustomerId}}",
+    "name": "Sarah Doogle 2"
+  }
+]
+
+> {%
+
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("updated Entities are returned", function() {
+      client.assert(
+          response.body.length == 2,
+          "there are two entities created"
+      );
+    });
+  %}
+
+###
+
+# update multiple customers with bean validation violations
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Customer
+Authorization: Bearer {{access_token}}
+
+[
+  {
+    "id": "{{firstCustomerId}}",
+    "name": null
+  },
+  {
+    "id": "{{secondCustomerId}}",
+    "name": "Sarah Doogle 2"
+  }
+]
+
+> {%
+
+
+    client.test("Response Code is 400", function() {
+      client.assert(
+          response.status === 400,
+          "Response status is not 400"
+      );
+    });
+  %}

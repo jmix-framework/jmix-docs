@@ -1,20 +1,341 @@
 = Business Logic
 
-== Service Invocation
+When interacting with the REST API it is oftentimes needed to have an application-level layer of business logic in place that represents the invocation point for the API. It can be used for orchestration, validation, or other tasks that should happen when the API client interacts with the system. The xref:rest:entities-api.adoc[Entities API] does not allow placing additional orchestration business logic when interacting with the API. Instead, the API client directly interacts with the xref:data-access:index.adoc[Data Access Layer] of Jmix.
 
-=== Service Configuration
+For exposing business logic to the API client, Jmix provides two ways:
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_services_config
+1. Services API
+2. Custom controllers
 
-=== Invoke a Service (GET)
+In the next section, we will take a look at both options to understand where the difference between those approaches is.
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ex_service_get
+== Services API
 
-=== Invoke a Service (POST)
+Let's look at the first approach to expose business logic to the API client: the Services API.
 
-TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ex_service_post
+The Services API allows exposing an arbitrary Spring bean as an HTTP endpoint. In this case, Jmix will take care of the HTTP interactions like providing HTTP response codes, perform error handling, etc.
 
+In this overview you can see the interaction between the API client and the Jmix application when using the Services API:
+
+[plantuml]
+....
+@startuml
+
+participant "API Client" as Client
+
+box "Jmix"
+participant "Services API" as ServicesAPI
+end box
+
+box "Application Developer"
+participant "Service Bean" as ServiceBean
+end box
+
+/ note over ServicesAPI : performs HTTP interactions
+
+Client -> ServicesAPI: HTTP Request
+
+activate ServicesAPI
+
+ServicesAPI -> ServiceBean: Service Method Invocation
+activate ServiceBean
+
+ServiceBean --> ServicesAPI: Service Method Return Value
+deactivate ServiceBean
+
+ServicesAPI -> Client: HTTP Response
+deactivate ServicesAPI
+@enduml
+....
+
+=== Exposing a Service
+
+To use a Spring bean as part of the Jmix Services API, it needs to fulfill the following criteria:
+
+1. The Spring bean needs to be annotated with Springs `@Service` annotation (a specialized `@Component` annotation).
+2. The Spring bean needs to be registered in the `rest-services.xml` configuration file.
+
+Let's look at the first part with this example:
+
+[source,java]
+.CalculationServiceBean.java
+----
+import org.springframework.stereotype.Service;
+
+@Service("sample_OrderService") //<1>
+public class OrderServiceBean implements OrderService {
+
+    @Override
+    public BigDecimal calculateTotalAmount(int orderId) {
+        // ...
+    }
+}
+----
+<1> The `OrderServiceBean` is registered as the Spring `@Service` with the name `sample_OrderService`.
+
+The second part is to mention all Service methods as API endpoints. This happens via an XML configuration file, normally called `rest-services.xml`. You need to create this new file in your Jmix application as part of `src/main/resources`. It lists all service methods with information about the parameters that you want to expose.
+
+[source,xml]
+.rest-services.xml
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns="http://jmix.io/schema/rest/services">
+    <service name="sample_OrderService"> // <1>
+        <method name="calculateTotalAmount"> // <2>
+            <param name="orderId"/> // <3>
+        </method>
+    </service>
+</services>
+----
+<1> You register the Service by its Spring component name.
+<2> Each method that you want to expose needs to be mentioned here.
+<3> The parameter needs to be described by its name and optionally by its type.
+
+After the file has been created, and the services have been defined, the last part is to register the `rest-services.xml` configuration in the `application.properties` of your Jmix application:
+
+[source,properties]
+.application.properties
+----
+jmix.rest.servicesConfig = rest-services.xml
+----
+
+NOTE: The value of the `serviceConfig` is a reference to the file within the classpath. In this case, the file is located directly in the classpath root under `src/main/resources`. If you e.g. put the file in the package `src/resources/com/example/rest-services.xml`, the value would be: `com/example/rest-services.xml`.
+
+=== Using the Services API
+
+Once we have exposed the Service through the Services API, you can invoke it from an API client. This is possible by HTTP GET or HTTP POST.
+
+==== Invoke a Service via GET
+
+In the case of HTTP GET, you need to provide the method parameter values as URL query parameters:
+
+[source, http request]
+.Calculate Total Order Amount via HTTP GET
+----
+GET http://localhost:8080/rest
+            /services
+            /sample_OrderService
+            /calculateTotalAmount?orderId=123
+Authorization: Bearer {{access_token}}
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "orderId": 123,
+  "totalAmount": 450.0
+}
+----
+
+NOTE: When using GET for invoking a service through the Services API, the OAuth access token still needs to be provided by the HTTP Authorization header. It is not possible to append the access token as a URL query parameter.
+
+A service method may return a result of a simple data type, an entity, an entity collection, or a serializable POJO. In our case, the service method returns an `int`, so the response body contains just a number.
+
+==== Invoke a Service via POST
+
+Alternatively, it is also possible to invoke the Service via HTTP POST. This is in particularly useful, when the Service method has one of the following parameter types:
+
+* Entities
+* Entity Collections
+* Serializable POJOs
+
+Suppose we added a new method to the OrderService created in the previous part:
+
+[source,java]
+.OrderServiceBean.java
+----
+@Service(OrderService.NAME)
+public class OrderServiceBean implements OrderService {
+
+    @Override
+    public OrderValidationResult validateOrder(Order order, Date validationDate){
+        OrderValidationResult result = new OrderValidationResult();
+        result.setSuccess(false);
+        result.setErrorMessage("Validation of order " + order.getNumber() + " failed. validationDate parameter is: " + validationDate);
+        return result;
+    }
+}
+----
+
+With the following structure for the `OrderValidationResult` POJO as the result object:
+
+[source,java]
+.OrderValidationResult.java
+----
+import java.io.Serializable;
+
+public class OrderValidationResult implements Serializable {
+
+    private boolean success;
+
+    private String errorMessage;
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+}
+----
+
+The new method has an Order entity in the arguments list and returns a POJO. Before the invocation of the REST API, the new method also must be registered in the `rest-services.xml`. Once you exposed the method you can perform the API call:
+
+[source, http request]
+.Invoke Order Validation via HTTP POST
+----
+POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
+
+{
+  "order" : {
+    "number": "00050",
+    "date" : "2016-01-01"
+  },
+  "validationDate": "2016-10-01"
+}
+----
+
+Parameter values must be passed in a format defined for the corresponding datatype. For example:
+
+* if the parameter type is `java.util.Date`, then the value pattern is taken from the DateTimeDatatype. By default it is `yyyy-MM-dd HH:mm:ss.SSS`.
+* for `java.sql.Date` parameter type, the value pattern is taken from the DateDatatype and it is `yyyy-MM-dd` by default.
+* for `java.sql.Time` the datatype is TimeDatatype and the default format is `HH:mm:ss`.
+
+The REST API method returns a serialized `OrderValidationResult` POJO:
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "success": false,
+  "errorMessage": "Validation of order 00050 failed. validationDate parameter is: 2016-10-01"
+}
+----
 
 == Custom Controller
 
-TIP: new, focus on custom API, not about the security aspects
+The second way of exposing business logic as an API is the ability to use custom HTTP controllers. The main difference is that in this case, it is also possible to influence the HTTP interactions (like status codes, security, etc.) on your own. Jmix uses the default mechanisms from Spring MVC for creating HTTP endpoints.
+
+Use-cases for custom controllers could be:
+
+* explicitly define HTTP status codes
+* use other request & response content type than JSON
+* set custom response headers (e.g. for caching)
+* create custom error messages from exceptions
+
+In these situations, the generic Services API might be not flexible enough to accomplish your goals. Therefore Jmix allows natively integrate Spring MVC controllers into a Jmix application.
+
+=== Create Custom Controllers
+
+To create a Spring MVC controller, it is only required to create a Spring bean in the Jmix application annotated as a Spring MVC controller. Jmix itself does not have any further requirements over Spring MVC. Let's look at an example Controller:
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@RestController // <1>
+@RequestMapping("/orders")  // <2>
+public class OrderController {
+    // ...
+}
+----
+<1> The custom controller is marked as `@RestController` to indicate to Spring that this bean contains HTTP endpoints.
+<2> The request mapping defines the base path for this Controller.
+
+Now that the Spring controller is registered, we can create a method exposing a particular HTTP endpoint with it:
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+// ...
+public class OrderController {
+
+    @GetMapping("/calculateTotalAmount") // <1>
+    public ResponseEntity<OrderTotalAmount> calculateTotalAmount(
+            @RequestParam int orderId  // <2>
+    ) {
+
+        BigDecimal totalAmount = orderService.calculateTotalAmount(orderId);
+
+        return ResponseEntity // <3>
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000")
+                .body(new OrderTotalAmount(totalAmount, orderId));
+
+    }
+}
+----
+<1> The method `calculateTotalAmount` is annotated with `@GetMapping` indicating that it is accessible via HTTP GET on the subpath `/calculateTotalAmount`.
+<2> The paramter `orderId` is retrieved via URL query parameters.
+<3> We can use Spring's `ResponseEntity` class to indicate a JSON response together with different HTTP aspects.
+
+More detailed information on the various aspects of how to create Spring MVC controllers can be found in the Spring guide: https://spring.io/guides/gs/rest-service/[Building a RESTful Web Service] as well as the https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc[reference documentation] for Spring MVC.
+
+With that controller in place, Jmix can serve this HTTP endpoint. Let's have a look at how to interact with the controller:
+
+[source, http request]
+.Invoke Custom Orders Controller
+----
+GET http://localhost:8080/orders/calculateTotalAmount?orderId=123
+----
+
+The result contains the calculation result exposed as JSON as well as the defined HTTP headers:
+
+[source, http request]
+.Response: 200 - OK
+----
+HTTP/1.1 200
+Cache-Control: max-age=31536000
+Content-Type: application/json
+
+{
+  "orderId": 123,
+  "totalAmount": 450.0
+}
+----
+
+=== Securing Custom Controllers
+
+To secure a custom Controller via the same OAuth2 mechanism that the other parts of the Jmix REST APIs use, it is possible to register the controller's URL pattern in the application configuration:
+
+[source,properties]
+.application.properties
+----
+jmix.rest.authenticatedUrlPatterns=/orders/**
+----
+
+Here, the `/orders/**` wildcard indicates to Jmix that all endpoints that start with `/orders/` should also use the OAuth2 mechanism.
+
+NOTE: The value can contain a comma-separated list of https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/util/AntPathMatcher.html[Apache Ant style URL patterns].
+
+Trying to invoke the Order Controller now without a valid OAuth2 token will result in an `HTTP 401 - Unauthorized`:
+
+[source, http request]
+.Response: 401 - Unauthorized
+----
+HTTP/1.1 401
+WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_description="Full authentication is required to access this resource"
+
+{
+"error": "unauthorized",
+"error_description": "Full authentication is required to access this resource"
+}
+----

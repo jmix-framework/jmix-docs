@@ -9,9 +9,9 @@ import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import io.jmix.data.persistence.DbmsSpecifics;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -26,27 +26,35 @@ import javax.sql.DataSource;
 public class LocationsStoreConfiguration {
 
     @Bean
-    @ConfigurationProperties(prefix = "locations.datasource")
-    DataSource locationsDataSource() {
-        return DataSourceBuilder.create().build();
+    @ConfigurationProperties("locations.datasource")
+    DataSourceProperties locationsDataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Bean
+    @ConfigurationProperties(prefix = "locations.datasource.hikari")
+    DataSource locationsDataSource(@Qualifier("locationsDataSourceProperties") DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
     }
 
     @Bean
     LocalContainerEntityManagerFactoryBean locationsEntityManagerFactory(
-            JpaVendorAdapter jpaVendorAdapter, DbmsSpecifics dbmsSpecifics, JmixModules jmixModules, Resources resources) {
-        return new JmixEntityManagerFactoryBean(
-                "locations", locationsDataSource(), jpaVendorAdapter, dbmsSpecifics, jmixModules, resources);
+            @Qualifier("locationsDataSource") DataSource dataSource,
+            JpaVendorAdapter jpaVendorAdapter,
+            DbmsSpecifics dbmsSpecifics,
+            JmixModules jmixModules,
+            Resources resources) {
+        return new JmixEntityManagerFactoryBean("locations", dataSource, jpaVendorAdapter, dbmsSpecifics, jmixModules, resources);
     }
 
     @Bean
-    JpaTransactionManager locationsTransactionManager(
-            @Qualifier("locationsEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
+    JpaTransactionManager locationsTransactionManager(@Qualifier("locationsEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
         return new JmixTransactionManager("locations", entityManagerFactory);
     }
 
     @Bean
-    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor) {
-        return JmixLiquibaseCreator.create(locationsDataSource(), new LiquibaseProperties(), processor, "locations");
+    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor, @Qualifier("locationsDataSource") DataSource dataSource) {
+        return JmixLiquibaseCreator.create(dataSource, new LiquibaseProperties(), processor, "locations");
     }
 }
 // end::add-data-source[]
