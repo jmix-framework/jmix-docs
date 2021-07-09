@@ -1,4 +1,115 @@
 = What's New
 
-* xref:release_0.9.1.adoc[]
-* xref:release_0.9.0.adoc[]
+Jmix 1.0 is the first stable release.
+
+Below you can find the complete change log since the preview release 0.9, as well as the instructions on how to upgrade your project from 0.9 to 1.0.
+
+[[changelog]]
+== Changelog
+
+* xref:release_1.0.0.adoc[Resolved issues in Jmix Framework 1.0.0]
+* https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.0.0[Resolved issues in Jmix Studio 1.0.0^]
+
+[[upgrade-from-0.9]]
+== Upgrading from Jmix 0.9
+
+. Update Gradle used in your project to 7.0. Open terminal in the project directory and run:
++
+[source,shell script]
+----
+./gradlew wrapper --gradle-version=7.0.2
+----
+
+. In `build.gradle`, change Jmix Gradle plugin and BOM version to `1.0.0`:
++
+[source,groovy]
+----
+plugins {
+    id 'io.jmix' version '1.0.0'
+    id 'java'
+}
+// ...
+jmix {
+    bomVersion = '1.0.0'
+}
+----
++
+Click *Load Gradle Changes* in the small popup at the top right side of the editor window, or click *Gradle -> Re-import Gradle Project* in the *Jmix* tool window.
+
+. In `application.properties`, change `jmix.core.availableLocales` property value. It must be a comma-separated list of locale codes:
++
+[source,properties]
+----
+jmix.core.availableLocales = en
+----
+
+. In `LoginScreen.java`, replace `LoginScreenAuthenticationSupport` with `LoginScreenSupport`, fix `initLocalesField()` and `login()` methods:
++
+[source,java]
+----
+import io.jmix.securityui.authentication.LoginScreenSupport;
+// ...
+public class LoginScreen extends Screen {
+    // ...
+    @Autowired
+    private LoginScreenSupport loginScreenSupport;
+
+    @Autowired
+    private MessageTools messageTools;
+
+    @Autowired
+    private JmixApp app;
+    // ...
+
+    private void initLocalesField() {
+        localesField.setOptionsMap(messageTools.getAvailableLocalesMap());
+        localesField.setValue(app.getLocale());
+    }
+
+    private void login() {
+        // ...
+        loginScreenSupport.authenticate(/**/);
+        // ...
+----
+
+. In `login-screen.xml` and `main-screen.xml`, change style name prefix from `c-` to `jmix-` for all components, for example:
++
+[source,xml]
+----
+<layout stylename="jmix-login-main-layout">
+----
+
+. In `main-screen.xml`, fix the `image` component:
++
+[source,xml]
+----
+<image id="logoImage"
+       stylename="app-icon"
+       scaleMode="SCALE_DOWN">
+    <resource>
+        <theme path="branding/app-icon-menu.svg"/>
+    </resource>
+</image>
+----
+
+. If you are using a custom theme, change the property name from `jmix.ui.theme` to `jmix.ui.theme.name`, for example:
++
+[source,properties]
+----
+jmix.ui.theme.name = hover
+----
+
+. If you are using injection of `Logger` into your screen controllers, rewrite it as follows:
++
+[source,java]
+----
+private static final Logger log = LoggerFactory.getLogger(MyScreenController.class);
+----
+
+. If you are using custom configuration of a `DataLoadCoordinator`, rewrite it as described in issue https://github.com/haulmont/jmix-ui/issues/463[#463^].
+
+. If you are using formatters in UI components, rewrite them as described in issue https://github.com/Haulmont/jmix-ui/issues/452[#452^].
+
+If you have any trouble in the process, try to clean up IntelliJ caches: click *File -> Invalidate Caches...*, select all checkboxes and click *Invalidate and Restart*.
+
+// todo versioning policy?

@@ -1,0 +1,113 @@
+[[execution_history]]
+= Report Execution History
+
+The Reports add-on provides a mechanism of a report execution history management with the following features:
+
+. Save execution history for each report. The system administrator can use the report execution history to find out how often a report is executed, how much processing time is spent on a report, by which user and when a report was run, what errors occurred during the execution.
+. Clean outdated report execution history.
+
+The report execution history is disabled by default and can be enabled by setting the xref:configuration.adoc#jmix.reports.historyRecordingEnabled[jmix.reports.historyRecordingEnabled] application property to `true`. 
+
+The execution history screen is considered administrative and was not added to the main menu. To view the execution history, go to the reports browser (the *Reports* -> *Reports* menu item) and click on the *Execution history* button.
+
+If any report was selected in the *Reports* table, then the execution history is additionally filtered by the selected report.
+If no reports were selected in the *Reports* table, the execution history of all system reports is displayed on the execution history screen.
+
+[[execution_history_action]]
+== Execution History Action
+
+You can open execution history in any screen using `ExecutionHistoryAction` and an associated button or a component context menu item.
+
+`io.jmix.reportsui.action.list.ExecutionHistoryAction` – a xref:backoffice-ui:actions/standard-actions.adoc[standard action] for displaying the report execution history. It should be defined for a `Button` or a list component (`Table`, `DataGrid`, etc.).
+
+Below is an example of using the declarative action for the `Table`:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/screen/literaturetype/literature-type-browse.xml[tags=report-history]
+----
+<1> - the `type` attribute defines a specific `executionHistory` action type, provided by the framework.
+<2> - add a button with report history action.
+
+Example of programmatically creating the action together with a button declared in the screen XML descriptor:
+
+[source, java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/screen/bookpublication/BookPublicationBrowse.java[tags=report-history-button]
+----
+
+When the action is performed, a modal **Execution history** dialog will open where reports related to the current screen will be displayed. After clicking on the **Execution History** button, the execution history for the selected reports will be displayed. If no reports have been selected, then execution history will be displayed for all reports associated with the screen.
+
+.The execution history screen
+image::report_execution_history.png[align="center"]
+
+"Cancelled" flag means that the user launched the report as a background task, and then canceled it.
+
+Execution history is also recorded even for reports which are not yet saved to the database, but launched from the report editor (by clicking the *Run* button).
+
+[[history_output_documents]]
+== Output Documents
+
+The mechanism provides an ability to save output documents – report results files – in the xref:files:index.adoc[file storage]. This feature consumes a file storage disk space; it is configured separately and is disabled by default. To enable it, define the xref:configuration.adoc#jmix.reports.saveOutputDocumentsToHistory[jmix.reports.saveOutputDocumentsToHistory] application property to `true`:
+
+[source, properties,indent=0]
+----
+jmix.reports.saveOutputDocumentsToHistory = true
+----
+
+Now, if you select an item in the execution history table, the *Download document* button becomes available. Click the button to download a document that is a report result file.
+
+Reports with output types xref:creation/templates.adoc#template_chart[chart], xref:creation/templates.adoc#pivotTable_output[pivot table], and xref:creation/templates.adoc#table_output[table] do not have result files, so the execution history of such reports does not save any output documents.
+
+If you run the report programmatically using the `createAndSaveReport()` method, it saves another copy of the same result document to the file storage. These two files are put to the file storage independently.
+
+[[execution_history_cleanup]]
+== Cleanup the History
+
+You can use https://www.quartz-scheduler.org/[Quartz Job Scheduler^] for cleanup report execution history periodically. 
+
+. First, add Spring boot Quartz starter to your `build.gradle`:
++
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=quartz-dependency]
+----
+
+. Add the following properties to the `application.properties` file:
++
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=quartz]
+----
++
+If you use PostgreSQL and get the exception "org.quartz.JobPersistenceException: Couldn't retrieve job: Bad value for type long" on application start, set the following property:
++
+[source,properties,indent=0]
+----
+spring.quartz.properties.org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+----
+
+. Create job class and call `ReportExecutionHistoryRecorder.cleanupHistory()`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/app/ReportHistoryCleanJob.java[tags=quartz]
+----
+
+. Add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/com/company/jmixreports/JmixreportsApplication.java[tags=quartz]
+----
++
+<1> schedule for nightly, for example, `0 0 1 * * ?`
+
+
+. Set up the report history clean configuration properties:
++
+* xref:configuration.adoc#jmix.reports.historyCleanupMaxDays[jmix.reports.historyCleanupMaxDays] – 730 days by default.
+* xref:configuration.adoc#jmix.reports.historyCleanupMaxItemsPerReport[jmix.reports.historyCleanupMaxItemsPerReport] – 1000 by default.
+
+When the report execution history is cleaned up, the associated output document is also deleted from the file storage.
+

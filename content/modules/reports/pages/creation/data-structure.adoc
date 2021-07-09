@@ -1,0 +1,290 @@
+[[structure]]
+= Report Data Structure
+
+[[introduction]]
+== Defining Data Structure
+
+When creating or editing a report, *Report structure* tab is shown by default:
+
+.Report Data Structure
+image::report_structure.png[align="center"]
+
+[[report_properties]]
+General report properties::
++
+--
+The top part contains fields to enter general report properties:
+
+* *Name* – report name. The name can be localized in the *Localization* tab.
+* *Group* – report group, which is used for grouping in the standard report browser.
+* *Default template* – report output xref:creation/templates.adoc[template].
+* *System code* – optional code, which you may use to identify the report in the application code.
+--
+
+[[report_bands]]
+Report bands definition::
++
+--
+The important element of the report data structure is the band hierarchy – *Report bands*.
+
+A report band has the following parameters:
+
+* *Band name* – unique band name within the report. It must contain only Latin letters, numbers, and underscores. Moreover, if the band name starts with *header*, its data will not be printed in the xref:creation/templates.adoc#table_output[table output].
+* *Orientation* – band orientation: *Horizontal*, *Vertical* or xref:sample-reports.adoc#crosstab_xls[Crosstab]. 
+** Horizontal -  bands are copied downwards, may contain sub-bands
+** Vertical – bands are copied to the right
+** Crosstab – bands are copied to the right and downwards as a matrix. 
+* *Parent band* – parent band.
+
+Each band includes one or more datasets. When running a report, datasets are transformed into lists of rows, where each row contains a map of name-value pairs. A band appears in the report as many times as the number of rows in its longest dataset. 
+
+Field names can be used in the report template and will be replaced with corresponding values from the dataset when the report is produced. When describing datasets, you can use xref:creation/parameter-and-format.adoc#parameters[report external parameters] and fields from other bands – this allows creating linked bands.
+
+Each report has the *Root* band. You can create datasets in it and refer to their fields from other bands, but you cannot use the *Root* band in the report template.
+
+The *Dataset name* column value is used for user convenience only.
+--
+
+[[dataset_types]]
+== Dataset Types
+
+[[structure_sql]]
+=== SQL Dataset
+
+*SQL* dataset is produced as a result of SQL query execution. It is recommended to use aliases for query result fields using the `as` operator. It is also recommended to enclose the aliases in double quotes to prevent possible case conversion by the DBMS:
+
+[source, sql,indent=0]
+----
+select u.name as "userName", u.login as "userLogin" 
+from jmxrpr_user u
+----
+
+You can use report input parameters and parent bands fields in the query. Parameters should be addressed by name enclosed in `${}`, for example, `++${dateFrom}++`. Parent band fields should be addressed similarly, by adding the band name in front of the field name: `${band1.field1}`.
+
+Below is an example of an SQL query with a `groupId` parameter, obtained from the `group` parent band and an external `enabled` parameter:
+
+[source, sql,indent=0]
+----
+select u.name as "userName", u.login as "userLogin" 
+from jmxrpr_user u
+where u.group_id = ${group.groupId} 
+    and u.enabled = ${enabled}
+    and u.delete_ts is null
+----
+
+[CAUTION]
+====
+You should manually include conditions to filter soft deleted records for SQL queries.
+====
+
+[[link_field]]
+Merge multiple datasets::
++
+--
+The *Link field* is used to merge data from multiple datasets inside one band. It can be used when the whole data for the report row could not be received by a single query or a Groovy script.
+--
+
+[[data_store]]
+Selecting data store::
++
+--
+By default queries are executed on the main database. If you want to query an xref:data-model:data-stores.adoc#additional[additional data store], set its name in the *Data store* field.
+--
+
+[[query_preprocessing]]
+Query preprocessing in bands::
++
+--
+If you need to modify the SQL/JPQL query dynamically depending on the report input parameters or the parameter values from the parent band, you can use the SQL preprocessing. The template engine enables you to modify SQL/JPQL queries using Groovy. In order to activate it, check the *Preprocess query as Groovy template* checkbox below the band editor. The resulting query will be processed by `GStringTemplateEngine` that will have access to:
+
+* the report parameters: `${<parameter_name>}`,
+
+* values from parent bands: `${<band_name>.<parameter_name>}`.
+
+Let's consider the following example: depending on whether the `createTs2` report parameter is passed you need to select one of the query conditions: `e.create_ts < $\{createTs2\}` or `e.create_ts < current_timestamp`.
+
+In this case, the query should look like this:
+
+[source, sql,indent=0]
+----
+select e.create_ts, e.id, e.vin from ref_car e
+where
+e.create_ts >= ${createTs1}
+and
+<% out << (createTs2 != null  ? 'e.create_ts < ${createTs2}' : 'e.create_ts < current_timestamp')%>
+----
+
+Thus, if the `createTs2` parameter is not passed, the initial query will be transformed into the following resulting query:
+
+[source, sql,indent=0]
+----
+select e.create_ts, e.id, e.vin from ref_car e
+where
+e.create_ts >= ${createTs1}
+and
+e.create_ts < current_timestamp
+----
+
+If `createTs2` is passed, the following resulting query will be used for the band:
+
+[source, sql,indent=0]
+----
+select e.create_ts, e.id, e.vin from ref_car e
+where
+e.create_ts >= ${createTs1}
+and
+e.create_ts < ${createTs2}
+----
+--
+
+[[structure_jpql]]
+=== JPQL Dataset
+
+*JPQL* dataset is produced as a result of JPQL query execution. The resulted query fields must have aliases provided using the `as` operator. Similar to SQL query, you can use report input parameters and parent bands fields in the JPQL query.
+
+Below is an example of a JPQL query with a `groupId` parameter, obtained from the `group` parent band and an external `enabled` parameter:
+
+[source, jpql,indent=0]
+----
+select u.name as userName, u.login as userLogin
+from jmxrpr_User u
+where u.group.id = ${group.groupId}
+    and u.enabled = ${enabled}
+----
+
+JPQL queries automatically support soft deletion and return only records that are not deleted.
+
+You can also use *Link field* to <<link_field,merge multiple datasets>>, use *Data store* to <<data_store,query additional data store>> or activate <<query_preprocessing,query preprocessing>> by checking the *Preprocess query as Groovy template* checkbox below the band editor.
+
+[[structure_groovy]]
+=== Groovy Dataset
+
+*Groovy* dataset is produced as a result of Groovy script execution. The script returns an object of the `List<Map<String, Object>>` type. Each element of this list – an object of the `Map<String, Object>` type – corresponds to one dataset record.
+
+The following objects are passed into the script:
+
+* `params` – external report parameters map. Below is an example to get a parameter value:
++
+[source, groovy,indent=0]
+----
+def active = params['active']
+----
+
+* `parentBand` – parent band as an object of the `com.haulmont.yarg.structure.BandData` type. This object allows you to get a parent band field value by invoking the `getParameterValue()` method, for example:
++
+[source, groovy,indent=0]
+----
+def groupId = parentBand.getParameterValue('groupId')
+----
+
+* `currentAuthentication` - an object of the `io.jmix.core.security.CurrentAuthentication` type associated with the currently authenticated user. For example:
++
+[source, groovy,indent=0]
+----
+def user = currentAuthentication.getUser()
+----
+
+* `metadata` – an object of the `io.jmix.core.Metadata` type, providing access the application metadata. For example:
++
+[source, groovy,indent=0]
+----
+def metaClass = metadata.getClass('jmxrpr_User')
+----
+
+* `dataManager` – an object of the `io.jmix.core.DataManager` type that provides CRUD functionality. For example:
++
+[source, groovy,indent=0]
+----
+def book = dataManager.load(Book).id(bookId).fetchPlan("book.edit").one()
+----
+
+* `timeSource` – an object of the `io.jmix.core.TimeSource` type used to obtain the current time. For example:
++
+[source, groovy,indent=0]
+----
+def currentDate = timeSource.currentTimestamp()
+----
+
+* `applicationContext` - an object of the `org.springframework.context.ApplicationContext` type that provides access to managed beans. For example:
++
+[source, groovy,indent=0]
+----
+def accountService = applicationContext.getBean(AccountService);
+----
+
+[[structure_entity]]
+=== Entity Dataset
+
+*Entity* dataset consists of a single row and is produced using attributes of a single entity instance and the entities related to it.
+
+The data source is produced from an external parameter of the *Entity* type, which must be described in the *Parameters and Formats* tab. The value in the *Entity parameter name* field must match the parameter name.
+
+The report template must contain fields with entity attribute names. Attribute names can use names in the existing fetch plan by check *Use existing fetch plan* or can be selected by the *Select entity attributes* button.
+
+[[structure_list]]
+=== List of Entities Dataset
+
+*List of entities* dataset is produced using a list of entity instances.
+
+The data source is produced using an external parameter being a *List of entities*, which must be described in the *Parameters and Formats* tab. The value in the *Entity parameter name* field must match the parameter alias.
+
+The report template must contain fields with entity attribute names. Attribute names can use names in the existing fetch plan by checking *Use existing fetch plan* or can be selected by the *Select entity attributes* button.
+
+[[structure_json]]
+=== JSON Dataset
+
+*JSON* dataset is generated from JSON data. This data can be received from the following sources:
+
+. *Groovy script*
++
+--
+The script provided by the user is supposed to return JSON data as a string.
+
+For example:
+
+[source, json,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/json.groovy[]
+----
+--
+
+. *URL*
++
+--
+The report engine will perform a GET HTTP query against the URL.
+
+For example:
+
+[source, plain,indent=0]
+----
+https://jsonplaceholder.typicode.com/users
+----
+--
+
+. *Parameter of a String type*
++
+--
+The report external parameter of String type which contains the JSON data must be described in the *Parameters and Formats* tab.
+--
+
+The received JSON tree is queried using the JsonPath query. For example, you can use the `$.store.book[*]` JsonPath to return all books from the following JSON tree:
+
+[source, json,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/json.json[]
+----
+
+For more details on JsonPath expressions, see the http://goessner.net/articles/JsonPath/[documentation^].
+
+[CAUTION]
+====
+Fields outputted by the report that have `Date`, `DateTime`, or `Time` data types do not support the format defined by `java.text.SimpleDateFormat`. To set the correct format, you should write a Groovy script.
+
+To do this, switch to the **Parameters and Formats** tab of the report editor and open the xref:creation/parameter-and-format.adoc#formatters[formatter] editor. For example, for the field `bookPublication.dateTime` Groovy-script will look like this:
+
+[source, groovy,indent=0]
+----
+include::example$/ex1/src/main/resources/com/company/jmixreports/docrefs/formatter_for_dates.groovy[]
+----
+====
+

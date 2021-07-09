@@ -66,48 +66,62 @@ public class RelatedEntityLoadingTest {
 
     @Test
     void rootIsNotLoaded() {
-        Optional<Customer> optionalCustomer = authenticator.withUser(
+        authenticator.withUser(
                 "test1",
-                () -> dataManager.load(Customer.class).id(customerId).optional()
+                () -> {
+                    Optional<Customer> optionalCustomer = dataManager.load(Customer.class).id(customerId).optional();
+                    assertFalse(optionalCustomer.isPresent());
+                    return null;
+                }
         );
-        assertFalse(optionalCustomer.isPresent());
     }
 
     @Test
     void jpql_relatedEntityIsLoadedLazily() {
-        Order order = authenticator.withUser(
+        authenticator.withUser(
                 "test1",
-                () -> dataManager.load(Order.class).id(orderId).one()
+                () -> {
+                    Order order = dataManager.load(Order.class).id(orderId).one();
+                    assertNotNull(order.getCustomer());
+                    return null;
+                }
         );
-        assertNotNull(order.getCustomer());
     }
 
     @Test
     void jpql_relatedEntityIsLoadedEagerly() {
-        Order order = authenticator.withUser(
+        authenticator.withUser(
                 "test1",
-                () -> dataManager.load(Order.class).id(orderId).fetchPlanProperties("customer.name").one()
+                () -> {
+                    Order order = dataManager.load(Order.class).id(orderId).fetchPlanProperties("customer.name").one();
+                    assertNotNull(order.getCustomer());
+                    return null;
+                }
         );
-        assertNotNull(order.getCustomer());
     }
 
-    // todo: should pass when https://github.com/Haulmont/jmix-data/issues/70 is fixed
     @Test
     void jpqlAndPredicate_relatedEntityIsNotLoadedLazily() {
-        Order order = authenticator.withUser(
+        authenticator.withUser(
                 "test2",
-                () -> dataManager.load(Order.class).id(orderId).one()
+                () -> {
+                    Order order = dataManager.load(Order.class).id(orderId).one();
+                    assertNull(order.getCustomer());
+                    return null;
+                }
         );
-        assertNull(order.getCustomer());
     }
 
     @Test
     void jpqlAndPredicate_relatedEntityIsNotLoadedEagerly() {
-        Order order = authenticator.withUser(
+        authenticator.withUser(
                 "test2",
-                () -> dataManager.load(Order.class).id(orderId).fetchPlanProperties("customer.name").one()
+                () -> {
+                    Order order = dataManager.load(Order.class).id(orderId).fetchPlanProperties("customer.name").one();
+                    assertNull(order.getCustomer());
+                    return null;
+                }
         );
-        assertNull(order.getCustomer());
     }
 
     @Test
