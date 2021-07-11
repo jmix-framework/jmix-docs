@@ -4,28 +4,37 @@ import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.Order;
 import dataaccess.ex1.entity.OrderLine;
 import dataaccess.ex1.entity.Product;
-import io.jmix.core.DataManager;
-import io.jmix.core.EntitySet;
-import io.jmix.core.Id;
+import io.jmix.core.*;
 import io.jmix.data.PersistenceHints;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
 public class OrderServiceTest {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderServiceTest.class);
 
     @Autowired
     DataManager dataManager;
@@ -35,6 +44,26 @@ public class OrderServiceTest {
 
     @Autowired
     OrderService orderService;
+
+    @PersistenceContext
+    EntityManager entityManager;
+
+    @Autowired
+    PlatformTransactionManager transactionManager;
+
+    // tag::fetch-plans[]
+    @Autowired
+    private FetchPlans fetchPlans;
+
+    // end::fetch-plans[]
+
+    // tag::fetch-plan-repo[]
+    @Autowired
+    private FetchPlanRepository fetchPlanRepository;
+
+    // end::fetch-plan-repo[]
+
+    private Order order1;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +75,7 @@ public class OrderServiceTest {
         product1.setName("MacBook Pro");
         product1.setPrice(BigDecimal.valueOf(2500));
 
-        Order order1 = dataManager.create(Order.class);
+        order1 = dataManager.create(Order.class);
         order1.setCustomer(customer1);
         order1.setDate(LocalDate.now());
         order1.setAmount(BigDecimal.valueOf(5000));
@@ -125,5 +154,93 @@ public class OrderServiceTest {
         orderService.hardDelete(product1);
 
         assertFalse(dataManager.load(Id.of(product1)).hint(PersistenceHints.SOFT_DELETION, false).optional().isPresent());
+    }
+
+    @Test
+    void testLazyLoading() {
+        String customerName = orderService.getCustomerName(Id.of(order1));
+        assertEquals("Alice", customerName);
+
+        List<String> productNames = orderService.getProductNames(Id.of(order1));
+        assertEquals(Collections.singletonList("MacBook Pro"), productNames);
+
+        Order order = dataManager.load(Id.of(order1)).one();
+        OrderLine orderLine = order.getLines().iterator().next();
+        assertSame(order, orderLine.getOrder());
+    }
+
+    @Test
+    void testLazyLoadingThroughEntityManagerDoesNotWork() {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+
+        Order order = transactionTemplate.execute(status -> entityManager.find(Order.class, order1.getId()));
+        try {
+            order.getCustomer().getName();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalStateException);
+        }
+    }
+
+    @Test
+    void testFetchPlan_shared() {
+        UUID orderId = order1.getId();
+
+        // tag::fetch-plan[]
+        Order order = dataManager.load(Order.class).id(orderId).fetchPlan("full").one();
+        // end::fetch-plan[]
+    }
+
+    @Test
+    void testFetchPlan_shared_repo() {
+        UUID orderId = order1.getId();
+
+        loadOrder(orderId);
+    }
+
+    // tag::fetch-plan-repo-use[]
+    private Order loadOrder(UUID orderId) {
+        FetchPlan fetchPlan = fetchPlanRepository.getFetchPlan(Order.class, "full");
+        return dataManager.load(Order.class).id(orderId).fetchPlan(fetchPlan).one();
+    }
+    // end::fetch-plan-repo-use[]
+
+    @Test
+    void testFetchPlan_FetchPlanBuilder() {
+        loadOrders();
+    }
+
+    // tag::fetch-plan-builder[]
+    private List<Order> loadOrders() {
+        FetchPlan fetchPlan = fetchPlans.builder(Order.class)
+                .addFetchPlan(FetchPlan.BASE)
+                .add("customer")
+                .build();
+
+        return dataManager.load(Order.class).all().fetchPlan(fetchPlan).list();
+    }
+    // end::fetch-plan-builder[]
+
+    @Test
+    void testFetchPlan_FetchPlanBuilder_DataManager() {
+        // tag::fetch-plan-builder-dm[]
+        List<Order> orders = dataManager.load(Order.class)
+                .all()
+                .fetchPlan(fpb -> fpb.addFetchPlan(FetchPlan.BASE).add("customer"))
+                .list();
+        // end::fetch-plan-builder-dm[]
+
+        Order o1 = orders.get(0);
+        assertEquals(0, o1.getAmount().compareTo(BigDecimal.valueOf(5000)));
+        assertEquals("alice@company.com", o1.getCustomer().getEmail());
+    }
+
+    @Test
+    void testFetchPlanAndLazyLoading() {
+        UUID orderId = order1.getId();
+        log.info("load with fetch plan");
+        Order order = dataManager.load(Order.class).id(orderId).fetchPlan(FetchPlan.INSTANCE_NAME).one();
+        log.info("load lazily");
+        assertEquals("Alice", order.getCustomer().getName());
     }
 }
