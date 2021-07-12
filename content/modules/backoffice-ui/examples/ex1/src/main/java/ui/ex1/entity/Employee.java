@@ -5,6 +5,7 @@ import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
+import java.util.List;
 import java.util.UUID;
 
 // tag::tag-field[]
@@ -17,6 +18,9 @@ public class Employee {
     @Column(name = "NAME")
     private String name;
     // end::twin-column[]
+
+    @OneToMany(mappedBy = "employee")
+    private List<EquipmentLine> equipment;
 
     @JoinColumn(name = "DEPARTMENT_ID")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -36,6 +40,14 @@ public class Employee {
 
     @Column(name = "POSITION_")
     private String position;
+
+    public List<EquipmentLine> getEquipment() {
+        return equipment;
+    }
+
+    public void setEquipment(List<EquipmentLine> equipment) {
+        this.equipment = equipment;
+    }
 
     public Position getPosition() {
         return position == null ? null : Position.fromId(position);
