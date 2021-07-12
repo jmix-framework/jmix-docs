@@ -1,0 +1,284 @@
+= Fetching Data
+
+In this section, we describe how and when data is fetched into memory in the process of loading entities from the database.
+
+The data model entities often have references to other entities, for example `Order` has a related `Customer` in the `Order.customer` attribute. Jmix allows you to access related entities by navigating the reference attributes in Java code using getters, for example `order.getCustomer().getName()`, and in data-aware UI components using dot notation, for example `order.customer.name`.
+
+In general, there are two strategies of loading related entities:
+
+* _Eager loading_ means that the related entity is loaded from the database together with the root entity.
+* _Lazy loading_ means that the related entity is transparently loaded from the database when the reference property is accessed.
+
+[[lazy-loading]]
+== Lazy Loading
+
+Jmix supports lazy loading of references for JPA entities loaded using xref:data-manager.adoc[DataManager]. It means that if you have used `DataManager` or UI xref:backoffice-ui:data/data-loaders.adoc[data loaders] for loading an entity, you can access its reference attributes to get the related entities, and Jmix will load them from the database on demand. This process is recursive, so you can traverse the whole object graph just by accessing the reference attributes.
+
+For example:
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=lazy-loading]
+----
+<1> Loads the `Customer` entity.
+<2> Loads a collection of the `OrderLine` entities.
+<3> Loads the `Product` entity.
+
+Lazy loading is very convenient, but it often doesn't provide the best possible performance. This is especially true for working with collections of entities. Look at the `getProductNames()` method above: it loads the collection of order lines and then for each order line it goes to the database for a related product. This leads to N+1 queries, where N is the number of order lines in the collection.
+
+Another example of the N+1 problem is lazy loading in an entity browser screen. For example, if you load a list of orders, and for each order you show a related customer, you need to define a UI table column bound to the `Order.customer` attribute. Then with lazy loading you will get 1 database query for orders, then N queries for customers, where N is the orders table page size.
+
+When you face a performance issue with lazy loading, introduce eager loading with <<fetch-plan, fetch plans>> as described in the next section.
+
+[[fetch-plan]]
+== Fetch Plans
+
+A _fetch plan_ defines what object graph should be eagerly loaded from the database in a particular operation. It can be used in xref:data-manager.adoc[DataManager] and UI xref:backoffice-ui:data-components.adoc[data components] for performance optimization, and in xref:rest:index.adoc[REST API] for defining the shape of returned data without creating a separate set of DTOs.
+
+TIP: Fetch plans are fully compatible with lazy loading of related entities. It means that you can load some part of a graph with a fetch plan, and then load other related entities lazily by navigating references.
+
+[[fetch-plan-example]]
+=== Fetch Plan Usage Example
+
+Let's consider a few use cases around the `Order` entity and its related entities comprising the following data model:
+
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class ContactPerson {
+    id
+    name
+}
+
+class Customer {
+    id
+    name
+    email
+    contacts: ContactPerson[]
+}
+
+class Order {
+    id
+    number
+    date
+    amount
+    customer: Customer
+    orderLines: OrderLines[]
+}
+
+class OrderLine {
+    id
+    product: Product
+    quantity
+}
+
+class Product {
+    id
+    name
+    description
+    price
+}
+
+Customer *-- ContactPerson
+
+Order -- Customer
+
+Order *-- OrderLine
+
+OrderLine -- Product
+
+@enduml
+....
+
+. Suppose we need to display the list of orders in a browse screen, and the UI table must contain the `number`, `date`, `amount` and `customer.name` columns. Then loading the following object graph would be optimal:
++
+--
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Customer {
+    id
+    name
+}
+
+class Order {
+    id
+    number
+    date
+    amount
+    customer: Customer
+}
+
+Order -- Customer
+
+@enduml
+....
+
+To eagerly load this graph, the following fetch plan can be defined in the screen:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-browse.xml[tags=fetch-plan]
+----
+
+As a result, the framework executes a single SQL query with the join between the order and customer tables, and related customers are eagerly loaded together with orders. It eliminates the N+1 problem that would arise if the customers were loading lazily.
+
+Also, as the fetch plan defines individual local attributes, the SQL result set includes only these attributes and omits the `customer.email` field. This field is not fetched from the database and does not consume server memory in the entity instance. This is good for performance, but such <<partial-entities,partially loaded>> entity instances must be handled with care.
+
+[NOTE]
+====
+When you create a screen for an entity using Studio, by default the screen creation wizard offers the `_base` fetch plan for the root entity and selected related entities, so the fetch plan definition will look a bit different:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-browse-1.xml[tags=fetch-plan]
+----
+
+`_base` is a built-in fetch plan (see more on this <<built-in-fetch-plans,below>>), and in this case all local attributes of the entities are always loaded.
+====
+--
+
+. Now consider the case of editing an order in an edit screen. The screen should allow a user to edit the order attributes, select a customer, as well as create and edit order lines, select products for them, and recalculate the total order amount. In this case, we need almost all entities, but some attributes of the related entities can be omitted:
++
+--
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Customer {
+    id
+    name
+}
+
+class Order {
+    id
+    number
+    date
+    amount
+    customer: Customer
+    orderLines: OrderLines[]
+}
+
+class OrderLine {
+    id
+    product: Product
+    quantity
+}
+
+class Product {
+    id
+    name
+    price
+}
+
+Order -- Customer
+
+Order *-- OrderLine
+
+OrderLine -- Product
+
+@enduml
+....
+
+If you use the Studio screen wizard and select related entities with the default `_base` fetch plan, the following fetch plan is created in the screen:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-edit.xml[tags=fetch-plan]
+----
+
+TIP: You could select individual local attributes instead of the `_base` fetch plan for the entities, but we don't recommend it for an editor screen. See more on partially loaded entities below.
+--
+
+[[partial-entities]]
+=== Partial Entities
+
+If you use a fetch plan that doesn't include some local attributes of the entity, the entity will be loaded partially. The attributes absent in the fetch plan  will be empty in the entity instance. If you access such an attribute by invoking its getter/setter or by using it in a UI component, the framework throws an exception like this:
+
+[source,text]
+----
+java.lang.IllegalStateException: Cannot get unfetched attribute [foo] from
+    detached object com.company.entity.Bar-7f9e689a-fe04-8b5f-35db-5fa51a9a9d71 [detached].
+----
+
+We recommend using partial fetch plans sparingly, only if you see real performance benefits from not loading all attributes. It is usually the case when your entities are "wide" (tens or hundreds of attributes), and you load large lists of entities with many references, which multiplies the amount of unneeded data to fetch.
+
+If you load a single root entity or a small collection, rely on <<lazy-loading,lazy loading>> or use a fetch plan extended from `_base` to avoid N+1 problem. On the one hand, the performance benefit from partial entities would be negligible in this case; on the other hand, you may encounter problems if you accidentally access unfetched attributes.
+
+NOTE: The entity identifier and xref:data-model:entities.adoc#versioned-trait[version] attributes are always loaded regardless of the fetch plan.
+
+[[built-in-fetch-plans]]
+=== Built-in Fetch Plans
+
+Jmix provides three built-in fetch plans for each entity:
+
+* `_local` fetch plan includes all local attributes (immediate attributes that are not references).
+* `_instance_name` fetch plan includes all attributes forming the xref:data-model:entities.adoc#instance-name[instance name]. These can be local attributes and references. If instance name is not specified for an entity, this fetch plan is empty.
+* `_base` fetch plan includes all attributes of the `_local` and `_instance_name` fetch plans. It differs from `_local` only if the `_instance_name` fetch plan includes reference attributes.
+
+TIP: Use the `_base` fetch plan until you face a performance problem with loading large lists of "wide" entities. It will save you from issues with unfetched attributes, explained in the <<partial-entities,partial entities>> section.
+
+[[creating-fetch-plans]]
+=== Creating Fetch Plans
+
+You can define custom fetch plans in the following ways:
+
+. As inline fetch plans in UI screen descriptors. This is demonstrated in the example <<fetch-plan-example,above>>.
+
+. Programmatically in Java.
++
+--
+You can build a fetch plan using `FetchPlans` factory and use it in a `DataManager` operation as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plans;fetch-plan-builder]
+----
+
+You can also use the fetch plan builder right in the `DataManager` fluent loading interface:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plan-builder-dm]
+----
+
+--
+
+. In the shared fetch plans repository.
++
+--
+You can create fetch plans in the shared repository and use them by name anywhere in your project like the <<built-in-fetch-plans,built-in>> ones.
+
+First, create the `fetch-plans.xml` file in the resources root under the base package of the application. You can do it in Studio by clicking *New -> Advanced -> Fetch Plan Configuration File* in Jmix tool window.
+
+After creating the file in your project, the *New -> Advanced* menu of the Jmix tool window will contain the *Fetch Plan* item. It allows you to define a fetch plan using a designer.
+
+Below is an example of a fetch plan defined in `fetch-plans.xml`.
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/dataaccess/ex1/fetch-plans.xml[tags=fetch-plan]
+----
+
+This fetch plan can be used by name in a `DataManager` operation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plan]
+----
+
+Another option is to get the fetch plan instance from the repository:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plan-repo;fetch-plan-repo-use]
+----
+
+--

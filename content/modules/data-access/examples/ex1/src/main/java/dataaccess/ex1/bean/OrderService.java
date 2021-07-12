@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class OrderService {
@@ -129,4 +130,18 @@ public class OrderService {
         );
     }
     // end::hard-delete[]
+
+    // tag::lazy-loading[]
+    String getCustomerName(Id<Order> orderId) {
+        Order order = dataManager.load(orderId).one();
+        return order.getCustomer().getName(); // <1>
+    }
+
+    List<String> getProductNames(Id<Order> orderId) {
+        Order order = dataManager.load(orderId).one();
+        return order.getLines().stream() // <2>
+                .map(orderLine -> orderLine.getProduct().getName()) // <3>
+                .collect(Collectors.toList());
+    }
+    // end::lazy-loading[]
 }
