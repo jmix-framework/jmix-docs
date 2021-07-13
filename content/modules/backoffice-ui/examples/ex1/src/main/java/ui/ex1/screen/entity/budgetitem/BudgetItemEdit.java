@@ -1,4 +1,4 @@
-package ui.ex1.screen.budgetitem;
+package ui.ex1.screen.entity.budgetitem;
 
 import io.jmix.ui.screen.*;
 import ui.ex1.entity.BudgetItem;
