@@ -1,0 +1,192 @@
+= Authentication
+
+Authentication is the first part of the interaction with the REST API. It is required so that Jmix can identify the user, who performs the requests. This allows Jmix to impose permission / data-access constraints on the requests to ensure the user is only allowed to see/interact with the parts of the system that it should be.
+
+== Authentication Request
+
+To interact with the Jmix REST API, it is required to authenticate through an OAuth2 flow. The following sequence diagram explains the general interaction with the REST API:
+
+[plantuml]
+....
+@startuml
+actor "API Client"
+participant "Jmix Authentication"
+collections "Entities API"
+
+== Token Retrieval ==
+
+"API Client" -> "Jmix Authentication": Authentication Request\n + Username & Password
+activate "Jmix Authentication"
+return Access Token
+
+== API Interactions ==
+"API Client" -> "Jmix Authentication": Get Entities Request\n + Access Token
+activate "Jmix Authentication"
+"Jmix Authentication" -> "Jmix Authentication" : Token Verification
+"Jmix Authentication" -> "Entities API": Get Entities Request
+deactivate "Jmix Authentication"
+deactivate "Jmix Authentication"
+activate "Entities API"
+"Entities API" --> "API Client": List of Entities
+deactivate "Entities API"
+
+@enduml
+....
+
+First, the API client needs to request an access token through the authentication request. For that, you need to send a `www-form-urlencoded` request with the username and password as part of the form body to Jmix:
+
+.Authentication Request
+[source, http request]
+----
+POST http://localhost:8080/oauth/token
+Authorization: Basic {{client_id}} {{client_secret}} // <1>
+Content-Type: application/x-www-form-urlencoded // <2>
+
+grant_type=password // <3>
+&username={{username}} // <4>
+&password={{password}}
+----
+<1> The Authentication Request itself is authenticated with Basic Auth xref:configuration.adoc#jmix.rest.client.id[client_id] and xref:configuration.adoc#jmix.rest.client.secret[client_secret].
+<2> The content of the authentication request is `application/x-www-form-urlencoded`.
+<3> The `grant_type` is `password` to indicate the type of login.
+<4> The user credentials are provided as part of the form with the keys `username` and `password`.
+
+After a successful login, Jmix returns the access token as part of the HTTP response:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token": "CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=",
+  "token_type": "bearer",
+  "refresh_token": "Hh2xCuZ7fgd35obagEBNGevF4ws=",
+  "expires_in": 31535999,
+  "scope": "rest-api",
+  "OAuth2.SESSION_ID": "5C46CDF266E8C8C15372887830B74F59"
+}
+----
+
+The attribute `access_token` contains the token, that you can use in further requests: `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`.
+
+=== Refresh Token
+
+The token acts as a temporary credential/password. After a particular period, the token expires and you need to request a new token.
+The first option for requesting a new token to ask the user for their credentials again and perform a regular Authentication Request again.
+
+WARNING: Do not store the username and password in your client application so that the user does not need to re-enter its credentials. Either ask the user again for their credentials or use the refresh token to prevent token expiration.
+
+The original Authentication Request contains a `refresh_token`, that you can use to create a new access token. While the access token is comparably short-lived (by default 12 hours for Jmix), the refresh token is valid for 365 days by default. Therefore it is well suited as a long-lived credential to issue new tokens.
+
+To get a new access token via the refresh token, you can use the same endpoint of obtaining a token. But instead of using the `grand_type`: `password`, you can also use `refresh_token`. Here is an example of how to use the refresh token to obtain a new access token:
+
+
+.Refresh Authentication Request
+[source, http request]
+----
+POST http://localhost:8080/oauth/token
+Authorization: Basic {{client_id}} {{client_secret}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token // <1>
+&refresh_token=Hh2xCuZ7fgd35obagEBNGevF4ws= // <2>
+----
+<1> The `grant_type` is `refresh_token` to indicate the type of login that is performed.
+<2> The refresh token is provided as part of the form with the key `refresh_token`.
+
+The response contains a new access token, that has a new expiration period. With that, you can keep access to the API without the need to ask the user for their credentials after the access token expires.
+
+== Making API Requests
+
+There are two ways on how to use the access token to authenticate against the different Jmix APIs, depending on the use case. Let's start with the first and main way of providing the access token: via an HTTP header in the following requests.
+
+=== Authenticate via Header
+
+With the received access token `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`, you can now perform requests against the REST API. The access token needs to be passed in as the `Authorization` Header in every request, like in the following example:
+
+.Create Customers Request
+[source, http request]
+----
+POST http://localhost:8080/rest
+            /entities
+            /rstex11_Customer
+Authorization: Bearer CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=  //<1>
+
+{
+  name: "Randall Bishop"
+}
+----
+<1> The API request is authenticated with the authorization type `Bearer`, and the received access token.
+
+
+=== Authenticate via URL Parameter
+
+It is also possible to pass the access token as a URL query parameter. This is necessary when the HTTP headers cannot be set. In case of the browser linking to a file or render an image.
+
+In the following example an image from the xref:files-api.adoc[Files API] should be rendered via `<img src="..." />` on a website.
+
+In this case, it is not possible to set the HTTP headers. Therefore, you can pass in the `access_token` as a URL as a query parameter:
+
+[source,html]
+----
+<img
+    src="http://localhost:8080/files
+            ?access_token=CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=
+            &fileRef=fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg"
+/>
+----
+
+
+== Anonymous Access
+
+By default, all endpoints are only available after a successful authentication against the application.
+But it is also possible to expose certain parts of the REST API without authentication. This is possible by using the anonymous access functionality of Jmix. In this case, the API request is performed as the user `anonymous`, which is present by default in Jmix.
+
+For every secured endpoint that is called without the `Authentication` header, the user will be authenticated with the `anonymous` user session.
+
+To whitelist specific endpoints / URL patterns for anonymous access, you can add the following configuration in the `application.properties`:
+
+[source,properties]
+----
+jmix.rest.anonymousUrlPatterns=/rest/services/sample_ProductService/getProductInformation
+----
+
+It is possible to define a comma-separated list of URL patterns, that should be available via anonymous access.
+
+Once this setting is in place, it is possible to interact with the `ProductService` without sending an `Authorization` header:
+
+.GetProductInformation Request
+[source, http request]
+----
+GET {{baseRestUrl}}
+         /services
+         /sample_ProductService
+         /getProductInformation
+         ?productId=123
+# Authorization: not set
+----
+
+This request will respond in a successful response of the Service:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "name": "Apple iPhone",
+  "productId": "123",
+  "price": 499.99
+}
+----
+
+
+//== LDAP Authentication
+//
+//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ldap
+//
+//== Custom Authentication
+//
+//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_custom_auth
+//
+//== OAuth Token
+//
+//=== Persistent Token Storage
+//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_persistent_token_store
