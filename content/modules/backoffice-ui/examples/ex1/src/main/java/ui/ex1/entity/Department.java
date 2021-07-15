@@ -17,6 +17,14 @@ public class Department {
     @Column(name = "NAME")
     private String name;
 
+    @JoinColumn(name = "PARENT_DEPT_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Department parentDept;
+
+    @JoinColumn(name = "MANAGER_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee manager;
+
     @OneToMany(mappedBy = "department")
     private List<Employee> employee;
     // end::tag-field[]
@@ -25,6 +33,22 @@ public class Department {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    public Employee getManager() {
+        return manager;
+    }
+
+    public void setManager(Employee manager) {
+        this.manager = manager;
+    }
+
+    public Department getParentDept() {
+        return parentDept;
+    }
+
+    public void setParentDept(Department parentDept) {
+        this.parentDept = parentDept;
+    }
 
     public void setEmployee(List<Employee> employee) {
         this.employee = employee;
