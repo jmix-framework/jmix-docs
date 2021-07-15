@@ -2,27 +2,31 @@
 
 This section provides practical examples of working with data components.
 
-[[declarative-creation]]
-== Declarative Creation
+[[declarative-usage]]
+== Declarative Usage
 
-Defining data components in the screen XML descriptor is the simplest way to create them.
+Usually, data components are defined and bound to visual components declaratively in the screen XML descriptor. If you create a screen for an entity using Studio, you can see the top-level `<data>` element which contains the data component declarations.
+
+Below is an example of data components in an edit screen for the `Employee` entity that has a to-one reference to `Department` and a to-many reference to the `EquipmentLine` entity:
+
+//Defining data components in the screen XML descriptor is the simplest way to create them.
 //The simplest way to create data components for a screen is to define them in the screen XML descriptor in the <data> element.
 
-Let’s consider the data model consisting of the `Employee`, `Department` and `EquipmentLine` entities. The edit screen for the `Employee` entity can have the following XML definition:
+//Let’s consider the data model consisting of the `Employee`, `Department` and `EquipmentLine` entities. The edit screen for the `Employee` entity can have the following XML definition:
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/screen/entity/employee/employee-edit.xml[tags=xml]
 ----
-<1> `DataContext` instance.
+<1> The root `data` element defines the xref:data/data-context.adoc[DataContext] instance.
 <2> `InstanceContainer` of the `Employee` entity.
-<3> The `fetchPlan` attribute defines a tree of attributes that should be loaded from the database.
+<3> The optional xref:data-access:fetching.adoc#fetch-plan[fetchPlan] attribute defines the object graph that should be eagerly loaded from the database.
 <4> `InstanceLoader` that loads the `Employee` instance.
 <5> `CollectionPropertyContainer` for the nested `EquipmentLine` entity. It is bound to the `Employee.equipment` collection attribute.
 <6> `CollectionContainer` for the `Department` entity.
 <7> `CollectionLoader` that loads the `Department` entity instances using the specified query.
 
-The data containers can be used in visual components as follows:
+The data containers defined above can be used in visual components as follows:
 
 [source,xml,indent=0]
 ----
@@ -30,11 +34,11 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/entity/employee/employee-
 ----
 <1> Standalone fields have `dataContainer` and `property` attributes.
 <2> The `form` component propagates `dataContainer` to its fields, so they need only the `property` attribute.
-<3> The `EntityComboBox` field has the `optionsContainer` attribute.
-<4> Tables have only `dataContainer` attribute.
+<3> The `EntityComboBox` field has also the `optionsContainer` attribute to get the list of options.
+<4> Tables have only the `dataContainer` attribute.
 
-[[programmatic-creation]]
-== Programmatic Creation
+[[programmatic-usage]]
+== Programmatic Usage
 
 Data components can be created and used in visual components programmatically.
 
@@ -49,9 +53,9 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/EmployeeEditExample.java[
 <3> The `employeeDl` loader will load data to `employeeDc` container.
 <4> The `employeeDl` loader will merge loaded entities into the data context for change tracking.
 <5> The `equipmentDc` is created as a property container.
-<6> A query is specified for the departmentsDl loader.
+<6> A query is specified for the `departmentsDl` loader.
 <7> `ContainerValueSource` is used to bind single fields to containers.
-<8> `ContainerOptions` is used to provide options to lookup fields.
+<8> `ContainerOptions` is used to provide options to combo boxes.
 <9> `ContainerTableItems` is used to bind tables to containers.
 <10> `getEditedEntityContainer()` is overridden to specify the container instead of `@EditedEntityContainer` annotation.
 <11> Loads data before showing the screen. The edited entity id will be set to `employeeDl` by the framework automatically.
@@ -63,9 +67,9 @@ Sometimes you need to load and display data that depends on other data in the sa
 
 image::data/depend-tables.png[align="center"]
 
-In this example, the `Employee` entity contains the `equipment` attribute that is a one-to-many collection. So the simplest way to implement the screen is to load the list of employees with a fetch plan containing the `equipment` attribute and use a xref:backoffice-ui:data/property-containers.adoc[property container] to hold the list of dependent equiment lines. Then bind the left table to the master container and the right table to the property container.
+In this example, the `Employee` entity contains the `equipment` attribute that is a one-to-many collection. So the simplest way to implement the screen is to load the list of employees with a xref:data-access:fetching.adoc#fetch-plan[fetch plan] containing the `equipment` attribute and use a xref:backoffice-ui:data/property-containers.adoc[property container] to hold the list of dependent equiment lines. Then bind the left table to the master container and the right table to the property container.
 
-But this approach has the following performance implication: you will load equipment lines for all employees from the left table, even though you display the equipment lines only for a single employee. This is why we recommend using property containers and wide fetch plans only when loading a single master item, for example, in the employee editor screen.
+But this approach has the following performance implication: you will load equipment lines for all employees from the left table, even though you display the equipment lines only for a single employee. This is why we recommend using property containers and deep fetch plans with collection attributes only when loading a single master item, for example, in the employee editor screen.
 
 Also, the master entity may have no direct property pointing to the dependent entity. In this case, the above approach with a property container would not work at all.
 
@@ -79,7 +83,7 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/data/employee-depend-tabl
 ----
 <1> Master container and loader.
 <2> Dependent container and loader.
-<3> The DataLoadCoordinator facet is not used, so the loaders will not be triggered automatically.
+<3> The `DataLoadCoordinator` facet is not used, so the loaders will not be triggered automatically.
 <4> Master table.
 <5> Dependent table.
 
@@ -125,7 +129,7 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/ShowCities.java[tags=show
 
 Sorting of UI tables by entity attributes is performed by `CollectionContainerSorter` which is set for a xref:backoffice-ui:data/collection-container.adoc[CollectionContainer]. The standard implementation sorts data in memory if it fits in one page of loaded data, otherwise it sends a new request to the database with the appropriate "order by" clause. The "order by" clause is created by the `JpqlSortExpressionProvider` bean.
 
-Some entity attributes can require a special implementation of sorting. Below we explain how to customize sorting on a simple example: suppose there is the `Order` entity with a number attribute of type `String`, but we know that the attribute actually stores only numeric values. So we want the sort order to be `1`, `2`, `3`, `10`, `11`. With the default behavior, the order would be `1`, `10`, `11`, `2`, `3`.
+Some entity attributes can require a special implementation of sorting. Below we explain how to customize sorting on a simple example: suppose there is the `Order` entity with a `number` attribute of type `String`, but we know that the attribute actually stores only numeric values. So we want the sort order to be `1`, `2`, `3`, `10`, `11`. With the default behavior, the order would be `1`, `10`, `11`, `2`, `3`.
 
 First, create a subclass of the `CollectionContainerSorter` class for sorting in memory:
 
@@ -134,14 +138,14 @@ First, create a subclass of the `CollectionContainerSorter` class for sorting in
 include::example$/ex1/src/main/java/ui/ex1/screen/data/sort/CustomCollectionContainerSorter.java[tags=sorter]
 ----
 
-Create your own factory:
+//Create your own factory:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/data/sort/CustomSorterFactory.java[tags=factory]
+//----
 
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/ui/ex1/screen/data/sort/CustomSorterFactory.java[tags=factory]
-----
-
-Create a sorter in the required screen:
+Create the sorter in the required screen:
 
 [source,java,indent=0]
 ----

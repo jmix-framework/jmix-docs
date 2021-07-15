@@ -4,8 +4,8 @@ import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.model.Sorter;
 import io.jmix.ui.screen.*;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import ui.ex1.entity.Order;
 
 
@@ -22,11 +22,11 @@ public class OrderBrowseExample extends StandardLookup<Order> {
     private CollectionContainer<Order> ordersDc;
 
     @Autowired
-    private CustomSorterFactory sorterFactory;
+    private BeanFactory beanFactory;
 
     @Subscribe
     private void onInit(InitEvent event) {
-        Sorter sorter = sorterFactory.createCustomCollectionContainerSorter(ordersDc, ordersDl);
+        Sorter sorter = new CustomCollectionContainerSorter(ordersDc, ordersDl, beanFactory);
         ordersDc.setSorter(sorter);
     }
 }

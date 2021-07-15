@@ -1,23 +1,25 @@
 package ui.ex1.screen.data;
 
+import io.jmix.core.FetchPlan;
 import io.jmix.ui.UiComponents;
 import io.jmix.ui.component.*;
 import io.jmix.ui.component.data.options.ContainerOptions;
 import io.jmix.ui.component.data.table.ContainerTableItems;
 import io.jmix.ui.component.data.value.ContainerValueSource;
 import io.jmix.ui.model.*;
-import io.jmix.ui.screen.*;
+import io.jmix.ui.screen.StandardEditor;
+import io.jmix.ui.screen.Subscribe;
+import io.jmix.ui.screen.UiController;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Department;
 import ui.ex1.entity.Employee;
 import ui.ex1.entity.EquipmentLine;
 import ui.ex1.entity.Position;
 
+// tag::progr[]
 @UiController("uiex1_EmployeeExample.edit")
-@UiDescriptor("employee-edit-example.xml")
 public class EmployeeEditExample extends StandardEditor<Employee> {
 
-    // tag::progr[]
     @Autowired
     private DataComponents dataComponents; // <1>
     @Autowired
@@ -44,7 +46,7 @@ public class EmployeeEditExample extends StandardEditor<Employee> {
         employeeDl = dataComponents.createInstanceLoader();
         employeeDl.setContainer(employeeDc); // <3>
         employeeDl.setDataContext(dataContext); // <4>
-        employeeDl.setFetchPlan("_base");
+        employeeDl.setFetchPlan(FetchPlan.BASE);
 
         equipmentDc = dataComponents.createCollectionContainer(
                 EquipmentLine.class, employeeDc, "equipment"); // <5>
@@ -55,7 +57,7 @@ public class EmployeeEditExample extends StandardEditor<Employee> {
         departmentsDl.setContainer(departmentsDc);
         departmentsDl.setDataContext(dataContext);
         departmentsDl.setQuery("select e from uiex1_Department e"); // <6>
-        departmentsDl.setFetchPlan("_base");
+        departmentsDl.setFetchPlan(FetchPlan.BASE);
     }
 
     private void createUiComponents() {
@@ -75,10 +77,10 @@ public class EmployeeEditExample extends StandardEditor<Employee> {
         positionField.setValueSource(new ContainerValueSource<>(employeeDc, "position"));
         form.add(positionField);
 
-        EntityComboBox<Employee> employeeField = uiComponents.create(EntityComboBox.of(Employee.class));
-        employeeField.setValueSource(new ContainerValueSource<>(employeeDc, "department"));
-        employeeField.setOptions(new ContainerOptions(departmentsDc)); // <8>
-        form.add(employeeField);
+        EntityComboBox<Department> departmentField = uiComponents.create(EntityComboBox.of(Department.class));
+        departmentField.setValueSource(new ContainerValueSource<>(employeeDc, "department"));
+        departmentField.setOptions(new ContainerOptions<>(departmentsDc)); // <8>
+        form.add(departmentField);
 
         Table<EquipmentLine> table = uiComponents.create(Table.of(EquipmentLine.class));
         getWindow().add(table);
@@ -86,11 +88,13 @@ public class EmployeeEditExample extends StandardEditor<Employee> {
         table.setItems(new ContainerTableItems<>(equipmentDc)); // <9>
 
         Button okButton = uiComponents.create(Button.class);
-        okButton.setAction(getWindow().getActionNN(WINDOW_COMMIT_AND_CLOSE));
+        okButton.setCaption("OK");
+        okButton.addClickListener(clickEvent -> closeWithCommit());
         getWindow().add(okButton);
 
         Button cancelButton = uiComponents.create(Button.class);
-        cancelButton.setAction(getWindow().getActionNN(WINDOW_CLOSE));
+        cancelButton.setCaption("Cancel");
+        cancelButton.addClickListener(clickEvent -> closeWithDiscard());
         getWindow().add(cancelButton);
     }
 
@@ -104,5 +108,5 @@ public class EmployeeEditExample extends StandardEditor<Employee> {
         employeeDl.load();
         departmentsDl.load();
     }
-    // end::progr[]
 }
+// end::progr[]
