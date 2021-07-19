@@ -1,0 +1,239 @@
+= Create Index Definitions 
+
+In the Jmix application, we need to create an Index Definition - interface that describes what entity and what properties should be indexed. The interface definition should meet the following criteria:
+
+* Can have any name.
+* Should be annotated with the `@JmixEntitySearchIndex` annotation.
+* Annotation has a mandatory parameter -  `entity` with the specified entity this Index Definition is created for. One Index Definition should be created per one searchable entity.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;index-definition2]
+----
+
+After that, you need to define entity properties that should be indexed. For that purpose, create at least one method within the previously created Index Definition.
+
+These methods should meet the following criteria:
+
+* Should be `void`.
+* Can have any name.
+* Do not have parameters.
+* Do not have implementation.
+* Should be annotated with the `@AutoMappedField` annotation. It automatically maps requested properties the common way depending on their data type.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;order-mapping;index-definition2]
+----
+
+== @AutoMappedField Parameters
+
+`@AutoMappedField` has the following parameters:
+
+* `includeProperties` - a list of full names of properties that should be indexed. None by default - no properties are indexed and searchable.
+* `excludeProperties` - a list of full names of properties that should not be indexed. None by default.
+* `analyzer` - a name of analyzer defined in Elasticsearch that will be used in index field mapping. If nothing is specified - the Elasticsearch https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html#:\~:text=Standard%20analyzeredit,works%20well%20for%20most%20languages[default analyzer^] is used.
+* `indexFileContent` - a boolean flag defining if the content of the file found in matched file properties should be indexed. `True` by default.
+
+Both `includeProperties` and `excludeProperties` support `*` wildcard. It is expanded to local properties on the corresponded level:
+
+* `*` - local properties of the indexed entity.
+* `refField.*` - local properties of the entity referenced by the `refField` property.
+
+Wildcard doesn't cover back-reference properties and system - version, soft-delete related properties, and so on.
+
+`excludeProperties` is useful only if `includeProperties` is configured using wildcard - to limit its expansion. Otherwise, it doesn't make sense.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CardIndexDefinition.java[tags=exclude]
+----
+
+An analyzer is used to transform incoming text values in different ways including some language morphologies. A specified analyzer is used on both indexing and searching steps.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CustomerIndexDefinition.java[tags=interface1;method;interface2]
+----
+
+Multiple mapping annotations can be set on a single method. Or they can be split between multiple methods for some kind of grouping. The following cases represent the same definition:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;order-mapping;index-definition2]
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void orderMapping();
+}
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    void orderMapping();
+
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void customerMapping();
+}
+----
+
+== Supported Properties
+
+Properties supported by `@AutoMappedField`:
+
+* Textual
+* Reference
+* FileRef
+* Enum
+* Embedded
+
+All of these properties are captured by wildcard.
+
+=== Textual Property
+
+It is the most common case, a value of a property is used as an indexed value. A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"textualFieldName": "value"
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"textualFieldName": ["value1", "value2"]
+----
+
+=== Reference Property
+
+Only the instance name of the reference instance is used as the indexed value. None of the nested properties are included. To index nested properties of reference entity, you should directly include `refProperty.nestedProperty` or `refProperty.*` to your mapping.
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": "instanceNameValue"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": ["instanceNameValue1", "instanceNameValue2"]
+}
+----
+
+=== FileRef Property
+
+Both file name and content are used as indexed values by default. If you want to index file name only, you need to set the `indexFileContent` parameter of `@AutoMappedField` to `false`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/EventIndexDefinition.java[tags=file]
+----
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"fileRefField": {
+	"_file_name" : "File name",
+	"_content" : "File content if enabled"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"fileRefField": [
+	{
+		"_file_name" : "File name 1",
+		"_content" : "File content 1"
+	},
+	{
+		"_file_name" : "File name 2",
+		"_content" : "File content 2"
+	}
+]
+----
+
+=== Enum Property
+
+Localized values of all available locales are used as indexed values.
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"enumFieldName": ["enValue", "ruValue"]
+----
+
+In case of multiple enum values there is multiplication - all values in all available locales:
+
+[source,json]
+----
+"enumFieldName": ["enValue1", "ruValue1", "enValue2", "ruValue2"]
+----
+
+=== Embedded Property
+
+Inclusion of Embedded property is equal to inclusion of all its nested properties `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. Index value depends on the type of final properties. Unsupported types will be ignored.
+
+For example:
+
+* A root entity has the `customer` property related to the embedded `Customer` entity with the `firstName` and `lastName` properties.
+* If you include the `customer` property, it will lead to the implicit inclusion of the `customer.firstName` and `customer.lastName` properties.
+
+=== Multilevel Properties & Collections
+
+You can specify multilevel properties using a dot as the delimiter `refProperty.nestedRefProperty.finalDataProperty`.
+
+Collection properties are also supported including nested collections on multiple levels. In this case index stores values in plain style - "multiplicity" appears at the last-level property and accumulates all found values:
+
+Property `collectionOfReferences.nestedCollectionOfAnotherReferences.name` is stored as:
+
+[source,json]
+----
+"collectionOfReferenceInstances": {
+	"nestedCollectionOfAnotherReferenceInstances": {
+		"name": ["value1", ..., "valueN"]
+	}
+}
+----
+
+An array of values contains all name values of all `AnotherReference` instances of all `Reference` instances within the root entity.
+
+== Programmatic Mapping
+
+Also, you can build Mapping Definition manually without using annotation.
+
+For that purpose you need to create a method in your Index Definition interface. The method should meet the following criteria:
+
+* Should be default.
+* Can have any name.
+* Does not have parameters.
+* Should have the returned type - `MappingDefinition`.
+
+You can create a Mapping Definition within the method body using `MappingDefinition.builder()`.
+
+NOTE: There can be only one method with manual mapping. In case the method with manula mapping exists, all field-mapping annotations will be ignored.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CustomerIndexDefinition.java[tags=interface1;manual-mapping;interface2]
+----

@@ -1,0 +1,128 @@
+= Using Search in Backoffice UI
+
+[[visual-components]]
+== Visual Components
+
+The Search add-on provides two UI componets: `SearchField` and `FullTextFilter`. To enable using components in screens, declare the `search` namespace in the root element in the screen XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=namespace]
+----
+
+[[search-fields]]
+=== SearchField
+
+`SearchField` UI component provides the `TextField` component with the `Button` that runs searching. 
+
+An example of using `searchField` in the screen:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=search-field]
+----
+
+Attributes:
+
+* `searchStrategy` (optional) - a search strategy used for searching. If the strategy is not defined, then a default strategy is used.
+* `entities` - searching will be performed within the specified entities. Multiple entities can be specified as a comma-separated list:
++
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen-handler2.xml[tags=entities]
+----
+
+By default, `searchField` opens the `SearchResultsScreen` that displays a list of results. To change this behavior, you can set the search completed handler in two ways:
+
+* Using a setter. In the example, the search results will be displayed in the dialog mode:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/screen/search/SearchScreenHandler1.java[tags=my-search-field;screen-builders;init]
+----
++
+* Using the `@Install` annotation on the screen controller method:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/screen/search/SearchScreenHandler2.java[tags=my-search-field;screen-builders;handler]
+----
+
+[[full-text-filter]]
+=== FullTextFilter
+
+The `FullTextFilter` component works like `PropertyFilter` or `JpqlFilter`.
+
+An example of using `fullTextFilter` in the screen:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/filter-screen.xml[tags=filter1;filter2]
+----
+
+Attributes:
+
+* `dataLoader` - a `DataLoader` related to the current component
+* `searchStrategy` (optional) - a search strategy used for searching. If the strategy is not defined, then a default strategy is used. 
+* `autoApply` (optional) - true if the `filter` component should be automatically applied to the `DataLoader` when the component value is changed.
+
+The values in the `Table` or in the `DatabaGrid` associated with `dataLoader` will be refreshed. Only records that match the full-text search criteria will be displayed. 
+
+[[search-strategies]]
+=== Search Strategies
+
+SearchField supports different search strategies - the way of input text handling:
+
+* `anyTermAnyField` - a document matches if it contains at least one of input words in any indexed field
+* `allTermsAnyField` - a document matches if it contains all input words in any field in any order.  This strategy is set by default.
+* `allTermsSingleField` - a document matches if it has at least one field that contains all input words in any order.
+* `phrase` - a document matches if it has at least one field that contains all input words in the provided order.
+
+You can set the proper strategy by using the `strategy` attribute:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen-handler1.xml[tags=strategy]
+----
+
+To override the default strategy, add the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=default-strategy]
+----
+
+Also, you can create your own search strategy. For that purpose, you need to create a new bean extending `io.jmix.search.searching.SearchStrategy` class and implementing two methods:
+
+* `String getName()` - should return unique strategy name.
+* `void configureRequest(SearchRequest searchRequest, SearchContext searchContext)` - should configure incoming `SearchRequest` the proper way.
+
+After that, you can set your strategy to the `SearchField` component by the strategy name.
+
+[full-text-search-condition-in-filter-component]
+== Full-text Search Condition in Filter Component
+
+When the Search add-on is added to the project, a new condition appears in the *Add condition* window of the `Filter` component:
+
+image:search:add_condition.png[Add Condition to Filter, align="center"]
+
+In the *Full-text filter condition editor* window you can specify a caption for the full-text filter and select a search strategy. If no search strategy is selected, then the default one is used.
+
+image:search:condition_editor.png[Condition Editor, align="center"]
+
+Records in the list component associated with the filter will be filtered based on the full-text search result.
+
+[[using-search-api-in-screens]]
+== Using Search API in Screens
+
+You can use Search API in the screen controller. Let's look at the example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/screen/search/UsingApiScreen.java[tags=entity-searcher;search-result-processor;click-event]
+----
+<1> API is called from the screen when clicking on a button.
+<2> Sets conditions for the query: an entity, a string and amount of records in the result.
+//The query will look for an entity of an Order type through fields marked for indexing that contain an `"apple"` string. 
+<3> The `EntitySearcher` service is used to start searching.
+<4> `SearchResultProcessor` is used for fetching data from the search result.
