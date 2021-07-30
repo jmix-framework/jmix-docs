@@ -11,5 +11,9 @@ This repository contains documentation for all [Jmix](https://jmix.io) framework
   npm i
   npx antora antora-playbook.yml
   ```
+  To build the docs with the [Lunr](https://lunrjs.com) search index (takes a bit more time), run:
+  ```
+  DOCSEARCH_ENABLED=true DOCSEARCH_ENGINE=lunr DOCSEARCH_INDEX_VERSION=latest npx antora --generator antora-site-generator-lunr antora-playbook.yml
+  ```
 
 * Open `jmix-docs/build/site/index.html` in a web browser.
