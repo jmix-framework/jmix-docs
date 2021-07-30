@@ -1,0 +1,113 @@
+= Background Tasks
+
+Use background tasks mechanism to perform tasks asynchronously without blocking the user interface.
+
+[[basics]]
+== Basics
+To use background tasks, do the following:
+
+1. Define a task as an inheritor of the `BackgroundTask` abstract class. Pass a link to a screen controller associated with the task and the task timeout to the task constructor.
+2. Closing the screen will interrupt the tasks associated with it. Additionally, the task will be interrupted automatically after the specified timeout.
+3. Actual actions performed by the task are implemented in the `run()` method.
+4. Create an object of `BackgroundTaskHandler` class controlling the task bypassing the task instance to the `handle()` method of the `BackgroundWorker` bean. You can obtain a link to `BackgroundWorker` by injection in a screen controller or through the `AppBeans` class.
+5. Run the task by invoking the `execute()` method of `BackgroundTaskHandler`.
+
+[WARNING]
+UI components' state and data containers must not be read/updated from `BackgroundTask` `run()` method: use `done()`, `progress()`, and `canceled()` callbacks instead. When you try to set a value to the UI component from a background thread, an `IllegalConcurrentAccessException` will be thrown.
+
+See usage example on the xref:vcl/components/progress-bar.adoc#determinate-process[progress bar] page.
+
+[[background-task]]
+== BackgroundTask
+
+`BackgroundTask<T, V>` is a parameterized class:
+
+1. `T` − the type of objects displaying task progress. Objects of this type are passed to the task’s `progress()` method during an invocation of `TaskLifeCycle.publish()` in the working thread.
+
+2. `V` − task result type passed to the `done()` method. You can also obtain the result by invoking `BackgroundTaskHandler.getResult()` method, which will wait for a task to complete.
+
+`BackgroundTask` objects are stateless. If you did not create fields for temporary data when implementing task class, you could start several parallel processes using a single task instance.
+
+[[background-task-methods]]
+== BackgroundTask Methods
+
+Detailed information about methods is provided in JavaDocs for `BackgroundTask`, `TaskLifeCycle`, `BackgroundTaskHandler` classes.
+
+[[run]]
+=== run()
+
+This method of task should support external interruptions. To ensure this check the `TaskLifeCycle.isInterrupted()` flag periodically during long processes and stop execution when needed. Additionally, you should not silently discard `InterruptedException` (or any other exception) - instead, you should either exit the method correctly or not handle the exception at all.
+
+You can also check whether the task was interrupted by the `cancel()` method or not, using the `isCancelled()` method.
+
+[[canceled]]
+=== canceled()
+
+This method is invoked only during a controlled cancellation of a task, for example, when the `cancel()` method is invoked in the `TaskHandler`.
+
+[[progress]]
+=== progress()
+
+This method is invoked when the progress value change. For example, after calling the `taskLifeCycle.publish()` method.
+
+[[done]]
+=== done()
+
+This method is invoked when the task is completed.
+
+[[handle-timeout-exception]]
+=== handleTimeoutException()
+
+This method is invoked when the task timeout expires. If the window where the task is running closes, the task is stopped without notification.
+
+[[handle-exception]]
+=== handleException()
+
+This method is invoked when any exceptions occur.
+
+[[notes-and-tips]]
+== Notes & Tips
+
+1. Use `dialogs.createBackgroundWorkDialog()` method to show a modal window with a progress indicator and *Cancel* button. You can define progress indication type and allow or prohibit the cancellation of the background task for the window.
++
+//todo BackgroundTaskWrapper
+// Ни Глеб, ни Роман не знают каким классом был заменен BackgroundTaskWrapper. Сказали уточнить у Влада, но он пока что в отпуске. Как выйдет надо будет поправить и сделать usage example.
+// 2. `BackgroundHandler` object `execute()` method can only be started once. If you need to restart a task frequently, use `BackgroundTaskWrapper` class.
++
+2. If you need to use certain values of visual components in the task thread, you should implement their acquisition in the `getParams()` method, which runs in the UI thread once a task starts. In the `run()` method, these parameters will be accessible via the `getParams()` method of the `TaskLifeCycle` object.
+3. Background tasks are affected by xref:app-properties.adoc#jmix-ui-backgroundTaskTimeoutCheckInterval[jmix.ui.backgroundTaskTimeoutCheckInterval] and xref:app-properties.adoc#jmix-ui-background-task-threadsCount[jmix.ui.background-task.threadsCount] application properties.
+
+[[usage-example]]
+== Usage Example
+
+Often, when launching a background task, you need to display a simple user interface:
+
+1. To show to the user that the requested action is in the process of execution.
+2. To allow the user to abort the requested long operation.
+3. To show operation progress if progress percent can be determined.
+
+Platform satisfies these needs with `dialogs.createBackgroundWorkDialog()` method.
+
+Consider the following development task as an example:
+
+1. A given screen contains a table displaying a list of customers, with multi-selection enabled.
+2. When the user presses a button, the system should send reminder emails to selected customers, without blocking UI and with the ability to cancel the operation.
+
+image:background-tasks/emails.GIF[]
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/backgroundtasks/BackgroundTasksScreen.java[tags=background-tasks-email]
+----
+<1> Launch the task, show progress dialog, and set its options:
+- dialog caption;
+- dialog message;
+- total number of elements for progress bar;
+- show progress in percent or not;
+- show *Cancel* button or not.
+<2> Task progress unit is `Integer` - the number of processed table items, and result type is `Void` because this task doesn’t produce the result.
+<3> Selected table items are saved into a variable that is initialized in the task constructor. This is necessary because the `run()` method is executed in a background thread and cannot access UI components.
+<4> Set timeout to 10 minutes.
+<5> Periodically check `isCancelled()` to stop the task immediately after pressing the *Cancel* dialog button.
+<6> Send email. See more about email sending xref:email:index.adoc[here].
+<7> Update progress bar position after every email sent.
