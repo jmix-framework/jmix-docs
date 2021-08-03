@@ -9,6 +9,7 @@ import io.jmix.ui.action.Action;
 import io.jmix.ui.action.BaseAction;
 import io.jmix.ui.action.ItemTrackingAction;
 import io.jmix.ui.component.*;
+import io.jmix.ui.component.data.table.ContainerTableItems;
 import io.jmix.ui.icon.JmixIcon;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.screen.*;
@@ -59,6 +60,8 @@ public class TableScreen extends Screen {
     private CollectionContainer<Customer> customersDc;
     @Autowired
     private Table<Customer> printableTable;
+    @Autowired
+    private Table<Customer> customersTable1;
     // tag::inject-tableClick[]
     @Autowired
     private Table<Customer> tableClick;
@@ -69,6 +72,12 @@ public class TableScreen extends Screen {
     @Subscribe
     public void onInit(InitEvent event) {
         // end::onInit-start[]
+
+        customersTable.addGeneratedColumn("aaa", entity -> {
+            return null;
+        });
+
+
         // tag::add-base-action[]
         customersTable.addAction(new AboutSingleAction());
         // end::add-base-action[]
@@ -139,6 +148,11 @@ public class TableScreen extends Screen {
                     }
                 }));
         // end::enter-press-action[]
+
+        // tag::programmatic-binding[]
+        customersTable1.setItems(new ContainerTableItems<>(customersDc));
+        // end::programmatic-binding[]
+
         // tag::onInit-end[]
     }
 

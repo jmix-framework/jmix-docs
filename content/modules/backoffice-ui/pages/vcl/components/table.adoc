@@ -10,6 +10,7 @@ The `Table` component presents information in a table view, sorts data, manages 
 
 Component’s XML-name: `table`.
 
+[[basics]]
 == Basics
 
 A typical table is shown below:
@@ -30,53 +31,61 @@ An example of table declaration in the XML screen descriptor is shown below:
 include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=data-start;collection-customers;data-end;layout-start;table;layout-end;]
 ----
 
-In the example, the `data` element defines the xref:data/collection-container.adoc[collection container], which selects `Customer` entities using a JPQL query. The `table` element defines the data container, while the `columns` element defines which entity attributes are used as table columns.
+In the example, there is a xref:data/collection-container.adoc[collection container] for the `Customer` entity. The table is bound to the container using the `dataContainer` attribute, while its `columns` element defines which entity attributes are shown in the table columns.
 
+[[data-binding]]
 == Data Binding
 
-[[data-container]]
-=== Using Collection Container
+[[declarative-binding]]
+=== Declarative Binding
 
-To create a `table` connected to data, use the `dataContainer` attribute, which should contain a reference to a xref:data/collection-container.adoc[collection container].
+Usually, you bind the `table` component to data declaratively in the screen XML descriptor using the `dataContainer` attribute. It should refer to a xref:data/collection-container.adoc[collection container].
 
-=== Using KeyValue Containers
+[[using-key-value-containers]]
+=== Using Key-Value Containers
 
-xref:data/key-value-containers.adoc[KeyValue] containers enable the execution of queries that return scalar values and aggregates. KeyValue containers are designed only for reading data because `KeyValueEntity` is not persistent and cannot be saved by standard persistence mechanisms.
-
-`Table` can be bound to `KeyValueCollectionContainer`, for example:
+You can bind the table to a xref:data/key-value-containers.adoc[key-value container] to display results of a query that returns scalar values and/or aggregates. For example:
 
 [source, xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=data-start;key-value-collection-sales;data-end;layout-start;key-value-table;layout-end;]
 ----
 
-If the table is bound to `KeyValueCollectionContainer`, it should be read-only, and the `editable` attribute becomes nonsense.
-
 [[meta-class]]
-=== Using Meta Class
+=== Programmatic Binding
 
-If you need to define a data container programmatically in the screen controller, use the xref:vcl/xml.adoc#meta-class[metaClass] attribute in XML instead of declarative setting a xref:vcl/xml.adoc#data-container[dataContainer].
+If you need to define a data container programmatically in the screen controller, set the xref:vcl/xml.adoc#meta-class[metaClass] attribute instead of xref:vcl/xml.adoc#data-container[dataContainer] in XML descriptor:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=meta-class-table]
+----
+
+In the screen controller, use `ContainerTableItems` class to bind the table to a data container:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.java[tags=programmatic-binding]
+----
 
 [[columns]]
 == Columns
 
-Columns are used to display and edit data.
+The set of columns for a table is defined in the `columns` element. If it is not specified, columns will be automatically determined by the xref:data-access:fetching.adoc#fetch-plan[fetch plan] defined in `dataContainer`.
 
-The set of columns for a table is defined in the `columns` element. If it is not specified, columns will be automatically determined from the xref:data-access:fetching.adoc#fetch-plan[fetch plan] attributes defined in `dataContainer`.
-
-The `columns` element has the following attributes:
+The `columns` element can have the following attributes:
 
 [[include-all]]
-* `includeAll` loads all the attributes from `fetchPlan` that is defined in `dataContainer`.
+* `includeAll` includes all the attributes from `fetchPlan` that is defined in `dataContainer`.
 +
-In the example below, we will show all the attributes from the fetch plan used in `customersDc`. If the fetch plan contains system properties, they will be shown too.
+In the example below, we will show all the attributes from the fetch plan used in `customersDc`:
 +
 [source, xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=columns-include-all]
 ----
 +
-If the entity fetch plan contains a reference attribute, this attribute will be displayed according to its xref:data-model:entities.adoc#instance-name[instance name]. If you want to show a specific attribute, it must be defined in the fetch plan as well as in the `column` element:
+If the entity fetch plan contains a reference attribute, this attribute will be displayed according to its xref:data-model:entities.adoc#instance-name[instance name]. If you want to show a specific nested attribute, defined it in the fetch plan as well as in the `column` element:
 +
 [source, xml,indent=0]
 ----
@@ -99,7 +108,7 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 Each column is described in a nested `column` element.
 
 [[column-id]]
-`id` is a mandatory attribute, contains the name of an entity attribute displayed in the column. It can be either an attribute of the entity from the data container or a linked entity - object graph traversal is indicated with a dot. For example:
+`id` is a mandatory attribute that specifies the name of an entity attribute displayed in the column. It can be either an attribute of the entity from the data container or a linked entity (use dot notation to traverse the object graph). For example:
 
 [source, xml,indent=0]
 ----
@@ -111,7 +120,7 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 Three different column alignments are supported: `LEFT` (default), `CENTER`, and `RIGHT`.
 
-Right-align numbers when it is useful to compare them by their length. Left-align all the other content. For example:
+Usually, it makes sense to right-align numbers and left-align all the other content. For example:
 
 [source, xml,indent=0]
 ----
@@ -120,16 +129,14 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 image::vcl/components/table-column-align.png[align="center"]
 
+[[column-caption-options]]
 === Column Caption
 
 [[column-caption]]
-`caption` - an optional attribute containing the column caption. If not specified, a localized xref:data-model:entities.adoc#instance-name[instance name] will be displayed.
+`caption` - an optional attribute containing the column caption. If not specified, a xref:localization:message-bundles.adoc#localizing-data-model[localized name] of the entity attribute is used.
 
 [[column-caption-as-html]]
 `captionAsHtml` - an optional attribute defining whether HTML tags can be used in the column caption. The default value is `false`.
-
-[[column-caption-property]]
-`captionProperty` - the name of an entity attribute which should be shown in the column instead of specified by `id`. For example, if you have a reference to the `City` entity with the `name` and `id` attributes, you can define the following column (3):
 
 [source, xml,indent=0]
 ----
@@ -142,14 +149,14 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 include::example$/ex1/src/main/resources/ui/ex1/messages.properties[tags=table-column-message]
 ----
 <2> A column with the default caption
-<3> The column will display the city `id`, but the sorting of the column will be done by the city `name`.
 
 image::vcl/components/table-captions.png[align="center"]
 
+[[column-visibility]]
 === Column Visibility
 
 [[column-collapsed]]
-`collapsed` - an optional attribute; hides the column by default when set to `true`. Users can control the column’s visibility using the menu available via the image:vcl/components/table-column-control-button.png[] button in the top right part of the table when the table’s `columnControlVisible` attribute is not `false`. By default, collapsed is `false`.
+`collapsed` - an optional attribute; hides the column by default when set to `true`. Users can control the column’s visibility using the menu available via the image:vcl/components/table-column-control-button.png[] button in the top right part of the table when the table’s `columnControlVisible` attribute is not `false`. By default, `collapsed` is `false`.
 
 [[column-visible]]
 The `visible` attribute sets the visibility of the column. Possible values - `true`, `false`. By default, all columns are visible.
@@ -204,15 +211,14 @@ image::vcl/components/table-columns-reordering.gif[align="center"]
 
 The column reordering functionality is enabled by default. To disable it, set the `reorderingAllowed` attribute to `false`.
 
-=== Link Supporting
-
-The contents of columns can be displayed as links.
+[[link-to-edit-screen]]
+=== Link To Edit Screen
 
 [[column-link]]
-If the `link` attribute is set to `true`, the column's content is displayed as a link to an entity editor. This approach may be used to simplify navigation: the users will be able to open entity editors simply by clicking on some key attributes.
+If the `link` attribute is set to `true`, the column's content is displayed as a link to an entity editor screen. This approach may be used to simplify navigation: the users will be able to open entity editors by a single click on some key attribute, for example on the customer's name.
 
 [[column-link-screen-id]]
-The `linkScreenId` attribute contains the identifier of the screen that is opened by clicking the link enabled in the `link` attribute.
+The `linkScreenId` attribute contains the identifier of the screen that is must be opened by clicking the link. If it's not set, the framework opens a screen with `\{entity_name\}.edit` id.
 
 [[column-link-screen-open-mode]]
 The `linkScreenOpenMode` attribute sets the screen opening mode (`THIS_TAB`, `NEW_TAB`, `NEW_WINDOW`, or `DIALOG`).
@@ -227,11 +233,11 @@ image::vcl/components/table-columns-link.gif[align="center"]
 [[column-max-text-length]]
 === Maximum Text Length
 
-`maxTextLength` - an optional attribute, allowing to limit the number of characters in a cell.
+`maxTextLength` - an optional attribute, allowing to limit the number of characters in a cell. Extra characters are replaced by ellipsis. To see the entire record, users need to click on its visible part.
 
-If the difference between the actual and the maximum allowed number of characters does not exceed the 10 character threshold, the "extra" characters remain unhidden. To see the entire record, users need to click on its visible part.
+If the difference between the actual and the maximum allowed number of characters does not exceed the 10 character threshold, the "extra" characters remain visible.
 
-In the example below, some cells contain longer values than `maxTextLength+10` and become trimmed.
+In the example below, some cells contain values longer than `maxTextLength+10` and become trimmed.
 
 [source, xml,indent=0]
 ----
@@ -250,25 +256,41 @@ The `column` element may contain a nested `formatter` element that allows you to
 include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=table-column-formatter]
 ----
 
-[[multi-line-cells]]
-== Multiple Lines
+[[caption-property]]
+=== CaptionProperty
 
-Setting the `multiLineCells` attribute to `true` enables a multi-line display for cells containing several lines of text. In this mode, the web browser will load all the rows of the current table page at once instead of lazy-loading the visible part of the table. It is required for proper scrolling in the Web Client. The default value is `false`.
+The `captionProperty` attribute can be used to shown in the column the value of an entity attribute different from the one specified by `id`. For example, if you have a reference to the `City` entity with the `name` and `id` attributes, you can define the following column:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=table-captionProperty]
+----
+
+The column will display the city `id`, but the sorting of the column will be done by the city `name`.
+
+image::vcl/components/table-captions.png[align="center"]
+
+[[multi-line-cells]]
+== Multi-Line Cells
+
+Setting the `multiLineCells` table attribute to `true` enables a multi-line display for cells containing several lines of text. In this mode, the web browser will load all the rows of the current table page at once instead of lazy-loading the visible part of the table. It is required for proper scrolling and may affect performance. The default value is `false`.
 
 image::vcl/components/table-multi-line-cell.png[align="center"]
 
+[[selection]]
 == Selection
 
-The `Table` component enables users to select single or multiple rows.
+The `Table` component allows users to select single or multiple rows.
 
-=== Single
+[[single-selection]]
+=== Single Selection Mode
 
 In a single selection mode, the user can select exactly one row. Single selection mode is enabled by default.
 
 [[multiselect]]
-=== Multiple
+=== Multi Selection Mode
 
-The `multiselect` attribute enables setting multiple selection mode for table rows. If `multiselect` is `true`, users can select multiple rows in the table using a keyboard or mouse holding *Ctrl* or *Shift* keys. By default, multiple selection mode is switched off.
+The `multiselect` attribute enables setting multiple selection mode for table rows. If `multiselect` is `true`, users can select multiple rows in the table using a keyboard or mouse and holding *Ctrl* or *Shift* keys. By default, multiple selection mode is switched off.
 
 [[show-selection]]
 === Show Selection
@@ -282,15 +304,15 @@ The `textSelectionEnabled` attribute defines if text selection is enabled in tab
 
 == Placeholder
 
-A table placeholder is shown when there is no data yet.
+The table allows you to set a placeholder message and/or link which are shown when the data container is empty or not set at all.
 
 [[empty-state-message]]
-The `emptyStateMessage` attribute enables to set the message when no data is loaded, null items are set, or an empty container is used. This attribute is often used together with the `emptyStateLinkMessage` attribute. The message should contain information about why the table is empty.
-
-`emptyStateMessage` supports loading messages from the xref:localization:message-bundles.adoc[message bundle]. If you don’t want to show a message, do not specify this attribute.
+The placeholder message is defined using the `emptyStateMessage` attribute. It should contain an information about why the table is empty.
 
 [[empty-state-link-message]]
-The `emptyStateLinkMessage` attribute enables to set the link message when no data is loaded, null items are set, or an empty container is used. This attribute is often used together with the `emptyStateMessage` attribute. The message should describe the action that needs to be performed to fill the table. For example:
+The placeholder link is defined using the `emptyStateLinkMessage` attribute. It should describe the action that needs to be performed to fill the table.
+
+For example:
 
 [source, xml,indent=0]
 ----
@@ -299,34 +321,32 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 image::vcl/components/table-placeholder.png[align="center"]
 
-`emptyStateLinkMessage` supports loading messages from the message bundle. If you don’t want to show a message, do not specify this attribute.
-
 [[empty-state-click-event]]
-In order to handle click on the link message, you can subscribe to `EmptyStateClickEvent`:
+Generate `emptyStateLinkClickHandler` to handle clicks on the link:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.java[tags=empty-state-link-click-handler]
 ----
 
-To register the event handler programmatically, use the `setEmptyStateLinkClickHandler()` component method.
+To register the click handler programmatically, use the `setEmptyStateLinkClickHandler()` component method.
+
+Both `emptyStateMessage` and `emptyStateLinkMessage` can load messages from the xref:localization:message-bundles.adoc#using-messages-in-ui[message bundle].
 
 [[column-header-visible]]
 == Header Visibility
 
-A table header is a row at the top of the table that helps identify the columns below each of the headers.
-
-The `columnHeaderVisible` attribute sets whether the table header is displayed. By default, a table header is visible.
+The `columnHeaderVisible` attribute sets whether the table header is displayed. By default, the header is visible.
 
 [[column-control-visible]]
 == Column Control Visibility
 
-The user will be able to select which columns are visible using the column control button image:vcl/components/table-column-control-button.png[] in the right part of the table header.
+Users can select which columns are visible using the column control button image:vcl/components/table-column-control-button.png[] in the right part of the table header.
 
-Currently displayed columns are marked with checkmarks in the menu. There are additional menu items:
+Currently displayed columns are marked in the menu. There are additional menu items:
 
 * `Select all` - shows all table columns;
-* `Deselect all` - hides all columns that are possible except the first one. The first column is not hidden to display the table correctly.
+* `Deselect all` - hides all columns that are possible except the first one. The first column always remains visible to display the table correctly.
 
 image::vcl/components/table-column-control-using.png[align="center"]
 
@@ -335,7 +355,7 @@ If the `columnControlVisible` attribute is set to `false`, users cannot hide col
 [[aggregatable]]
 == Aggregating
 
-`Table` supports aggregation for table rows.
+`Table` supports aggregation of values in rows.
 
 The following operations are supported:
 
@@ -353,7 +373,7 @@ To enable aggregation for a table, you should:
 [[aggregation-type]]
 . Set the `type` attribute for the `aggregation` element, which defines the aggregation function.
 
-The aggregated table values are shown in an additional row at the top of the table.
+The aggregated values are shown in an additional row.
 
 [[aggregation-style]]
 The `aggregationStyle` attribute allows you to specify the location of the aggregation row: `TOP` or `BOTTOM`. `TOP` is used by default.
@@ -409,7 +429,7 @@ The `sortable` attribute enables sorting data in the table. By default, it is se
 [[column-sortable]]
 You can disable sorting for a particular <<column,column>> by using its `sortable` attribute.
 
-In the example below, we will disable sorting by the `lastName` column:
+In the example below, we disable sorting by the `lastName` column:
 
 [source, xml,indent=0]
 ----
@@ -418,10 +438,12 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 [[column-sort]]
 
-According to the sort direction, there is a `sort` attribute allowing to set the initial sorting of the table by the specified `column`. Possible values:
+The `sort` attribute of the `column` element allows you to set the initial sorting direction of the table by this `column`. Possible values:
 
-* `ASCENDING` - ascending (for example, A-Z, 1..9) sort order.
-* `DESCENDING` - descending (for example, Z-A, 9..1) sort order.
+* `ASCENDING` - ascending order (0 -> 9 -> A -> Z).
+* `DESCENDING` - descending order (Z -> A -> 9 -> 0).
+
+For example:
 
 [source, xml,indent=0]
 ----
@@ -431,26 +453,13 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 [CAUTION]
 ====
 
-Only one column can be sorted at the same time. So, the example below:
-
-[source, xml,indent=0]
-----
-                        <columns>
-                            <column id="firstName" sort="DESCENDING"/>
-                            <column id="lastName" sort="ASCENDING"/>
-                            <column id="city"/>
-                        </columns>
-----
-
-raises an exception.
-
-Also, if you set `sort` and `sortable="false"` attributes simultaneously for the column, it will cause an error in the application.
+The table can be sorted only by one column at a time. If you set the `sort` attribute for multiple columns, or set `sort` and `sortable="false"` attributes simultaneously, the screen will fail.
 ====
 
 [[paging]]
 == Paging
 
-`Table` enables you to split its content into pages. For these purposes, the nested xref:vcl/components/simple-pagination.adoc[SimplePagination] element is used:
+The xref:vcl/components/simple-pagination.adoc[] component can be used inside `table` to provide pagination:
 
 [source, xml,indent=0]
 ----
@@ -459,17 +468,19 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 image::vcl/components/table-pagination.png[align="center"]
 
+Alternatively, you can use the standalone xref:vcl/components/pagination.adoc[] component.
+
 [[actions]]
 == Table Actions
 
-The `Table` component implements the `ActionsHolder` interface and can contain custom actions, as well as xref:actions/standard-actions.adoc#list-actions[standard actions].
+The `Table` component implements the `ActionsHolder` interface and can contain custom actions, as well as xref:actions/standard-actions.adoc#list-actions[standard list actions].
 
-`actions` - an optional element describing the actions related to the table.
+Table actions are defined in the nested `actions` element.
 
 If an action has a caption, it is displayed as an item of the table <<context-menu-enabled,context menu>>. Additionally, a table action can be assigned to a button located anywhere on the screen.
 
 [[buttons-panel]]
-With the help of the `buttonsPanel` optional XML element, you can add a xref:vcl/containers/buttons-panel.adoc[ButtonsPanel] container to show action buttons above the table.
+You can use the xref:vcl/containers/buttons-panel.adoc[ButtonsPanel] container to show action buttons above the table.
 
 [source, xml,indent=0]
 ----
@@ -484,11 +495,11 @@ image::vcl/components/table-actions.png[align="center"]
 [[table-column-generation]]
 == Column Generation
 
-Column generator handler allows you to define a custom representation of data in a column. It takes two parameters: identifier of the column and implementation of the `Table.ColumnGenerator` interface.  An identifier can match one of the identifiers set for table columns in XML-descriptor – in this case, the new column is inserted instead of the one defined in XML. If the identifier does not match any columns, a new column is added to the right.
+The `columnGenerator` handler allows you to define a custom representation of data in a column.
 
-The `generateCell()` method of the `Table.ColumnGenerator` interface is invoked for each row of the table. The method receives an instance of the entity displayed in the corresponding row. `generateCell()` should return a visual component that will be displayed in the cell.
+The handler is invoked by the framework for each cell when rendering the table. The handler receives an entity instance corresponding to the rendered row and should return a visual component that will be displayed in the cell.
 
-Jmix Studio can generate a handler method stub, and then you should implement it:
+You can create the `columnGenerator` handler for a table column using Studio (see <<handlers,below>>) and implement it as follows:
 
 [source,java,indent=0]
 ----
@@ -511,14 +522,16 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-scr
 
 image::vcl/components/table-generated-columns.png[align="center"]
 
-To register the column generator handler programmatically, use the `addGeneratedColumn()` component method.
+To register the column generator handler programmatically, use the `addGeneratedColumn()` method of the `Table` component. It takes two parameters: identifier of the column and implementation of the `Table.ColumnGenerator` interface.  An identifier can match one of the identifiers set for table columns in XML-descriptor – in this case, the new column replaces the one defined in XML. If the identifier does not match any columns, a new column is added to the right.
+
+The `generateCell()` method of the `Table.ColumnGenerator` interface is an equivalent of the `columnGenerator` handler explained above: it accepts an entity instance corresponding to the rendered row and should return a visual component that will be displayed in the cell.
 
 == Editing Values
 
 Table can be configured to allow inline editing.
 
 [[editable]]
-Use the `editable` attribute to switch the table to in-place editing mode.
+Use the `editable` attribute to switch the table to the editing mode.
 
 [[column-editable]]
 In this mode, the columns with `editable = true` attribute show components to edit the attributes of the corresponding entity. Changing this attribute at runtime is not supported.
@@ -536,7 +549,7 @@ You can define the xref:vcl/xml.adoc#options-container[optionsContainer] and xre
 
 The context menu is activated by right-clicking within the table.
 
-The `contextMenuEnabled` attribute enables the context menu. By default, this attribute is set to `true`. The context menu shows table actions (if any).
+The `contextMenuEnabled` attribute enables the context menu. By default, this attribute is set to `true`. The context menu shows <<actions,table actions>> (if any).
 
 image::vcl/components/table-context-menu.png[align="center"]
 
@@ -626,7 +639,7 @@ include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.ja
 * The `getAggregationResults()` method returns a map with <<aggregatable,aggregation>> results, where map keys are table column identifiers and values are aggregation values.
 
 [[methods-add-printable]]
-* The `addPrintable()` method enables setting a custom presentation of the data within a column when exporting to an XLS file via the `excel` action or directly using the `ExcelExporter` class. The method accepts the column identifier and implementation of the `Table.Printable` interface for the column. For example:
+* The `addPrintable()` method enables setting a custom presentation of the data within a column when exporting to an XLS file via the `excel` action or using the `ExcelExporter` class provided by the *Grid Export Actions* add-on. The method accepts the column identifier and implementation of the `Table.Printable` interface for the column. For example:
 +
 [source,java,indent=0]
 ----
@@ -652,14 +665,14 @@ include::../events-hanlers-generation-tip.adoc[]
 [[aggregation-distribution-provider]]
 === AggregationDistributionProvider
 
-Defines the rules for distributing the aggregated value between rows in a table. According to a custom algorithm, if the user enters a value in an aggregated cell, it is distributed to the constituent cells. It is supported only for the `TOP` aggregation style. To make aggregated cells editable, use the <<aggregation-editable,editable>> attribute of the `aggregation` element.
+Defines the rules for distributing the aggregated value between rows in a table according to a custom algorithm. If the user enters a value in an aggregated cell, it is distributed to the constituent cells. It is supported only for the `TOP` aggregation style. To make aggregated cells editable, use the <<aggregation-editable,editable>> attribute of the `aggregation` element.
 
-When creating a provider, you should use the `AggregationDistributionContext<E>` object, which contains the data needed to distribute the aggregated value:
+When creating a provider, use the `AggregationDistributionContext<E>` object, which contains the data needed to distribute the aggregated value:
 
 * `Column column` where total or group aggregation was changed;
 *  `Object value` − the new aggregation value;
 * `Collection<E> scope` − a collection of entities that will be affected by changed aggregation;
-* `boolean isTotalAggregation` shows total aggregation changed, or it was group aggregation.
+* `boolean isTotalAggregation` - is it a total or group aggregation.
 
 As an example, consider a table that represents a budget. The user creates budget categories and sets the percentages according to which the amount of income should be distributed. Next, the user sets the total amount of income in the aggregated cell; after that, it distributes by category.
 
@@ -684,9 +697,9 @@ To register the aggregation distribution provider programmatically, use the `set
 [[column-collapse-event]]
 === ColumnCollapseEvent
 
-`ColumnCollapseEvent` is sent whenever the column collapses state changes.
+`ColumnCollapseEvent` is sent whenever the <<column-visibility,column visibility>> changes.
 
-Example of subscribing to the event for the `Table` component defined in the screen XML with the `tableCollapsed` id:
+Example of subscribing to the event for the table defined in the screen XML with the `tableCollapsed` id:
 
 [source,java,indent=0]
 ----
@@ -728,7 +741,7 @@ See <<empty-state-click-event,EmptyStateClickEvent>>.
 [[icon-provider]]
 === IconProvider
 
-Each row can have an icon on the left by creating the row icon provider for `Table`:
+The icon provider allows you to add an icon in the beginning of each table row:
 
 [source,java,indent=0]
 ----
@@ -756,7 +769,7 @@ image::vcl/components/table-item-description.gif[align="center"]
 [[lookup-select-handler]]
 === LookupSelectHandler
 
-`LookupSelectHandler` is a handler invoked when a user presses *Enter* or double-clicks a table row in the lookup screen. It accepts the collection of selected entities. You can provide the handler as follows:
+`LookupSelectHandler` is a handler invoked when a user presses *Enter* or double-clicks a table row in the lookup screen. It accepts the collection of selected entities. You can define the handler as follows:
 
 [source,java,indent=0]
 ----
@@ -782,7 +795,7 @@ To register the event handler programmatically, use the `addSelectionListener()`
 [[style-provider]]
 === StyleProvider
 
-`StyleProvider` allows setting table cell display style. The method accepts an implementation of the `Table.StyleProvider` interface as a parameter. The `getStyleName()` method of this interface is invoked by the table for each row and each cell separately. If the method is invoked for a row, the first parameter contains the entity instance displayed by the row, the second parameter is `null`. If the method is called for a cell, the second parameter contains the name of the attribute displayed by the cell.
+`StyleProvider` allows setting table cell display style. The provider is invoked by the table for each row and each cell separately. If the method is invoked for a row, the first parameter contains the entity instance displayed by the row, the second parameter is `null`. If the method is called for a cell, the second parameter contains the name of the attribute displayed by the cell.
 
 Example of setting a style:
 
@@ -791,7 +804,7 @@ Example of setting a style:
 include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.java[tags=style-provider]
 ----
 
-Then you should define the cell and row styles in the application theme. Detailed information on creating a theme is available in xref:themes.adoc[Themes]. Style names representing in the controller form CSS selectors. For example:
+Then you should define the cell and row styles in the application theme. Detailed information on creating a theme is available in xref:themes.adoc[Themes]. Style names returned by the provider in the screen controller should be used as CSS selectors. For example:
 
 [source,css,indent=0]
 ----
