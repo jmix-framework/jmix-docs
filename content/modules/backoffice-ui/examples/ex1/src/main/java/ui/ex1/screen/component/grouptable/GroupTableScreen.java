@@ -6,10 +6,11 @@ import io.jmix.ui.component.GroupTable;
 import io.jmix.ui.component.Table;
 import io.jmix.ui.component.data.GroupInfo;
 import io.jmix.ui.screen.*;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
 import ui.ex1.entity.Level;
+
+import javax.annotation.Nullable;
 
 @UiController("groupTable-screen")
 @UiDescriptor("groupTable-screen.xml")
