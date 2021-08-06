@@ -42,8 +42,9 @@ public class UsingApiScreen extends Screen {
                 .setSize(10)
                 .setEntities("search_Order"); // <2>
         SearchResult searchResult = entitySearcher.search(searchContext); // <3>
-        Collection<Object> instances = searchResultProcessor.loadEntityInstances(searchResult); // <4>
-        // cast and show collection in the grid, for example
+        Collection<Object> instances =
+                searchResultProcessor.loadEntityInstances(searchResult); // <4>
+        // ...
     }
     // end::click-event[]
 }

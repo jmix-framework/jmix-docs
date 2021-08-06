@@ -1,15 +1,17 @@
-= Indexing Queue Processing
+= Indexing Queue
 
-`IndexingQueue` is a table in the database that stores `IndexingQueue` events.  Every `IndexingQueue` event represents one action on one entity instance: `index` or `delete`.
+As soon as you include the Search add-on in your application, it starts xref:config-options.adoc#tracking-changes[tracking changes] in your entities. In this section, we describe how to set up the automatic update of the Elasticsearch indexes with the new data.
 
-NOTE: By default, events are not passed to the Elasticsearch engine. To make data appear in Elasticsearch and be available to search, enable event processing explicitly. 
+The change tracking mechanism stores a queue of actions that should be done for changed entity instances in the the `SEARCH_INDEXING_QUEUE` database table. The `IndexingQueueManager` bean contains methods to process the queue and send changed data to Elasticsearch.
 
-You can use the default configuration of https://www.quartz-scheduler.org[Quartz Job Scheduler^] or create your own.
+NOTE: You should set up periodic processing of the indexing queue, otherwise the search will return stale data.
 
-[[adding-default-quartz-configuration]]
-== Adding Default Quartz Configuration
+You can use https://www.quartz-scheduler.org[Quartz Job Scheduler^] for periodic queue processing as described below.
 
-The Search add-on provides the default configuration of https://www.quartz-scheduler.org[Quartz Job Scheduler^]. To process events stored in `IndexingQueue` on a regular basis, do the following:
+[[default-quartz-configuration]]
+== Default Quartz Configuration
+
+The Search add-on provides the default configuration of Quartz Job Scheduler. To process the indexing queue on a regular basis, do the following:
 
 . Add the line to the `dependencies` section of the `build.gradle` file:
 +
@@ -41,10 +43,10 @@ include::example$/ex1/src/main/resources/application.properties[tags=postgres]
 
 Default configuration creates and schedules a job with the `IndexingQueueProcessing` identity.
 
-[[creating-custom-qurtz-configuration]]
-== Creating Custom Quartz Configuration
+[[custom-qurtz-configuration]]
+== Custom Quartz Configuration
 
-If custom Quartz configuration should be used instead of the default one, in addition to the previous steps, do the following:
+If you want to use a custom Quartz configuration, do the following:
 
 . Set up the default Quartz Configuration according to the <<adding-default-quartz-configuration, previous>> section.
 . Add the following property to the `application.properties` file to disable default configuration:
@@ -54,7 +56,7 @@ If custom Quartz configuration should be used instead of the default one, in add
 include::example$/ex1/src/main/resources/application.properties[tags=not-default]
 ----
 +
-. Create custom job class that invokes `IndexingQueueManager.processNextBatch()`. This method is responsible for sending events to Elasticsearch:
+. Create custom job class that invokes `IndexingQueueManager.processNextBatch()`:
 +
 [source,java,indent=0]
 ----

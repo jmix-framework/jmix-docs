@@ -1,0 +1,72 @@
+= Search Configuration Options
+
+[[indexes-creation]]
+== Index Creation
+
+The Search add-on checks the current configuration of Elasticsearch indexes and compares it to the expected ones. Further actions depend on the selected Index Schema Management Strategy:
+
+* `create-only` - every missing index will be created, existing indexes with irrelevant configuration will be kept as is.
+* `create-or-recreate` - every missing index will be created, existing indexes with irrelevant configuration will be recreated (all data will be lost). This is the default strategy.
+//* `none` - *TODO*
+
+The strategy can be configured by adding the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=management-strategy]
+----
+
+The index schema synchronization is automatically performed on application startup. Besides, it can be manually performed using `synchronizeXXX` operations of xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean].
+
+The EntityIndexing MBean also contains the `recreateIndex` operation. It drops and creates index without taking into account the current Index Schema Management Strategy, even if the target index has an actual configuration. All index data will be lost.
+
+[[index-naming]]
+== Index Naming
+
+Search indexes have the following naming template: `<prefix><entity_name>`.
+
+Default prefix is `search_index_`.
+
+If multiple projects use the same Elasticsearch service, you should ensure that index names are unique: all projects should have unique entity names or projects should have different prefixes.
+
+Prefixes can be configured by adding the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=prefix]
+----
+
+[[existing-data-indexing]]
+== Existing Data Indexing
+
+There are two approaches to existing data indexing:
+
+* *Automatic* - is a part of the index schema synchronization and enabled by default. It enqueues all instances of each entity whose index has been created (in the background process). Automatic indexing can be enabled for specific entities only.
+
+* *Manual* - by using the `enqueueIndexAll` operation of xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean].
+
+To enable automatic indexing for specific entities, add the following application property:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=auto-index]
+----
+
+Also, you can completely disable automatic indexing by adding the following application property:
+
+[source,properties]
+----
+jmix.search.enqueueIndexAllOnStartupIndexRecreationEnabled = false
+----
+
+[[tracking-changes]]
+== Entities Tracking
+
+By default, the system tracks changes of indexed entities. It stores information about all entity instances affected by the changes to the indexing queue.
+
+This behavior can be disabled by adding the following application property:
+
+[source,properties]
+----
+jmix.search.changedEntitiesIndexingEnabled = false
+----

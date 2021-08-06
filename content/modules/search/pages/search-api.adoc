@@ -1,10 +1,13 @@
-= Search API
+= Search API and Internals
+
+[[diagram]]
+== Search Components Diagram
 
 image:search:search_architecture.png[Architecture Diagram, align="center"]
 
-Search consists of the following components:
+Search add-on includes the following components:
 
-* *Startup Index Synchronizer* - automatically validates and recreates irrelevant\missing indexes on application startup. Starts background process with enqueueing all instances of entities related to created indexes.
+* *Startup Index Synchronizer* - automatically validates and recreates irrelevant or missing indexes on application startup. Starts background process with enqueueing all instances of entities related to created indexes.
 * *Entity Tracking Listener* - tracks changes of indexed entities and enqueues corresponding queue items.
 * *Quartz Scheduler* - schedules job that periodically processes items of the Indexing Queue.
 * *Indexing Queue Manager* - enqueues items to the Indexing Queue. Processes previously enqueued items and performs corresponding actions via the Entity Indexer.
@@ -12,15 +15,10 @@ Search consists of the following components:
 * *ES Index Manager* - manages index metadata: creates and drops indexes, validates mappings.
 * *Entity Searcher* - performs searching in indexes and retrieves the search result that can be rendered on a screen.
 
-Indexing workflow:
-
-* Every change (create\update\remove) of indexed entities is tracked via the Entity Tracking Listener and enqueued as a queue item.
-* Scheduled execution of the Indexing Queue Manager extracts the next batch of queue items and processes them - saves or deletes the corresponding document in the index.
-
 [[indexing-api]]
 == Indexing API
 
-If you want to index/delete entity instances directly without enqueuing an event you should use methods of `EntityIndexer`:
+If you want to index/delete entity instances directly without enqueuing an event, use methods of `EntityIndexer`:
 
 * `index(Object entityInstance)` - stores a provided entity instance to index.
 * `indexCollection(Collection<Object> entityInstances)` - stores provided entity instances to index.
@@ -31,7 +29,7 @@ If you want to index/delete entity instances directly without enqueuing an event
 * `deleteByEntityId(Id entityId)` - deletes entity instance from the index by a provided id.
 * `deleteCollectionByEntityIds(Collection<Id> entityIds)` - deletes entity instances from index by provided ids.
 
-If you want to enqueue instances to be indexed/deleted you should use methods of `IndexingQueueManager`:
+If you want to enqueue instances to be indexed/deleted, use methods of `IndexingQueueManager`:
 
 * `enqueueIndex(Object entityInstance)` - enqueues index event for a provided entity instance.
 * `enqueueIndexCollection(Collection<Object> entityInstances)` - enqueues index events for provided entity instances.
@@ -51,7 +49,7 @@ If you want to enqueue instances to be indexed/deleted you should use methods of
 [[searching-api]]
 == Searching API
 
-If you want to search entities in the index, you should use methods of `EntitySearcher`:
+If you want to search entities in the index, use methods of `EntitySearcher`:
 
 * `SearchResult search(SearchContext searchContext, SearchStrategy searchStrategy)` - performs searching in search indexes according to provided `SearchContext` and `SearchStrategy`. 
 * `search(SearchContext searchContext)` - similar to the previous one but uses the default `SearchStrategy`.
@@ -61,26 +59,27 @@ The returned `SearchResult` object contains the result data:
 
 * `SearchContext` - describes the main settings of the current search:
 
-** `searchText` - the text you want to search.
-** `size` - the maximum amount of documents that should be found.
+** `searchText` - the text to search for.
+** `size` - the maximum amount of documents to return.
 ** `offset` - the number of documents that should be skipped.
-** `entities` - a collection of entity names that should be found. If none is specified, the search will be performed within all indexed entities.
+** `entities` - a collection of entity names to search. If none is specified, the search will be performed within all indexed entities.
+
 * `SearchStrategy` - describes the way of `searchText` processing.
 
-Also, you can use `SearchResult` to load a collection of related entity instances. For that purpose, you should use methods of `SearchResultProcessor:`
+Also, you can use `SearchResult` to load a collection of related entity instances. For that purpose, use methods of `SearchResultProcessor:`
 
 * `Collection<Object> loadEntityInstances(SearchResult searchResult)`
 * `Collection<Object> loadEntityInstances(SearchResult searchResult, Map<String, FetchPlan> fetchPlans)`
 
-[[search-mbean]]
-== Search MBean
+[[entity-indexing-mbean]]
+== EntityIndexing MBean
 
-Search provides the following operations within MBean:
+The Search add-on provides an MBean with `jmix.search:type=EntityIndexing` object name that has the following operations:
 
 * `enqueueIndexAll` - enqueues all instances of indexed entities. There are two variants of this operation:
-
 ** with parameter `entityName` - enqueues instances of this entity only.
 ** without parameters - enqueues all instances of all indexed entities.
+
 * `processEntireIndexingQueue` - processes all items in Indexing Queue.
 * `processIndexingQueueNextBatch` - processes next batch of items in Indexing Queue.
 * `recreateIndex` - drops and creates index related to a provided entity. All data will be lost.
@@ -89,3 +88,14 @@ Search provides the following operations within MBean:
 * `synchronizeIndexSchemas` - synchronizes schemas of all search indexes defined in the application. This may cause deletion of indexes with all their data - depends on schema management strategy.
 * `validateIndex` - validates schema of search index related to a provided entity and displays a status.
 * `validateIndexes` - validates schemas of all search indexes defined in the application and displays status for all indexes.
+
+[[security-and-pagination]]
+== Access Control and Pagination
+
+Data access control is performed by the Search add-on in two steps:
+
+* Pre-search - checks xref:security:resource-roles.adoc#entity-policy[entity policies] and excludes indexes related to forbidden entities.
+
+* Post-search - checks if there are any xref:security:row-level-roles.adoc#policies[row-level policies] configured for found entities. If they exist, the found instances are reloaded to apply security policies.
+
+`EntitySearcher` tries to fill the entire page with data within its search request execution. If some data are excluded from the current result set due to security restrictions and there are more suitable documents in indexes, `EntitySearcher` automatically performs additional search requests with a shifted offset to fetch more data. This can happen multiple times until the page is full or there are no more results.

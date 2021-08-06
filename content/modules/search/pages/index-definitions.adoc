@@ -1,0 +1,249 @@
+= Index Definitions
+
+Search indexes are defined using Java interfaces that describe what entities and what attributes must be indexed. You should create such interfaces for each entity for which you want to enable the full-text search.
+
+[[interface]]
+== Index Definition Interface
+
+A Java interface for an index definition should meet the following criteria:
+
+* Can have any name.
+* Should be annotated with the `@JmixEntitySearchIndex` annotation.
+* The annotation must have the `entity` parameter which specifies an entity this Index Definition is created for. One Index Definition should be created per one searchable entity.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;index-definition2]
+----
+
+Indexed entity properties are defined using methods of the interface. These methods should meet the following criteria:
+
+* Should return `void`.
+* Can have any name.
+* Do not have parameters.
+* Do not have implementation.
+* Should be annotated with the `@AutoMappedField` annotation.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;order-mapping;index-definition2]
+----
+
+[[auto-mapped-field]]
+== AutoMappedField Annotation
+
+The `@AutoMappedField` annotation allows you to map specified entity attributes depending on their data type (see <<automatic-mapping,below>>). It can have the following parameters:
+
+* `includeProperties` - a list of entity attributes that should be indexed. Accepts dot notation to specify attributes of related entities. None by default - no properties are indexed and searchable.
+
+* `excludeProperties` - a list of entity attributes that should not be indexed. Accepts dot notation to specify attributes of related entities. None by default.
+
+* `analyzer` - a name of analyzer defined in Elasticsearch that will be used in index field mapping. If nothing is specified - the Elasticsearch https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html#:\~:text=Standard%20analyzeredit,works%20well%20for%20most%20languages[default analyzer^] is used.
+
+* `indexFileContent` - a boolean flag defining if the content of the file found in matched file properties should be indexed. `True` by default.
+
+Both `includeProperties` and `excludeProperties` support `*` wildcard. It is expanded to local properties on the corresponding level:
+
+* `*` - local properties of the indexed entity.
+* `refField.*` - local properties of the entity referenced by the `refField` property.
+
+The wildcard doesn't cover back-reference attributes and attributes of the entity xref:data-model:entities.adoc#traits[traits]: `version`, `createdBy`, etc.
+
+`excludeProperties` is useful only if `includeProperties` contains a wildcard - to limit its expansion. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CardIndexDefinition.java[tags=exclude]
+----
+
+An analyzer is used to transform incoming text values in different ways including some language morphologies. A specified analyzer is used on both indexing and searching steps.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CustomerIndexDefinition.java[tags=interface1;method;interface2]
+----
+
+Multiple mapping annotations can be set on a single method or split between multiple methods for some kind of grouping. The following examples represent the same definition:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;order-mapping;index-definition2]
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void orderMapping();
+}
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    void orderMapping();
+
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void customerMapping();
+}
+----
+
+[[automatic-mapping]]
+== Automatic Mapping
+
+Automatic mapping by the `@AutoMappedField` annotation is supported for entity attributes of the following types:
+
+* <<textual-attributes,Textual>>
+* <<reference-attributes,Reference>>
+* <<file-attributes,File>>
+* <<enumeration-attributes,Enumerations>>
+* <<embedded-attributes,Embedded>>
+
+All of these properties are captured by the wildcard.
+
+[[textual-attributes]]
+=== Textual Attributes
+
+These are attributes of the `String` type. It is the most common case, a value of an attribute is used as the indexed value. A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"textualFieldName": "value"
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"textualFieldName": ["value1", "value2"]
+----
+
+[[reference-attributes]]
+=== Reference Attributes
+
+These are references to related entities. Only the instance name of the related instance is used as the indexed value. None of the nested properties are included. To index nested properties of a related entity, add `refProperty.nestedProperty` or `refProperty.*` to your mapping explicitly.
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": "instanceNameValue"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"refFieldName": {
+"_instance_name": ["instanceNameValue1", "instanceNameValue2"]
+}
+----
+
+[[file-attributes]]
+=== Files
+
+These are attributes of the `FileRef` type referring files in xref:files:file-storage.adoc[File Storage]. Both the file name and content are used as indexed values by default. If you want to index a file name only, you need to set the `indexFileContent` parameter of `@AutoMappedField` to `false`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/EventIndexDefinition.java[tags=file]
+----
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"fileRefField": {
+	"_file_name" : "File name",
+	"_content" : "File content if enabled"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"fileRefField": [
+	{
+		"_file_name" : "File name 1",
+		"_content" : "File content 1"
+	},
+	{
+		"_file_name" : "File name 2",
+		"_content" : "File content 2"
+	}
+]
+----
+
+[[enumeration-attributes]]
+=== Enumeration Attributes
+
+For xref:data-model:enumerations.adoc[enumeration] attributes, xref:localization:message-bundles.adoc#localizing-data-model[localized values] for all available locales are used as indexed values.
+
+A field in the Elasticsearch index looks as follows:
+
+[source,json]
+----
+"enumFieldName": ["enValue", "ruValue"]
+----
+
+In case of multiple enum values there is multiplication - all values in all available locales:
+
+[source,json]
+----
+"enumFieldName": ["enValue1", "ruValue1", "enValue2", "ruValue2"]
+----
+
+[[embedded-attributes]]
+=== Embedded Attributes
+
+These are references to embedded JPA entities. Inclusion of an embedded attribute is equal to inclusion of all its nested attributes `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. Index value depends on the type of the nested attribute. Unsupported types will be ignored.
+
+Consider for example a root entity with the `customer` attribute related to the embedded `Customer` entity with the `firstName` and `lastName` attributes. If you include the `customer` attribute, it will lead to the implicit inclusion of the `customer.firstName` and `customer.lastName` attributes.
+
+[[nested-attributes]]
+=== Nested Attributes and Collections
+
+You can specify nested properties using the dot notation: `refProperty.nestedRefProperty.targetDataProperty`.
+
+Collection attributes are also supported including nested collections on multiple levels. In this case index stores all values of the attribute on the lowest level. For example, property `collectionOfReferences.nestedCollectionOfAnotherReferences.name` is stored as:
+
+[source,json]
+----
+"collectionOfEntityA": {
+	"nestedCollectionOfEntityB": {
+		"name": ["value1", ..., "valueN"]
+	}
+}
+----
+
+The array contains values of the `name` attribute of all `EntityB` instances of all `EntityA` instances within the root entity.
+
+[[programmatic-mapping]]
+== Programmatic Mapping
+
+Instead of using annotations, you can build mapping definition programmatically.
+
+For that purpose you need to create a method in your index definition interface. The method should meet the following criteria:
+
+* Should be default.
+* Can have any name.
+* Does not have parameters.
+* Should have the `MappingDefinition` return type.
+
+You can create a mapping definition within the method body using `MappingDefinition.builder()`.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/service/CustomerIndexDefinition.java[tags=interface1;manual-mapping;interface2]
+----
+
+NOTE: There can be only one method with programmatic mapping. If a method with programmatic mapping exists, all mapping annotations are ignored.
