@@ -9,6 +9,7 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.UUID;
 
@@ -23,6 +24,9 @@ public class Order {
     private UUID id;
 
     // end::order-starts[]
+
+    @Column(name = "DATE_TIME")
+    private LocalDateTime dateTime;
 
     // tag::time[]
     @Column(name = "DELIVERY_TIME")
@@ -47,6 +51,14 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CUSTOMER_ID")
     private Customer customer;
+
+    public LocalDateTime getDateTime() {
+        return dateTime;
+    }
+
+    public void setDateTime(LocalDateTime dateTime) {
+        this.dateTime = dateTime;
+    }
 
     public Date getDeliveryTime() {
         return deliveryTime;

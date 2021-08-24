@@ -1,0 +1,1293 @@
+= DataGrid
+
+++++
+<div class="backoffice-ui-live-demo-container">
+    <a href="https://demo.jmix.io/sampler/#main/sample?id=datagrid-basic-settings" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+`DataGrid`, similarly to the xref:vcl/components/table.adoc[Table] component, is designed to display and sort tabular data and provides means to manipulate rows and columns with greater performance due to the lazy loading of data while scrolling.
+
+In addition to this, `DataGrid` has the following features:
+
+* <<editing,Inline Editor>>;
+* <<item-details-generator,Details Generator>>;
+* Advanced configuration of <<headers-footers,Header and Footer>>;
+* <<column-freezing,Frozen Columns>>.
+
+However, there is no `GroupDataGrid` implementation (but `Table` xref:vcl/components/group-table.adoc[has]).
+
+Component’s XML-name: `dataGrid`.
+
+[[basics]]
+== Basics
+
+A typical `dataGrid` is shown below:
+
+image::vcl/components/data-grid-anatomy.png[align="center"]
+
+. Buttons panel
+. Sort button
+. Pagination
+. Column control button
+. Rows
+. Header row
+
+An example of `dataGrid` declaration in the XML screen descriptor is shown below:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=data-start;collection-customers;data-end;layout-start;data-grid-simple;layout-end;]
+----
+
+In the example, there is a xref:data/collection-container.adoc[collection container] for the `Customer` entity. The `DataGrid` component is bound to the container using the `dataContainer` attribute, while its `columns` element defines which entity attributes are shown in the data grid columns.
+
+[[data-binding]]
+== Data Binding
+
+[[declarative-binding]]
+=== Declarative Binding
+
+Usually, you bind `dataGrid` to data declaratively in the screen XML descriptor using the `dataContainer` attribute. It should refer to a xref:data/collection-container.adoc[collection container].
+
+[[using-key-value-containers]]
+=== Using Key-Value Containers
+
+You can bind the data grid to a xref:data/key-value-containers.adoc[key-value container] to display the results of a query that returns scalar values and/or aggregates. For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=data-start;key-value-collection-sales;data-end;layout-start;key-value-grid;layout-end;]
+----
+
+[[meta-class]]
+=== Programmatic Binding
+
+If you need to define a data container programmatically in the screen controller, set the xref:vcl/xml.adoc#meta-class[metaClass] attribute instead of xref:vcl/xml.adoc#data-container[dataContainer] in XML descriptor:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=meta-class-data-grid]
+----
+
+In the screen controller, use `ContainerDataGridItems` class to bind the data grid to a data container:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-customersDataGrid;inject-customersDc;init-start;programmatic-binding;init-end]
+----
+
+[[columns]]
+== Columns
+
+The set of columns for a data grid is defined in the `columns` element. If it is not specified, columns will be automatically determined by the xref:data-access:fetching.adoc#fetch-plan[fetch plan] defined in `dataContainer`.
+
+The `columns` element can have the following attributes:
+
+[[include-all]]
+* `includeAll` includes all the attributes from `fetchPlan` that is defined in `dataContainer`.
++
+In the example below, we will show all the attributes from the fetch plan used in `customersDc`:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=columns-include-all]
+----
++
+If the entity fetch plan contains a reference attribute, this attribute will be displayed according to its xref:data-model:entities.adoc#instance-name[instance name]. If you want to show a specific nested attribute, defined it in the fetch plan as well as in the `column` element:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=data-start;collection-customers-with-country;data-end;layout-start;columns-include-all-reference;layout-end]
+----
+
+[[exclude]]
+* `exclude` contains a comma-separated list of attributes that should not be loaded to the data grid.
++
+In the example below, we will show all the attributes excluding `id`, `maritalStatus`, and `email`:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=columns-exclude]
+----
+
+[[column]]
+=== Column
+
+Each column is described in a nested `column` element.
+
+[[column-id]]
+
+`id` - an optional attribute with the column identifier. If not set, the string with the `property` value will be used as the column identifier. In this case, setting the `property` value is mandatory; otherwise, the `GuiDevelopmentException` exception will be thrown. The `id` attribute is still mandatory for the columns created in the screen controller.
+
+[[column-property]]
+
+`property` specifies the name of an entity attribute displayed in the column. It can be either an attribute of the entity from the data container or a linked entity (use dot notation to traverse the object graph). For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-column]
+----
+
+[[column-caption-options]]
+=== Column Caption
+
+[[column-caption]]
+`caption` - an optional attribute containing the column caption. If not specified, a xref:localization:message-bundles.adoc#localizing-data-model[localized name] of the entity attribute is used.
+
+This caption is also used as the hiding toggle caption unless explicitly set via the <<collapsing-toggle-caption,collapsingToggleCaption>> attribute.
+
+[[column-collapsing]]
+=== Column Collapsing
+
+[[column-collapsed]]
+`collapsed` - an optional attribute; hides the column by default when set to `true`. Users can control the column’s visibility using the menu available via the image:vcl/components/table-column-control-button.png[] button in the top right part of the data grid when the <<column-collapsing-allowed,columnsCollapsingAllowed>> attribute is `true`. By default, `collapsed` is `false`.
+
+[[column-collapsible]]
+The `collapsible` attribute defines whether a user can hide or show columns using the column control button. The default value is `true`.
+
+[[collapsing-toggle-caption]]
+
+The `collapsingToggleCaption` attribute sets the column’s caption in the column control menu. By default, its value is `null`; in this case, the caption remains the same as the column’s <<column-caption,caption>>.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-collapsed]
+----
+
+image::vcl/components/data-grid-collapse.gif[align="center"]
+
+As you can see, the `age` column is collapsed by default, but users can expand it from the image:vcl/components/table-column-control-button.png[] button's drop-down menu.
+
+At the same time, the `firstName` and `lastName` columns cannot be made collapsed using user actions.
+
+The custom caption for the `hobby` column is shown in the drop-down menu of the column control button.
+
+[[column-width]]
+=== Column Width
+
+`width` - an optional attribute controlling the default column width. It may contain only numeric values in pixels.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-width]
+----
+
+image::vcl/components/data-grid-column-width.png[align="center"]
+
+[[column-expand-ratio]]
+`expandRatio` - an optional attribute that specifies the expand ratio for each column. The ratio must be greater than or equal to 0. If some value is set for at least one column, all implicit values are ignored, and only explicitly assigned values are considered.
+
+By default, all columns expand equally (treated as if all of them had the expand ratio of `1`).
+
+If you set `width` and `expandRatio` attributes simultaneously, the `expandRatio` attribute will be ignored.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-expandRatio-column]
+----
+
+image::vcl/components/data-grid-ratio.png[align="center"]
+
+In the example above, the `DataGrid` component has three columns, with expand ratios `0`, `1`, and `2`, respectively. The column with a ratio of `0` is exactly as wide as its contents require. The column with a ratio of `1` is as wide as it needs, plus a third of any excess space, because we have three parts total, and this column reserves only one of those. The column with a ratio of `2` is as wide as it needs to be, plus two thirds of the excess width.
+
+To clear the expand value, set a negative number to an `expandRatio` attribute.
+
+[[column-minimum-width]]
+The `minimumWidth` attribute defines the minimum guaranteed pixel width of the column when it is set to expand.
+
+The default value of minimum column width is specified in the xref:app-properties.adoc#jmix-ui-data-grid-default-column-min-width[jmix.ui.DataGrid.defaultColumnMinWidth] property.
+
+[[column-maximum-width]]
+
+The `maximumWidth` attribute defines the maximum allowed pixel width of the column when it is set to expand.
+
+The default value of maximum column width is specified in the xref:app-properties.adoc#jmix-ui-data-grid-default-column-max-width[jmix.ui.DataGrid.defaultColumnMaxWidth] property.
+
+[[column-resizable]]
+=== Column Resizing
+
+Users can resize data grid columns:
+
+image::vcl/components/data-grid-resize.gif[align="center"]
+
+The `resizable` attribute defines whether users can resize this column. By default, all columns are resizable.
+
+[[column-resize-mode]]
+Use the `columnResizeMode` attribute to specify the resize mode. Two modes are supported:
+
+* In the `ANIMATED` mode, the grid redraws its columns continuously when users resize columns.
+* In the `SIMPLE` mode, the grid redraws columns only when the user releases the mouse button.
+
+The column size changes can be tracked with <<column-resize-event,ColumnResizeEvent>>.
+
+[[reordering-allowed]]
+=== Column Reordering
+
+`DataGrid` provides the drag-and-drop functionality allowing users to change the order in which columns are displayed within the data grid.
+
+// TODO: поменять тут скриншот. Этот от компонента Table. Жду решения тикета https://github.com/Haulmont/jmix-ui/issues/623
+
+image::vcl/components/table-columns-reordering.gif[align="center"]
+
+The column reordering functionality is enabled by default. To disable it, set the `reorderingAllowed` attribute to `false`.
+
+The column order changes can be tracked with <<column-reorder-event,ColumnReorderEvent>>.
+
+[[column-freezing]]
+=== Column Freezing
+
+`DataGrid` allows you to anchor columns to its left side. It can help keep the essential columns always visible in a grid with a large number of columns. Frozen columns are not scrolled when you scroll the grid horizontally.
+
+The `frozenColumnCount` attribute sets the number of fixed columns. The `0` value means that no columns will be fixed except the predefined column with checkboxes for multiple-choice if the <<checkbox-selection,checkbox selection mode>> is used. The `-1` value makes even a multi-select column not fixed. The default value is `0`.
+
+Let's consider an example with a data grid where the first two columns are frozen.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-frozen-column]
+----
+
+image::vcl/components/data-grid-frozen.gif[align="center"]
+
+== Sizes
+
+=== Grid Sizing
+
+In addition to the xref:vcl/xml.adoc#height[height] and xref:vcl/xml.adoc#width[width] attributes, `DataGrid` has the `minHeight` and `minWidth` optional attributes:
+
+[[min-height]]
+* `minHeight` is used to set the minimum height of the `DataGrid` component.
+
+[[min-width]]
+* `minWidth` is used to set the minimum width of the `DataGrid` component.
+
+=== Column Sizing
+
+See the `width`, `expandRatio`, `minimumWidth` and `maximumWidth` attributes in the <<column-width,Column Width>> section.
+
+=== Row Sizing
+
+To set the header row height, use the <<header-row-height,headerRowHeight>> attribute.
+
+[[body-row-height]]
+Use the `bodyRowHeight` attribute to set the height of a body rows in pixels. If the value is `-1`, the row height is calculated based on the theme for an empty row before the `DataGrid` is displayed.
+
+To set the footer row height, use the <<footer-row-height,footerRowHeight>> attribute.
+
+In the example below, we will show the `DataGrid` component with a custom height of a header and body rows:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=sized-grid]
+----
+
+image::vcl/components/data-grid-custom-row-height.png[align="center"]
+
+[[selection]]
+== Selection
+
+The `DataGrid` component allows users to select single or multiple rows.
+
+[[selection-mode]]
+The `selectionMode` attribute sets the rows selection mode. There are 4 predefined selection modes:
+
+* `SINGLE`;
+* `MULTI`;
+* `MULTI_CHECK`;
+* `NONE`.
+
+Rows selection events can be tracked by <<selection-event,SelectionEvent>>.
+
+[[single-selection]]
+=== Single Selection Mode
+
+Set the `selectionMode` attribute to the `SINGLE` value to allow users to select a single row at a time. Single selection mode is enabled by default.
+
+[[multi-selection]]
+=== Multi Selection Mode
+
+If the `selectionMode` attribute is set to `MULTI`, users can select multiple rows in the grid using a keyboard or mouse and holding *Ctrl* or *Shift* keys.
+
+[[checkbox-selection]]
+=== Checkbox Selection Mode
+
+If the `selectionMode` attribute is set to `MULTI_CHECK`, users can select multiple rows using the embedded column with checkboxes.
+
+image::vcl/components/data-grid-checkbox-select.png[align="center"]
+
+[[none-selection]]
+=== Disabling Selection
+
+If the `selectionMode` attribute is set to `NONE`, the selection is disabled.
+
+[[text-selection-enabled]]
+=== Text Selection
+
+The `textSelectionEnabled` attribute defines if text selection is enabled in grid cells. The default value is `false`.
+
+== Placeholder
+
+`DataGrid` allows you to set a placeholder message and/or link, shown when the data container is empty or not set at all.
+
+[[empty-state-message]]
+The placeholder message is defined using the `emptyStateMessage` attribute. It should contain information about why the grid is empty.
+
+[[empty-state-link-message]]
+The placeholder link is defined using the `emptyStateLinkMessage` attribute. It should describe the action that needs to be performed to fill the grid.
+
+For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=placeholder-grid]
+----
+
+image::vcl/components/data-grid-placeholder.png[align="center"]
+
+Both `emptyStateMessage` and `emptyStateLinkMessage` can load messages from the xref:localization:message-bundles.adoc#using-messages-in-ui[message bundle].
+
+To handle clicks on the link, use <<empty-state-link-click-handler,EmptyStateLinkClickHandler>>.
+
+[[column-collapsing-allowed]]
+== Column Control Visibility
+
+Users can select which columns are <<column-collapsing,collapsed>> using the column control button image:vcl/components/table-column-control-button.png[] in the right part of the data grid header.
+
+Currently displayed columns are marked in the drop-down menu. There are additional menu items:
+
+* `Select all` - shows all data grid columns;
+* `Deselect all` - hides all columns that are possible.
+
+image::vcl/components/data-grid-column-collapsing-allowed.png[align="center"]
+
+If the `columnsCollapsingAllowed` attribute is set to `false`, users cannot collapse columns. The default value is `true`.
+
+When a column name is checked/unchecked, the value of the <<column-collapsed,collapsed>> attribute of this column is updated.
+
+The column collapsing changes can be tracked with <<column-collapsing-change-event,ColumnCollapsingChangeEvent>>.
+
+[[headers-footers]]
+== Headers and Footers
+
+[[header-visible]]
+The `headerVisible` attribute defines whether the `DataGrid` header is visible. The default value is `true`.
+
+[[header-row-height]]
+Use the `headerRowHeight` attribute to set the height of a header row in pixels. If the value is `-1`, the row height is calculated based on the theme for an empty row before the `DataGrid` is displayed. The default value is `-1`.
+
+[[footer-visible]]
+The `footerVisible` attribute defines whether the `DataGrid` footer is visible. The default value is `true`.
+
+[[footer-row-height]]
+Use the `footerRowHeight` attribute to set the height of a footer row in pixels. If the value is `-1`, the row height is calculated based on the theme for an empty row before the `DataGrid` is displayed. The default value is `-1`.
+
+`HeaderRow` and `FooterRow` interfaces are used to represent header and footer cells respectively. These cells may be merged for multiple columns.
+
+The following methods of `DataGrid` allow to create and manage the `DataGrid` header and footer:
+
+* `appendHeaderRow()`, `appendFooterRow()` - adds a new row at the bottom of the header/footer section.
+* `prependHeaderRow()`, `prependFooterRow()` - adds a new row at the top of the header/footer section.
+* `addHeaderRowAt()`, `addFooterRowAt()` - inserts a new row at the given position to the header/footer section. Shifts the row currently at that position and any subsequent rows down incrementing their indices.
+* `removeHeaderRow()`, `removeFooterRow()` - removes the given row from the header/footer section.
+* `getHeaderRowCount()`, `getFooterRowCount()` - gets the row count for the header/footer section.
+* `setDefaultHeaderRow()` - sets the default row of the header. The default row is a special header row providing a user interface for sorting columns.
+
+`HeaderCell` and `FooterCell` interfaces provide means of customization of static `DataGrid` cells:
+
+* `setStyleName()` - sets a custom style name for this cell.
+* `getCellType()` - returns the type of content stored in this cell. There are 3 types of `DataGridStaticCellType` enumeration available:
+
+** `TEXT`
+** `HTML`
+** `COMPONENT`
+
+* `getComponent()`, `getHtml()`, `getText()` - returns the content displayed in this cell depending on its type.
+
+Below is an example of `DataGrid` with the header that contains merged cells and the footer displaying calculated values.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-header-footer]
+----
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=init-footer-header-var;init-start;init-footer-header;init-end;init-footer;init-header;get-average;calculate-member-count]
+----
+
+image::vcl/components/data-grid-header-footer.png[align="center"]
+
+[[aggregatable]]
+== Aggregating
+
+`DataGrid` supports the aggregation of values in rows.
+
+The following operations are supported:
+
+* `SUM` - calculate the sum;
+* `AVG` - calculate the average value;
+* `COUNT` - calculate the total number;
+* `MIN` - find the minimum value;
+* `MAX` - find the maximum value.
+
+To enable aggregation for a data grid, you should:
+
+. Set the `aggregatable` attribute to `true`.
+. Set the `aggregation` element for aggregated grid columns.
++
+
+[[aggregation-type]]
+. Set the `type` attribute for the `aggregation` element, which defines the aggregation function.
+
+The aggregated values are shown in an additional row.
+
+[[aggregation-position]]
+The `aggregationPosition` attribute allows you to specify the location of the aggregation row: `TOP` or `BOTTOM`. `TOP` is used by default.
+
+[NOTE]
+====
+By default, only numeric data types are supported in aggregated columns, such as `Integer`, `Double`, `Long`, and `BigDecimal`.
+====
+
+An example of an aggregated data grid description:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=aggregation-grid]
+----
+
+image::vcl/components/data-grid-aggregation.png[align="center"]
+
+[[aggregation-value-description]]
+The `valueDescription` attribute defines a hint displayed in a popup when a user hovers the mouse cursor on the aggregated value. For the operations listed above (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), popup hints are already available by default.
+
+[[aggregation-formatter]]
+You can specify `Formatter` to display the aggregated value in the format other than the standard for this `Datatype`:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-aggregation-format]
+----
+
+[[aggregation-strategy-class]]
+The `aggregation` element can also contain the `strategyClass` attribute specifying a class implementing the `AggregationStrategy` interface.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/CustomerHobbyAggregation.java[tags=aggregation-strategy]
+----
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-aggregation-strategy]
+----
+
+[[grid-sorting]]
+== Sorting
+
+`DataGrid` allows users to sort column data. Sorting functionality is enabled by default.
+
+The `sortable` attribute enables sorting data in the grid. By default, it is set to `true`. If sorting is allowed, clicking a column header will show a image:vcl/components/table-sortable-down.png[]/image:vcl/components/table-sortable-up.png[] icon to the right of the column name.
+
+[[column-sortable]]
+You can disable sorting for a particular <<column,column>> by using its `sortable` attribute.
+
+In the example below, we disable sorting by the `lastName` column:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-sorting]
+----
+
+[[column-sort]]
+
+The `sort` attribute of the `column` element allows you to set the initial sorting direction of the data grid by this `column`. Possible values:
+
+* `ASCENDING` - ascending order (0 -> 9 -> A -> Z).
+* `DESCENDING` - descending order (Z -> A -> 9 -> 0).
+
+For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-sort]
+----
+
+[CAUTION]
+====
+`DataGrid` can be sorted only by one column at a time. If you set the `sort` attribute for multiple columns or set `sort` and `sortable="false"` attributes simultaneously, the screen will fail.
+====
+
+The `DataGrid` sorting events can be tracked by <<sort-event,SortEvent>>.
+
+[[paging]]
+== Paging
+
+The xref:vcl/components/simple-pagination.adoc[] component can be used inside `dataGrid` to provide pagination:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-paging]
+----
+
+image::vcl/components/data-grid-pagination.png[align="center"]
+
+Alternatively, you can use the standalone xref:vcl/components/pagination.adoc[] component.
+
+[[actions]]
+== DataGrid Actions
+
+The `DataGrid` component implements the `ActionsHolder` interface and can contain custom actions, as well as xref:actions/standard-actions.adoc#list-actions[standard list actions].
+
+Data grid actions are defined in the nested `actions` element.
+
+If an action has a caption, it is displayed as an item of the data grid <<context-menu-enabled,context menu>>. Additionally, a data grid action can be assigned to a button located anywhere on the screen.
+
+[[buttons-panel]]
+You can use the xref:vcl/containers/buttons-panel.adoc[ButtonsPanel] container to show action buttons above the data grid.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-actions-buttons-panel]
+----
+<1> Define the `create` standard action.
+<2> Define the `about` custom action.
+<3> Define a `ButtonsPanel` container inside a data grid.
+
+image::vcl/components/data-grid-actions.png[align="center"]
+
+[[data-grid-column-generation]]
+== Column Generation
+
+`ColumnGeneratorEvent` allows you to add generated, or calculated, columns and define a custom representation of data in a column.
+
+The handler is invoked by the framework for each cell when rendering the data grid. `ColumnGeneratorEvent` contains information on the entity, displayed in the current `DataGrid` row, and the column identifier.
+
+You can create the `ColumnGeneratorEvent` handler for a data grid column using Studio. To do this, you should choose a generated type from the list suggested by Studio and the corresponding type of <<renderers,renderer>>.
+
+As an example, let's create a generated column containing the full name of the customer.
+
+First, create a column with the `fullName` id:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=text-renderer]
+----
+
+Then create the `ColumnGeneratorEvent` handler for the `fullName` column using Studio and implement it as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=column-generator]
+----
+
+The result:
+
+image::vcl/components/data-grid-generated-column.png[align="center"]
+
+The `fullName` column is a generated column with <<text-renderer,TextRenderer>>.
+
+To register the column generator handler programmatically, use the `addGeneratedColumn()` method of the `DataGrid` component.
+
+[[renderers]]
+== Renderers
+
+The way the data is displayed in columns can be customized using parameterized declarative renderers. Some `DataGrid` renderers are set by special XML elements with parameters defined in the corresponding attributes. Renderers can be declared for not generated columns.
+
+The framework provides the following renderers:
+
+* <<button-renderer,ButtonRenderer>>
+* <<image-renderer,ImageRenderer>>
+* <<check-box-renderer,CheckBoxRenderer>>
+* <<number-renderer,NumberRenderer>>
+* <<local-date-time-renderer,LocalDateTimeRenderer>>
+* <<local-date-renderer,LocalDateRenderer>>
+* <<date-renderer,DateRenderer>>
+* <<progress-bar-renderer,ProgressBarRenderer>>
+* <<html-renderer,HtmlRenderer>>
+* <<clickable-text-renderer,ClickableTextRenderer>>
+* <<text-renderer,TextRenderer>>
+* <<component-renderer,ComponentRenderer>>
+* <<icon-renderer,IconRenderer>>
+
+[[button-renderer]]
+=== ButtonRenderer
+
+`ButtonRenderer` displays string values as a button caption.
+
+`ButtonRenderer` cannot be declared in the XML descriptor because it is not possible to define a renderer click listener in the XML descriptor. Studio will generate the `ButtonRenderer` declaration code in the `onInit()` screen controller method, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-gridButtonRenderer;inject-notifications;init-start;button-renderer;init-end]
+----
+
+image::vcl/components/data-grid-button-renderer.png[align="center"]
+
+[[image-renderer]]
+=== ImageRenderer
+
+`ImageRenderer` is a renderer for presenting images. The value of the corresponding property is used as the image location. Location can be a theme resource or URL.
+
+`ImageRenderer` cannot be declared in the XML descriptor because it is not possible to define a renderer click listener in the XML descriptor. Studio will generate the `ImageRenderer` declaration code in the `onInit()` screen controller method, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-imageGrid;inject-notifications;init-start;image-renderer;init-end]
+----
+
+The result:
+
+image::vcl/components/data-grid-image-renderer.png[align="center"]
+
+[[check-box-renderer]]
+=== CheckBoxRenderer
+
+`CheckBoxRenderer` displays boolean values as a checkbox icon.
+
+The `column` element of `DataGrid` has a child `checkBoxRenderer` element:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-check-box-renderer]
+----
+
+[[number-renderer]]
+=== NumberRenderer
+
+`NumberRenderer` displays numbers in the defined format.
+
+The `column` element of `DataGrid` has a child `numberRenderer` element with non-required `nullRepresentation` attribute and required `format` string attribute.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-number-renderer]
+----
+
+`formatString` is the format string describing the number format which will be used to create the `NumberFormat` instance.
+
+[[local-date-time-renderer]]
+=== LocalDateTimeRenderer
+
+`LocalDateTimeRenderer` displays dates as `LocalDateTime` values.
+
+The `column` element of `DataGrid` has a child `localDateTimeRenderer` element with non-required `nullRepresentation` attribute and required `format` string attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-local-date-time-renderer]
+----
+
+[[local-date-renderer]]
+=== LocalDateRenderer
+
+`LocalDateRenderer` displays dates as `LocalDate` values.
+
+The `column` element of `DataGrid` has a child `localDateRenderer` element with non-required `nullRepresentation` attribute and required `format` string attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-local-date-renderer]
+----
+
+The result:
+
+image::vcl/components/data-grid-local-date-renderer.png[align="center"]
+
+[[date-renderer]]
+=== DateRenderer
+
+`DateRenderer` displays dates in the defined format.
+
+The `column` element of `DataGrid` has a child `dateRenderer` element with non-required `nullRepresentation` attribute and required `format` string attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-date-renderer]
+----
+
+`formatString` is the format string describing the date and time format used to create the `DateFormat` instance.
+
+image::vcl/components/data-grid-date-renderer.png[align="center"]
+
+Please note, the `startDate` field has a `DateRenderer`, and the `endDate` field does not.
+
+[[progress-bar-renderer]]
+=== ProgressBarRenderer
+
+`ProgressBarRenderer` displays `double` values between 0 and 1 as a `ProgressBar` component.
+
+The `column` element of `DataGrid` has a child `progressBarRenderer` element:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-progress-bar-renderer]
+----
+
+The result:
+
+image::vcl/components/data-grid-progress-bar-renderer.png[align="center"]
+
+[[html-renderer]]
+=== HtmlRenderer
+
+`HtmlRenderer` displays HTML layout.
+
+The `column` element of `DataGrid` has a child `htmlRenderer` element with a non-required `nullRepresentation` attribute.
+
+Below is an example of rendering the `endDate` attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-html-renderer]
+----
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=html-renderer]
+----
+
+The result:
+
+image::vcl/components/data-grid-html-renderer.png[align="center"]
+
+[[clickable-text-renderer]]
+=== ClickableTextRenderer
+
+`ClickableTextRenderer` displays simple plain-text string values as a link with call back handler.
+
+`ClickableTextRenderer` cannot be declared in the XML descriptor because it is not possible to define a renderer click listener in the XML descriptor. Studio will generate the `ClickableTextRenderer` declaration code in the `onInit()` screen controller method, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-gridClick;inject-notifications;init-start;clickable-text-renderer;init-end]
+----
+
+The result:
+
+image::vcl/components/data-grid-click-text-renderer.gif[align="center"]
+
+[[text-renderer]]
+=== TextRenderer
+
+`TextRenderer` is a renderer for presenting simple plain-text string values.
+
+The `column` element of `DataGrid` has a child `textRenderer` element with non-required `nullRepresentation` attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=text-renderer]
+----
+
+[[component-renderer]]
+=== ComponentRenderer
+
+`ComponentRenderer` is a renderer for UI components.
+
+The `column` element of `DataGrid` has a child `componentRenderer` element:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-component-renderer]
+----
+
+In the example below, we will display the `age` value in the `Slider` component.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=component-renderer]
+----
+
+The result:
+
+image::vcl/components/data-grid-component-renderer.png[align="center"]
+
+[[icon-renderer]]
+=== IconRenderer
+
+`IconRenderer` is a renderer that represents `JmixIcon`.
+
+The `column` element of `DataGrid` has a child `iconRenderer` element.
+
+Below is an example of rendering a generated `hasEmail` attribute:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-icon-renderer]
+----
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=icon-renderer]
+----
+
+The result:
+
+image::vcl/components/data-grid-icon-renderer.png[align="center"]
+
+[[item-details-generator]]
+== Item Details Generator
+
+Item details are expandable content areas used to display more information for a specific row.
+
+The `DetailsGenerator` interface allows you to create a custom component to display item details.
+
+You can create the `DetailsGenerator` handler for `DataGrid` using Studio (see <<handlers,below>>) and implement it as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-detailsGrid;details-generator;create-close-button;get-content]
+----
+
+To handle showing and hiding the details you should implement your own listener. For instance, in this sample, we handle opening the details in the `ItemClickAction` of the `DataGrid` component:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=item-click-event]
+----
+
+The result:
+
+image::vcl/components/data-grid-detail-generator.png[align="center"]
+
+[[editing]]
+== Editing Values
+
+[[editor-enabled]]
+`DataGrid` provides inline editing that allows users to manipulate grid data. To enable inline editing, set the `editorEnabled` attribute to `true`.
+
+=== Usage
+
+* Inline editing can be instantiated by double-clicking on the field to be edited or pressing *Enter* when an editable cell is focused.
+
+[[column-editable]]
+* The columns with `editable = true` attribute show components to edit the attributes of the corresponding entity. Non-editable fields will be disabled.
+* The component type for each editable column is selected automatically based on the type of the corresponding entity attribute. For example, for string and numeric attributes, the application will use xref:vcl/components/text-field.adoc[TextField], for `Date` - xref:vcl/components/date-field.adoc[DateField], for enumerations - xref:vcl/components/combo-box.adoc[ComboBox], for links to other entities - xref:vcl/components/entity-picker.adoc[EntityPicker].
+* Once a row becomes editable, default *OK* and *Cancel* buttons will appear near the row allowing users to commit or cancel the edit.
+* To save the changes and exit edit mode, click the *OK* button or press *Enter*.
+* To discard the changes and exit edit mode, click the *Cancel* button or press *Esc*.
+
+image::vcl/components/data-grid-editing.png[align="center"]
+
+[[editor-buffered]]
+=== Modes
+
+Editing can be either buffered and non-buffered.
+
+* In the buffered mode, changes must be explicitly committed.
+* Non-buffered editing automatically commits changes when a field loses focus.
+
+The `editorBuffered` attribute sets the buffered editor mode. The default value is `true`.
+
+=== Inline Editor Customizing
+
+[[editor-cancel-caption]]
+The `editorCancelCaption` attribute sets the caption on the cancel button in the `DataGrid` editor.
+
+[[editor-save-caption]]
+The `editorSaveCaption` attribute sets the caption on the save button in the `DataGrid` inline editor.
+
+[[edit-field-generator]]
+The editor field can be customized with the help of `EditorFieldGenerationContext` class.
+
+You should create an edit field generator that generates a component for this column in `DataGrid` editor, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=inject-citiesDc;edit-field-generator]
+----
+
+The result:
+
+image::vcl/components/data-grid-edit-field-generator.png[align="center"]
+
+[[editor-cross-field-validate]]
+=== Cross Field Validation
+
+`DataGrid` inline editor can take into account entity constraints (cross-field validation). If there are validation errors, `DataGrid` will show an error message. To enable or disable validation, use the `editorCrossFieldValidate` attribute. The default value is `true`.
+
+=== Editor Events
+
+[[editor-open-event]]
+* `EditorOpenEvent` is an event that is fired before the `DataGrid` editor is opened. Provides access to the components used in the editor, allowing the possibility to change their values programmatically.
++
+For example:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=editor-open-event]
+----
+
+[[editor-close-event]]
+* `EditorCloseEvent` is an event that is fired when the `DataGrid` editor is closed. Provides access to the components used in the editor, allowing the possibility to use their values programmatically.
+
+[[editor-pre-commit-event]]
+* `EditorPreCommitEvent` is an event that is fired before the item is updated. Provides access to the components used in the editor, allowing the possibility to use their values programmatically.
+
+[[editor-post-commit-event]]
+* `EditorPostCommitEvent` is an event that is fired after the item is updated. Provides access to the components used in the editor, allowing the possibility to use their values programmatically.
+
+The changes are committed to the data container only. The logic to save these changes in the database should be added separately.
+
+=== Methods of Inline Editor
+
+[[method-get-edited-item]]
+* `getEditedItem()` returns the item that is currently being edited or `null` if no item is being edited at the moment.
+
+[[method-is-editor-active]]
+* `isEditorActive()` returns whether an item is currently being edited in the editor.
+
+[[method-edit]]
+* The `edit()` method opens the editor interface for the provided entity. Scrolls `DataGrid` to bring the entity to view if it is not already visible.
+
+[[context-menu-enabled]]
+== Context Menu
+
+The context menu is activated by right-clicking within the data grid.
+
+The `contextMenuEnabled` attribute enables the context menu. By default, this attribute is set to `true`. The context menu shows <<actions,data grid actions>> (if any).
+
+The right mouse clicks on the data grid can be tracked with <<context-click-event,ContextClickEvent>>.
+
+[[stylename]]
+== Styling
+
+You can set predefined styles to the `DataGrid` component using the `stylename` attribute either in the XML descriptor or in the screen controller:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/datagrid/data-grid-screen.xml[tags=grid-stylename]
+----
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=set-style-name]
+----
+
+Predefined styles:
+
+* `borderless` - removes the outer border of the data grid;
+* `no-horizontal-lines` - removes the horizontal divider lines between the data grid rows;
+* `no-vertical-lines` - remove the vertical divider lines between the data grid columns.
+* `no-stripes` - removes the alternating row colors.
+
+The appearance of the `DataGrid` component can be customized using SCSS variables with the `$jmix-datagrid-*` prefix. You can change these variables in the visual editor after creating a xref:themes/custom_theme.adoc[custom theme].
+
+[[methods]]
+== Methods of DataGrid Interface
+
+[[methods-get-columns]]
+* `getColumns()` returns a copy of currently configured columns in their current visual order in this `DataGrid`.
+
+[[methods-get-visible-columns]]
+* `getVisibleColumns()` returns a copy of columns not hidden by security permissions.
+
+[[methods-sort]]
+* The `sort()` method <<grid-sorting,sorts>> the `DataGrid` data for the specified column in the chosen sort direction.
+
+[[methods-scroll-to]]
+* `scrollTo()` allows you to scroll the `DataGrid` to the specified row. It takes an entity instance identifying the row as a parameter. Besides the entity instance, an overloaded method can take a `ScrollDestination` parameter with the following possible values:
+
+** `ANY` - scroll as little as possible to show the target element. If the element fits into view, this works as `START` or `END`, depending on the current scroll position. If the element does not fit into view, this works as `START`.
+** `START` - scrolls so that the element is shown at the start of the viewport. The viewport will, however, not scroll beyond its contents.
+** `MIDDLE` - scrolls so that the element is shown in the middle of the viewport. However, the viewport will not scroll beyond its contents, given more elements than what the viewport can show at once. Under no circumstances will the viewport scroll before its first element.
+** `END` - scrolls so that the element is shown at the end of the viewport. The viewport will, however, not scroll before its first element.
+
+[[methods-scroll-to-start-end]]
+* `scrollToStart()` and `scrollToEnd()` - scroll `DataGrid` to the first data item and to last data item respectively.
+
+[[methods-get-aggregation-results]]
+* The `getAggregationResults()` method returns a map with <<aggregatable,aggregation>> results, where map keys are data grid column identifiers and values are aggregation values.
+
+[[handlers]]
+== Events and Handlers
+
+include::../events-hanlers-generation-tip.adoc[]
+
+[[column-collapsing-change-event]]
+=== ColumnCollapsingChangeEvent
+
+`ColumnCollapsingChangeEvent` is sent when a column's <<column-collapsing,collapsing>> changes.
+
+Example of subscribing to the event for the data grid defined in the screen XML with the `collapseGrid` id:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=column-collapsing-change-event]
+----
+
+To register the event handler programmatically, use the `addColumnCollapsingChangeListener()` component method.
+
+[[column-reorder-event]]
+=== ColumnReorderEvent
+
+See xref:vcl/components/table.adoc#column-reorder-event[ColumnReorderEvent].
+
+[[column-resize-event]]
+=== ColumnResizeEvent
+
+`ColumnResizeEvent` is sent when a column is <<column-resizable,resized>>.
+
+Example of subscribing to the event for the data grid defined in the screen XML with the `resizedEventGrid` id:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=column-resize-event]
+----
+
+To register the event handler programmatically, use the `addColumnResizeListener()` component method.
+
+[[context-click-event]]
+=== ContextClickEvent
+
+`ContextClickEvent` happens when a context-click occurs on the client-side inside `DataGrid`.
+
+`ContextClickEvent` contains information about mouse event details.
+
+Example of subscribing to the event for the data grid defined in the screen XML with the `contextGrid` id:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=context-click-event]
+----
+
+To register the event handler programmatically, use the `addContextClickListener()` component method.
+
+=== EditorCloseEvent
+
+See <<editor-close-event,EditorCloseEvent>>.
+
+=== EditorOpenEvent
+
+See <<editor-open-event,EditorOpenEvent>>.
+
+=== EditorPostCommitEvent
+
+See <<editor-post-commit-event,EditorPostCommitEvent>>.
+
+=== EditorPreCommitEvent
+
+See <<editor-pre-commit-event,EditorPreCommitEvent>>.
+
+[[item-click-event]]
+=== ItemClickEvent
+
+`ItemClickEvent` is sent when the user clicks on a data grid. `ItemClickEvent` contains information about:
+
+* Mouse event details;
+* An entity instance represented by the clicked row;
+* An item `id`;
+* `id` of the clicked `DataGrid` column.
+
+As an example, we will give the user to begin <<editing,editing>> by single-clicking on an editable cell:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=item-click-event2]
+----
+
+To register the event handler programmatically, use the `addItemClickListener()` component method.
+
+[[selection-event]]
+=== SelectionEvent
+
+See xref:vcl/components/table.adoc#selection-event[SelectionEvent].
+
+[[sort-event]]
+=== SortEvent
+
+`SortEvent` is sent when a <<grid-sorting,sort>> order is changed.
+
+Example of subscribing to the event for the data grid defined in the screen XML with the `sortGrid` id:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=sort-event]
+----
+
+To register the event handler programmatically, use the `addSortListener()` component method.
+
+[[context-help-icon-click-handler]]
+=== ContextHelpIconClickHandler
+
+See xref:vcl/api.adoc#context-help-icon-click-handler[ContextHelpIconClickHandler].
+
+[[details-generator]]
+=== DetailsGenerator
+
+See <<item-details-generator,DetailsGenerator>>.
+
+[[empty-state-link-click-handler]]
+=== EmptyStateLinkClickHandler
+
+See xref:vcl/components/table.adoc#empty-state-click-event[EmptyStateLinkClickHandler].
+
+[[lookup-select-handler]]
+=== LookupSelectHandler
+
+See xref:vcl/components/table.adoc#lookup-select-handler[LookupSelectHandler].
+
+[[row-description-provider]]
+=== RowDescriptionProvider
+
+`RowDescriptionProvider` generates optional descriptions (tooltips) when the user hovers over a `DataGrid` row. If `DescriptionProvider` for a column is also set, the row description generated by `RowDescriptionProvider` is used for cells for which the cell description provider returns `null`.
+
+In the example below, we will show a `RowDescriptionProvider` usage for the `rowDescGrid`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=row-description-provider]
+----
+
+The result:
+
+image::vcl/components/data-grid-row-description.gif[align="center"]
+
+To register the provider programmatically, use the `setRowDescriptionProvider()` component method.
+
+=== RowStyleProvider
+
+`RowStyleProvider` allows style providers for the `DataGrid` rows.
+`DataGrid` can use several providers to obtain many style names for rows.
+
+Example of setting a style:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/datagrid/DataGridScreen.java[tags=row-style-provider]
+----
+
+Then you should define row styles in the application theme. Detailed information on creating a theme is available in xref:themes.adoc[Themes]. Style names returned by the provider in the screen controller should be used as CSS selectors. For example:
+
+[source,css,indent=0]
+----
+include::example$/ex1/src/main/themes/helium-extended/helium-extended.scss[tags=grid-rows-style]
+----
+
+The result:
+
+image::vcl/components/data-grid-row-style.png[align="center"]
+
+[[xml]]
+== All XML Attributes
+
+include::../xml-studio-tip.adoc[]
+
+=== DataGrid XML Attributes
+
+<<aggregatable,aggregatable>> -
+<<aggregation-position,aggregationPosition>> -
+xref:vcl/xml.adoc#align[align] -
+<<body-row-height,bodyRowHeight>> -
+xref:vcl/xml.adoc#box-expand-ratio[box.expandRatio] -
+xref:vcl/xml.adoc#caption[caption] -
+xref:vcl/xml.adoc#caption-as-html[captionAsHtml] -
+xref:vcl/xml.adoc#colspan[colspan] -
+<<column-resize-mode,columnResizeMode>> -
+<<column-collapsing-allowed,columnCollapsingAllowed>> -
+xref:vcl/xml.adoc#context-help-text[contextHelpText] -
+xref:vcl/xml.adoc#context-help-text-html-enabled[contextHelpTextHtmlEnabled] -
+<<context-menu-enabled,contextMenuEnabled>> -
+xref:vcl/xml.adoc#css[css] -
+xref:vcl/xml.adoc#data-container[dataContainer] -
+xref:vcl/xml.adoc#description[description] -
+xref:vcl/xml.adoc#description-as-html[descriptionAsHtml] -
+<<editor-buffered,editorBuffered>> -
+<<editor-cancel-caption,editorCancelCaption>> -
+<<editor-cross-field-validate,editorCrossFieldValidate>> -
+<<editor-enabled,editorEnabled>> -
+<<editor-save-caption,editorSaveCaption>> -
+<<empty-state-link-message,emptyStateLinkMessage>> -
+<<empty-state-message,emptyStateMessage>> -
+xref:vcl/xml.adoc#enable[enable] -
+<<footer-row-height,footerRowHeight>> -
+<<footer-visible,footerVisible>> -
+<<column-freezing,frozenColumnCount>> -
+<<header-row-height,headerRowHeight>> -
+<<header-visible,headerVisible>> -
+xref:vcl/xml.adoc#height[height] -
+xref:vcl/xml.adoc#html-sanitizer-enabled[htmlSanitizerEnabled] -
+xref:vcl/xml.adoc#icon[icon] -
+xref:vcl/xml.adoc#id[id] -
+<<meta-class,metaClass>> -
+<<min-height,minHeight>> -
+<<min-width,minWidth>> -
+<<reordering-allowed,reorderingAllowed>> -
+xref:vcl/xml.adoc#responsive[responsive] -
+xref:vcl/xml.adoc#rowspan[rowspan] -
+<<selection-mode,selectionMode>> -
+<<grid-sorting,sortable>> -
+<<stylename,stylename>> -
+xref:vcl/xml.adoc#tab-index[tabIndex] -
+<<text-selection-enabled,textSelectionEnabled>> -
+xref:vcl/xml.adoc#visible[visible] -
+xref:vcl/xml.adoc#width[width]
+
+[[xml-data-grid-elements]]
+=== DataGrid XML Elements
+
+<<actions,actions>> -
+<<buttons-panel,buttonsPanel>> -
+<<columns,columns>> -
+<<paging,simplePagination>>
+
+=== Columns XML Attributes
+
+<<exclude,exclude>> -
+<<include-all,include-all>>
+
+=== Column XML Attributes
+
+xref:vcl/xml.adoc#box-expand-ratio[box.expandRatio] -
+<<column-caption,caption>> -
+<<column-collapsed,collapsed>> -
+<<column-collapsible,collapsible>> -
+<<collapsing-toggle-caption,collapsingToggleCaption>> -
+xref:vcl/xml.adoc#colspan[colspan] -
+<<column-editable,editable>> -
+<<column-expand-ratio,expandRatio>> -
+<<column-id,id>> -
+<<column-maximum-width,maximumWidth>> -
+<<column-minimum-width,minimumWidth>> -
+<<column-property,property>> -
+<<column-resizable,resizable>> -
+xref:vcl/xml.adoc#rowspan[rowspan] -
+<<column-sort,sort>> -
+<<column-sortable,sortable>> -
+<<column-width,width>>
+
+=== Column XML Elements
+
+<<aggregatable,aggregation>> -
+<<check-box-renderer,checkBoxRenderer>> -
+<<component-renderer,componentRenderer>> -
+<<date-renderer,dateRenderer>> -
+<<html-renderer,htmlRenderer>> -
+<<icon-renderer,iconRenderer>> -
+<<local-date-renderer,localDateRenderer>> -
+<<local-date-time-renderer,localDateTimeRenderer>> -
+<<number-renderer,numberRenderer>> -
+<<progress-bar-renderer,progressBarRenderer>> -
+<<text-renderer,textRenderer>>
+
+=== Aggregation XML Attributes
+
+<<aggregation-strategy-class,strategyClass>> -
+<<aggregation-type,type>> -
+<<aggregation-value-description,valueDescription>>
+
+== API
+
+<<method-edit,edit>> -
+<<methods-get-aggregation-results,getAggregationResults>> -
+<<methods-get-columns,getColumns>> -
+<<method-get-edited-item,getEditedItem>> -
+<<methods-get-visible-columns,getVisibleColumns>> -
+<<method-is-editor-active,isEditorActive>> -
+<<methods-scroll-to,scrollTo>> -
+<<methods-scroll-to-start-end,scrollToEnd>> -
+<<methods-scroll-to-start-end,scrollToStart>> -
+xref:vcl/components/table.adoc#methods-set-enter-press-action[setEnterPressAction] -
+xref:vcl/components/table.adoc#methods-set-item-click-action[setItemClickAction] -
+<<methods-sort,sort>>

@@ -19,9 +19,20 @@ public class Country {
     @Id
     private UUID id;
 
+    @Column(name = "FLAG")
+    private String flag;
+
     @InstanceName
     @Column(name = "NAME")
     private String name;
+
+    public String getFlag() {
+        return flag;
+    }
+
+    public void setFlag(String flag) {
+        this.flag = flag;
+    }
 
     public String getName() {
         return name;
