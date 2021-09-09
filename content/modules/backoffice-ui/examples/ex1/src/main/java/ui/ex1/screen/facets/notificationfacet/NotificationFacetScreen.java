@@ -16,7 +16,7 @@ public class NotificationFacetScreen extends Screen {
 
     @Subscribe("actionNotification")
     public void onActionNotificationClose(Notifications.CloseEvent event) {
-        log.info("Notification was closed by user");
+        log.info("Notification was closed");
     }
     // end::close-event[]
 
