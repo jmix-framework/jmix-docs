@@ -31,6 +31,7 @@ public class AddressEdit extends StandardEditor<Address> {
 
     // end::data[]
     private Country country;
+
     // tag::inject-addressField[]
     @Autowired
     private TextField<String> addressField;
@@ -38,14 +39,15 @@ public class AddressEdit extends StandardEditor<Address> {
     // end::inject-addressField[]
     @Autowired
     private EntityPicker<Country> countryField;
+
     // tag::inject-dialogs[]
     @Autowired
     private Dialogs dialogs;
 
     // end::inject-dialogs[]
-
     @Subscribe("countryField") // <1>
-    public void onCountryFieldFieldValueChange(ValuePicker.FieldValueChangeEvent<Country> event) {
+    public void onCountryFieldFieldValueChange(ValuePicker.FieldValueChangeEvent<Country>
+                                                           event) {
         String value = event.getText(); // <2>
         if (!Strings.isNullOrEmpty(value)) {
             country = dataContext.create(Country.class); // <3>

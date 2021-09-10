@@ -5,12 +5,15 @@ import io.jmix.core.MetadataTools;
 import io.jmix.core.common.util.ParamsMap;
 import io.jmix.ui.*;
 import io.jmix.ui.action.Action;
+import io.jmix.ui.action.BaseAction;
 import io.jmix.ui.action.DialogAction;
 import io.jmix.ui.action.entitypicker.EntityClearAction;
 import io.jmix.ui.action.entitypicker.EntityLookupAction;
 import io.jmix.ui.action.entitypicker.EntityOpenAction;
 import io.jmix.ui.component.EntityPicker;
 import io.jmix.ui.component.HasValue;
+import io.jmix.ui.component.VBoxLayout;
+import io.jmix.ui.icon.JmixIcon;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
@@ -35,6 +38,7 @@ public class EntityPickerScreen extends Screen {
     // end::userPicker1[]
     @Autowired
     private EntityPicker<Customer> entityPicker;
+
     // end::addAction[]
     // tag::customerEntityPicker[]
     @Autowired
@@ -72,11 +76,19 @@ public class EntityPickerScreen extends Screen {
     private EntityOpenAction<Customer> openAction;
 
     // end::inject-open-action[]
-    // tag::userPicker2[]
-    // tag::addAction2[]
+    // tag::inject-customerEp[]
+    @Autowired
+    private EntityPicker<Customer> customerEp;
+
+    // end::inject-customerEp[]
+    @Autowired
+    private VBoxLayout vbox;
+
+    // tag::on-init-start[]
     @Subscribe
     public void onInit(InitEvent event) {
-        // end::userPicker2[]
+        // end::on-init-start[]
+        // tag::addAction2[]
         entityPicker.addAction(actions.create(EntityOpenAction.class));
         // end::addAction2[]
         // tag::set-entity-lookup-action[]
@@ -87,14 +99,36 @@ public class EntityPickerScreen extends Screen {
         openAction.setOpenMode(OpenMode.DIALOG);
         openAction.setScreenClass(CustomerEdit.class);
         // end::set-entity-open-action[]
+        // tag::add-custom-action[]
+        customerEp.addAction(new BaseAction("showLevel")
+                .withCaption(null)
+                .withDescription(null)
+                .withIcon(JmixIcon.VIEW_ACTION.source())
+                .withHandler(e -> {
+                    Customer customer = customerEp.getValue();
+                    if (customer != null) {
+                        notifications.create()
+                                .withCaption(customer.getFirstName() + " " +
+                                        customer.getLastName() +
+                                        "'s level is " + customer.getLevel())
+                                .show();
+                    } else {
+                        notifications.create()
+                                .withCaption("Choose a customer")
+                                .show();
+                    }
+                }));
+        // end::add-custom-action[]
         // tag::userPicker3[]
         EntityPicker<User> userPicker = uiComponents.create(EntityPicker.of(User.class));
         userPicker.setMetaClass(metadata.getClass(User.class));
         userPicker.addAction(actions.create(EntityLookupAction.class));
         userPicker.addAction(actions.create(EntityOpenAction.class));
         userPicker.addAction(actions.create(EntityClearAction.class));
-        getWindow().add(userPicker);
+        vbox.add(userPicker);
+        // tag::on-init-end[]
     }
+    // end::on-init-end[]
     // end::userPicker3[]
     // tag::customAction[]
 
@@ -127,7 +161,7 @@ public class EntityPickerScreen extends Screen {
     // tag::fieldIconProvider[]
     @Install(to = "customerField", subject = "fieldIconProvider")
     private String customerFieldFieldIconProvider(Customer customer) { // <1>
-        return (customer!= null) ? "font-icon:CHECK" : "font-icon:BAN";
+        return (customer != null) ? "font-icon:CHECK" : "font-icon:BAN";
     }
     // end::fieldIconProvider[]
     // tag::entity-clear-action-performed-event[]
@@ -172,7 +206,7 @@ public class EntityPickerScreen extends Screen {
         return reloadCustomers(collection);
     }
     // end::lookup-transformation[]
-    private Collection<Customer> reloadCustomers(Collection<Customer> customers){
+    private Collection<Customer> reloadCustomers(Collection<Customer> customers) {
         return customers;
     }
 
