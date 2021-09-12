@@ -84,6 +84,7 @@ public class DataGridScreen extends Screen {
     // tag::init-start[]
     @Autowired
     private DataGrid<Event> clickGrid;
+
     @Subscribe
     public void onInit(InitEvent event) {
         // end::init-start[]
