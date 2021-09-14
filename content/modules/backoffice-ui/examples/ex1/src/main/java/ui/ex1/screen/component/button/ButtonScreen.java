@@ -12,6 +12,9 @@ public class ButtonScreen extends Screen {
     @Autowired
     protected Notifications notifications;
 
+    @Autowired
+    private Button dependentBtn;
+
     // tag::click-handler[]
     @Subscribe("helloButton") // <1>
     protected void onHelloButtonClick(Button.ClickEvent event) {
@@ -33,6 +36,18 @@ public class ButtonScreen extends Screen {
     public void save(String id) {
         notifications.create()
                 .withCaption("Save called from " + id)
+                .show();
+    }
+
+    @Subscribe("mainBtn")
+    public void onMainBtnClick(Button.ClickEvent event) {
+        dependentBtn.click();
+    }
+
+    @Subscribe("dependentBtn")
+    public void onDependentBtnClick(Button.ClickEvent event) {
+        notifications.create()
+                .withCaption("This event was sent by the Dependent button")
                 .show();
     }
 }
