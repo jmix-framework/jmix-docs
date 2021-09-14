@@ -122,7 +122,7 @@ public class DataGridScreen extends Screen {
         // end::clickable-text-renderer[]
 
         // tag::image-renderer[]
-        DataGrid.ImageRenderer<Person> imageGridFlagRenderer =
+        DataGrid.ImageRenderer<Country> imageGridFlagRenderer =
                 getApplicationContext().getBean(DataGrid.ImageRenderer.class);
         imageGridFlagRenderer.setRendererClickListener(clickableTextRendererClickEvent -> {
         });
