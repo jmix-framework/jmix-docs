@@ -1,16 +1,14 @@
 package ui.ex1.screen.facets.lookupscreenfacet;
 
-import io.jmix.core.DataManager;
-import io.jmix.ui.Notifications;
 import io.jmix.ui.component.TextField;
-import io.jmix.ui.screen.*;
+import io.jmix.ui.screen.Install;
+import io.jmix.ui.screen.Screen;
+import io.jmix.ui.screen.UiController;
+import io.jmix.ui.screen.UiDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
-import ui.ex1.entity.Hobby;
-import ui.ex1.entity.Level;
 
 import java.util.Collection;
-import java.util.stream.Collectors;
 
 @UiController("sample_LookupScreenFacetScreen")
 @UiDescriptor("lookup-screen-facet-screen.xml")
@@ -22,7 +20,7 @@ public class LookupScreenFacetScreen extends Screen {
 
     @Install(to = "lookupScreen", subject = "selectHandler")
     private void lookupScreenSelectHandler(Collection<Customer> collection) {
-        if(collection.iterator().hasNext()){
+        if (!collection.isEmpty()) {
             userField.setValue(collection.iterator().next().getEmail());
         }
     }
