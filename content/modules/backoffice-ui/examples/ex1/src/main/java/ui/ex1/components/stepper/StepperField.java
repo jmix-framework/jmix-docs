@@ -31,9 +31,9 @@ public class StepperField
     }
 
     private void onCreate(CreateEvent createEvent) {
-        valueField = getInnerComponent("valueField");
-        upBtn = getInnerComponent("upBtn");
-        downBtn = getInnerComponent("downBtn");
+        valueField = getInnerComponent("stepper_valueField");
+        upBtn = getInnerComponent("stepper_upBtn");
+        downBtn = getInnerComponent("stepper_downBtn");
 
         upBtn.addClickListener(clickEvent -> updateValue(step));
         downBtn.addClickListener(clickEvent -> updateValue(-step));
