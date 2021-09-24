@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @UiDescriptor("main-screen-top-menu.xml")
 @Route(path = "main", root = true)
 public class MainScreenTopMenu extends Screen implements Window.HasWorkArea {
+
     // end::main-top-start[]
 
     // tag::user-indicator[]
@@ -60,9 +61,11 @@ public class MainScreenTopMenu extends Screen implements Window.HasWorkArea {
     }
 // end::formatter[]
 
-    // tag::on-init-for-menu[]
+    // tag::on-init-start[]
     @Subscribe
     public void onInit(InitEvent event) {
+        // end::on-init-start[]
+        // tag::on-init-for-menu[]
         AppMenu.MenuItem rootItem = mainMenu.createMenuItem("help", "Help");
         AppMenu.MenuItem subItemStarted = mainMenu.createMenuItem("start",
                 "Getting Started");
@@ -90,8 +93,19 @@ public class MainScreenTopMenu extends Screen implements Window.HasWorkArea {
         rootItem.addChildItem(subItemCenter);
 
         mainMenu.addMenuItem(rootItem, 0);
+        // end::on-init-for-menu[]
+        // tag::remove-menu-item[]
+        mainMenu.removeMenuItem(mainMenu.getMenuItem("application"));
+        // end::remove-menu-item[]
+        // tag::set-icon[]
+        mainMenu.getMenuItem("administration").setIcon("font-icon:NEWSPAPER_O");
+        // end::set-icon[]
+        // tag::remove-child-item[]
+        mainMenu.getMenuItem("administration").removeChildItem(0);
+        // end::remove-child-item[]
+        // tag::on-init-end[]
     }
-    // end::on-init-for-menu[]
+    // end::on-init-end[]
     // tag::main-top-end[]
 }
 // end::main-top-end[]
