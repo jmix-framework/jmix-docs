@@ -10,6 +10,7 @@ import io.jmix.ui.action.DialogAction;
 import io.jmix.ui.action.list.AddAction;
 import io.jmix.ui.action.list.ExcludeAction;
 import io.jmix.ui.component.Table;
+import io.jmix.ui.navigation.Route;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Brand;
@@ -22,7 +23,12 @@ import java.util.Collection;
 @UiController("uiex1_Customer.edit")
 @UiDescriptor("customer-edit.xml")
 @EditedEntityContainer("customerDc")
+// tag::route[]
+@Route(value = "customers/edit", parentPrefix = "customers")
+// end::route[]
+// tag::customer-edit-start[]
 public class CustomerEdit extends StandardEditor<Customer> {
+    // end::customer-edit-start[]
 
     @Autowired
     private Table<Brand> brandsTable;
@@ -188,4 +194,6 @@ public class CustomerEdit extends StandardEditor<Customer> {
                 .exclude();
     }
     // end::exclude-action-performed-event-2[]
+    // tag::customer-edit-end[]
 }
+// end::customer-edit-end[]
