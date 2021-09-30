@@ -2,13 +2,19 @@ package ui.ex1.screen.component.button;
 
 import io.jmix.ui.Notifications;
 import io.jmix.ui.component.Button;
+import io.jmix.ui.navigation.Route;
+import io.jmix.ui.navigation.UrlParamsChangedEvent;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @UiController("button-screen")
 @UiDescriptor("button-screen.xml")
+// tag::route[]
+@Route("button-screen")
+// end::route[]
+// tag::button-screen-start[]
 public class ButtonScreen extends Screen {
-
+    // end::button-screen-start[]
     @Autowired
     protected Notifications notifications;
 
@@ -50,4 +56,12 @@ public class ButtonScreen extends Screen {
                 .withCaption("This event was sent by the Dependent button")
                 .show();
     }
+    // tag::url-params-changed-event[]
+    @Subscribe
+    protected void onUrlParamsChanged(UrlParamsChangedEvent event) {
+        //...
+    }
+    // end::url-params-changed-event[]
+    // tag::button-screen-end[]
 }
+// end::button-screen-end[]
