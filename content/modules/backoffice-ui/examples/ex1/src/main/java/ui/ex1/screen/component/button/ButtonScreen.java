@@ -5,6 +5,7 @@ import io.jmix.ui.component.Button;
 import io.jmix.ui.navigation.Route;
 import io.jmix.ui.navigation.UrlParamsChangedEvent;
 import io.jmix.ui.screen.*;
+import io.jmix.ui.theme.ThemeClassNames;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @UiController("button-screen")
@@ -28,6 +29,9 @@ public class ButtonScreen extends Screen {
         // ...
     }
     // end::click-handler[]
+
+    @Autowired
+    protected Button styledBtn1;
 
     @Subscribe("saveButton")
     protected void onSaveButtonClick(Button.ClickEvent event) {
@@ -62,6 +66,14 @@ public class ButtonScreen extends Screen {
         //...
     }
     // end::url-params-changed-event[]
+
+    @Subscribe
+    protected void onInit(InitEvent event) {
+        // tag::set-style-name[]
+        styledBtn1.setStyleName(ThemeClassNames.BUTTON_BORDERLESS);
+        // end::set-style-name[]
+    }
+
     // tag::button-screen-end[]
 }
 // end::button-screen-end[]
