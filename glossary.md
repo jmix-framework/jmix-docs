@@ -54,6 +54,7 @@
 * __starters__ (Spring Boot) – стартеры
 * __terminal__ – терминал
 * __tool window__ – окно инструментов
+* __trait__ – черта
 * __user interface / UI__ – пользовательский интерфейс / UI (м.р.)
 * __value__ – значение
 * __variable__ – переменная
