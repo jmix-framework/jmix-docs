@@ -136,6 +136,11 @@ public class ValidatorScreen extends Screen {
     protected ApplicationContext applicationContext;
 
     // end::inject-application-context[]
+    // tag::inject-textField[]
+    @Autowired
+    protected TextField textField;
+
+    // end::inject-textField[]
 
     @Subscribe("validateBtn1")
     protected void onValidateBtn1Click(Button.ClickEvent event) {
@@ -424,6 +429,16 @@ public class ValidatorScreen extends Screen {
     @Subscribe("validateBtn22")
     protected void onValidateBtn22Click(Button.ClickEvent event) {
         numberField22.validate();
+    }
+
+    @Subscribe("addValidBtn25")
+    protected void onAddValidBtn25Click(Button.ClickEvent event) {
+        // tag::get-validator[]
+        PositiveValidator validator = applicationContext.getBean(PositiveValidator.class);
+        // end::get-validator[]
+        // tag::add-predefined-validator[]
+        textField.addValidator(applicationContext.getBean(PositiveValidator.class));
+        // end::add-predefined-validator[]
     }
 
 }
