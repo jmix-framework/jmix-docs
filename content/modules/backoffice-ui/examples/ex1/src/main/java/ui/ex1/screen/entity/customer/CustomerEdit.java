@@ -125,7 +125,7 @@ public class CustomerEdit extends StandardEditor<Customer> {
     public void onBrandsTableAdd(Action.ActionPerformedEvent event) {
         dialogs.createOptionDialog()
                 .withCaption("Please confirm")
-                .withMessage("Do you really want to add a customer?")
+                .withMessage("Do you really want to add a brand?")
                 .withActions(
                         new DialogAction(DialogAction.Type.YES)
                                 .withHandler(e -> addAction.execute()), // execute action
