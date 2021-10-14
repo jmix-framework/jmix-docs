@@ -1,74 +1,74 @@
-= Soft Deletion
+= Мягкое удаление
 
-In the _Soft Deletion_ mode, the remove operation on JPA entities just marks database records as deleted instead of actually deleting them. Later a system administrator can either erase the records completely or restore them.
+В режиме _Soft Deletion_ операция удаления объектов JPA просто помечает записи базы данных как удаленные, не удаляя их на самом деле. Позже системный администратор может либо полностью стереть записи, либо восстановить их.
 
-Soft deletion can help you to reduce the risk of data loss caused by incorrect user actions. It also allows users to make certain records inaccessible instantly even if there are references to them from other tables.
+Мягкое удаление может помочь вам снизить риск потери данных, вызванной неверными действиями пользователя. Оно также позволяет пользователям мгновенно сделать определенные записи недоступными, даже если на них есть ссылки из других таблиц.
 
-Soft deletion mechanism in Jmix is transparent for application developers. If you define the xref:entities.adoc#soft-delete-trait[Soft Delete trait] for an entity, the framework marks database records for deleted entity instances, and loads deleted instances according to the following rules:
+Механизм мягкого удаления в Jmix прозрачен для разработчиков приложений. Если вы определяете xref:entities.adoc#soft-delete-trait[черту Soft Delete] для сущности, фреймворк помечает записи базы данных удаленных экземпляров сущности и загружает удаленные экземпляры в соответствии со следующими правилами:
 
-* Soft-deleted instances are not returned when loading by Id and are filtered out from results of JPQL queries.
+* Мягко удаленные экземпляры не возвращаются при загрузке по Id и отфильтровываются из результатов запросов JPQL.
 
-* In loaded entity graphs, soft-deleted instances are filtered out from collection attributes (To-Many references), but present in single-value attributes (To-One references).
+* В загруженных графах сущностей экземпляры, удаленные мягко отфильтровываются из атрибутов-коллекций (ссылки "много-ко-многим"), но присутствуют в единичных атрибутах (ссылки "много-к-одному").
 +
-For example, imagine a Customer - Order - OrderLine data model. Initially, an Order referenced a Customer and _five_ instances of OrderLine. You have soft deleted the Customer instance and one of the OrderLine instances. Then if you load the Order together with Customer and collection of OrderLine, it will contain the reference to the deleted Customer and _four_ OrderLine instances in the collection.
+Например, представим модель данных Customer - Order - OrderLine. Первоначально Customer ссылался на Order и пять экземпляров OrderLine. Вы мягко удалили экземпляр Customer и один из экземпляров OrderLine. Затем, если вы загрузите Order вместе с Customer и коллекцией OrderLine, он будет содержать ссылку на удаленного Customer и четыре экземпляра OrderLine в коллекции.
 
-== Handling of References
+== Обработка связей
 
-When a normal (hard deleted) entity is deleted, foreign keys in the database define handling of references to this entity. By default, you cannot delete an entity if it has references from other entities. To delete the referencing entity together with your entity, or to set the reference to null, you define `ON DELETE CASCADE` or `ON DELETE SET NULL` rules for the foreign key.
+Когда удаляется обычная (жестко удаляемая) сущность, внешние ключи в базе данных определяют обработку ссылок на эту сущность. По умолчанию вы не можете удалить сущность, если на нее есть ссылки от других сущностей. Чтобы удалить ссылающуюся сущность вместе с ней или установить для ссылки значение null, вы определяете правила `ON DELETE CASCADE` или `ON DELETE SET NULL` для внешнего ключа.
 
-For soft deleted entities foreign keys also exist, but they cannot affect the deletion because there is no deletion from the database standpoint. So by default, when an entity instance is soft deleted, it doesn't affect any linked entities.
+Для мягко удаленных сущностей также существуют внешние ключи, но они не могут повлиять на удаление, поскольку с точки зрения базы данных удаление не выполняется. Поэтому по умолчанию, когда экземпляр сущности мягко удаляется, это не влияет ни на какие связанные сущности.
 
-Jmix offers `@OnDelete` and `@OnDeleteInverse` annotations to handle references between soft-deleted entities.
+Jmix предлагает аннотации `@OnDelete` и `@OnDeleteInverse` для обработки ссылок между мягко удаленными сущностей.
 
-TIP: Studio entity designer contains visual hints to help you choose correct annotations and their values.
+TIP: Дизайнер сущностей Studio содержит визуальные подсказки, которые помогут вам выбрать правильные аннотации и их значения.
 
-* `@OnDelete` annotation specifies what to do with referenced entity when deleting the current entity. In the following example, all `OrderLine` instances are deleted when the owning `Order` instance is deleted:
+* Аннотация `@OnDelete` указывает, что делать со ссылочной сущностью при удалении текущей сущности. В следующем примере все экземпляры `OrderLine` удаляются при удалении экземпляра-владельца `Order`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=class-def;on-delete]
 ----
 
-* `@OnDeleteInverse` annotation specifies what to do with the current entity when deleting the referenced entity. In the following example, the `Customer` instance cannot be deleted if there is a reference to it from an `Order` instance:
+* `@OnDeleteInverse` аннотация указывает, что делать с текущей сущностью при удалении ссылаемой сущности. В следующем примере экземпляр `Customer` нельзя удалить, если на него есть ссылка из экземпляра `Order`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=class-def;on-delete-inverse]
 ----
 
-The annotations can have one of the following values:
+Эти аннотации могут иметь одно из следующих значений:
 
-* `DeletePolicy.DENY` – to throw an exception on attempt to delete an entity if the reference is not null.
+* `DeletePolicy.DENY` – чтобы выбросить исключение при попытке удалить сущность, если ссылка не является null.
 
-* `DeletePolicy.CASCADE` – to delete the linked entities together.
+* `DeletePolicy.CASCADE` – чтобы удалить связанные сущности вместе.
 
-* `DeletePolicy.UNLINK` – to disconnect the linked entities by setting the reference attribute to null. Use this value only on the owning side of the association (the one with the `@JoinColumn` annotation).
+* `DeletePolicy.UNLINK` – чтобы разъединить связанные сущности, установив для ссылочного атрибута значение null. Используйте это значение только на стороне владельца ассоциации (той, что имеет аннотацию `@JoinColumn`).
 
-== Unique Constraints
+== Ограничения уникальности
 
-Soft deletion makes creation of database unique constraints more complicated. A constraint must take into account that there may be multiple records with the same value of the unique field: one non-deleted and any number of soft deleted.
+Мягкое удаление усложняет создание ограничений уникальности базы данных. Ограничение должно учитывать, что может быть несколько записей с одним и тем же значением уникального поля: одна не удаленная и любое количество мягко удаленных.
 
-The problem is solved differently for different databases.
+Эта проблема решается по-разному для разных баз данных.
 
-TIP: Studio generates database migration scripts for unique attributes of soft deleted entities taking into account the database used in your project.
+TIP: Studio создает скрипты миграции базы данных для уникальных атрибутов мягко удаленных сущностей с учетом базы данных, используемой в вашем проекте.
 
-If you define unique constraints manually without help from Studio, follow the recommendations below.
+Если вы определяете ограничения уникальности вручную без помощи Studio, следуйте приведенным ниже рекомендациям.
 
-* If the database supports partial indexes (PostgreSQL), a unique constraint can be defined like this:
+* Если база данных поддерживает частичные индексы (PostgreSQL), ограничение уникальности может быть определено следующим образом:
 +
 [source,sql]
 ----
 create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
 ----
 
-* If the database permits only one null value in a composite index (Oracle, SQL Server), define a composite index including the `DELETED_DATE` column:
+* Если база данных допускает только одно значение NULL в составном индексе (Oracle, SQL Server), определите составной индекс, включающий столбец `DELETED_DATE`:
 +
 [source,sql]
 ----
 create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
 ----
 
-* Otherwise, you should use an additional column, a trigger to update it, and a composite index for the unique constraint. Here is an example for MySQL:
+* В противном случае следует использовать дополнительный столбец, триггер для его обновления и составной индекс для ограничения уникальности. Ниже приведен пример для MySQL:
 +
 [source,sql]
 ----
@@ -85,27 +85,27 @@ begin
 end;
 ----
 
-== Turning Soft Deletion Off
+== Отключение мягкого удаления
 
-By default, soft deletion is on for all entities having the xref:entities.adoc#soft-delete-trait[Soft Delete trait]. But you can turn it off for a particular operation using the `PersistenceHints.SOFT_DELETION` hint with the `false` value.
+По умолчанию мягкое удаление включено для всех объектов, имеющих xref:entities.adoc#soft-delete-trait[черту Soft Delete]. Но вы можете отключить его для определенной операции, используя hint `PersistenceHints.SOFT_DELETION` со значением `false`.
 
-* When loading entities using `DataManager`:
+* При загрузке сущностей с помощью `DataManager`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/bean/CustomerService.java[tags=data-manager;load-hard-deleted]
 ----
 +
-Results will include soft deleted instances.
+Результаты будут включать в себя удаленные мягко экземпляры.
 
-* When removing entities using `DataManager`:
+* При удалении сущностей с помощью `DataManager`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/bean/CustomerService.java[tags=data-manager;hard-delete]
 ----
 
-* When working with `EntityManager`:
+* При работе с  `EntityManager`:
 +
 [source,java,indent=0]
 ----

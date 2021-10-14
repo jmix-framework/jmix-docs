@@ -1,109 +1,109 @@
-= Data Stores
+= Хранилища данных
 
-A data store represents a database or any other source of data in your application.
+Хранилище представляет собой базу данных или любой другой источник данных в приложении.
 
-Jmix provides `JpaDataStore` which stores xref:entities.adoc#jpa[JPA entities] in a relational database. This is the main persistence mechanism in Jmix applications, and when we mention a data store in this manual, we always mean `JpaDataStore` if not explicitly stated otherwise.
+Jmix предоставляет `JpaDataStore`, которое хранит xref:entities.adoc#jpa[сущности JPA] в реляционной базе данных. Это основной механизм персистентности в приложениях Jmix. Когда в этом руководстве упоминается хранилище данных, всегда имеется в виду `JpaDataStore`, если явно не указано иное.
 
 [[main]]
-== Main Store
+== Основное хранилище
 
-When you create a new Jmix project in Studio, it has a single data store called _main_ that connects to a relational database. The connection parameters are specified in the following application properties:
+При создании нового проекта Jmix в Studio у него есть одно хранилище данных _main_, подключенное к реляционной базе данных. Параметры подключения указаны в следующих свойствах приложения:
 
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=main-data-store]
 ----
 
-TIP: Use Studio interface to define database connection properties for a data store.
+TIP: Используйте интерфейс Studio для настройки подключения к базе данных.
 
-The main application class contains a corresponding JDBC `DataSource` bean declaration:
+Основной класс приложения содержит соответствующее объявление бина JDBC `DataSource`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/SampleDataModelApplication.java[tags=main-data-source]
 ----
 
-All JPA entities by default are associated with the main data store.
+Все сущности JPA по умолчанию связаны с основным хранилищем данных.
 
 [[additional]]
-== Additional Stores
+== Дополнительные хранилища
 
-In order to work with multiple databases, you need additional data stores.
+Для работы с несколькими базами данных необходимы дополнительные хранилища данных.
 
-TIP: Use Studio interface to define additional data stores.
+TIP: Определите дополнительные хранилища данных в интерфейсе Studio.
 
-Each additional store has a unique name, which is specified in the comma-separated list of the `jmix.core.additionalStores` application property. Parameters of the database connection have the store name as a prefix. In the examples below, the `locations` additional store is configured:
+У каждого дополнительного хранилища есть уникальное имя, которое указано в списке свойства приложения `jmix.core.additionalStores`, разделенном запятыми. Параметры подключения к базе данных имеют имя хранилища в качестве префикса. В приведенных ниже примерах настроено дополнительное хранилище `locations`:
 
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=add-data-store]
 ----
 
-For each additional store, Studio creates a Spring configuration class and defines the JDBC `DataSource` and other related beans in it:
+Для каждого дополнительного хранилища Studio создает класс конфигурации Spring и определяет в нем JDBC `DataSource` и другие необходимые бины:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/LocationsStoreConfiguration.java[tags=add-data-source]
 ----
 
-To associate an entity with an additional data store, use the `@Store` annotation on the entity class:
+Чтобы связать сущность с дополнительным хранилищем данных, используйте аннотацию `@Store` на классе сущностей:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Country.java[tags=store-ann]
 ----
 
-TIP: Studio adds `@Store` annotation when you select an additional data store for the entity in the entity designer.
+TIP: Studio добавляет аннотацию `@Store` при выборе дополнительного хранилища данных для сущности в дизайнере сущностей.
 
-In the example above, the `Country` entity will be stored in the database connected as the `locations` data store.
+В приведенном выше примере сущность `Country` будет храниться в базе данных, подключенной в качестве хранилища данных `locations`.
 
 [[custom]]
-== Custom Data Store
+== Нестандартные хранилища
 
-A custom data store may help you to work with some DTO entities in the same way as with JPA entities - by using `DataManager`. If your DTO entity is associated with a custom store, `DataManager` will delegate its CRUD operations to your data store and use it when resoving references to your DTOs from other entities.
+Нестандартное хранилище данных может помочь вам работать с некоторыми сущностями DTO так же, как и с сущностями JPA – с помощью `DataManager`. Если сущность DTO связана с нестандартным хранилищем данных, `DataManager` делегирует операции CRUD этому хранилищу и использует его при поддержке ссылок на DTO из других сущностей.
 
-Let's consider the process of creating a custom data store. Imagine a transient `Metric` entity and an in-memory store for it.
+Давайте рассмотрим процесс создания нестандартного хранилища данных. Представим неперсистентную сущность `Metric` и хранилище в памяти для нее.
 
-. Create a class that implements the `DataStore` interface. The class must be a Spring prototype bean. The example below contains a primitive implementation that is capable of storing entities of different types in memory.
+. Создайте класс, реализующий интерфейс `DataStore`. Класс должен быть prototype бином Spring. Приведенный ниже пример демонстрирует примитивную реализацию, которая способна хранить в памяти сущности различных типов.
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/store/InMemoryStore.java[tags=custom-store-1;custom-store-2]
 ----
 
-. Create a class that implements the `StoreDescriptor` interface. It must be a Spring singleton bean, and its `getBeanName()` method must return the name of the data store implementation bean created on the previous step:
+. Создайте класс, реализующий интерфейс `StoreDescriptor`. Класс должен быть singleton бином Spring и его метод `getBeanName()` должен возвращать имя бина реализации хранилища данных, созданного на предыдущем шаге:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/store/InMemoryStoreDescriptor.java[tags=custom-store]
 ----
 
-. Add the data store name (`inmem` in this case) to the `jmix.core.additionalStores` property:
+. Добавьте имя хранилища данных (в данном случае это `inmem`) в свойство `jmix.core.additionalStores`:
 +
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-1]
 ----
 
-. Set the `StoreDescriptor` bean name in the `jmix.core.storeDescriptor_<store_name>` property:
+. Задайте имя бина `StoreDescriptor` в свойстве `jmix.core.storeDescriptor_<store_name>`:
 +
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-2]
 ----
 
-. Add `@Store` annotation to the entity:
+. Добавьте к сущности аннотацию `@Store`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Metric.java[tags=custom-store]
 ----
 
-. Now you can save and load the entity using `DataManager` and it will delegate the CRUD operations to your custom data store:
+. Теперь вы можете сохранять и загружать сущность с помощью `DataManager`, и он будет  делегировать операции CRUD нестандартному хранилищу данных:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/test/java/datamodel/ex1/EntitiesTest.java[tags=custom-store]
 ----
 +
-Also, if another entity has a reference to `Metric`, the `Metric` instance will be loaded automatically when accessing the reference attribute.
+Кроме того, если другая сущность ссылается на `Metric`, экземпляр `Metric` будет загружаться автоматически при обращении к ссылочному атрибуту.

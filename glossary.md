@@ -17,6 +17,7 @@
 * __context menu__ – контекстное меню
 * __data base__ – база данных
 * __data model__ – модель данных
+* __data store (main, additional, custom)__ – хранилище данных (основное, дополнительное, нестандартное)
 * __data-centric__ – ориентированный на данные
 * __database migration scripts__ – скрипты миграции базы данных
 * __database schema__ – схема базы данных
@@ -28,12 +29,17 @@
 * __directory__ – каталог
 * __drop-down list__ – выпадающий список
 * __enterprise web applications__ – корпоративные веб-приложения
+* __entity graph__ – граф сущностей
 * __entity__ – сущность
+* __enumeration__ – перечисление
 * __environment variable__ – переменная окружения
 * __environment__ – окружение
 * __fetching data__ – извлечение данных
+* __foreign keys__ – внешние ключи
+* __format strings__ – строки форматов
 * __framework__ – фреймворк
 * __full-stack__ – full-stack
+* __implementation__ – реализация
 * __injection__ – инжектирование
 * __inspection__ – инспекция
 * __integrated development environment / IDE__ – интегрированная среда разработки / IDE (ж.р.)
@@ -51,6 +57,7 @@
 * __scaffolding__ – генерация
 * __screen controller__ – контроллер экранов
 * __script__ – скрипт
+* __soft delete__ – мягкое удаление
 * __starters__ (Spring Boot) – стартеры
 * __terminal__ – терминал
 * __tool window__ – окно инструментов
