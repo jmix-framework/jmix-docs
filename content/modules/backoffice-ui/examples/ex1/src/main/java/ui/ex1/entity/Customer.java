@@ -49,8 +49,8 @@ public class Customer {
     private Integer rewardPoints;
 
     @JoinTable(name = "UIEX1_CUSTOMER_BRAND_LINK",
-            joinColumns = @JoinColumn(name = "CUSTOMER_ID"),
-            inverseJoinColumns = @JoinColumn(name = "BRAND_ID"))
+            joinColumns = @JoinColumn(name = "CUSTOMER_ID", referencedColumnName = "ID"),
+            inverseJoinColumns = @JoinColumn(name = "BRAND_ID", referencedColumnName = "ID"))
     @ManyToMany
     private List<Brand> favouriteBrands;
 
