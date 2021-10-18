@@ -9,6 +9,7 @@ import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.entity.City;
 import ui.ex1.entity.Country;
 
 import java.util.ArrayList;
@@ -74,4 +75,13 @@ public class EntitySuggestionFieldScreen extends Screen {
         // tag::init-end[]
     }
     // end::init-end[]
+    // tag::formatter[]
+    @Install(to = "cityFieldFormat", subject = "formatter")
+    protected String cityFieldFormatFormatter(City value) {
+        return value != null
+                ? value.getName() + " (" + (value.getCountry() != null
+                ? value.getCountry().getName() : "not defined") + ")"
+                : null;
+    }
+    // end::formatter[]
 }

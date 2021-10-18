@@ -3,16 +3,15 @@ package ui.ex1.screen.component.label;
 import io.jmix.core.Metadata;
 import io.jmix.ui.component.Label;
 import io.jmix.ui.model.InstanceContainer;
-import io.jmix.ui.screen.Screen;
-import io.jmix.ui.screen.Subscribe;
-import io.jmix.ui.screen.UiController;
-import io.jmix.ui.screen.UiDescriptor;
+import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Customer;
 
 @UiController("sample_LabelScreen")
 @UiDescriptor("label-screen.xml")
 public class LabelScreen extends Screen {
+    @Autowired
+    protected Label<String> formattedLabel;
     @Autowired
     private InstanceContainer<Customer> customerDc;
     @Autowired
@@ -68,7 +67,7 @@ public class LabelScreen extends Screen {
         // tag::styled-label[]
         styledLabel.setStyleName("bold");
         // end::styled-label[]
-
+        formattedLabel.setValue("Label, which should be formatted to uppercase");
         // tag::html-label[]
         // tag::dynamic-label[]
         // tag::styled-label[]
@@ -76,4 +75,10 @@ public class LabelScreen extends Screen {
     // end::styled-label[]
     // end::html-label[]
     // end::dynamic-label[]
+    // tag::formatter[]
+    @Install(to = "formattedLabel", subject = "formatter")
+    protected String formattedLabelFormatter(String value) {
+        return value.toUpperCase();
+    }
+    // end::formatter[]
 }

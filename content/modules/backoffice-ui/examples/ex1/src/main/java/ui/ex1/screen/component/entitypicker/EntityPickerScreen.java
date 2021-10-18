@@ -292,4 +292,10 @@ public class EntityPickerScreen extends Screen {
                 .show();
     }
     // end::open-action-performed-event-2[]
+    // tag::formatter[]
+    @Install(to = "customerFormat", subject = "formatter")
+    protected String customerFormatFormatter(Customer value) {
+        return value != null ? value.getFirstName() + " " + value.getLastName() : null;
+    }
+    // end::formatter[]
 }

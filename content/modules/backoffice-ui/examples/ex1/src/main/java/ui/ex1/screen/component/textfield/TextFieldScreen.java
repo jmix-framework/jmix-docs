@@ -1,18 +1,22 @@
 package ui.ex1.screen.component.textfield;
+import io.jmix.core.Metadata;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.component.HasValue;
 import io.jmix.ui.component.Label;
 import io.jmix.ui.component.TextField;
 import io.jmix.ui.component.TextInputField;
-import io.jmix.ui.screen.Screen;
-import io.jmix.ui.screen.Subscribe;
-import io.jmix.ui.screen.UiController;
-import io.jmix.ui.screen.UiDescriptor;
+import io.jmix.ui.model.InstanceContainer;
+import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.entity.Customer;
 
 @UiController("sample_TextFieldScreen")
 @UiDescriptor("textField-screen.xml")
 public class TextFieldScreen extends Screen {
+    @Autowired
+    protected Metadata metadata;
+    @Autowired
+    protected InstanceContainer<Customer> customerDc;
     // tag::notifications[]
     @Autowired
     private Notifications notifications;
@@ -86,7 +90,11 @@ public class TextFieldScreen extends Screen {
         // tag::event-mode[]
         shortTextField.setTextChangeEventMode(TextInputField.TextChangeEventMode.LAZY);
         // end::event-mode[]
-
+        Customer customer = metadata.create(Customer.class);
+        customer.setFirstName("John");
+        customer.setLastName("Bates");
+        customer.setAge(35);
+        customerDc.setItem(customer);
         // tag::conversion-text-field[]
         // tag::styled-text-field[]
         // tag::event-mode[]
@@ -94,4 +102,11 @@ public class TextFieldScreen extends Screen {
     // end::event-mode[]
     // end::conversion-text-field[]
     // end::styled-text-field[]
+
+    // tag::formatter[]
+    @Install(to = "customerField", subject = "formatter")
+    protected String customerFieldFormatter(String value) {
+        return value.toUpperCase();
+    }
+    // end::formatter[]
 }
