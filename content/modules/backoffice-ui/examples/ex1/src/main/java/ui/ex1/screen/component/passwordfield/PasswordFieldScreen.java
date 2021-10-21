@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 @UiController("PasswordFieldScreen")
 @UiDescriptor("password-field-screen.xml")
 public class PasswordFieldScreen extends Screen {
+    @Autowired
+    protected PasswordField passwordValidField;
     // tag::password-text-field[]
     @Autowired
     private PasswordField passwordField;
@@ -25,4 +27,9 @@ public class PasswordFieldScreen extends Screen {
                 .show();
     }
     // end::password-text-field[]
+
+    @Subscribe("validateBtn")
+    protected void onValidateBtnClick(Button.ClickEvent event) {
+        passwordValidField.validate();
+    }
 }

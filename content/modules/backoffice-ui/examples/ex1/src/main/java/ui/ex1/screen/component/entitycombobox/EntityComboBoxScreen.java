@@ -1,8 +1,8 @@
 package ui.ex1.screen.component.entitycombobox;
 
+import io.jmix.ui.component.Button;
 import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.HasEnterPressHandler;
-import io.jmix.ui.component.ValuePicker;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.model.DataContext;
@@ -13,6 +13,8 @@ import ui.ex1.entity.Country;
 @UiController("entityComboBox-screen")
 @UiDescriptor("entitycombobox-screen.xml")
 public class EntityComboBoxScreen extends Screen {
+    @Autowired
+    protected EntityComboBox<Country> countryValidField;
     @Autowired
     private CollectionContainer<Country> countriesDc;
 
@@ -46,4 +48,8 @@ public class EntityComboBoxScreen extends Screen {
     }
     // end::load-data[]
 
+    @Subscribe("validBtn")
+    protected void onValidBtnClick(Button.ClickEvent event) {
+        countryValidField.validate();
+    }
 }

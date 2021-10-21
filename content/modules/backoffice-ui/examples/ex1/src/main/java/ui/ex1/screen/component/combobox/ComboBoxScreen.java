@@ -13,6 +13,9 @@ import java.util.*;
 @UiController("comboBox-screen")
 @UiDescriptor("combobox-screen.xml")
 public class ComboBoxScreen extends Screen {
+    @Autowired
+    protected ComboBox<Hobby> hobbyValidField;
+
     // tag::image[]
     private Image imageResource;
 
@@ -56,11 +59,11 @@ public class ComboBoxScreen extends Screen {
         });
         // end::new-option-handler[]
         // tag::options-map-3[]
-        Map<String,Integer> map = new LinkedHashMap<>();
-        map.put("Poor",2);
-        map.put("Average",3);
-        map.put("Good",4);
-        map.put("Excellent",5);
+        Map<String, Integer> map = new LinkedHashMap<>();
+        map.put("Poor", 2);
+        map.put("Average", 3);
+        map.put("Good", 4);
+        map.put("Excellent", 5);
         ratingField.setOptionsMap(map);
         // end::options-map-3[]
         // tag::icon-map[]
@@ -82,6 +85,7 @@ public class ComboBoxScreen extends Screen {
     private String iconComboBoxOptionIconProvider(FontAwesome icon) {
         return "font-icon:" + icon;
     }
+
     // end::icon-provider[]
     // tag::style-provider[]
     @Install(to = "ratingField", subject = "optionStyleProvider")
@@ -100,14 +104,16 @@ public class ComboBoxScreen extends Screen {
         }
         return null;
     }
+
     // end::style-provider[]
     // tag::options-caption-filter[]
     @Install(to = "hobbyField", subject = "optionsCaptionFilter")
     private boolean hobbyFieldOptionsCaptionFilter(ComboBox.OptionsCaptionFilteringContext
-                                                               optionsCaptionFilteringContext) {
+                                                           optionsCaptionFilteringContext) {
         return optionsCaptionFilteringContext.getItemCaption()
                 .contains(optionsCaptionFilteringContext.getSearchString());
     }
+
     // end::options-caption-filter[]
     // tag::option-image-provider[]
     @Install(to = "comboBoxWithImages", subject = "optionImageProvider")
@@ -115,4 +121,24 @@ public class ComboBoxScreen extends Screen {
         return imageResource.setSource(ThemeResource.class).setPath("icons/check-mark.png");
     }
     // end::option-image-provider[]
+
+    @Subscribe("validBtn")
+    protected void onValidBtnClick(Button.ClickEvent event) {
+        hobbyValidField.validate();
+    }
+
+    // tag::validator[]
+    @Install(to = "iconComboBox", subject = "validator")
+    protected void iconComboBoxValidator(FontAwesome icon) {
+        if (icon != null)
+            if (icon == FontAwesome.FILE_PDF_O)
+                throw new ValidationException("The file type you selected " +
+                        "is not currently supported");
+    }
+    // end::validator[]
+
+    @Subscribe("validateBtn")
+    protected void onValidateBtnClick(Button.ClickEvent event) {
+        iconComboBox.validate();
+    }
 }
