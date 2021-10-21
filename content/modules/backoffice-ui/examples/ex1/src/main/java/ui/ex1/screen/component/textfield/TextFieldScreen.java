@@ -1,10 +1,7 @@
 package ui.ex1.screen.component.textfield;
 import io.jmix.core.Metadata;
 import io.jmix.ui.Notifications;
-import io.jmix.ui.component.HasValue;
-import io.jmix.ui.component.Label;
-import io.jmix.ui.component.TextField;
-import io.jmix.ui.component.TextInputField;
+import io.jmix.ui.component.*;
 import io.jmix.ui.model.InstanceContainer;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +14,10 @@ public class TextFieldScreen extends Screen {
     protected Metadata metadata;
     @Autowired
     protected InstanceContainer<Customer> customerDc;
+    @Autowired
+    protected TextField<Integer> textValidField;
+    @Autowired
+    protected TextField<Integer> zipField;
     // tag::notifications[]
     @Autowired
     private Notifications notifications;
@@ -109,4 +110,21 @@ public class TextFieldScreen extends Screen {
         return value.toUpperCase();
     }
     // end::formatter[]
+
+    @Subscribe("validBtn")
+    protected void onValidBtnClick(Button.ClickEvent event) {
+        textValidField.validate();
+    }
+
+    @Subscribe("validateBtn")
+    protected void onValidateBtnClick(Button.ClickEvent event) {
+        zipField.validate();
+    }
+    // tag::validator[]
+    @Install(to = "zipField", subject = "validator")
+    protected void zipFieldValidator(Integer value) {
+        if (value != null && String.valueOf(value).length() != 6)
+            throw new ValidationException("Zip must be of 6 digits length");
+    }
+    // end::validator[]
 }
