@@ -1,57 +1,57 @@
-= Entity Events
+= События сущностей
 
-When you save and load entities using `DataManager`, the Jmix data access subsystem sends specific Spring application events. You can create event listeners to perform some additional actions with saved or loaded entity instances.
+Когда вы сохраняете и загружаете сущности с помощью `DataManager`, подсистема доступа к данным Jmix посылает определенные Spring application events. Вы можете создать слушателя событий для выполнения дополнительных действий с сохраненными или загруженными экземплярами сущностей.
 
 [[entity-changed-event]]
-== Using EntityChangedEvent
+== Использование EntityChangedEvent
 
-`EntityChangedEvent` is sent by the framework when an entity instance is saved to the database. You can handle the event both inside the transaction and after its completion. In both cases, at the time of the event, the database already contains the changed data.
+`EntityChangedEvent` посылается фреймворком при сохранении экземпляра сущности в базе данных. Вы можете обрабатывать событие как внутри транзакции, так и после ее завершения. В обоих случаях на момент события база данных уже содержит измененные данные.
 
-`EntityChangedEvent` contains change type (create, update or delete), the identifier of the changed entity, the information on what attributes were changed, and old values of changed attributes. For reference attributes, the old values contain identifiers of the referenced entities.
+`EntityChangedEvent` содержит тип изменения (создание, обновление или удаление), идентификатор измененной сущности, информацию о том, какие атрибуты были изменены, и старые значения измененных атрибутов. Для ссылочных атрибутов старые значения содержат идентификаторы ссылаемых сущностей.
 
 [[before-commit]]
-=== Handling Changes Before Commit
+=== Обработка изменений до коммита
 
-To handle `EntityChangedEvent` in the current transaction, create a bean method annotated with `@EventListener`. The method will be called by the framework right after saving the entity to the database but before the transaction commit. In the listener method, you can make any changes to data and they will be committed together with the initial changes. If an exception occurs, everything will be rolled back.
+Чтобы обработать `EntityChangedEvent` в текущей транзакции, создайте метод бина с аннотацией `@EventListener`. Метод будет вызван фреймворком сразу после сохранения сущности в базе данных, но до коммита транзакции. Вы можете вносить любые изменения в данные в методе-слушателе, и они будут закоммичены вместе с первоначальными изменениями. Если произойдет исключение, все изменения будут отменены.
 
-In the example below, we create a linked entity to register the change of an attribute. Both the changed `Customer` and the created `CustomerGradeChange` instances will be committed in the same transaction:
+В приведенном ниже примере создается связанная сущность для регистрации изменения атрибута. Как измененный `Customer`, так и созданный экземпляр `CustomerGradeChange` будут закоммичены в одной транзакции:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=listener-bean;data-manager;before-commit]
 ----
-<1> Determining the change type.
-<2> Checking if an attribute was actually changed.
-<3> Getting the changed entity id.
-<4> Obtaining an old value of the changed attribute.
-<5> Loading the new state of the changed entity.
+<1> Определение типа изменения.
+<2> Проверка, действительно ли атрибут был изменен.
+<3> Получение идентификатора измененной сущности.
+<4> Получение старого значения измененного атрибута.
+<5> Загрузка нового состояния измененной сущности.
 
-Let's look at another example. Here the `amount` attribute of the `Order` entity is updated whenever one of its `OrderLine` instances is created, updated or deleted:
+Давайте рассмотрим другой пример. Здесь атрибут `amount` сущности `Order` обновляется всякий раз, когда создается, обновляется или удаляется один из ее экземпляров OrderLine`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/OrderLineEventListener.java[tags=entity-changed]
 ----
-<1> When the entity is deleted, we cannot load its instance anymore, so we use old values to get the reference to the enclosing `Order`.
-<2> Use `getOldReference()` and `getOldCollection()` instead of `getOldValue()` for to-one and to-many reference attributes.
+<1> После удаления сущности больше нельзя загрузить ее экземпляр, поэтому используются старые значения, чтобы получить ссылку на соответствующий `Order`.
+<2> Используйте `getOldReference()` и `getOldCollection()` вместо `getOldValue()` для ссылочных атрибутов to-one и to-many.
 
 [[after-commit]]
-=== Handling Changes After Commit
+=== Обработка изменений после коммита
 
-To handle `EntityChangedEvent` after the changes are saved to the database and the transaction is committed, create a bean method annotated with `@TransactionalEventListener`.
+Чтобы обработать `EntityChangedEvent` после сохранения изменений в базе данных и коммита транзакции, создайте метод бина с аннотацией `@TransactionalEventListener`.
 
-Note that exceptions occurred in an "after commit" event listener are not propagated to the calling code and not logged. So it is recommended to wrap your code in the try-catch clause.
+Следует иметь в виду, что исключения, выброшенные в слушателе "after commit" не передаются в вызывающий код и не логгируются. Поэтому рекомендуется оборачивать код слушателя в try-catch.
 
-If you need to load or save any data in an "after commit" event listener, always start a new transaction.
+Если вам нужно загрузить или сохранить какие-либо данные в слушателе событий "after commit", всегда начинайте новую транзакцию.
 
-The example below demonstrates exception handling and loading an entity with `DataManager` in a separate transaction (see `joinTransaction(false)` method):
+В приведенном ниже примере демонстрируется обработка исключений и загрузка сущности с помощью `DataManager` в отдельной транзакции (см. метод `joinTransaction(false)`):
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=listener-bean;logger;data-manager;after-commit]
 ----
 
-If you need to save an entity in an "after commit" event listener, use `SaveContext` and its `setJoinTransaction(false)` method, for example:
+Если вам нужно сохранить сущность в слушателе "after commit", используйте `SaveContext` и его метод `setJoinTransaction(false)`, например:
 
 [source,java,indent=0]
 ----
@@ -59,29 +59,29 @@ include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListene
 ----
 
 [[saving-loading-events]]
-== Using EntitySavingEvent and EntityLoadingEvent
+== Использование EntitySavingEvent и EntityLoadingEvent
 
-`EntitySavingEvent` is sent by the framework when an entity instance is about to be saved to the database. As opposed to <<entity-changed-event,EntityChangedEvent>>, which contains the entity id, `EntitySavingEvent` contains the entity instance itself. It allows you to change the instance state before it is saved in the database fields.
+`EntitySavingEvent` посылается фреймворком прямо перед сохранением экземпляра сущности в базе данных. В отличие от <<entity-changed-event,EntityChangedEvent>>, которое содержит идентификатор сущности, `EntitySavingEvent` содержит сам экземпляр сущности. Это позволяет изменить состояние экземпляра до его сохранения в полях базы данных.
 
-The event has the `isNewEntity()` method that returns true if the event is sent for a new instance that will be inserted to a database table.
+Это событие имеет метод `isNewEntity()`, возвращающий значение true, если событие посылается для нового экземпляра, который будет внесен в таблицу базы данных.
 
-An `EntitySavingEvent` listener can be used to initialize entity attributes before saving to the database. For example:
+Слушатель `EntitySavingEvent` может использоваться для инициализации атрибутов сущности перед сохранением в базе данных. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/OrderEventListener.java[tags=saving-event]
 ----
 
-`EntityLoadingEvent` is sent by the framework when an entity instance is loaded from the database. You can use it for initializing non-persistent attributes from the persistent state.
+`EntityLoadingEvent` отправляется фреймворком при загрузке экземпляра сущности из базы данных. Вы можете использовать его для инициализации неперсистентных атрибутов из персистентного состояния.
 
-In the example below, `EntitySavingEvent` and `EntityLoadingEvent` listeners maintain an encrypted attribute:
+В приведенном ниже примере слушатели `EntitySavingEvent` и `EntityLoadingEvent` поддерживают зашифрованный атрибут:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/entity/Customer.java[tags=entity;encryption]
 ----
 
-When the entity is saved, the sensitive content is encrypted and stored in the database. On loading, the content is decrypted and set back to the transient attribute to be accessible by users:
+Когда сущность сохраняется, конфиденциальное содержимое шифруется и сохраняется в базе данных. При загрузке содержимое расшифровывается и возвращается к неперсистентному атрибуту, доступному пользователям:
 
 [source,java,indent=0]
 ----

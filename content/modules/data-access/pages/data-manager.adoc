@@ -1,98 +1,98 @@
-= Using DataManager
+= Работа с DataManager
 
-`DataManager` is the main interface for CRUD (Create, Read, Update, Delete) operations on entities. It allows you to load graphs of entities by ID or query, to save changed instances or remove them. You can use xref:data-access:entity-events.adoc[entity event] listeners to perform actions on loading and saving of particular entities. `DataManager` maintains cross-datastore references for both JPA, DTO, and mixed entity graphs.
+`DataManager` – это основной интерфейс для CRUD (Create, Read, Update, Delete) операций с сущностями. Он позволяет загружать графы сущностей по идентификатору или запросу, сохранять измененные экземпляры или удалять их. Вы можете использовать слушатели xref:data-access:entity-events.adoc[событий сущностей] для выполнения действий по загрузке и сохранению определенных сущностей. `DataManager` поддерживает ссылки между сущностями из разных хранилищ данных как для JPA и DTO, так и для смешанных графов сущностей.
 
-You can inject `DataManager` to a Spring bean or a Backoffice UI screen controller, for example:
+Вы можете инжектировать `DataManager` в бин Spring или контроллер экрана Backoffice UI, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=inject-dm]
 ----
 
-In the examples below, we skip the definition and assume that the `dataManager` variable is a reference to `DataManager`.
+В приведенных ниже примерах переменная `dataManager` является ссылкой на `DataManager`.
 
 [[load]]
-== Loading Entities
+== Загрузка сущностей
 
-`DataManager` provides a fluent API for loading entities. Use `load()` methods accepting entity class or `Id` as entry points to this API.
+`DataManager` предоставляет fluent API для загрузки сущностей. Используйте методы `load()`, принимающие класс сущности или `Id`, в качестве точек входа в этот API.
 
 [[load-by-id]]
-=== Loading Entity by Id
+=== Загрузка сущности по идентификатору
 
-The following method loads an entity by its identifier value:
+Следующий метод загружает сущность по значению ее идентификатора:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-id]
 ----
-<1> Entry point to the fluent loader API.
-<2> `id()` method accepts the identifier value.
-<3> `one()` method loads the entity instance. If there is no entity with the given identifier, the method throws `IllegalStateException`.
+<1> Точка входа в fluent loader API.
+<2> Метод `id()` принимает значение идентификатора.
+<3> Метод `one()` загружает экземпляр сущности. Если нет сущности с заданным идентификатором, метод выдает исключение `IllegalStateException`.
 
-The identifier can also be specified using `Id<E>` class which contains information about the entity type. Then the application code doesn't need to use concrete type of the entity identifier (`UUID`, `Long`, etc.) and the loading code becomes even shorter:
+Идентификатор также может быть указан с помощью класса `Id<E>`, который содержит информацию о типе сущности. Тогда в прикладном коде не нужно использовать конкретный тип идентификатора сущности (`UUID`, `Long` и т.п.), и код загрузки становится еще короче:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-generic-id]
 ----
 
-If the entity with the given identifier may not exist, instead of `one()` terminal method use `optional()` which returns `Optional<E>`. In the example below, if the entity not found, a new instance is created and returned:
+Если сущность с заданным идентификатором может не существовать, вместо терминального метода `one()` используйте `optional()`, который возвращает `Optional<E>`. В приведенном ниже примере если сущность не найдена, создается и возвращается новый экземпляр:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-optional]
 ----
-<1> Returns `Optional<Customer>`.
+<1> Возвращает `Optional<Customer>`.
 
-You can also load a list of entities by their identifiers passed to the `ids()` method, for example:
+Вы также можете загрузить список сущностей по их идентификаторам, переданным в метод `ids()`, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-ids]
 ----
 
-Entities in the result list have the same order as provided identifiers.
+Сущности в списке результатов будут в том же порядке, что и предоставленные идентификаторы.
 
 [[load-all]]
-=== Loading All Entities
+=== Загрузка всех сущностей
 
-The following method loads all instances of the entity in a list:
+Следующий метод загружает все экземпляры сущности в список:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-all]
 ----
 
-CAUTION: Load all instances only if you are sure that the number of rows in the corresponding table is always low. Otherwise, use a <<load-by-query,query>>, <<load-by-conditions,conditions>> and/or <<paging-and-sorting,paging>>.
+CAUTION: Загружайте все экземпляры только в том случае, если вы уверены, что количество строк в соответствующей таблице всегда будет небольшим. В противном случае используйте <<load-by-query,запрос>>, <<load-by-query,условия>> и/или <<paging-and-sorting,пейджинг>>.
 
 [[load-by-query]]
-=== Loading Entities by Query
+=== Загрузка сущностей по запросу
 
-When working with relational databases, use https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] queries to load data. See the xref:data-access:jpql-extensions.adoc[] for information on how JPQL in Jmix differs from the JPA standard. Also note that `DataManager` can execute only "select" queries.
+При работе с реляционными базами данных используйте запросы на https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] для загрузки данных. В разделе xref:data-access:jpql-extensions.adoc[] приведена информация о том, чем JPQL в Jmix отличается от стандартного JPA. Также обратите внимание, что `DataManager` может выполнять только запросы "select".
 
-The following method loads a list of entities using a full JPQL query and two parameters:
+Следующий метод загружает список сущностей, используя полный запрос на JPQL и два параметра:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-full-query]
 ----
 
-The `query()` method of the fluent loader interface accepts both full and abbreviated query string. The latter should be created in accordance with the following rules:
+Метод `query()` fluent-интерфейса принимает строку запроса как в полном, так и в сокращенном формате. Сокращенный запрос формируется следующим образом:
 
-* You can always omit the `"select <alias>"` clause.
+* Выражение `"select <alias>"` всегда можно опустить.
 
-* If the `"from"` clause contains a single entity and you don’t need a specific alias for it, you can omit the `"from <entity> <alias> where"` clause. In this case, the framework assumes that the alias is `e`.
+* Если выражение `"from"` содержит одну сущность, и вам не нужен особенный алиас, то выражение `"from <entity> <alias> where"` можно опустить. В этом случае фреймворк будет использовать алиас `e`.
 
-* You can use positional parameters and pass their values right to the `query()` method as additional arguments.
+* Можно использовать позиционные параметры и передавать их значения прямо в метод `query()` в дополнительных аргументах.
 
-Below is an abbreviated equivalent of the previous example:
+Ниже приведен сокращенный эквивалент предыдущего примера:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-query]
 ----
 
-An example of a more complex abbreviated query with join:
+Пример более сложного сокращенного запроса с join:
 
 [source,java,indent=0]
 ----
@@ -100,26 +100,26 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=l
 ----
 
 [[load-by-conditions]]
-=== Loading Entities by Conditions
+=== Загрузка сущностей по условиям
 
-You can use conditions instead of a JPQL query to filter results. For example:
+Вы можете использовать условия вместо запроса на JPQL для фильтрации результатов. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-conditions]
 ----
-<1> `condition()` method accepts a single root condition.
-<2> `LogicalCondition.and()` method creates AND condition with the given nested conditions.
-<3> Property conditions compare entity attributes with the specified values.
+<1> Метод `condition()` принимает одно корневое условие.
+<2> Метод `LogicalCondition.and()` создает условие AND с заданными вложенными условиями.
+<3> Условия свойства сравнивают атрибуты сущности с указанными значениями.
 
-If you need a single property condition, pass it directly to the `condition()` method:
+Если вам нужно одно условие свойства, передайте его непосредственно в метод `condition()`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-condition]
 ----
 
-`PropertyCondition` lets you specify properties of referenced entities, for example:
+`PropertyCondition` позволяет указать свойства ссылаемых сущностей, например:
 
 [source,java,indent=0]
 ----
@@ -127,56 +127,56 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=l
 ----
 
 [[load-scalars]]
-=== Loading Scalar and Aggregate Values
+=== Загрузка скалярных и агрегатных значений
 
-Besides entity instances, `DataManager` can load scalar and aggregate values in the form of xref:data-model:entities.adoc#key-value[key-value entities].
+Помимо экземпляров сущностей, `DataManager` может загружать скалярные и агрегатные значения в виде xref:data-model:entities.adoc#key-value[сущностей Key-Value].
 
-The `loadValues(String query)` method loads a list of `KeyValueEntity` instances populated with a given query results. For example:
+Метод `loadValues(String query)` загружает список экземпляров `KeyValueEntity`, заполненный результатами данного запроса. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-values]
 ----
-<1> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
-<2> Specify names of the resulting key-value entity attributes. The order of the properties must correspond to the columns in the query result set.
-<3> Get loaded values from the key-value entity attributes.
+<1> Обозначение хранилища данных, в котором находятся запрашиваемые сущности. Данный метод можно опустить, если сущность находится в основном хранилище.
+<2> Перечисление имен атрибутов результирующей сущности Key-Value. Порядок имен должен соответствовать колонкам результирующего набора в запросе.
+<3> Получение загруженных значений из атрибутов сущности Key-Value.
 
-The `loadValue(String query, Class valueType)` method loads a single value of the given type by the query. For example:
+Метод `loadValue(String query, Class valueType)` загружает одно значение заданного типа с помощью запроса. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-value]
 ----
-<1> The type of the returned value.
-<2> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+<1> Тип возвращаемого значения.
+<2> Обозначение хранилища данных, в котором находятся запрашиваемые сущности. Данный метод можно опустить, если сущность находится в основном хранилище.
 
 [[paging-and-sorting]]
-=== Paging and Sorting
+=== Пейджинг и сортировка
 
-When you load entities using `all()`, `query()` or `condition()` methods, you can also sort results and split them into pages.
+При загрузке сущностей с использованием методов `all()`, `query()` или `condition()` результаты можно сортировать и разбивать на страницы.
 
-Use `firstResult()` and `maxResults()` methods for paging:
+Используйте методы `firstResult()` и `maxResults()` для пейджинга:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-page-by-query]
 ----
 
-Use `sort()` method for sorting results:
+Используйте метод `sort()` для сортировки результатов:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-and-sort]
 ----
 
-In the `Sort.by()` method, you can specify properties of referenced entities, for example:
+В методе `Sort.by()` можно указать свойства ссылаемых сущностей, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-sorted]
 ----
 
-When loading by a JPQL query, you can also use the standard `order by` clause in the query:
+При загрузке с помощью запроса на JPQL можно использовать стандартное выражение `order by` в запросе:
 
 [source,java,indent=0]
 ----
@@ -184,36 +184,36 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tag
 ----
 
 [[save]]
-== Saving Entities
+== Сохранение сущностей
 
-Use `save()` method to save new and modified entities in the database.
+Используйте метод `save()` для сохранения новых и измененных сущностей в базу данных.
 
-In the simplest form, the method accepts an entity instance and returns a saved instance:
+В своей простейшей форме этот метод принимает экземпляр сущности и возвращает сохраненный экземпляр:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=save]
 ----
 
-NOTE: Usually the passed and returned instances are not the same. The returned instance can be affected by entity event listeners, database triggers or access control rights. So if you need to save an entity and then continue working with it, always use the instance returned from the `save()` method.
+NOTE: Обычно переданные и возвращаемые экземпляры не совпадают. На возвращаемый экземпляр могут повлиять слушатели событий сущности, триггеры базы данных или права доступа. Поэтому, если вам нужно сохранить сущность, а затем продолжить работу с ней, всегда используйте экземпляр, возвращенный методом `save()`.
 
-The `save()` method can accept multiple instances at once. In this case, it returns the `EntitySet` object which can be used to easily get the saved instances. In the example below, we create and save two linked entities, and return one of them:
+Метод `save()` может принимать несколько экземпляров одновременно. В этом случае он возвращает объект `EntitySet`, из которого можно легко получить сохраненные экземпляры. В приведенном ниже примере создаются и сохраняются две связанные сущности и возвращается одна из них:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=save-multiple]
 ----
-<1> Save two linked entities. The order of `save()` parameters is not important.
-<2> The `EntitySet.get()` method lets you obtain the saved instance by its source instance.
+<1> Сохранение двух связанных сущностей. Порядок параметров `save()` не имеет значения.
+<2> Метод `EntitySet.get()` позволяет получить сохраненный экземпляр по его исходному экземпляру.
 
-The most powerful form of the `save()` method accepts `SaveContext` object that can be used to add multiple instances and specify additional parameters of saving. In the example below, we save a collection of entities using `SaveContext`:
+Наиболее универсальная форма метода `save()` принимает объект `SaveContext`, который можно использовать для добавления нескольких экземпляров и указания дополнительных параметров сохранения. В приведенном ниже примере коллекция сущностей сохраняется с использованием `SaveContext`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=save-context]
 ----
 
-If you save a large collection of entities and don't need saved instances immediately, use `SaveContext.setDiscardSaved(true)` method. It will improve performance because `DataManager` will not fetch saved entities back from the database. For example:
+Если вы сохраняете большую коллекцию сущностей и сохраненные экземпляры не нужны вам немедленно, используйте метод `SaveContext.setDiscardSaved(true)`. Это повысит производительность, поскольку `DataManager` не будет извлекать сохраненные cущности из базы данных. Например:
 
 [source,java,indent=0]
 ----
@@ -221,39 +221,39 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=s
 ----
 
 [[remove]]
-== Removing Entities
+== Удаление сущностей
 
-Use `remove()` method to remove entities from the database.
+Используйте метод `remove()` для удаления сущностей из базы данных.
 
-In the simplest form, the method accepts an entity instance to remove:
+В своей простейшей форме данный метод принимает экземпляр сущности для удаления:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove]
 ----
 
-The `remove()` method can accept multiple instances, arrays and collections:
+Также метод `remove()` может принимать несколько экземпляров, массивов и коллекций:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove-list]
 ----
 
-If you remove linked entities, the order of parameters can be important. First pass the entities that depend on the others, for example:
+Если вы удаляете связанные объекты, может быть важен порядок параметров. Сначала передайте сущности, которые зависят от других, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=remove-multiple]
 ----
 
-If you don't have an entity instance but only its identifier, construct the `Id` object from the identifier and pass it to the `remove()` method:
+Если у вас нет экземпляра сущности, а есть только его идентификатор, создайте объект `Id` из идентификатора и передайте его методу `remove()`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove-by-id]
 ----
 
-If you need to specify additional parameters of the remove operation, for example to turn off xref:data-model:soft-deletion.adoc[soft deletion] and completely remove from the database an entity with the soft delete trait, use the `save()` method with `SaveContext` and pass the removed entities to its `removing()` method:
+Если вам необходимо указать дополнительные параметры операции удаления, например, чтобы отключить xref:data-model:soft-deletion.adoc[мягкое удаление] и полностью удалить из базы данных сущность с чертой Soft Delete, используйте метод `save()` с `SaveContext` и передайте удаленные сущности его методу `removing()`:
 
 [source,java,indent=0]
 ----
