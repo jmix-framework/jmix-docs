@@ -154,6 +154,52 @@ Below are rough equivalents of entities used to configure security at runtime:
 
 * `com.haulmont.cuba.security.entity.Constraint` -> `io.jmix.securitydata.entity.RowLevelPolicyEntity`
 
+[[multitenancy]]
+==== Multitenancy
+
+After running the automatic migration procedure, follow the steps below.
+
+. In the `User` entity, implement the `AcceptsTenant` interface and add the `tenant` attribute annotated with `@TenantId` and mapped to the `SYS_TENANT_ID` column:
++
+[source,java]
+----
+public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
+    // ...
+
+    @TenantId
+    @Column(name = "SYS_TENANT_ID")
+    private String tenant;
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
+    }
+
+    @Override
+    public String getTenantId() {
+        return tenant;
+    }
+}
+----
+
+. Add `tenant` attribute to the user browse and edit screens as described in items 3, 4, 5 of the xref:multitenancy:index.adoc#configuring-users[Multitenancy / Configuring Users] section.
+
+. Rename `CUBASDBMT_TENANT` table to `MTEN_TENANT` using the following Liquibase changeset (it's needed only in Jmix 1.1.0, because `jmix-cuba` module in Jmix 1.1.1+ contains this changeset):
++
+[source,xml]
+----
+<changeSet id="10" author="me">
+    <preConditions onFail="MARK_RAN">
+        <tableExists tableName="CUBASDBMT_TENANT"/>
+    </preConditions>
+
+    <renameTable oldTableName="CUBASDBMT_TENANT" newTableName="MTEN_TENANT"/>
+</changeSet>
+----
+
 [[changed-api-reports]]
 ==== Reports
 
