@@ -1,0 +1,116 @@
+= Multitenancy
+
+The add-on allows you to build multitenant Jmix applications that store data of all tenants in a single database. A single instance of the application serves multiple tenants - groups of users that are invisible to each other and share only specific (usually read-only) data.
+
+There are two types of data in a multitenant application:
+
+* Common data shared across tenants. Tenant users should have read-only access to this type of data.
+* Tenant-specific data not accessible to other tenants. Tenant users have full access to this type of data.
+
+[[installation]]
+== Installation
+
+Follow the instructions in the xref:ROOT:add-ons.adoc[Add-ons] section to install the add-on into your application.
+
+[[how-it-works]]
+== How it Works
+
+Tenant-specific entities of your project must have an attribute of type String annotated with `@TenantId`. When a tenant user loads such entities, the framework adds `WHERE` condition by the tenant-id attribute to the JPQL query in order to read only data of the user's tenant. Also, the tenant-id attribute is automatically set to the current users's tenant when saving new entities.
+
+CAUTION: There is no automatic filtering for native SQL, so tenant users should not have access to any functionality that provides access to native SQL or Groovy code (JMX Console, creating xref:reports:index.adoc[reports], etc.).
+
+The `User` entity of your project must have a tenant-id attribute. This attribute must be set to a particular value for all tenant users. Users without a value in this attribute (that is not belonging to any tenant) can see data of all tenants, which makes sense for __global administrators__ who can set up tenants and maintain the whole system.
+
+The following entities of Jmix modules have `sysTenantId` attribute and support multitenancy:
+
+* `EntityLogItem`
+* `SendingMessage`
+* `SendingAttachment`
+* `Report`
+* `ReportGroup`
+* `ResourceRoleEntity`
+* `RowLevelRoleEntity`
+* `FilterConfiguration`
+* `UiTablePresentation`
+
+[[managing-tenants]]
+== Managing Tenants
+
+The add-on provides *Administration -> Tenants* screen which allows global administrators to create and edit tenants.
+
+The tenant registration entity has two attributes:
+
+* *Tenant id* - identifier that will be used in tenant-specific entities. It cannot be changed after creation.
+* *Tenant name* - a descriptive name of the tenant.
+
+[[tenant-users]]
+== Tenant Users
+
+Tenants can have users with the same login names. To provide uniqueness of the `username` attribute throughout the whole application, tenant users should be registered with the tenant-id prefix in username. For example, if there are two different Alice users in `t1` and `t2` tenants, they should have `t1|alice` and `t2|alice` username respectively.
+
+There are two ways to log in tenant users to the application:
+
+. Use an URL parameter specifying tenant-id when opening the login screen, for example `++http://localhost:8080/#login?tenantId=t1++`. Then users can enter their login name without the tenant-id prefix, for example just `alice`.
++
+You can use the `jmix.multitenancy.tenantIdUrlParamName` application property to specify a different name for the URL parameter.
+
+. Users can provide the full username including the tenant-id, for example `t1|alice`.
+
+NOTE: You can implement your own scheme of unique usernames instead of the described above.
+
+[[configuring-users]]
+== Configuring Users
+
+In this section, we describe how to configure the user management and authentication in your project to support multitenancy.
+
+. Add a string attribute to your `User` entity and annotate it with `@TenantId`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=tenantId]
+----
+
+. Implement the `io.jmix.multitenancy.core.AcceptsTenant` interface in the `User` entity. The `getTenantId()` method must return the attribute marked with `@TenantId` annotation:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=AcceptsTenant-1;AcceptsTenant-2]
+----
+
+. Add `tenant` column to the table in `user-browse.xml`:
++
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-browse.xml[tags=tenant]
+----
+
+. Add field for selecting tenant in `user-edit.xml`:
++
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-edit.xml[tags=tenant]
+----
+
+. Add the following to the `UserEdit` class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/multitenancy/ex1/screen/user/UserEdit.java[tags=tenant-1;tenant-2;tenant-3]
+----
+
+. To support identical login names in different tenants as described <<tenant-users,above>>, add the following to your `LoginScreen` class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/multitenancy/ex1/screen/login/LoginScreen.java[tags=mt-1;mt-2;mt-3]
+----
+
+[[configuring-security]]
+== Configuring Security
+
+When configuring roles for tenant users, exclude tenant-id attributes from entity attribute policies, so users won't see them. For example, if the `Customer` entity is tenant-specific and has `tenant` attribute annotated with `@TenantId`, the role that gives access to the entity should list the attributes explicitly and omit `tenant`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/multitenancy/ex1/security/UsersRole.java[tags=mt-1;mt-2]
+----
