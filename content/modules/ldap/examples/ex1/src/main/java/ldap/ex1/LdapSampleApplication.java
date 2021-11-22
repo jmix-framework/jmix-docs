@@ -61,12 +61,12 @@ public class LdapSampleApplication {
 
     // tag::mapping-function[]
     @Bean
-    @Primary
-    JmixLdapGrantedAuthoritiesMapper grantedAuthoritiesMapper() {
+    @Primary // <1>
+    JmixLdapGrantedAuthoritiesMapper customAuthoritiesMapper() { // <2>
         JmixLdapGrantedAuthoritiesMapper authoritiesMapper = new JmixLdapGrantedAuthoritiesMapper();
         authoritiesMapper.setDefaultRoles(ldapProperties.getDefaultRoles());
         Map<String, String> authorityMap = new HashMap<>();
-        authorityMap.put("Administrators", "system-full-access");
+        authorityMap.put("Mathematicians", "system-full-access"); // <3>
         authoritiesMapper.setAuthorityToRoleCodeMapper(s -> authorityMap.getOrDefault(s, s));
         return authoritiesMapper;
     }
