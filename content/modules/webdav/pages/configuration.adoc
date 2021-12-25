@@ -1,0 +1,198 @@
+= Configuration
+
+[[application-properties]]
+== Application Properties
+
+[[jmix-webdav-applications]]
+=== jmix.webdav.applications
+
+Maps document formats to external applications that should open these documents. For each application you can configure a set of file extensions in the `"extensions"` property.
+
+For example, the following mapping makes the system to open PPT and PPTX files with Microsoft PowerPoint:
+
+[source,properties,indent=0]
+----
+"ms-powerpoint":{\
+  "name":"Microsoft PowerPoint",\
+  "protocols":{"writable":"ms-powerpoint:ofe%7Cu%7C","read_only":"ms-powerpoint:ofv%7Cu%7C"},\
+  "extensions":["ppt","pptx"]\
+  }
+----
+
+Default value:
+
+[source,properties,indent=0]
+----
+{"ms-word":{"name":"Microsoft Word","protocols":{"writable":"ms-word:ofe%7Cu%7C",\
+  "read_only":"ms-word:ofv%7Cu%7C"},"extensions":["docx","doc","rtf"]},\
+  "ms-excel":{"name":"Microsoft Excel","protocols":{"writable":"ms-excel:ofe%7Cu%7C",\
+  "read_only":"ms-excel:ofv%7Cu%7C"},"extensions":["xls","xlsx"]},\
+  "ms-powerpoint":{"name":"Microsoft PowerPoint",\
+  "protocols":{"writable":"ms-powerpoint:ofe%7Cu%7C","read_only":"ms-powerpoint:ofv%7Cu%7C"},\
+  "extensions":["ppt","pptx"]}}
+----
+
+Example value for LibreOffice:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=jmix-webdav-applications]
+----
+
+[[jmix-webdav-authenticationMethod]]
+=== jmix.webdav.authenticationMethod
+
+Defines the authentication type.
+
+Default value: `basic`.
+
+Although it is not recommended, you can set `digest` in this property and avoid setting up HTTPS on the server. In this case, do not forget to change the <<jmix-webdav-url-prefix>> property for generating links with correct server protocol and port. Also note that all users must have hashed passwords stored separately in the database. The add-on updates these passwords when you change the password for a user, so you have to do it for each user after setting up the digest authentication.
+
+[[jmix-webdav-auto-generate-unique-resource-uri]]
+=== jmix.webdav.autoGenerateUniqueResourceUri
+
+If this property is set to `false` and a newly uploaded document has the URI already assigned to another document, the unique constraint violation occurs.
+
+If this property is set to `true` and the URI is already assigned to some document, then the new path will be automatically generated with the `\{id}.extension` format.
+
+Default value: `true`.
+
+[[jmix-webdav-document-versions-cleaning-cron]]
+=== jmix.webdav.documentVersionsCleaningCron
+
+This property allows you to change the schedule of <<webdav-document-versions-cleaning-job,WebdavDocumentVersionsCleaningJob>> as http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[cron^] expression if necessary.
+
+The default value is `0 0 0 1 * ? *` (once a month).
+
+[[jmix-webdav-expired-lock-cleaning-cron]]
+=== jmix.webdav.expiredLockCleaningCron
+
+This property allows you to change the schedule of <<expired-lock-cleaning-job,ExpiredLockCleaningJob>> as http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[cron^] expression if necessary.
+
+The default value is `0 0 0/2 ? * *` (every two hours).
+
+[[jmix-webdav-file-storage]]
+=== jmix.webdav.fileStorage
+
+Defines a xref:files:file-storage.adoc[file storage] used for storing WebDAV files.
+
+By default, a file storage returned by `FileStorageLocator.getDefault()` is used.
+
+[[jmix-webdav-lock-timeout]]
+=== jmix.webdav.lockTimeout
+
+Defines the default interval in milliseconds for a document xref:webdav:features.adoc#lock-unlock[locking].
+
+Default value: `600000`.
+
+[[jmix-webdav-use-default-document-versions-cleaner-quartz-configuration]]
+=== jmix.webdav.useDefaultDocumentVersionsCleanerQuartzConfiguration
+
+This property allows you to disable the default configuration that creates and schedules the <<webdav-document-versions-cleaning-job,WebdavDocumentVersionsCleaningJob>> job.
+
+Default value: `true`.
+
+[[jmix-webdav-use-default-expired-lock-cleaner-quartz-configuration]]
+=== jmix.webdav.useDefaultExpiredLockCleanerQuartzConfiguration
+
+This property allows you to disable the default configuration that creates and schedules the <<expired-lock-cleaning-job,ExpiredLockCleaningJob>> job.
+
+Default value: `true`.
+
+[[jmix-webdav-url-prefix]]
+=== jmix.webdav.urlPrefix
+
+Defines the prefix for WebDAV document link.
+
+Default value: `\https://localhost:8443/webdav`.
+
+It must match the root URL of the application with the additional `/webdav` path.
+
+[[jmix-webdav-versioning-enabled]]
+=== jmix.webdav.versioningEnabled
+
+Enables versioning for all attributes of the `WebdavDocument` type without `@WebdavSupport` annotation.
+
+Default value: `true`.
+
+[[https]]
+== Configuring HTTPS
+
+HTTPS on the server is required to authenticate desktop applications. Below are simple instructions for setting up HTTPS in your development environment.
+
+[IMPORTANT]
+====
+The use of a self-signed certificate is appropriate only for testing. Always use SSL certificates issued by a trusted authority for running production applications.
+====
+
+=== Creating a Keystore File
+
+. Generate a keystore using the https://docs.oracle.com/en/java/javase/11/tools/keytool.html[keytool utility^] provided by JDK:
++
+[source,text]
+----
+keytool -genkey -keyalg RSA -alias localhost -keystore localhost.jks -validity 365 -keysize 2048
+----
++
+You will be asked for the keystore password and then for some names. Remember the password and the names.
+
+. Export certificate from the keystore:
++
+[source,text]
+----
+keytool -export -keystore localhost.jks -storepass <password> -alias localhost -file localhost.cer
+----
++
+Use the password entered on the first step instead of `<password>`.
+
+. Register the certificate as trusted in your operating system.
++
+* On macOS:
+** Double-click on `localhost.cer` file in Finder. The *Keychain Access* application will open.
+** Find your certificate under the name entered on the first step as "your first and last name" on the *Certficates* tab.
+** Double-click the certificate and select *Trust -> When using this certificate: Always Trust*.
+
+=== Configuring Server
+
+This section explains how to use the certificate generated in the previous section in your application when it runs from the IDE or as an executable JAR.
+
+. Create `src/main/resources/<base-package>/keystore` directory and copy `localhost.jks` into it.
+
+. Set the following properties in the `application.properties` file replacing `<base-package>` and `<password>` with actual values:
++
+[source,properties,indent=0]
+----
+# Enables HTTPS
+server.ssl.enabled=true
+# The format used for the keystore
+server.ssl.key-store-type = JKS
+# The path to the keystore containing the certificate
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# The password used to generate the keystore
+server.ssl.key-store-password = <password>
+# The alias mapped to the certificate
+server.ssl.key-alias = localhost
+
+# Changes the server's port
+server.port = 8443
+----
+
+[[maintenance]]
+== Maintenance Tasks
+
+To use Quartz Job Scheduler for periodic invocation of maintenance tasks, include Quartz in your project as described in the xref:ROOT:quartz-setup.adoc[] section.
+
+[[expired-lock-cleaning-job]]
+=== ExpiredLockCleaningJob
+
+Removes expired xref:features.adoc#lock-unlock[lock] objects. This job runs every two hours by default.
+
+To change the job schedule, use the xref:webdav:configuration.adoc#jmix-webdav-expired-lock-cleaning-cron[jmix.webdav.expiredLockCleaningCron] property.
+
+[[webdav-document-versions-cleaning-job]]
+=== WebdavDocumentVersionsCleaningJob
+
+Removes `WebdavDocumentVersion` instances, which do not have links to documents. This job runs once in a month by default.
+
+To change the job schedule, use the xref:webdav:configuration.adoc#jmix-webdav-document-versions-cleaning-cron[jmix.webdav.documentVersionsCleaningCron] property.
+
