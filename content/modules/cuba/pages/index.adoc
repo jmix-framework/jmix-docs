@@ -279,6 +279,9 @@ In Jmix Studio v.1.1.4 and below, the migration procedure may fail if your Intel
 In Jmix Studio v.1.1.5 and above, the migration does not have a dependency on Kotlin plugin.
 ====
 
+[[main-migration]]
+=== Main Migration
+
 Follow the steps below to run the automatic migration procedure.
 
 . Open your CUBA project in Jmix Studio.
@@ -339,8 +342,176 @@ jmix.liquibase.contexts = migrated
 
 .. Run the application using the *Jmix Application* run/debug configuration. Studio will generate a Liquibase changelog for entities in your data model. Alternatively, you can create a changelog file manually and add all SQL statements from the CUBA project `create-db.sql` files using Liquibase `sql` instructions.
 
-. If your project has a frontend module created with https://doc.cuba-platform.com/frontend[CUBA React client^], you can migrate it to Jmix as follows:
+[[file-storage-migration]]
+=== File Storage
 
-.. Copy `public`, `src` directories and all files from the root of `modules/front` directory of your CUBA project into `front` directory of your new Jmix project.
+xref:files:file-storage.adoc#local-fs[Local file storage] structure in Jmix is the same as in CUBA. You can just move all files from the `work/filestorage` directory of your CUBA application to the Jmix file storage directory which is `{user.dir}/.jmix/work/filestorage` by default and can be changed by the `jmix.localfs.storageDir` property.
 
-.. See https://docs-frontend.jmix.io/jmix-frontend-docs/0.x/getting-started/migration-cuba-to-jmix.html[Jmix Frontend UI -> Migration from CUBA^] guide for further instructions.
+Make sure that in screen descriptors, upload fields working with `FileDescriptor` attributes are defined as `cuba:cubaUpload`.
+
+Jmix CUBA compatibility module of version 1.1.2 and below has an https://github.com/Haulmont/jmix-cuba/issues/119[issue^] with the `_instance_name` fetch plan (called `_minimal` in CUBA). To work around it, specify `_base` or `_local` fetch plan instead of `_instance_name` (or `_minimal`) for attributes of the `FileDescriptor` type in screens.
+
+[[webdav-migration]]
+=== WebDAV
+
+This section describes how to migrate code and data related to the xref:webdav:index.adoc[] add-on.
+
+. Add the premium repository and add-on dependencies to your `build.gradle`:
++
+[source,groovy]
+----
+repositories {
+    // ...
+    maven {
+        url = 'https://global.repo.jmix.io/repository/premium'
+        credentials {
+            username = rootProject['premiumRepoUser']
+            password = rootProject['premiumRepoPass']
+        }
+    }
+}
+
+dependencies {
+    implementation 'io.jmix.webdav:jmix-webdav-starter'
+    implementation 'io.jmix.webdav:jmix-webdav-ui-starter'
+    implementation 'io.jmix.webdav:jmix-webdav-rest-starter'
+    // ...
+----
++
+Refresh the project using *Load Gradle Changes* popup at the top right corner of the edit window or using *Reload All Gradle Projects* action of the Gradle tool window.
+
+. Replace CUBA WebDAV packages with Jmix ones throughout your codebase:
+* `com.haulmont.webdav.entity.` -> `io.jmix.webdav.entity.`
+* `com.haulmont.webdav.annotation.` -> `io.jmix.webdav.annotation.`
+* `com.haulmont.webdav.components.` -> `io.jmix.webdavui.component.`
+
+. Fix WebDAV UI components declaration in your screen XML descriptors.
+
+* Replace `webdav` schema URI : `xmlns:webdav="http://schemas.haulmont.com/webdav/ui-component.xsd` -> `xmlns:webdav="http://jmix.io/schema/webdav/ui`
+
+* Replace component XML elements:
+** `document-link` -> `documentLink`
+** `document-version-link` -> `documentVersionLink`
+** `webdav-document-upload` -> `webdavDocumentUpload`
+
+. Jmix WebDAV add-on works only with attributes of `WebdavDocument` type, so if you have `FileDescriptor` attributes annotated with `@WebdavSupport`, you should change the attribute type and migrate data stored in the corresponding column. Let's consider this process on an example.
++
+--
+Suppose you have the following entity with a `FileDescriptor` attribute supporting WebDAV:
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEMO_DOC")
+@Entity(name = "demo_Doc")
+public class Doc extends StandardEntity {
+
+    @WebdavSupport
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "FILE_ID")
+    private FileDescriptor file;
+----
+
+First, replace `FileDescriptor` type with `WebdavDocument`:
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEMO_DOC")
+@Entity(name = "demo_Doc")
+public class Doc extends StandardEntity {
+
+    @WebdavSupport
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "FILE_ID")
+    private WebdavDocument file;
+----
+
+`@WebdavSupport` annotation is not required in this case, but it can be used to disable versioning.
+
+If there are `WebdavDocumentLink` components created for this attribute, replace `withFileDescriptor()` invocations with `withWebdavDocument()`.
+
+Next you need to create a Liquibase changelog updating data of the `FILE_ID` column. Create an XML file  (choose an appropriate name, for example `020-migrate-webdav.xml`) in the `src/main/resources/<base-package>/liquibase/changelog` directory with the following content:
+
+[source,xml,indent=0]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd"
+        context="cuba">
+
+    <changeSet id="1" author="demo">
+        <dropForeignKeyConstraint baseTableName="DEMO_DOC"
+                                  constraintName="FK_DEMO_DOC_ON_FILE"/>
+        <update tableName="DEMO_DOC">
+            <column name="FILE_ID" valueComputed="(select wd.id
+from webdav_webdav_document_version wdv, webdav_webdav_document wd
+where wdv.file_descriptor_id = FILE_ID and wdv.webdav_document_id = wd.id)"/>
+        </update>
+        <addForeignKeyConstraint baseColumnNames="FILE_ID" baseTableName="DEMO_DOC"
+                                 constraintName="FK_DEMO_DOC_ON_FILE" referencedColumnNames="ID"
+                                 referencedTableName="WEBDAV_WEBDAV_DOCUMENT"/>
+    </changeSet>
+
+</databaseChangeLog>
+----
+
+In general, you should create such changelogs for each `FileDescriptor` attribute which you have turned into `WebdavDocument`. The changelogs should match the following pattern:
+
+[source,xml,indent=0]
+----
+<changeSet id="{NUM}" author="sample">
+    <dropForeignKeyConstraint baseTableName="{ENTITY_TABLE_NAME}"
+                              constraintName="{FK_FOR_DOCUMENT}"/>
+    <update tableName="{ENTITY_TABLE_NAME}">
+        <column name="{DOCUMENT_COLUMN_NAME}" valueComputed="(select wd.id
+from webdav_webdav_document_version wdv, webdav_webdav_document wd
+where wdv.file_descriptor_id = {DOCUMENT_COLUMN_NAME} and wdv.webdav_document_id = wd.id)"/>
+    </update>
+    <addForeignKeyConstraint baseColumnNames="{DOCUMENT_COLUMN_NAME}"
+                baseTableName="{ENTITY_TABLE_NAME}"
+                constraintName="{FK_FOR_DOCUMENT}" referencedColumnNames="ID"
+                referencedTableName="WEBDAV_WEBDAV_DOCUMENT"/>
+</changeSet>
+----
+
+where
+
+* `\{NUM}` - number of the changelog in the file.
+* `\{ENTITY_TABLE_NAME}` - entity table name.
+* `\{FK_FOR_DOCUMENT}` - foreign key for referenced `FileDescriptor`.
+* `\{DOCUMENT_COLUMN_NAME}` - name of the `FileDescriptor` column.
+
+Click *Update* in the context menu of the *Main Data Store* item. Studio will run existing Liquibase changelogs.
+
+[CAUTION]
+====
+When you start the application, Studio will generate Liquibase changelogs for the difference between the database schema and your data model. Remove the instruction to drop the `FILE_DESCRIPTOR_ID.WEBDAV_WEBDAV_DOCUMENT_VERSION` column from the changelog (use *Remove and Ignore* command in the *Changelog Preview* window):
+
+[source,xml,indent=0]
+----
+<dropColumn columnName="FILE_DESCRIPTOR_ID"
+            tableName="WEBDAV_WEBDAV_DOCUMENT_VERSION"/>
+----
+
+Keep this column until you complete the migration.
+====
+
+Start the application, go to *Administration -> JMX Console* and open the `jmix.cuba:type=MigrationHelper` MBean. Execute the `convertCubaFileDescriptorsForWebdav()` operation.
+--
+
+. Set up HTTPS for your application. See the xref:webdav:configuration.adoc#https[Configuring HTTPS] guide for how to do it with a self-signed certificate.
+
+. Move your local file storage content as described <<file-storage-migration,above>>.
+
+[[frontend-migration]]
+=== Frontend
+
+If your project has a frontend module created with https://doc.cuba-platform.com/frontend[CUBA React client^], you can migrate it to Jmix as follows:
+
+. Copy `public`, `src` directories and all files from the root of `modules/front` directory of your CUBA project into `front` directory of your new Jmix project.
+
+. See https://docs-frontend.jmix.io/jmix-frontend-docs/0.x/getting-started/migration-cuba-to-jmix.html[Jmix Frontend UI -> Migration from CUBA^] guide for further instructions.
