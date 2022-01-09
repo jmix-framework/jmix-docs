@@ -142,18 +142,18 @@ In this case, it is not possible to set the HTTP headers. Therefore, you can pas
 == Anonymous Access
 
 By default, all endpoints are only available after a successful authentication against the application.
-But it is also possible to expose certain parts of the REST API without authentication. This is possible by using the anonymous access functionality of Jmix. In this case, the API request is performed as the user `anonymous`, which is present by default in Jmix.
+But it is also possible to expose certain parts of the REST API without authentication. This is possible by using the anonymous access functionality of Jmix. In this case, the API request is performed as the user `anonymous`, which is configured by default in a Jmix application.
 
 For every secured endpoint that is called without the `Authentication` header, the user will be authenticated with the `anonymous` user session.
 
-To whitelist specific endpoints / URL patterns for anonymous access, you can add the following configuration in the `application.properties`:
+To whitelist specific endpoints for anonymous access, set a comma-separated list of URL patterns in the `jmix.rest.anonymousUrlPatterns` application property. For example:
 
 [source,properties]
 ----
-jmix.rest.anonymousUrlPatterns=/rest/services/sample_ProductService/getProductInformation
+jmix.rest.anonymousUrlPatterns = \
+  /rest/services/productService/getProductInformation,\
+  /rest/entities/Product
 ----
-
-It is possible to define a comma-separated list of URL patterns, that should be available via anonymous access.
 
 Once this setting is in place, it is possible to interact with the `ProductService` without sending an `Authorization` header:
 
@@ -162,7 +162,7 @@ Once this setting is in place, it is possible to interact with the `ProductServi
 ----
 GET {{baseRestUrl}}
          /services
-         /sample_ProductService
+         /productService
          /getProductInformation
          ?productId=123
 # Authorization: not set
@@ -180,6 +180,42 @@ This request will respond in a successful response of the Service:
 }
 ----
 
+The anonymous access feature does not require that `anonymous` user has the `rest-minimal` role.
+
+If you want to provide anonymous access to some xref:rest:entities-api.adoc[entities] endpoints, make sure the `anonymous` user has rights to these entities. You can do it by creating a xref:security:resource-roles.adoc[resource role] and assigning it to the `anonymous` user in the `DatabaseUserRepository.initAnonymousUser()` method. For example:
+
+[source,java,indent=0]
+----
+@ResourceRole(name = "AnonymousRestRole", code = AnonymousRestRole.CODE, scope = "API")
+public interface AnonymousRestRole {
+
+    String CODE = "anonymous-rest-role";
+
+    @EntityAttributePolicy(entityClass = Product.class,
+        attributes = "*",
+        action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Product.class,
+        actions = EntityPolicyAction.READ)
+    void country();
+}
+----
+
+[source,java,indent=0]
+----
+@Primary
+@Component("UserRepository")
+public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
+    // ...
+
+    @Override
+    protected void initAnonymousUser(User anonymousUser) {
+        Collection<GrantedAuthority> authorities = getGrantedAuthoritiesBuilder()
+                .addResourceRole(AnonymousRestRole.CODE)
+                .build();
+        anonymousUser.setAuthorities(authorities);
+    }
+}
+----
 
 //== LDAP Authentication
 //
