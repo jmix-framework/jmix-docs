@@ -1,0 +1,173 @@
+= Publishing an Addon
+
+Jmix does not only provide a platform to build your applications upon. It also contains an ecosystem of addons, that enrich the Jmix experience even further. Jmix addons can be downloaded through the Jmix marketplace. A lot of addons are provided by the Jmix core team, while others are contributions from the community.
+
+To publish your open-source addon for Jmix, this information should help you set up your project in a way that makes it possible to be easily consumed by others through the marketplace as well. Following this guide will help you set up everything you need for publishing a Jmix add-on.
+
+NOTE: Our proposed approach is built completely on top of GitHub since it is commonly known and free for open-source projects.
+
+
+== GitHub Repository
+
+The first thing your addon needs is a GitHub repository. GitHub offers all necessary parts for publishing an open-source addon:
+
+* source code hosting
+* continuous integration system (GitHub Actions)
+* package management (GitHub Package Registry)
+
+You can create a new GitHub repository https://github.com/new[here].
+
+== License
+
+There are several open-source licenses that you can choose from. https://opensource.org/licenses/Apache-2.0[Apache License, Version 2.0], as well as https://opensource.org/licenses/MIT[MIT License], are common liberal licenses for open-source projects. Jmix itself is licensed under https://github.com/Haulmont/jmix-core/blob/master/LICENSE.txt[Apache 2.0].
+
+Once you have picked a license, you can manually put the license file into your GitHub repository. Even easier: as part of the repository creation process in GitHub, select the license directly through the "Choose a license" checkbox.
+
+== Create a Jmix Addon Project
+
+Once you have created the repository, you can create your new Jmix addon project through the Jmix Studio Project wizard. The template to select is "Single Module Add-on".
+
+=== Adjustments to the Project
+
+To interact well with the GitHub Actions workflows we will see later, you should change the repository settings for publishing to GitHub Packages:
+
+[source, groovy]
+.build.gradle
+----
+// ...
+    publishing {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/" + System.getenv("GITHUB_REPOSITORY"))
+                credentials {
+                    username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+                    password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+                }
+            }
+        }
+        publications {
+            javaMaven(MavenPublication) {
+                artifactId = archName
+                from components.java
+            }
+        }
+    }
+----
+
+Additionally, you should remove the version attribute in `build.gradle` (under `group = 'io.jmix.my.new.addon'`). Instead, create a file called `gradle.properties` with the version information directly next to the `build.gradle` file:
+
+[source,properties]
+.gradle.properties
+----
+version=0.0.1-SNAPSHOT
+----
+
+
+== Continuous Delivery
+
+GitHub offers a built-in CI system, that compiles the code, runs tests, performs releases, etc. for free for open-source projects.
+
+By adding the following GitHub action workflow files into your GitHub repository, the CI system will perform compilation and execution of automated tests. You will need to create the directory `.github/workflows` manually in the repository.
+
+[source,yaml]
+.test.yml
+----
+name: CI pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  ci:
+    name: CI pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v1
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        if: always() # always run even if the previous step fails
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+----
+
+[source,yaml]
+.release.yml
+----
+name: Publish release
+on:
+  release:
+    types: [created]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Publish package
+        run: gradle -Pversion=${{ github.event.release.tag_name }} build publish
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ github.token }}
+----
+
+With those two files in place GitHub Actions will perform the following tasks:
+
+* compile the code
+* run unit / integration tests
+* store test results
+* publishes a new version for newly created releases
+
+== Register Addon in Marketplace
+
+// TODO: how to register a new addon in the marketplace?
+To publish an addon to the https://www.jmix.io/marketplace/[Jmix Marketplace], you need to ... (TBD).
+
+== Create a Release
+
+The process of creating a release for your addon consists of two steps. First, you create a version with an artifact. Next, you submit this release in the Jmix BOM.
+
+=== Create a versioned artifact
+
+GitHub allows creating releases through the Web UI and the CLI. For the web UI, you have to first create a tag for a particular commit. Next, you can create the corresponding release. See https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository[GitHub docs] for more information.
+
+To create a GitHub release through the CLI use the following command: `gh release create 0.1.0`. You should replace `0.1.0` with your desired version to create.
+
+TIP: We propose to follow https://semver.org/[semantic versioning], which defines how to increase version numbers based on the type of change you performed in this release. It allows users to more easily understand the potential impact of a version update.
+
+Once the release is created, GitHub actions will create the artifact and release it accordingly.
+
+=== Update Jmix BOM
+
+After the release is published on GitHub, you will be able to download the artifact through the Jmix Maven repositories `global.repo.jmix.io` and `repo.jmix.io` as well.
+
+Generally, Jmix works with BOM (bill of materials) to centrally manage compatible versions. You can find the versions that are specified for a given Jmix release in the https://github.com/Haulmont/jmix-bom[jmix-bom] project on GitHub.
+
+The main benefit of this approach is that users don't have to manually find out the correct version of your addon that is compatible with their version of Jmix. Instead, you declare which version is working correctly with a particular Jmix release centrally in the BOM.
+
+To put your connect your release with a particular Jmix version, you can create a PR to the corresponding https://github.com/Haulmont/jmix-bom/branches/all?query=release_[release branch].
+
+1. fork the repository https://github.com/Haulmont/jmix-bom[Haulmont/jmix-bom]
+2. switch to a Jmix release branch you would like to add your release to (like https://github.com/Haulmont/jmix-bom/tree/release_1_1[release_1_1]).
+3. add a line with your maven coordinates and the correct version to `build.gradle`:
++
+        api 'io.jmix.my.new.addon:jmix-addon:1.0.0'
+        api 'io.jmix.my.new.addon:jmix-addon-starter:1.0.0'
+
+4. create a PR with the target branch: `release_1_1` of the repository `Haulmont/jmix-bom`.
