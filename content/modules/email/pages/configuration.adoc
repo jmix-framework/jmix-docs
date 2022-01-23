@@ -60,16 +60,16 @@ Defines the maximum expected time in seconds, which is required to send an email
 Default value: `240`
 
 [[jmix.email.admin-address]]
-=== jmix.email.admin-address
+=== jmix.email.admin-addresss
 
-Defines the address, to which all messages are sent if the `jmix.email.sendAllToAdmin` property is switched on.
+Defines the address, to which all messages are sent if the <<jmix.email.send-all-to-admin,jmix.email.send-all-to-admin>> property is switched on.
 
 Default value: `admin@localhost`
 
 [[jmix.email.send-all-to-admin]]
 === jmix.email.send-all-to-admin
 
-Indicates that all messages should be sent to the `jmix.email.adminAddress` address, regardless of the specified recipient’s address. It is recommended to use this parameter during system development and debugging.
+Indicates that all messages should be sent to the <<jmix.email.admin-address,jmix.email.admin-address>> address, regardless of the specified recipient’s address. It is recommended to use this parameter during system development and debugging.
 
 Default value: `false`
 
@@ -87,12 +87,80 @@ Defines the login of the system user, used by asynchronous email sending code to
 
 Default value: `admin`
 
-[[quartz]]
-== Configuring Quartz Scheduler
+[[jmix.email.use-default-quartz-configuration]]
+=== jmix.email.use-default-quartz-configuration
+
+Defines whether the <<sending-default-quartz-configuration,Default Quartz Configuration>> of the Email Sending is used.
+
+Default value: `true`
+
+[[jmix.email.email-sending-cron]]
+=== jmix.email.email-sending-cron
+
+Defines the CRON expression that is used by default in quartz scheduling configuration of the Email Sending .
+
+Default value: `0 * * * * ?` (every minute).
+
+[[jmix.email.use-default-email-cleaning-quartz-configuration]]
+=== jmix.email.use-default-email-cleaning-quartz-configuration
+
+Defines whether the <<cleaning-default-quartz-configuration,Default Quartz Configuration>> of the Email Cleaning is used.
+
+Default value: `false`
+
+[[jmix.email.email-cleaning-cron]]
+=== jmix.email.email-cleaning-cron
+
+Defines the CRON expression that is used by default in quartz scheduling configuration of the Email Cleaning .
+
+Default value: `0 0 0 * * ?` (in the begining of every day)
+
+[[jmix.email.max-age-of-important-messages]]
+=== jmix.email.max-age-of-important-messages
+
+Defines the maximum age (in days) of important messages after which they must be deleted. Zero value (`0`) means that messages won't be removed.
+
+Default value: `0`
+
+[[jmix.email.max-age-of-non-important-messages]]
+=== jmix.email.max-age-of-non-important-messages
+
+Defines the maximum age (in days) of messages after which they must be deleted. Zero value (`0`) means that messages won't be removed.
+
+Default value: `0`
+
+[[jmix.email.clean-file-storage]]
+=== jmix.email.clean-file-storage
+
+Defines whether the file storage cleaning should be performed while the cleaning scheduler is working.
+
+Default value: `false`
+
+[[email-sending-scheduler]]
+== Email Sending Scheduler
 
 When you call the `Emailer.sendEmailAsync()` method, an email is not sent but queued in the database. To send queued emails, you need to invoke the `Emailer.processQueuedEmails()` method.
 
-Follow the steps below to use Quartz Job Scheduler for periodic processing of the email queue.
+You can use Quartz Job Scheduler for periodic processing of the email queue as described below.
+
+[[sending-default-quartz-configuration]]
+=== Default Quartz Configuration
+
+The add-on provides the default configuration of Quartz Job Scheduler. To process the email queue regularly, do the following:
+
+. Include Quartz in your project as described in the xref:ROOT:quartz-setup.adoc[] section.
+
+. Change scheduling as CRON expression if necessary using the <<jmix.email.email-sending-cron,jmix.email.email-sending-cron>> property.
++
+[source, properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=email-sending-cron]
+----
+
+[[sending-custom-quartz-configuration]]
+=== Custom Quartz Configuration
+
+If you want to use a custom Quartz configuration, do the following:
 
 . Include Quartz in your project as described in the xref:ROOT:quartz-setup.adoc[] section.
 
@@ -100,7 +168,7 @@ Follow the steps below to use Quartz Job Scheduler for periodic processing of th
 +
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/email/ex1/EmailSendingJob.java[tags=quartz]
+include::example$/ex1/src/main/java/email/ex1/service/MyCustomEmailSendingJob.java[tags=quartz]
 ----
 
 . Add the following beans to the main application class:
@@ -109,10 +177,75 @@ include::example$/ex1/src/main/java/email/ex1/EmailSendingJob.java[tags=quartz]
 ----
 include::example$/ex1/src/main/java/email/ex1/SampleEmailApplication.java[tags=quartz]
 ----
-+
-<1> This http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[Cron expression^] means "every minute".
 
-As a result, all queued emails will be sent once a minute.
+[[email-cleaning-scheduler]]
+== Email Cleaning Scheduler
+
+The add-on has a built-in cleaning  Quartz Job Scheduler that is switched off by default. You can use it for periodic cleaning emails as described below.
+
+If you need to keep some emails, use the "important" flag and set the maximum age for important and non important emails. You can set this flag using the `setImportant()` method of the `EmailInfoBuilder`.
+
+[[cleaning-default-quartz-configuration]]
+=== Default Quartz Configuration
+
+The add-on provides the default configuration of Quartz Job Scheduler. To clean emails regularly, do the following:
+
+. Include Quartz in your project as described in the xref:ROOT:quartz-setup.adoc[] section.
+
+. Set the <<jmix.email.use-default-email-cleaning-quartz-configuration,jmix.email.use-default-email-cleaning-quartz-configuration>> property to `true`.
++
+[source, properties,indent=0]
+----
+jmix.email.use-default-email-cleaning-quartz-configuration=true
+----
+
+. Change scheduling as CRON expression if necessary using the <<jmix.email.email-cleaning-cron,jmix.email.email-cleaning-cron>> property.
++
+[source, properties,indent=0]
+----
+jmix.email.email-cleaning-cron=0 0 0 1/2 * ? 
+----
+
+. Set the age for important and non important emails using the <<jmix.email.max-age-of-important-messages,jmix.email.max-age-of-important-messages>> and <<jmix.email.max-age-of-non-important-messages,jmix.email.max-age-of-non-important-messages>> properties, for example:
++
+[source, properties,indent=0]
+----
+jmix.email.max-age-of-non-important-messages=5
+jmix.email.max-age-of-important-messages=30
+----
+
+. Set the <<jmix.email.clean-file-storage,jmix.email.clean-file-storage>> property to `true` in case you want to delete attachments.
+
+[[cleaning-custom-quartz-configuration]]
+=== Custom Quartz Configuration
+
+If you want to use a custom Quartz configuration, do the following:
+
+. Include Quartz in your project as described in the xref:ROOT:quartz-setup.adoc[] section.
+
+. Create a job class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/email/ex1/service/MyCustomEmailCleaningJob.java[tags=quartz]
+----
+
+. Add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/email/ex1/SampleEmailApplication.java[tags=quartz-clean]
+----
+
+. Set the age for important and non important emails using the <<jmix.email.max-age-of-important-messages,jmix.email.max-age-of-important-messages>> and <<jmix.email.max-age-of-non-important-messages,jmix.email.max-age-of-non-important-messages>> properties, for example:
++
+[source, properties,indent=0]
+----
+jmix.email.max-age-of-non-important-messages=5
+jmix.email.max-age-of-important-messages=30
+----
+
+. Set the <<jmix.email.clean-file-storage,jmix.email.clean-file-storage>> property to `true` in case you want to delete attachments.
 
 [[file-storage-usage]]
 == File Storage Usage
