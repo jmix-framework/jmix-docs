@@ -115,7 +115,7 @@ public class NewsItemEdit extends StandardEditor<NewsItem> {
                 "logo.png", "logoId"); // <2>
         NewsItem newsItem = getEditedEntity();
         EmailInfo emailInfo = EmailInfoBuilder.create()
-                .setAddresses("john.doe@company.com,jane.roe@company.com") // <3>
+                .setAddresses("john.doe@company.com,jane.doe@company.com") // <3>
                 .setSubject(newsItem.getCaption()) // <4>
                 .setFrom(null) // <5>
                 .setBody(newsItem.getContent())

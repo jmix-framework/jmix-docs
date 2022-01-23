@@ -1,4 +1,4 @@
-package email.ex1;
+package email.ex1.service;
 
 import io.jmix.email.Emailer;
 import org.quartz.Job;
@@ -7,7 +7,7 @@ import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 // tag::quartz[]
-public class EmailSendingJob implements Job {
+public class MyCustomEmailSendingJob implements Job {
 
     @Autowired
     private Emailer emailer;
@@ -18,3 +18,4 @@ public class EmailSendingJob implements Job {
     }
 }
 // end::quartz[]
+
