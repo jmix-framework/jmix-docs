@@ -1,80 +1,78 @@
-= Authentication
+= Аутентификация
 
-Authentication is the process of verifying the identity of a user or process that interacts with the system. For example, the system can authenticate users by their username and password. For authenticated users, the system can perform xref:authorization.adoc[authorization], which is a check of permissions to a particular resource.
+Аутентификация – это процесс проверки личности пользователя или процесса, который взаимодействует с системой. Например, система может аутентифицировать пользователей по их имени и паролю. Для аутентифицированных пользователей система может выполнить xref:authorization.adoc[авторизацию], которая представляет собой проверку разрешений для определенного ресурса.
 
-Jmix directly uses Spring Security https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication[servlet authentication^], so if you are familiar with this framework, you can easily extend or override the standard authentication mechanism provided by Jmix out-of-the-box.
+Jmix напрямую использует https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication[Servlet аутентификацию^] Spring Security, поэтому если вы знакомы с этой платформой, то вы можете легко расширить или переопределить стандартный механизм аутентификации, предоставляемый Jmix "из коробки".
 
 [[current]]
-== Current User
+== Текущий пользователь
 
-To determine who is currently authenticated, use the `CurrentAuthentication` bean. It has the following methods:
+Чтобы определить, кто в данный момент аутентифицирован, используйте бин `CurrentAuthentication`. Он имеет следующие методы:
 
-* `getUser()` returns the currently authenticated user as https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/userdetails/UserDetails.html[UserDetails^]. You can cast it to the class of xref:users.adoc#entity[users] defined in your project.
+* `getUser()` возвращает текущего аутентифицированного пользователя как https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/userdetails/UserDetails.html[UserDetails^]. Его можно привести к классу xref:users.adoc#entity[пользователя], определенному в проекте.
 
-* `getAuthentication()` returns the https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/Authentication.html[Authentication^] object set in the current execution thread. You can use it to get the collection of current user https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/GrantedAuthority.html[authorities^]. In the standard Jmix security implementation, the collection contains authority objects for each xref:resource-roles.adoc[resource] and xref:row-level-roles.adoc[row-level] role assigned to the user.
+* `getAuthentication()` возвращает объект https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/Authentication.html[Authentication^], установленный в текущем потоке выполнения. Его можно использовать, чтобы получить коллекцию https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/GrantedAuthority.html[полномочий^] текущего пользователя. В стандартной реализации безопасности Jmix эта коллекция содержит объекты полномочий для каждой xref:resource-roles.adoc[ресурсной] и xref:row-level-roles.adoc[row-level] роли, назначенной пользователю.
 
-* `getLocale()` and `getTimeZone()` return the locale and time zone of the current user.
+* `getLocale()` и `getTimeZone()` возвращают локаль и часовой пояс текущего пользователя.
 
-* `isSet()` returns true if the current execution thread is authenticated, that is contains information about the user. If it's not, `getUser()`, `getLocale()` and `getTimeZone()` methods described above will throw the `IllegalStateException`.
+* `isSet()` возвращает значение true, если текущий поток выполнения аутентифицирован, то есть содержит информацию о пользователе. Если это не так, методы `getUser()`, `getLocale()` и `getTimeZone()`, описанные выше, выбросят исключение `IllegalStateException`.
 
-Below is an example of getting the information about the current user:
+Ниже приведен пример получения информации о текущем пользователе:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/screen/auth/AuthTestScreen.java[tags=current-auth]
 ----
 
-NOTE: `CurrentAuthentication` is just a wrapper around https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/context/SecurityContextHolder.html[SecurityContextHolder^], so it is fully compatible with all Spring Security mechanisms.
+NOTE: `CurrentAuthentication` – это просто обёртка вокруг https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/context/SecurityContextHolder.html[SecurityContextHolder^], поэтому он полностью совместим со всеми механизмами Spring Security.
 
 [[client]]
-== Client Authentication
+== Аутентификация клиента
 
-The backend of a Jmix application can have different clients, for example, Backoffice UI, GraphQL, or REST API. Each client has its own standard authentication mechanism, for example:
+У бэкенда приложения Jmix могут быть разные клиенты, например, UI, GraphQL, или REST API. Каждый клиент имеет свой собственный стандартный механизм аутентификации, например:
 
-* UI xref:backoffice-ui:screens/root-screens.adoc#login-screen[login screen]
-* REST xref:rest:security/authentication.adoc[authentication]
+* xref:backoffice-ui:screens/root-screens.adoc#login-screen[Окно входа] UI
+* xref:rest:security/authentication.adoc[Аутентификация] REST
 
 [[brute-force-protection]]
-=== BruteForce Protection
+=== Защита от взлома методом перебора
 
-The framework has a mechanism for the protection against password brute force cracking.
-
-The <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>> application property enables the protection. If the protection is enabled, the combination of user login and IP address is blocked for a time interval in case of multiple unsuccessful login attempts. A maximum number of login attempts for the combination of user login and IP address is defined by the <<jmix-security-bruteforceprotection-maxLoginAttemptsNumber,jmix.security.bruteforceprotection.maxLoginAttemptsNumber>> application property. Blocking interval in seconds is determined by the <<jmix-security-bruteforceprotection-blockInterval,jmix.security.bruteforceprotection.blockInterval>> application property.
+В фреймворке есть механизм защиты от взлома паролей методом перебора, которая обеспечивается свойством приложения <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>>. Если она включена, комбинация логина пользователя и IP-адреса блокируется на определенный промежуток времени в случае нескольких неудачных попыток входа в систему. Максимальное количество попыток определяется свойством приложения <<jmix-security-bruteforceprotection-maxLoginAttemptsNumber,jmix.security.bruteforceprotection.maxLoginAttemptsNumber>>. Интервал блокировки в секундах определяется свойством приложения <<jmix-security-bruteforceprotection-blockInterval,jmix.security.bruteforceprotection.blockInterval>>.
 
 [[jmix-security-bruteforceprotection-enabled]]
 * `jmix.security.bruteforceprotection.enabled`
 +
-Enables a mechanism for the protection against password brute force cracking. The default value: `false`.
+Включает механизм защиты от взлома пароля методом перебора. Значение по умолчанию: `false`.
 
 [[jmix-security-bruteforceprotection-blockInterval]]
 * `jmix.security.bruteforceprotection.blockInterval`
 +
-Defines the blocking interval in seconds after exceeding a maximum number of failed login attempts if the <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>> property is on. The default value: `60 seconds`.
+Определяет интервал блокировки в секундах после превышения максимального количества неудачных попыток входа в систему, если включено свойство <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>>. Значение по умолчанию: `60 seconds`.
 
 [[jmix-security-bruteforceprotection-maxLoginAttemptsNumber]]
 * `jmix.security.bruteforceprotection.maxLoginAttemptsNumber`
 +
-Defines a maximum number of failed login attempts for the combination of user login and IP address if the <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>> property is on. The default value: `5`.
+Определяет максимальное количество неудачных попыток входа в систему для комбинации логина пользователя и IP-адреса, если включено свойство <<jmix-security-bruteforceprotection-enabled,jmix.security.bruteforceprotection.enabled>>. Значение по умолчанию: `5`.
 
 [[system]]
-== System Authentication
+== Системная аутентификация
 
-The execution thread can be not authenticated if it was started by an internal scheduler or handles a request from the JMX interface. At the same time, your business logic or data access code usually requires information on who is currently working with the system for logging or authorization.
+Поток выполнения может быть не аутентифицирован, если был запущен внутренним планировщиком или обрабатывает запрос из JMX-интерфейса. Однако обычно бизнес-логике или коду доступа к данным для журналирования или авторизации требуется информация о том, кто в данный момент работает с системой.
 
-To temporarily associate the current execution thread with a user, use the `SystemAuthenticator` bean. It has the following methods:
+Чтобы временно связать текущий поток выполнения с пользователем, используйте бин `SystemAuthenticator`. Он имеет следующие методы:
 
-* `withSystem()` - accepts a lambda and executes it as the xref:users.adoc#built-in[system] user.
+* `withSystem()` - принимает lambda-выражение и выполняет его от имени xref:users.adoc#built-in[системного] пользователя.
 
-* `withUser()` - accepts a username of a regular application user and a lambda and executes the lambda as the given user with their permissions.
+* `withUser()` - принимает имя обычного пользователя приложения и lambda-выражение и выполняет его от имени данного пользователя с соответствующими разрешениями.
 
-Below is an example of authenticating an MBean operation:
+Ниже приведен пример аутентификации операции MBean:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/mbean/SettingsManagementFacade.java[tags=system-authenticator;current-authentication;system-auth-code]
 ----
 
-You can also use the `@Authenticated` annotation to authenticate an entire bean method as executed by the `system` user. For example:
+Также можно использовать аннотацию `@Authenticated` для аутентификации всего метода бина, как выполняемого пользователем `system`. Например:
 
 [source,java,indent=0]
 ----
@@ -82,24 +80,24 @@ include::example$/ex1/src/main/java/security/ex1/mbean/SettingsManagementFacade.
 ----
 
 [[authentication-events]]
-== Authentication Events
+== События аутентификации
 
-Spring framework sends specific application events related to authentication.
+Фреймворк Spring посылает определенные события приложения, связанные с аутентификацией.
 
-TIP: Studio can help you generate listeners to authentication events. Click *New (+) -> Event Listener* in the *Jmix* tool window and select *Authentication Event* in the dialog.
+TIP: Studio может помочь вам создать слушателей событий аутентификации. Нажмите *New (+) -> Event Listener* в окне инструментов *Jmix* и выберите *Authentication Event* в диалоговом окне.
 
-Below is an example of handling authentication events.
+Ниже приведен пример обработки событий аутентификации.
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/security/AuthenticationEventListener.java[tags=class]
 ----
 
-<1> `InteractiveAuthenticationSuccessEvent` is sent when a user logs in to the system through UI or REST API.
-<2> `InteractiveAuthenticationSuccessEvent` contains the user entity.
-<3> `AuthenticationSuccessEvent` is sent on any successful authentication including <<system,system>>.
-<4> `InteractiveAuthenticationSuccessEvent` contains the user entity.
-<5> `AbstractAuthenticationFailureEvent` is sent when the authentication attempt has failed, for example because of invalid credentials.
-<6> `AbstractAuthenticationFailureEvent` contains only the user name provided for authentication.
-<7> `LogoutSuccessEvent` is sent when the user logs out.
-<8> `LogoutSuccessEvent` contains the user entity.
+<1> `InteractiveAuthenticationSuccessEvent` посылается, когда пользователь входит в систему через UI или REST API.
+<2> `InteractiveAuthenticationSuccessEvent` содержит сущность пользователя.
+<3> `AuthenticationSuccessEvent` отправляется при любой успешной аутентификации, включая <<system,системную>>.
+<4> `InteractiveAuthenticationSuccessEvent` содержит сущность пользователя.
+<5> `AbstractAuthenticationFailureEvent` посылается, если попытка аутентификации не удалась, например, из-за ввода неверных учетных данных.
+<6> `AbstractAuthenticationFailureEvent` содержит только имя пользователя, указанное при аутентификации.
+<7> `LogoutSuccessEvent` посылается при выходе пользователя из системы.
+<8> `LogoutSuccessEvent` содержит сущность пользователя.

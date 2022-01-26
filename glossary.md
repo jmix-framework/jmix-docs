@@ -8,6 +8,7 @@
 * __Spring beans__ – бины Spring
 * __UI screen__ – экран UI
 * __add-on__ – дополнение
+* __authorization point__ – точка авторизации
 * __build__ – сборка
 * __business logic__ – бизнес-логика
 * __cache__ – кэш
@@ -34,11 +35,15 @@
 * __enumeration__ – перечисление
 * __environment variable__ – переменная окружения
 * __environment__ – окружение
+* __event listener__ – слушатель события
 * __fetching data__ – извлечение данных
+* __file storage__ – хранилище файлов
+* __fine-grained__ – детализированный
 * __foreign keys__ – внешние ключи
 * __format strings__ – строки форматов
 * __framework__ – фреймворк
 * __full-stack__ – full-stack
+* __granularity__ – детализация
 * __implementation__ – реализация
 * __injection__ – инжектирование
 * __inspection__ – инспекция
@@ -46,12 +51,20 @@
 * __intentions__ – контекстные действия
 * __internationalization__ – интернационализация
 * __locale__ – локаль
+* __localization__ – локализация
+* __message bundle__ – пакет сообщений
+* __coarse-grained__ – крупномасштабный
 * __open-source__ – с открытым исходным кодом
+* __optimistic blocking__ – оптимистическая блокировка
 * __plugin__ – плагин
+* __property file__ – файл свойств
 * __property__ – свойство
 * __relational database__ – реляционная база данных
 * __repository__ – репозиторий
+* __resource role__ – ресурсная роль
+* __resource role__ – ресурсная роль
 * __root__ – корневой
+* __row-level__ – уровня строк
 * __run/debug configuration__ – конфигурация run/debug
 * __safe code refactoring__ – рефакторинг кода
 * __scaffolding__ – генерация

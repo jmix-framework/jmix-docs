@@ -1,58 +1,58 @@
-= Row-level Roles
+= Роли уровня строк
 
-Row-level roles allow you to restrict access to particular rows of data, in other words to entity instances.
+Роли уровня строк _(row-level roles)_ позволяют ограничить доступ к определенным строкам данных или, другими словами, к экземплярам сущностей.
 
-NOTE: A user without row-level roles has access to all instances of entities permitted by xref:resource-roles.adoc[resource roles].
+NOTE: Пользователь без ролей уровня строк имеет доступ ко всем экземплярам сущностей, разрешенным xref:resource-roles.adoc[ресурсными ролями].
 
 [[create]]
-== Creating Row-level Roles
+== Создание ролей уровня строк
 
-You can create row-level roles at design time using annotated Java interfaces or at runtime using UI screens available at *Administration -> Row-level roles*.
+Создавать роли уровня строк можно во время разработки с помощью аннотированных интерфейсов Java или во время выполнения с помощью экранов UI, доступных в разделе *Administration -> Row-level roles*.
 
-A role has a user-friendly name and a code. The code is used when assigning the role to users, so don't change if some users already have this role assigned.
+Роль должная иметь удобное для пользователя имя и код. Код используется при назначении роли, поэтому не изменяйте его, если эта роль уже назначена некоторым пользователям.
 
-Example of defining a design-time role:
+Пример определения роли во время разработки:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/security/restrictions/LimitedAmountOrdersRole.java[tags=role-1;role-2]
 ----
-<1> The `@RowLevelRole` annotation indicates that the interface defines a row-level role.
-<2> A user-friendly name of the role.
-<3> The role's code.
-<4> The interface can have one or more methods to define policy annotations (see below). Different methods are used just to group related policies. Method names can be arbitrary, they are displayed as *Policy group* when the role is shown in UI.
+<1> Аннотация `@RowLevelRole` указывает, что интерфейс определяет роль уровня строк.
+<2> Удобное для пользователя имя роли.
+<3> Код роли.
+<4> Интерфейс может иметь один или несколько методов для определения аннотаций политики (см. ниже). Различные методы используются только для группировки связанных политик. Имена методов могут быть произвольными, они отображаются как *Policy group*, когда роль показывается в UI.
 
 
 [[policies]]
-== Row-level Policies
+== Политики уровня строк
 
-Row-level roles define restrictions by specifying _row-level policies_ for particular entities.
+Роли уровня строк определяют ограничения, задавая _политики уровня строк_ для определенных сущностей.
 
 [[jpql-policy]]
-=== JPQL Policy
+=== JPQL-политика
 
-JPQL policy specifies the `where` (and optionally `join`) clause to be used when loading the entity.
+JPQL-политика указывает выражение `where` (и опционально `join`), которое будет использоваться при загрузке сущности.
 
-JPQL policy transforms the JPQL (and hence SQL) operator and filters out restricted instances on the database level, which is very efficient in terms of performance. But keep in mind that it affects only the root entity of a loaded object graph. If an entity can be loaded as a collection in another entity's object graph, define both JPQL and <<predicate-policy,predicate>> policies for it.
+JPQL-политика преобразует оператор JPQL (и, следовательно, SQL) и отфильтровывает запрещенные экземпляры на уровне базы данных, что очень эффективно с точки зрения производительности. Но нужно иметь в виду, что это влияет только на корневую сущность загруженного графа объектов. Если сущность может быть загружена как коллекция в графе объектов другой сущности, нужно определить для нее как JPQL-, так и <<predicate-policy,предикатные>> политики.
 
-In a design-time role, the JPQL policy is defined using the `@JpqlRowLevelPolicy` annotation, for example:
+В роли, определенной во время разработки, JPQL-политика определяется аннотацией `@JpqlRowLevelPolicy`, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/security/restrictions/CreatedByMeOrdersRole.java[tags=role]
 ----
 
-Consider the following rules when writing JPQL policies:
+При написании JPQL-политик учитывайте следующие правила:
 
-* Use `\{E\}` placeholder instead of the entity alias in `where` and `join` clauses. The framework will replace it with a real alias specified in the query.
+* Используйте плейсхолдер `\{E\}` вместо алиаса сущности в выражениях `where` и `join`. Фреймворк заменит его реальным алиасом, указанным в запросе.
 
-* The `where` text is added to the `where` query clause using `and` condition. Adding the `where` word is not needed, as it will be added automatically.
+* Содержимое `where` добавляется в выражение `where` запроса с использованием условия `and`. Добавление самого слова `where` не требуется, так как оно будет добавлено автоматически.
 
-* The `join` text is added to the `from` query clause. It should begin with a comma, `join` or `left join`.
+* Содержимое `join` добавляется в выражение `from` запроса. Оно должно начинаться с запятой или слов `join` или `left join`.
 
-You can use parameters matching the `current_user_<attribute>` pattern. They will get values from the attributes of the currently logged in user. For example, the `current_user_username` parameter gets its value from the `username` attribute.
+Можно использовать параметры по шаблону `current_user_<attribute>`. Они получат значения из атрибутов текущего вошедшего в систему пользователя. Например, параметр `current_user_username` получает свое значение из атрибута `username`.
 
-You can add application-specific attributes to your `User` entity and use them in JPQL policies. For example, imagine that you have added the `region` attribute to the `User` and `Customer` entities. Then you can restrict access to `Customer` and `Order` entities by allowing users to see only entities of their region:
+Также можно добавить атрибуты, относящиеся к конкретному приложению, в сущность `User` и использовать их в JPQL-политиках. Например, представим, что к сущностям `User` и `Customer` был добавлен атрибут `region`. Затем можно ограничить доступ к объектам `Customer` и `Order`, разрешив пользователям видеть только сущности своего региона:
 
 [source,java,indent=0]
 ----
@@ -60,33 +60,33 @@ include::example$/ex1/src/main/java/security/ex1/security/restrictions/SameRegio
 ----
 
 [[predicate-policy]]
-=== Predicate Policy
+=== Предикатная политика
 
-Predicate policy defines a predicate that is tested when performing different actions with the entity. If the predicate returns true, the action is permitted for the entity instance.
+Предикатная политика определяет предикат, который проверяется при выполнении различных действий с сущностью. Если предикат возвращает значение true, данное действие разрешено для данного экземпляра сущности.
 
-You can define predicate policies for the following actions: `READ`, `CREATE`, `UPDATE`, `DELETE`.
+Предикатные политики можно определить для следующих действий: `READ`, `CREATE`, `UPDATE`, `DELETE`.
 
-The `READ` predicate is tested when the entity is loaded from the database for the root entity and (unlike <<jpql-policy,JPQL policy>>) all nested collections down to the loaded object graph. If an entity can be loaded as a collection in another entity's object graph, define both JPQL and predicate policies for it.
+Предикат `READ` проверяется при загрузке сущности из базы данных для корневой сущности и (в отличие от <<jpql-policy,JPQL-политики>>) всех вложенных коллекций вплоть до графа загруженных объектов. Если сущность может быть загружена как коллекция в графе объектов другой сущности, нужно определить для нее как JPQL-, так и <<predicate-policy,предикатные>> политики.
 
-The `CREATE`, `UPDATE`, `DELETE` predicates are tested before the entity instance is created, updated or deleted from the database.
+Предикаты `CREATE`, `UPDATE`, `DELETE` проверяются перед созданием, обновлением или удалением экземпляра сущности из базы данных.
 
-In a design-time role, the predicate policy is defined using the `@PredicateRowLevelPolicy` annotation, for example:
+В роли, определенной во время разработки, предикатная политика определяется аннотацией `@PredicateRowLevelPolicy`, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/security/ex1/security/restrictions/NonConfidentialRowsRole.java[tags=role]
 ----
 
-This example demonstrates a row-level role that should be used in addition to resource roles of the example from the xref:resource-roles.adoc#example[previous section] to restrict access to instances of `CustomerDetail` having `confidential = true` attribute. You cannot use a JPQL policy to filter out `CustomerDetail` instances from the `Customer.details` collection because it can be loaded together with the owning `Customer` in a single database operation. Predicate policies are executed in memory for root entities and nested collections.
+В этом примере показана роль уровня строки, которую следует использовать в дополнение к ресурсным ролям из примера в xref:resource-roles.adoc#example[предыдущем разделе] для ограничения доступа к экземплярам `CustomerDetail`, имеющим атрибут `confidential = true`. JPQL-политику нельзя использовать для фильтрации экземпляров `CustomerDetail` из коллекции `Customer.details`, поскольку она может быть загружена вместе с владельцем `Customer` в рамках одной операции базы данных. Предикатные политики выполняются в памяти и для корневых сущностей, и для вложенных коллекций.
 
-In a runtime role, the predicate policy is defined using a Groovy script. In the script, use the `\{E\}` placeholder as a variable containing the tested entity instance. For example, the same condition as in the design-time role above can be written as the following Groovy script:
+В роли, определенной во время выполнения, предикатная политика  определяется с помощью Groovy-скрипта. Используйте в нем плейсхолдер `\{E\}` в качестве переменной, содержащей экземпляр проверяемой сущности. Например, то же условие, что и в роли, определенной во время разработки выше, может быть записано в виде следующего Groovy-скрипта:
 
 [source,groovy]
 ----
 !{E}.confidential
 ----
 
-In the Groovy script, you can also use the `applicationContext` variable to access any Spring bean, for example:
+В Groovy-скрипте также можно использовать переменную `applicationContext` для доступа к любому бину Spring, например:
 
 [source,groovy]
 ----
