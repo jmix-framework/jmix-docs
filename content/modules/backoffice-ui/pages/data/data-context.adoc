@@ -1,44 +1,44 @@
 = DataContext
 
-`DataContext` is an interface for tracking changes in entities loaded to the UI layer. Tracked entities are marked as "dirty" on any modification of their attributes, and `DataContext` saves dirty entities when its `commit()` method is invoked.
+Интерфейс `DataContext` позволяет отслеживать изменения в сущностях, загружаемых на уровень UI. Отслеживаемые сущности помечаются как "грязные" при любом изменении их атрибутов, и `DataContext` сохраняет грязные экземпляры при вызове его метода `commit()`.
 
-Within `DataContext`, an entity with the given identifier is represented by a single object instance, no matter where and how many times it is used in object graphs.
+Внутри `DataContext` сущность с некоторым идентификатором будет представлена как единственный объект, вне зависимости от того, где и сколько раз она использована в графах других объектов.
 
-In order to be tracked, an entity must be put into `DataContext` using its `merge()` method. If the context does not contain the entity with the same id, the context creates a new instance, copies the state of the passed instance to the new one and returns it. If the context already contains an instance with the same id, it copies the state of the passed instance to the existing one and returns it. This mechanism allows the context to always have only one instance of an entity with a particular identifier.
+Чтобы сущность отслеживалась, ее необходимо поместить в `DataContext` с помощью метода `merge()`. Если контекст не содержит экземпляра сущности с таким же идентификатором, то контекст создает новый экземпляр и копирует в него состояние переданного. Если контекст уже содержит экземпляр сущности с таким же идентификатором, он копирует в имеющегося состояние переданного и возвращает. Данный механизм позволяет всегда иметь в контексте не более одного экземпляра сущности с конкретным идентификатором.
 
-When you merge an entity, the whole object graph with the root in this entity will be merged. That is all referenced entities (including collections) will become tracked.
+При помещении сущности в контекст методом `merge()` весь граф объектов с корнем в данной сущности также помещается в контекст. То есть все связанные сущности, включая коллекции, становятся отслеживаемыми.
 
-NOTE: The main rule of using the `merge()` method is to continue working with the returned instance and discarding the passed one. In most cases, the returned object instance will be different. The only exception is when you pass to `merge()` an instance that was earlier returned from another invocation of `merge()` or `find()` of the same context.
+NOTE: Главный принцип использования метода `merge()` заключается в том, чтобы продолжать работать с возвращенным экземпляром, забывая про переданный. В большинстве случаев возвращенный экземпляр будет другим. Единственное исключение – если в `merge()` передан экземпляр объекта, ранее возвращенный другим вызовом `merge()` или `find()` этого же контекста.
 
-An example of merging an entity into `DataContext`:
+Пример помещения сущности в `DataContext`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context;data-manager;collection;load]
 ----
 
-A single instance of `DataContext` exists for a given screen and all its nested fragments. It is created if the `<data>` element exists in the screen XML descriptor.
+Для одного экрана и всех его вложенных фрагментов может существовать только один экземпляр `DataContext`. Он создается автоматически, если в XML-дескрипторе экрана существует элемент `<data>`.
 
-The `<data>` element can have `readOnly="true"` attribute, in that case, a special "no-op" implementation is used that actually doesn’t track entities and hence doesn’t affect performance. By default, entity browsers scaffolded by Studio have the read-only data context, so if you need to track changes and commit dirty entities in a browser, remove the `readOnly="true"` XML attribute.
+Элемент `<data>` может содержать атрибут `readOnly="true"`, в этом случае будет использована специальная "no-op"-реализация, в которой не будут отслеживаться изменения в сущностях и, следовательно, улучшится быстродействие. Экраны просмотра списков, автоматически создаваемые в Studio, по умолчанию имеют read-only data context, поэтому если вам нужно отслеживать изменения и сохранять грязные сущности в браузере, удалите XML-атрибут `readOnly="true"`.
 
 [[obtaining-data-context]]
-== Obtaining DataContext
+== Получение DataContext
 
-. `DataContext` of a screen can be obtained in its controller using injection:
+. `DataContext` экрана можно получить в его контроллере используя инжектирование:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context]
 ----
 +
-. If you have a reference to a screen, you can get its `DataContext` using the `UiControllerUtils` class:
+. Если имеется ссылка на некоторый экран, то получить его `DataContext` можно с помощью класса `UiControllerUtils`:
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData.java[tags=sample-method]
 ----
 +
-. A UI component can obtain `DataContext` of the current screen as follows:
+. UI-компонент может получить `DataContext` текущего экрана следующим образом:
 +
 [source,java,indent=0]
 ----
@@ -46,31 +46,31 @@ DataContext dataContext = UiControllerUtils.getScreenData(getFrame().getFrameOwn
 ----
 
 [[parent-data-context]]
-== Parent DataContext
+== Родительский DataContext
 
-DataContext instances can form parent-child relationships. If a `DataContext` instance has parent context, it commits changed entities to the parent instead of saving them to the data store. This feature enables editing compositions when detail entities are saved only together with the master entity. If an entity attribute is annotated with `@Composition`, the framework automatically sets parent context in the attribute editor screen, so the changed attribute entity will be saved to the data context of the master entity.
+Сущности `DataContext` могут образовывать отношения предок-потомок. Если у экземпляра `DataContext` есть родительский контекст, он будет сохранять измененные сущности в своего предка вместо того, чтобы сразу отправлять их в хранилище данных. Эта особенность позволяет редактировать композитные сущности, где дочерние сущности должны сохраняться только вместе с родительской. Если атрибут сущности снабжен аннотацией `@Composition`, фреймворк автоматически установит родительский контекст для экрана редактирования этого атрибута, чтобы измененная сущность атрибута могла быть сохранена только вместе с основной сущностью.
 
-You can easily provide the same behavior for any entities and screens.
+Подобное поведение можно легко настроить вручную для любой сущности или экрана.
 
-If you open an edit screen that should commit data to the current screen’s data context, use the `withParentDataContext()` method of the builder:
+Если вы программно открываете экран редактирования сущности, который должен сохранять изменения в data context текущего экрана, используйте метод `withParentDataContext()` builder’а:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screen-builders;data-context;person-edit]
 ----
 
-If you open a simple screen using the `Screens` bean, provide a setter method accepting the parent data context:
+Если вы открываете простой экран с помощью бина `Screens`, определите в нем сеттер, принимающий data context родительского экрана:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/SmplScreen.java[tags=sample-screen]
 ----
 
-And use it after creating the screen:
+И используйте после создания экрана:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screens;data-context;sample-screen]
 ----
 
-CAUTION: Make sure that the parent data context is not defined with `readOnly="true"` attribute. Otherwise, you will get an exception when trying to use it as a parent for another context.
+CAUTION: Убедитесь, что для родительского data context не задан атрибут `readOnly="true"`. В противном случае при попытке использовать его как предка другого контекста будет выброшено исключение.

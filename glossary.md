@@ -2,6 +2,7 @@
 * __IntelliJ IDEA__ – IntelliJ IDEA (ж.р.)
 * __IntelliJ Platform__ – IntelliJ Platform (ж.р.)
 * __Java Development Kit (JDK)__ – Java Development Kit (JDK) (м.р.)
+* __Java Virtual Machine (JVM)__ – Java Virtual Machine (JVM) (ж.р.)
 * __Jmix Framework__ – Jmix Framework (м.р.)
 * __Jmix Studio__ – Jmix Studio (ж.р.)
 * __Nightly Builds__ – ночные сборки
@@ -12,6 +13,8 @@
 * __build__ – сборка
 * __business logic__ – бизнес-логика
 * __cache__ – кэш
+* __casting__ – приведение
+* __coarse-grained__ – крупномасштабный
 * __code completion__ – автодополнение кода
 * __command__ – команда
 * __console__ – консоль (командная строка?)
@@ -36,6 +39,7 @@
 * __environment variable__ – переменная окружения
 * __environment__ – окружение
 * __event listener__ – слушатель события
+* __fetch-plan__ – фетч-план
 * __fetching data__ – извлечение данных
 * __file storage__ – хранилище файлов
 * __fine-grained__ – детализированный
@@ -44,16 +48,18 @@
 * __framework__ – фреймворк
 * __full-stack__ – full-stack
 * __granularity__ – детализация
+* __handler__ – обработчик
 * __implementation__ – реализация
 * __injection__ – инжектирование
 * __inspection__ – инспекция
 * __integrated development environment / IDE__ – интегрированная среда разработки / IDE (ж.р.)
 * __intentions__ – контекстные действия
 * __internationalization__ – интернационализация
+* __invoke__ – вызывать
 * __locale__ – локаль
 * __localization__ – локализация
+* __lookup__ – выбор
 * __message bundle__ – пакет сообщений
-* __coarse-grained__ – крупномасштабный
 * __open-source__ – с открытым исходным кодом
 * __optimistic blocking__ – оптимистическая блокировка
 * __plugin__ – плагин
@@ -78,5 +84,6 @@
 * __user interface / UI__ – пользовательский интерфейс / UI (м.р.)
 * __value__ – значение
 * __variable__ – переменная
+* __view__ – представление
 * __welcome screen__ – приветственный экран
 * __wizard__ – мастер
