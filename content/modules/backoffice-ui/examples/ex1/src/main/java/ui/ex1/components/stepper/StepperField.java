@@ -26,6 +26,9 @@ public class StepperField
 
     private int step = 1; // <7>
 
+    private boolean editable = true;
+    private Subscription parentEditableChangeListener;
+
     public StepperField() {
         addCreateListener(this::onCreate); // <8>
     }
@@ -74,12 +77,42 @@ public class StepperField
     }
 
     @Override
+    public void setParent(Component parent) {
+        if (getParent() instanceof EditableChangeNotifier
+                && parentEditableChangeListener != null) {
+            parentEditableChangeListener.remove();
+            parentEditableChangeListener = null;
+        }
+
+        super.setParent(parent);
+
+        if (parent instanceof EditableChangeNotifier) { // <9>
+            parentEditableChangeListener = ((EditableChangeNotifier) parent).addEditableChangeListener(event -> {
+                boolean parentEditable = event.getSource().isEditable();
+                boolean finalEditable = parentEditable && isEditable();
+                setEditableInternal(finalEditable);
+            });
+
+            Editable parentEditable = (Editable) parent;
+            if (!parentEditable.isEditable()) {
+                setEditableInternal(false);
+            }
+        }
+    }
+
+    @Override
     public boolean isEditable() {
-        return valueField.isEditable();
+        return editable;
     }
 
     @Override
     public void setEditable(boolean editable) {
+        if (this.editable != editable) {
+            setEditableInternal(editable);
+        }
+    }
+
+    private void setEditableInternal(boolean editable) {
         valueField.setEditable(editable);
         upBtn.setEnabled(editable);
         downBtn.setEnabled(editable);
