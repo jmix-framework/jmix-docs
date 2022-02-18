@@ -1,5 +1,7 @@
-package bpm.ex1.entity;
+package notifications.ex1.entity;
 
+import io.jmix.core.HasTimeZone;
+import io.jmix.core.annotation.Secret;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
@@ -15,11 +17,11 @@ import java.util.Collections;
 import java.util.UUID;
 
 @JmixEntity
-@Entity(name = "smpl_User")
-@Table(name = "SMPL_USER", indexes = {
-        @Index(name = "IDX_SMPL_USER_ON_USERNAME", columnList = "USERNAME", unique = true)
+@Entity
+@Table(name = "USER_", indexes = {
+        @Index(name = "IDX_USER__ON_USERNAME", columnList = "USERNAME", unique = true)
 })
-public class User implements JmixUserDetails {
+public class User implements JmixUserDetails, HasTimeZone {
 
     @Id
     @Column(name = "ID", nullable = false)
@@ -33,6 +35,7 @@ public class User implements JmixUserDetails {
     @Column(name = "USERNAME", nullable = false)
     protected String username;
 
+    @Secret
     @SystemLevel
     @Column(name = "PASSWORD")
     protected String password;
@@ -44,29 +47,17 @@ public class User implements JmixUserDetails {
     protected String lastName;
 
     @Email
-    @Column(name = "EMAIL")
-    protected String email;
+    @Column(name = "EMAIL_ADDRESS")
+    protected String emailAddress;
 
     @Column(name = "ACTIVE")
     protected Boolean active = true;
 
     @Column(name = "TIME_ZONE_ID")
-    private String timeZoneId;
+    protected String timeZoneId;
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
-
-    public String getTimeZoneId() {
-        return timeZoneId;
-    }
-
-    public void setTimeZoneId(String timeZoneId) {
-        this.timeZoneId = timeZoneId;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
 
     public UUID getId() {
         return id;
@@ -97,7 +88,7 @@ public class User implements JmixUserDetails {
         this.username = username;
     }
 
-    public Boolean getEnabled() {
+    public Boolean getActive() {
         return active;
     }
 
@@ -109,12 +100,12 @@ public class User implements JmixUserDetails {
         this.password = password;
     }
 
-    public String getEmail() {
-        return email;
+    public String getEmailAddress() {
+        return emailAddress;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setEmailAddress(String emailAddress) {
+        this.emailAddress = emailAddress;
     }
 
     public String getFirstName() {
@@ -160,7 +151,7 @@ public class User implements JmixUserDetails {
 
     @Override
     public boolean isEnabled() {
-        return active;
+        return Boolean.TRUE.equals(active);
     }
 
     @InstanceName
@@ -168,5 +159,14 @@ public class User implements JmixUserDetails {
     public String getDisplayName() {
         return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
                 (lastName != null ? lastName : ""), username).trim();
+    }
+
+    @Override
+    public String getTimeZoneId() {
+        return timeZoneId;
+    }
+
+    public void setTimeZoneId(String timeZoneId) {
+        this.timeZoneId = timeZoneId;
     }
 }
