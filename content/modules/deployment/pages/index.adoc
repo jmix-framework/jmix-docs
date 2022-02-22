@@ -50,8 +50,41 @@ java -jar myapp-0.0.1-SNAPSHOT.jar
 
 If you want to customize the packaging process or create a deployable WAR file, refer to the https://docs.spring.io/spring-boot/docs/{spring-boot-version}/gradle-plugin/reference/htmlsingle/#packaging-executable[Spring Boot Documentation^].
 
+[[bootBuildImage]]
+== Creating Docker Image
+
+In Jmix Studio, open the *Gradle* tool window and double-click *Tasks -> build -> bootBuildImage* task.
+
+In the command line, use the following command:
+
+[source,shell script]
+----
+./gradlew bootBuildImage
+----
+
+By default, the image will be created with the name of your project and tag which is equal to you project's version.
+
+For example, if you specified the following in your `settings.gradle`:
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+and in your `build.gradle`:
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+then the created image will be `myapp:0.0.1-SNAPSHOT`.
+
+You can find more information on image generation and customization in the link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/gradle-plugin/reference/htmlsingle/#build-image[Spring Boot Documentation^].
+
 [[bootWar]]
-== Creating WAR
+== Deploying WAR
 
 If you want to build a WAR file for deployment to an application server, follow these steps:
 
@@ -88,35 +121,90 @@ The WAR file is created in the `/build/libs` folder. The file name is generated 
 
 IMPORTANT: You will not be able to run Jmix applications on Tomcat 10 because it does not support Java EE 8 (`javax.\*` namespace) and requires Jakarta EE 9 (`jakarta.*`), see https://tomcat.apache.org/migration-10.html#Specification_APIs[Tomcat documentation^] for details. Use the latest Tomcat 9 to deploy Jmix WAR.
 
-[[bootBuildImage]]
-== Creating Docker Image
+[[jndi-data-source]]
+=== Using JNDI Data Source
 
-In Jmix Studio, open the *Gradle* tool window and double-click *Tasks -> build -> bootBuildImage* task.
+When deploying your application as a WAR, you can use a JNDI data source provided by the application server to externalize connection settings.
 
-In the command line, use the following command:
+See below how to configure the main `DataSource` of your application for development and production environments using the Spring's https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[profiles^] feature.
 
+. In your main application class, add `@Profile("!prod")` annotation to `dataSourceProperties` and `dataSource` methods to make sure these beans are created only in development environment:
++
+[source,java,indent=0]
+----
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource")
+DataSourceProperties dataSourceProperties() {
+    return new DataSourceProperties();
+}
+
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource.hikari")
+DataSource dataSource(DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().build();
+}
+----
+
+. Add a method creating a `DataSource` bean for the production environment:
++
+[source,java,indent=0]
+----
+@Profile("prod")
+@Bean(name = "dataSource")
+@Primary
+DataSource prodDataSource(ApplicationContext context) {
+    JndiDataSourceLookup lookup = new JndiDataSourceLookup();
+    DataSource dataSource = lookup.getDataSource("java:comp/env/jdbc/demo"); // <1>
+
+    // to avoid org.springframework.jmx.export.UnableToRegisterMBeanException:
+    for (MBeanExporter mbeanExporter : context.getBeansOfType(MBeanExporter.class).values()) {
+        if (JmxUtils.isMBean(((Object) dataSource).getClass())) {
+            mbeanExporter.addExcludedBean("dataSource");
+        }
+    }
+
+    return dataSource;
+}
+----
+<1> JNDI name of the data source provided by the application server.
+
+. When running the application server, set active profile to `prod` in `spring.profiles.active` application property.
+
+Below is an example of configuring Tomcat 9 for deploying a `demo.war` application.
+
+. Copy `demo.war` to `tomcat/webapps` folder.
+
+. Create `tomcat/bin/setenv.sh` file with the following content:
++
 [source,shell script]
 ----
-./gradlew bootBuildImage
+CATALINA_OPTS="-Dspring.profiles.active=prod"
 ----
 
-By default, the image will be created with the name of your project and tag which is equal to you project's version.
-
-For example, if you specified the following in your `settings.gradle`:
-
-[source]
+. Create `tomcat/conf/Catalina/localhost/demo.xml` file defining the data source and set appropriate database connection parameters:
++
+[source,xml]
 ----
-rootProject.name = 'myapp'
+<Context>
+    <Resource type="javax.sql.DataSource"
+              name="jdbc/demo"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost/demo"
+              username="root"
+              password="root"
+              maxIdle="2"
+              maxTotal="20"
+              maxWaitMillis="5000"
+    />
+</Context>
 ----
++
+Notice that the `name` attribute of the `Resource` element defines the JNDI name used in the `JndiDataSourceLookup.getDataSource()` method when creating the `DataSource` bean.
 
-and in your `build.gradle`:
+. Copy an appropriate JDBC driver file (for example, `postgresql-42.2.9.jar`) to `tomcat/lib`.
 
-[source]
-----
-group = 'com.company'
-version = '0.0.1-SNAPSHOT'
-----
-
-then the created image will be `myapp:0.0.1-SNAPSHOT`.
-
-You can find more information on image generation and customization in the link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/gradle-plugin/reference/htmlsingle/#build-image[Spring Boot Documentation^].
+When you start Tomcat, the application will use the data source defined in the `tomcat/conf/Catalina/localhost/demo.xml` file.
