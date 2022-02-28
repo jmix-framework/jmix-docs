@@ -7,7 +7,6 @@ import io.jmix.ui.component.CheckBox;
 import io.jmix.ui.component.TextField;
 import io.jmix.ui.component.ValidationErrors;
 import io.jmix.ui.screen.*;
-import jdk.internal.joptsimple.internal.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Order;
 

@@ -1,11 +1,11 @@
 package ui.ex1.screen.facets.inputdialogfacet;
 
+import com.google.common.base.Strings;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.app.inputdialog.DialogOutcome;
 import io.jmix.ui.app.inputdialog.InputDialog;
 import io.jmix.ui.component.ValidationErrors;
 import io.jmix.ui.screen.*;
-import jdk.internal.joptsimple.internal.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.stream.Collectors;
