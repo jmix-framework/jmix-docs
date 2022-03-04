@@ -25,7 +25,65 @@ implementation 'io.jmix.quartz:jmix-quartz-starter'
 
 To create and schedule a job for execution, do the following:
 
-. Create a class implementing the `org.quartz.Job` interface. It's `execute()` method will be invoked by the scheduler.
+. Create a class implementing the `org.quartz.Job` interface. It's `execute()` method will be invoked by the scheduler. For example:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/quartz/ex1/app/SampleJob.java[]
+----
++
+In the job class, you can inject Spring beans with `@Autowired`.
 
-. Run the application, open *Administration -> Quartz jobs* screen, click *Create* and find your job class in the *Class* field. After that, create triggers for the job.
+. Run the application, open *Administration -> Quartz jobs* screen and click *Create*.
++
+--
+** Enter an arbitrary unique name in the *Name* field and select your job class in the *Class* field.
++
+The *Group* field is optional but can be used to group jobs in UI.
 
+** Create at least one trigger for the job on the *Triggers* tab. You can select either *Cron expression* or *Simple* schedule type. In the former case, enter a http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[Cron expression^] like `0/5 * * ? * * *` (each 5 sec). In the latter case, enter a repeat interval in milliseconds.
+--
++
+After you save the trigger and the job, it is immediately scheduled for execution according to the trigger settings.
++
+To edit the job settings, first pause it by selecting and clicking *Pause*. After saving changes, you can resume the scheduling by clicking *Resume*.
++
+You can also execute any registered job immediately by clicking *Execute now*, even if the job has no triggers. This is useful for testing.
+
+[[authentication]]
+=== Authentication in Jobs
+
+The code executed by the scheduler is not authenticated, that is not associated with any user.
+
+If you invoke operations that require authentication, for example working with data through `DataManager`, use xref:security:authentication.adoc#system[SystemAuthenticator] or `@Authenticated` annotation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/quartz/ex1/app/SampleAuthenticatedJob.java[tags=auth-job]
+----
+
+TIP: You can also use `UnconstrainedDataManager` to work with data in unauthenticated contexts.
+
+[[job-parameters]]
+=== Job Parameters
+
+The *Job editor* screen allows you to set parameters for the job instance on the *Job data parameters* tab. You can use the parameters in the job class as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/quartz/ex1/app/SampleParameterizedJob.java[tags=job-params]
+----
+
+[[track-job-execution]]
+=== Tracking Job Execution
+
+If you want to track execution of jobs, create a bean implementing the `JobListener` interface or extending the `JobListenerSupport` as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/quartz/ex1/app/JobExecutionListener.java[]
+----
+<1> Invoked by Spring after the bean is instantiated.
+<2> Invoked by Quartz scheduler after a job is executed.
+
+In the `jobWasExecuted()` method, you can store information about the executed job in the log or in the database.
