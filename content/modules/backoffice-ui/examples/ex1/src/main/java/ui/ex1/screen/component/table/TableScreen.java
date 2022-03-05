@@ -14,6 +14,7 @@ import io.jmix.ui.icon.JmixIcon;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.screen.*;
 import io.jmix.ui.theme.ThemeClassNames;
+import io.jmix.uiexport.action.ExcelExportAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.BudgetItem;
 import ui.ex1.entity.City;
@@ -62,6 +63,11 @@ public class TableScreen extends Screen {
     private Table<Customer> printableTable;
     @Autowired
     private Table<Customer> customersTable1;
+    // tag::inject-excel-export[]
+    @Named("printableTable.excelExport")
+    protected ExcelExportAction printableTableExcelExport;
+
+    // end::inject-excel-export[]
     // tag::inject-tableClick[]
     @Autowired
     private Table<Customer> tableClick;
@@ -73,9 +79,7 @@ public class TableScreen extends Screen {
     public void onInit(InitEvent event) {
         // end::onInit-start[]
 
-        customersTable.addGeneratedColumn("aaa", entity -> {
-            return null;
-        });
+        customersTable.addGeneratedColumn("aaa", entity -> null);
 
 
         // tag::add-base-action[]
@@ -101,16 +105,26 @@ public class TableScreen extends Screen {
         // tag::table-set-style-name[]
         tableBorderless.setStyleName(ThemeClassNames.TABLE_BORDERLESS);
         // end::table-set-style-name[]
+        // tag::column-value-provider[]
+        printableTableExcelExport.addColumnValueProvider("firstName", context -> { // <1>
+            Customer customer = context.getEntity();
+            return "Name: " + customer.getFirstName();
+        });
+        // end::column-value-provider[]
+        printableTableExcelExport.addColumnValueProvider("fullName", context -> {
+            Customer customer = context.getEntity();
+            return customer.getFirstName() + " " + customer.getLastName();
+        });
         // tag::table-add-printable[]
-        printableTable.addPrintable("firstName", new Table.Printable<Customer, String>() {
+        /*printableTable.addPrintable("firstName", new Table.Printable<Customer, String>() {
             @Override
             public String getValue(Customer item) {
                 return "Name: " + item.getFirstName();
             }
-        });
+        });*/
         // end::table-add-printable[]
         // tag::printable-column-generator[]
-        printableTable.addGeneratedColumn("fullName", new Table.PrintableColumnGenerator<Customer, String>() {
+        /*printableTable.addGeneratedColumn("fullName", new Table.PrintableColumnGenerator<Customer, String>() {
             @Override
             public String getValue(Customer item) {
                 return item.getFirstName() + " " + item.getLastName();
@@ -122,7 +136,7 @@ public class TableScreen extends Screen {
                 label.setValue(entity.getFirstName() + " " + entity.getLastName());
                 return label;
             }
-        });
+        });*/
         // end::printable-column-generator[]
         // tag::item-click-action[]
         tableClick.setItemClickAction(new BaseAction("itemClickAction")
@@ -355,6 +369,16 @@ public class TableScreen extends Screen {
         notifications.create()
                 .withCaption("Customers were selected")
                 .show();
+    }
+    // tag::printable-table-column-generator[]
+    @Install(to = "printableTable.fullName", subject = "columnGenerator")
+    protected Component printableTableFullNameColumnGenerator(Customer customer) {
+        return new Table.PlainTextCell(customer.getFirstName() + " " + customer.getLastName());
+    }
+    // end::printable-table-column-generator[]
+    @Install(to = "printableTable.fullName", subject = "valueProvider")
+    protected Object printableTableFullNameValueProvider(Customer customer) {
+        return null;
     }
     // tag::table-screen-end[]
 }
