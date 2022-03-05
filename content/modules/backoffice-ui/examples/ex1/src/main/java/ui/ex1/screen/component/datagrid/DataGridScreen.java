@@ -12,10 +12,12 @@ import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.screen.*;
 import io.jmix.ui.theme.ThemeClassNames;
+import io.jmix.uiexport.action.ExcelExportAction;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.*;
 
+import javax.inject.Named;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
@@ -23,6 +25,10 @@ import java.util.Map;
 @UiController("dataGrid-screen")
 @UiDescriptor("data-grid-screen.xml")
 public class DataGridScreen extends Screen {
+    // tag::inject-grid-excel-export[]
+    @Named("gridExport.excelExport")
+    protected ExcelExportAction gridExcelExport;
+    // end::inject-grid-excel-export[]
     // tag::inject-customersDataGrid[]
     @Autowired
     private DataGrid<Customer> customersDataGrid;
@@ -81,9 +87,10 @@ public class DataGridScreen extends Screen {
     @Autowired
     private DataGrid<BudgetItem> progressGrid;
 
-    // tag::init-start[]
     @Autowired
     private DataGrid<Event> clickGrid;
+
+    // tag::init-start[]
 
     @Subscribe
     public void onInit(InitEvent event) {
@@ -131,6 +138,12 @@ public class DataGridScreen extends Screen {
         // tag::set-style-name[]
         progressGrid.setStyleName(ThemeClassNames.DATAGRID_NO_STRIPES);
         // end::set-style-name[]
+        // tag::add-column-value-provider[]
+        gridExcelExport.addColumnValueProvider("firstName", context -> { // <1>
+            Customer customer = context.getEntity();
+            return "Name: " + customer.getFirstName();
+        });
+        // end::add-column-value-provider[]
         // tag::init-end[]
     }
     // end::init-end[]
