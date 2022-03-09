@@ -1,0 +1,87 @@
+= Screen Mixins
+
+Mixins enable creating features that can be reused in multiple UI screens without the need to inherit your screens from common base classes. Mixins are implemented using Java interfaces with default methods.
+
+Mixins have the following characteristics:
+
+* A screen can have multiple mixins.
+* A mixin interface can subscribe to xref:jmix-ui:screens/screen-events.adoc[screen events].
+* A mixin can save some state in the screen if needed.
+* A mixin can obtain screen components and infrastructure beans like xref:jmix-ui:dialogs.adoc[Dialogs], xref:jmix-ui:notifications.adoc[Notifications], etc.
+* In order to parameterize its behavior, a mixin can rely on screen annotations or introduce abstract methods to be implemented by the screen.
+
+Usage of mixins is normally as simple as implementing specific interfaces in a screen controller. 
+
+A mixin can use the following classes to work with a screen and infrastructure:
+
+* `io.jmix.ui.screen.Extensions` provides static methods for saving and retrieving a state from the screen where the mixin is used, as well as access to `BeanLocator` which in turn allows you to get any Spring bean.
+* `io.jmix.ui.screen.UiControllerUtils` provides access to the screen’s UI and data components.
+
+== Examples
+
+The examples below demonstrate how to create and use mixins.
+
+=== Banner Mixin 
+
+This is a very simple mixin that shows a label on the top of the screen.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/mixins/HasBanner.java[tags=has-banner]
+----
+
+<1> Gets `ApplicationContext`.
+<2> Gets factory of UI components.
+<3> Creates `Label` and sets its properties.
+<4> Adds a label to the screen's root UI component.
+
+The mixin can be used in a screen as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/mixins/DemoOrderEdit.java[tags=has-banner]
+----
+
+=== DeclarativeLoaderParameters Mixin
+
+The next mixin helps to establish master-detail relationships between data containers. Normally, you have to subscribe to `ItemChangeEvent` of the master container and set a parameter to the detail’s loader, as described in xref:jmix-ui:data/data-examples.adoc#dependencies-between-data-components[Dependencies Between Data Components]. The mixin will do it automatically if the parameter has a special name pointing to the master container.
+
+The mixin will use a state object to pass information between event handlers. It’s done mostly for demonstration purposes because we could put all the logic in a single `BeforeShowEvent` handler.
+
+First, let’s create a class for the shared state. It contains a single field for storing a set of loaders to be triggered in the `BeforeShowEvent` handler:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/mixins/DeclarativeLoaderParametersState.java[tags=state]
+----
+
+Next, create the mixin interface:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/mixins/DeclarativeLoaderParameters.java[tags=interface]
+----
+
+<1> Subscribes to xref:jmix-ui:screens/screen-events.adoc#init-event[InitEvent].
+<2> Gets the ScreenData object where all data containers and loaders defined in XML are registered.
+<3> Checks if a loader parameter matches the `:container$masterContainerId` pattern.
+<4> Extracts the master container id from the parameter name and registers a `ItemChangeEvent` listener for this container.
+<5> Reloads the detail loader for the new master item.
+<6> Adds the master loader to set to trigger it later in the `BeforeShowEvent` handler.
+<7> Creates the shared state object and store it in the screen using `Extensions` utility class.
+<8> Subscribe to xref:jmix-ui:screens/screen-events.adoc#before-show-event[BeforeShowEvent].
+<9> Triggers all master loaders found in the `InitEvent` handler.
+
+In the screen XML descriptor, define master and detail containers and loaders. The detail’s loader should have a parameter with the name like `:container$masterContainerId`:
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/screens/mixins/demo-order-browse.xml[tags=container]
+----
+
+In the screen controller, just add the mixin interface, and it will trigger the loaders appropriately:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/mixins/DemoOrderBrowse.java[tags=interface]
+----

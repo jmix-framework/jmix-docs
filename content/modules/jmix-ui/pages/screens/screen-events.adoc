@@ -1,0 +1,136 @@
+= Screen Events
+
+This section describes the screen lifecycle events that can be handled in controllers. Note that events are not responsible for saving component settings; xref:facets/screen-settings-facet.adoc[] takes it.
+
+[[init-event]]
+== InitEvent
+
+`InitEvent` is sent when the screen controller and all its declaratively defined components are created, and dependency injection is completed. Nested fragments are not initialized yet. Some visual components are not fully initialized, for example, buttons are not linked with actions.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=init-event]
+----
+
+[[after-init-event]]
+== AfterInitEvent
+
+`AfterInitEvent` is sent when the screen controller and all its declaratively defined components are created, dependency injection is completed, and all components have completed their internal initialization procedures. Nested screen fragments (if any) have sent their `InitEvent` and `AfterInitEvent`. In this event listener, you can create visual and data components and perform additional initialization if it depends on initialized nested fragments.
+
+[[init-entity-event]]
+== InitEntityEvent
+
+`InitEntityEvent` is sent in screens inherited from `StandardEditor` and `MasterDetailScreen` before the new entity instance is set to edited entity container.
+
+Use this event listener to initialize default values in the new entity instance, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=init-entity]
+----
+
+[[before-show-event]]
+== BeforeShowEvent
+
+`BeforeShowEvent` is sent right before the screen is shown, for example, it is not added to the application UI yet. Security restrictions are applied to UI components. In this event listener, you can load data, check permissions and modify UI components. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=before-show1;before-show2]
+----
+
+[[after-show-event]]
+== AfterShowEvent
+
+`AfterShowEvent` is sent right after the screen is shown, for example, when it is added to the application UI. In this event listener, you can show notifications, dialogs or other screens. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=after-show1;after-show2]
+----
+
+[[before-commit-changes-event]]
+== BeforeCommitChangesEvent
+
+`BeforeCommitChangesEvent` is sent in screens inherited from `StandardEditor` and `MasterDetailScreen` before saving of changed data by the `commitChanges()` method. In this event listener, you can check any conditions, interact with the user and abort or resume the save operation using the `preventCommit()` and `resume()` methods of the event object.
+
+Let’s consider some use cases.
+
+* Abort the save operation with a notification:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=before-commit1;before-commit2]
+----
++
+* Abort saving, show a dialog and resume after confirmation by the user:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse2.java[tags=before-commit]
+----
++
+* Abort saving, show a dialog and retry `commitChanges()` after confirmation by the user:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit3.java[tags=before-commit]
+----
+
+[[after-commit-changes-event]]
+== AfterCommitChangesEvent
+
+`AfterCommitChangesEvent` is sent in screens inherited from `StandardEditor` and `MasterDetailScreen` after saving of changed data by the `commitChanges()` method. Usage example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=before-commit1;after-commit]
+----
+
+[[before-close-event]]
+== BeforeCloseEvent
+
+`BeforeCloseEvent` is sent right before the screen is closed by its `close(CloseAction)` method. The screen is still displayed and fully functional. In this event listener, you can check any conditions and prevent screen closing using the `preventWindowClose()` method of the event, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=before-close1;before-close2]
+----
+
+The `Window` interface has also an event with the same name. It is sent before the screen is closed by an external (relative to the controller) action, like clicking on the button in the window tab or by pressing the *Escape* key. The way the window is closed can be obtained using the `getCloseOrigin()` method which returns a value implementing the `CloseOrigin` interface. Its default implementation `CloseOriginType` has three values:
+
+* `BREADCRUMBS` - the screen is closed by clicking on the breadcrumbs link.
+* `CLOSE_BUTTON` - the screen is closed by the close button in the window header or by the window tab close button or context menu actions: Close, Close All, Close Others.
+* `SHORTCUT` - the screen is closed by the keyboard shortcut defined in the xref:jmix-ui:app-properties.adoc#jmix.ui.screen.close-shortcut[jmix.ui.screen.close-shortcut] application property.
+
+You can subscribe to `Window.BeforeCloseEvent` by specifying `Target.FRAME` in the `@Subscribe` annotation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit3.java[tags=before-close]
+----
+
+[[after-close-event]]
+== AfterCloseEvent
+
+`AfterCloseEvent` is sent after the screen is closed by its `close(CloseAction)` method and after `Screen.AfterDetachEvent`. In this event listener, you can show notifications or dialogs after closing the screen, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit3.java[tags=after-close1;after-close2]
+----
+
+[[after-detach-event]]
+== AfterDetachEvent
+
+`AfterDetachEvent` is sent after the screen is removed from the application UI when it is closed by the user or when the user logs out. This event listener can be used for releasing resources acquired by the screen. Note that this event is not sent on HTTP session expiration.
+
+[[url-params-changed-event]]
+== UrlParamsChangedEvent
+
+`UrlParamsChangedEvent` is sent when browser URL parameters corresponding to opened screen are changed. It is fired before the screen is shown, which enables to do some preparatory work. In this event listener, you can load some data or change screen controls state depending on new parameters:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse2.java[tags=url-params]
+----
