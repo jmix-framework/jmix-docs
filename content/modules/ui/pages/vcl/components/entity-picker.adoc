@@ -1,0 +1,258 @@
+= EntityPicker
+:page-aliases: backoffice-ui:vcl/components/entity-picker.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/sampler/#main/sample?id=entitypicker-simple" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+`EntityPicker` displays an xref:data-model:entities.adoc[entity] instance in a text field and performs actions when the user clicks buttons on the right.
+
+Component's XML-name: `entityPicker`.
+
+== Basics
+
+Use `EntityPicker` if:
+
+* The field value is a reference to an entity instance.
+* Users need to select or create an entity instance via the lookup screen or enter a specific value.
+* Users need to open the edit screen for a related entity instance.
+
+By default, Jmix Studio generates `EntityPicker` when creating an entity editor screen with a reference attribute.
+
+image::vcl/components/entity-picker1.png[align="center"]
+
+In the following example, the screen defines the `orderDc` data container for the `Order` entity having the `customer` attribute. In the `entityPicker` element, the `dataContainer` attribute contains a link to the `orderDc` data container, and the `property` attribute refers to the `customer` entity attribute. The entity attribute should be a reference to an entity. In the following example, it is `Customer`.
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitypicker/entityPicker-screen.xml[tags=data;entityPicker;vbox-layout-end]
+----
+
+[WARNING]
+====
+For ``EntityPicker``'s proper operation, you need either set the `metaClass` attribute or simultaneously set the `dataContainer` and `property` attributes.
+====
+
+[[actions]]
+== Actions
+
+You can define custom and predefined actions for `EntityPicker` displayed as buttons on the right.
+You can do it either in the XML descriptor using the `actions` nested element or programmatically in the controller using the `addAction()` method.
+
+[[predefined-actions]]
+=== Predefined Actions
+
+When Studio generates `EntityPicker` in the editor screen, it also generates two predefined standard actions: `entity_lookup` and `entity_clear`. There are also the `entity_open` and `entity_openComposition` actions.
+
+Use the `type` and `id` attributes for declaring predefined action in XML.
+
+If you create `EntityPicker` without actions, the XML loader will define only the `entity_lookup` and `entity_clear` actions. To add another predefined action, for example, the `entity_open`, you should specify the `actions` element as follows:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitypicker/entityPicker-screen.xml[tags=entityPicker3actions]
+----
+
+The `actions` element does not extend but overrides a set of standard actions. You should define the identifiers of all required actions explicitly.
+
+[[custom-actions]]
+=== Custom Actions
+
+To define a custom action in XML, use the `actions` nested element. Specify the `id` and `icon` attributes for the `action`:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitypicker/entityPicker-screen.xml[tags=customAction]
+----
+
+Then implement custom logic in the screen controller by subscribing to `Action.ActionPerformedEvent`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=customerEntityPicker;customAction]
+----
+
+<1> The `@Subscribe` annotation contains the `EntityPicker` `id` and the `id` of the action separated by a dot.
+
+[TIP]
+====
+You can generate the `Action.ActionPerformedEvent` handler implementation stub using Studio.
+====
+
+[[add-actions-programmatically]]
+=== Adding Actions Programmatically
+
+Use the `addAction()` method to set actions programmatically.
+
+* *Adding Standard Action*
++
+For example, if the component is defined in the XML descriptor without `actions` nested element, it is sufficient to add missing standard actions:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=addAction;on-init-start;addAction2;on-init-end]
+----
+
+* *Adding Custom Action*
++
+An example of creating a custom action:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=inject-customerEp;on-init-start;add-custom-action;on-init-end]
+----
+
+[[meta-class]]
+== MetaClass
+
+You can use `EntityPicker` without binding to the data container, that is, without setting `dataContainer` and `property`. In this case, the `metaClass` attribute should be used to specify an entity type for `EntityPicker`. For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitypicker/entityPicker-screen.xml[tags=metaclass]
+----
+
+You can get an instance of a selected entity by injecting the component into a controller and invoking its `getValue()` method.
+
+[[icons]]
+== Setting Icons
+
+`EntityPicker` can have an icon on the left. Just install `fieldIconProvider` in the screen controller to implement your custom logic:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=fieldIconProvider]
+----
+
+<1> Implementation of the `fieldIconProvider` delegate method.
+
+image::vcl/components/entity-picker-icons.png[align="center"]
+
+See xref:icons.adoc[] for more information on working with icons.
+
+To register the field icon provider programmatically, use the `setFieldIconProvider()` component method.
+
+[[fieldEditable]]
+== Entering a Text Value
+
+By default, a user cannot input the value manually. If you set the `fieldEditable` attribute to `true`, you enable manual input. It can be useful when creating an entity instance based on a value entered by the user.
+
+Keep in mind that the entered value is not set to the data model. To handle user input, use the `FieldValueChangeEvent`.
+
+Look at the example below. We have the `Address` entity with the association `country` attribute referencing the `Country` entity. The `Country` entity has only one `name` attribute. Let's define the `countryField` in the XML-descriptor with `fieldEditable="true"`:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/entity/address/address-edit.xml[tags=fieldEditable]
+----
+
+Now the user can input the value manually. To handle this value, interpreted as String, subscribe to `FieldValueChangeEvent` in the controller:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/entity/address/AddressEdit.java[tags=field-value-change]
+----
+
+<1> The `@Subscribe` annotation contains the `EntityPicker` id.
+<2> Get the entered value from the event object.
+<3> Create a new instance of the `Country` entity.
+<4> Set the created instance to the field.
+
+To register the event handler programmatically, use the `addFieldValueChangeListener()` component method.
+
+[[programmatically-creating]]
+== Creating EntityPicker Programmatically
+
+To create `EntityPicker` in the controller, use the `UiComponents` factory. Keep in mind that the programmatically created `EntityPicker` will get no default actions, and you need to add all necessary actions explicitly:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=userPicker1;on-init-start;userPicker3]
+----
+
+[[handlers]]
+== Events and Handlers
+
+include::../events-hanlers-generation-tip.adoc[]
+
+[[context-help-icon-click-handler]]
+=== ContextHelpIconClickHandler
+
+See xref:vcl/api.adoc#context-help-icon-click-handler[ContextHelpIconClickHandler].
+
+[[field-icon-provider]]
+=== FieldIconProvider
+
+See <<icons,Setting Icons>>.
+
+[[field-value-change-event]]
+=== FieldValueChangeEvent
+
+`FieldValueChangeEvent` is fired when a user inputs value manually.
+
+For more information, see <<fieldEditable,Entering a Text Value>>.
+
+[[formatter]]
+=== Formatter
+
+Adds a xref:vcl/miscellaneous/formatter.adoc[formatter] instance to the component.
+
+In the example below, we will show a `formatter` usage for the `customerFormat` entity picker:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitypicker/EntityPickerScreen.java[tags=formatter]
+----
+
+To add a formatter programmatically, use the `addFormatter()` component method.
+
+[[validator]]
+=== Validator
+
+See xref:vcl/components/combo-box.adoc#validator[Validator].
+
+[[value-change-event]]
+=== ValueChangeEvent
+
+See xref:vcl/api.adoc#value-change-event[ValueChangeEvent].
+
+[[xml]]
+== EntityPicker XML Attributes
+
+include::../xml-studio-tip.adoc[]
+
+xref:vcl/xml.adoc#align[align] -
+xref:vcl/xml.adoc#buffered[buffered] -
+xref:vcl/xml.adoc#caption[caption] -
+xref:vcl/xml.adoc#caption-as-html[captionAsHtml] -
+xref:vcl/xml.adoc#colspan[colspan] -
+xref:vcl/xml.adoc#context-help-text[contextHelpText] -
+xref:vcl/xml.adoc#context-help-text-html-enabled[contextHelpTextHtmlEnabled] -
+xref:vcl/xml.adoc#css[css] -
+xref:vcl/xml.adoc#data-container[dataContainer] -
+xref:vcl/xml.adoc#description[description] -
+xref:vcl/xml.adoc#description-as-html[descriptionAsHtml] -
+xref:vcl/xml.adoc#editable[editable] -
+xref:vcl/xml.adoc#enable[enable] -
+xref:vcl/xml.adoc#box-expand-ratio[box.expandRatio] -
+<<fieldEditable,fieldEditable>> -
+xref:vcl/xml.adoc#height[height] -
+xref:vcl/xml.adoc#html-sanitizer-enabled[htmlSanitizerEnabled] -
+xref:vcl/xml.adoc#icon[icon] -
+xref:vcl/xml.adoc#id[id] -
+<<meta-class,metaClass>> -
+xref:vcl/xml.adoc#property[property] -
+xref:vcl/xml.adoc#required[required] -
+xref:vcl/xml.adoc#required-message[requiredMessage] -
+xref:vcl/xml.adoc#stylename[stylename] -
+xref:vcl/xml.adoc#tab-index[tabIndex] -
+xref:vcl/xml.adoc#visible[visible] -
+xref:vcl/xml.adoc#width[width]
+
+== EntityPicker XML Elements
+
+<<actions,actions>> -
+xref:vcl/miscellaneous/formatter.adoc[formatter] -
+xref:vcl/components/entity-combo-box.adoc#validators-element[validators]

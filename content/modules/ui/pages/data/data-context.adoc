@@ -1,0 +1,77 @@
+= DataContext
+:page-aliases: backoffice-ui:data/data-context.adoc
+
+`DataContext` is an interface for tracking changes in entities loaded to the UI layer. Tracked entities are marked as "dirty" on any modification of their attributes, and `DataContext` saves dirty entities when its `commit()` method is invoked.
+
+Within `DataContext`, an entity with the given identifier is represented by a single object instance, no matter where and how many times it is used in object graphs.
+
+In order to be tracked, an entity must be put into `DataContext` using its `merge()` method. If the context does not contain the entity with the same id, the context creates a new instance, copies the state of the passed instance to the new one and returns it. If the context already contains an instance with the same id, it copies the state of the passed instance to the existing one and returns it. This mechanism allows the context to always have only one instance of an entity with a particular identifier.
+
+When you merge an entity, the whole object graph with the root in this entity will be merged. That is all referenced entities (including collections) will become tracked.
+
+NOTE: The main rule of using the `merge()` method is to continue working with the returned instance and discarding the passed one. In most cases, the returned object instance will be different. The only exception is when you pass to `merge()` an instance that was earlier returned from another invocation of `merge()` or `find()` of the same context.
+
+An example of merging an entity into `DataContext`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context;data-manager;collection;load]
+----
+
+A single instance of `DataContext` exists for a given screen and all its nested fragments. It is created if the `<data>` element exists in the screen XML descriptor.
+
+The `<data>` element can have `readOnly="true"` attribute, in that case, a special "no-op" implementation is used that actually doesn’t track entities and hence doesn’t affect performance. By default, entity browsers scaffolded by Studio have the read-only data context, so if you need to track changes and commit dirty entities in a browser, remove the `readOnly="true"` XML attribute.
+
+[[obtaining-data-context]]
+== Obtaining DataContext
+
+. `DataContext` of a screen can be obtained in its controller using injection:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context]
+----
++
+. If you have a reference to a screen, you can get its `DataContext` using the `UiControllerUtils` class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData.java[tags=sample-method]
+----
++
+. A UI component can obtain `DataContext` of the current screen as follows:
++
+[source,java,indent=0]
+----
+DataContext dataContext = UiControllerUtils.getScreenData(getFrame().getFrameOwner()).getDataContext();
+----
+
+[[parent-data-context]]
+== Parent DataContext
+
+DataContext instances can form parent-child relationships. If a `DataContext` instance has parent context, it commits changed entities to the parent instead of saving them to the data store. This feature enables editing compositions when detail entities are saved only together with the master entity. If an entity attribute is annotated with `@Composition`, the framework automatically sets parent context in the attribute editor screen, so the changed attribute entity will be saved to the data context of the master entity.
+
+You can easily provide the same behavior for any entities and screens.
+
+If you open an edit screen that should commit data to the current screen’s data context, use the `withParentDataContext()` method of the builder:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screen-builders;data-context;person-edit]
+----
+
+If you open a simple screen using the `Screens` bean, provide a setter method accepting the parent data context:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/SmplScreen.java[tags=sample-screen]
+----
+
+And use it after creating the screen:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screens;data-context;sample-screen]
+----
+
+CAUTION: Make sure that the parent data context is not defined with `readOnly="true"` attribute. Otherwise, you will get an exception when trying to use it as a parent for another context.

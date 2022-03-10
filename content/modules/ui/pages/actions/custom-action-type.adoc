@@ -1,0 +1,129 @@
+= Custom Action Types
+:page-aliases: backoffice-ui:actions/custom-action-type.adoc
+
+You can create your own action types or override existing standard types in your project.
+
+For example, imagine that you need an action that would show the instance name of the currently selected entity in a table. You would like to use this action on multiple screens by specifying its type only. Below are the steps to create such action.
+
+. Create an action class and add the `@ActionType` annotation with the desired type name:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/actions/ShowSelectedAction.java[tags=showSelected-start;showSelected-end]
+----
+
+. Now you can use the action in screen descriptors by specifying its type:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/actions/action-screen.xml[tags=custTable-start;actions-start;show-action;actions-end;columns;buttonsPanel-start;buttonsPanel-show;buttonsPanel-end;custTable-end]
+----
+
+[NOTE]
+====
+If you want to override an existing type, register your new action type with the same name.
+====
+
+== Using Custom Actions in Studio
+
+Custom action types implemented in your project can be integrated into the user interface of the Jmix Studio's Screen Designer. Screen Designer provides the following support for custom action types:
+
+* Ability to select action type in the list of standard actions when adding new action to the screen from the palette or by invoking the *+Add → Action* in the table.
+* Quick navigation from action usage site to the action class by pressing *Ctrl + B* or Ctrl-clicking the mouse when the cursor is placed on the action type in the screen descriptor (for example, on the `showSelected` attribute value in the XML fragment `<action id="show" type="showSelected">`).
+* Editing of the user-defined action properties in the *Component Inspector* panel.
+* Generating event handlers and method delegates provided by the action to customize its logic.
+* Support for generic type parameterization. The generic type is determined as the entity class used by the table (action's owner component).
+
+The `@io.jmix.ui.meta.StudioAction` annotation is used to mark the custom action class as containing custom properties. Custom actions should be marked with this annotation; however, at the moment Studio doesn't use any of the `@StudioAction` annotation attributes.
+
+The `@io.jmix.ui.meta.StudioPropertiesItem` annotation is used to mark the setter of the action property as editable action property. Such properties will be displayed and editable in the *Component Inspector* panel of the Screen Designer. Annotation has the following attributes:
+
+* `name` - name of the attribute written to the XML. If not set, it is derived from the setter method name.
+* `type` - type of the property. This attribute is used by the *Component Inspector* panel to create appropriate input component providing suggestions and basic validation.
+//TODO: Description for all property types is available here.
+* `caption` - caption of the property to be displayed in the *Component Inspector* panel.
+* `description` - additional description for the property that will be displayed in the *Component Inspector* panel as a mouse-over tooltip.
+* `category` - category of the property in the *Component Inspector* panel (not used by the Screen Designer yet).
+* `required` - the property is required, in this case *Component Inspector* panel will not allow to input an empty value for this property.
+* `defaultValue` - specifies the value of the property that is implicitly used by the action when the corresponding XML attribute is omitted. The default value will be omitted from XML code.
+* `options` - list of options for the action property, for example, for `ENUMERATION` property type.
+
+Note that only a limited list of Java types is supported for action properties:
+
+* Primitive types: `String`, `Boolean`, `Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`.
+* Enumerations.
+* `java.lang.Class`.
+* `java.util.List` of types mentioned above. Studio's *Component Inspector* panel doesn't have a specific input component for this Java class, so it should be input as plain String and marked as `PropertyType.STRING`.
+
+Examples:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/actions/ShowSelectedAction.java[tags=studio-properties]
+----
+<1> String property with a limited number of options and with a default value.
+<2> Required property with options limited by classes of screens defined in the project.
+<3> List of integer numbers. The property type is set to `STRING` as the *Component Inspector* panel doesn't have a suitable input component.
+
+Studio also provides support for events and delegate methods in custom actions. Support is the same as for built-in UI components. No annotations are required for declaring an event listener or delegate method in the action class. Declaration example is presented below.
+
+== Example: SendByEmailAction
+
+This example demonstrates:
+
+* declaration and annotating the custom action class.
+* annotating action’s editable properties.
+* declaration of the custom event produced by the action and its event handler.
+* declaration of the action’s delegate methods.
+
+The `SendByEmailAction` represents an action that sends an email about the entity currently selected in the table owning the action. This action is highly configurable as most of its internal logic can be modified with properties, delegate methods, and events.
+
+Action source code:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/actions/SendByEmailAction.java[tags=send-by-email-action]
+----
+<1> Action class is marked with the `@StudioAction` annotation.
+<2> Action id is set with the help of the `@ActionType` annotation.
+<3> Action class has the `E` type parameter - a type of entity stored in the owning table.
+<4> Email recipient address is exposed as action property.
+<5> Method that adds the listener for the `EmailSentEvent` event. The Studio detects this method as the declaration of the action's event handler.
+<6> Method that sets the `Function` object used to delegate (to the screen controller) the logic of generating email body. The Studio detects this method as the declaration of the action's delegate method.
+<7> Declaration of another delegate method - in this case, it's used to delegate the logic of creating email attachments. Note that both delegate methods use the `E` generic type parameter.
+<8> The required delegate method (implemented in the screen controller) is called to generate the email body.
+<9> If it is set, the optional delegate method is called to create email attachments.
+<10> This is the actual call to send the email.
+<11> The `EmailSentEvent` is published after the successful sending of the email. If the screen controller was subscribed for this event, the corresponding event handler method will be called.
+<12> Declaration of the event class, note that it's possible to add some fields to the event object and thus pass useful data to the event handling logic.
+
+When the code is implemented like presented above, the Studio begins to display new custom action along with standard actions in the action creation dialog:
+
+image::actions/studio-custom-action.png[align="center"]
+
+After the action is added to the screen descriptor, you can select it and edit its properties in the *Component Inspector* panel:
+
+image::actions/studio-custom-action-properties.png[align="center"]
+
+When the custom action’s property is changed in the *Component Inspector*, it is written to screen descriptor in the following format:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/table/table-screen.xml[tags=sendByEmail-action]
+----
+
+Action’s event handlers and delegate methods are also displayed and available for generation in the *Component Inspector* panel:
+
+image::actions/studio-custom-action-handlers.png[align="center"]
+
+The example of the generated logic with delegate methods and event handlers implemented in the screen controller looks like this:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.java[tags=table-screen-start;inject-notifications;inject-SendByEmailAction;sendByEmailAction-handlers;table-screen-end]
+----
+<1> The correct type parameter is used for the action’s injection point.
+<2> Implementation of the event handler.
+<3> Implementation of the `bodyGenerator` delegate method. The `Customer` type parameter is inserted in the method signature.
+<4> Implementation of the `attachmentProvider` delegate method.
+
