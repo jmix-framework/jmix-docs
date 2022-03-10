@@ -14,17 +14,19 @@ import java.util.Map;
 @UiController("sample_TagFieldScreen")
 @UiDescriptor("tag-field-screen.xml")
 public class TagFieldScreen extends Screen {
+    // tag::tag-comparator[]
+    @Autowired
+    protected TagField<Employee> tagFieldComparator;
+    // end::tag-comparator[]
     // tag::click-listener[]
     @Autowired
     private ScreenBuilders screenBuilders;
 
     // end::click-listener[]
-
     // tag::create-items[]
-    // tag::tag-comparator[]
     @Autowired
     private TagField<Employee> employeesTagField;
-    // end::tag-comparator[]
+
     @Autowired
     private Metadata metadata;
     // end::create-items[]
@@ -56,7 +58,7 @@ public class TagFieldScreen extends Screen {
         // end::create-items[]
 
         // tag::tag-comparator[]
-        employeesTagField.setTagComparator((o1, o2) -> {
+        tagFieldComparator.setTagComparator((o1, o2) -> {
             Double salary1 = o1.getSalary();
             Double salary2 = o2.getSalary();
             if (salary1 == null) {
@@ -74,25 +76,59 @@ public class TagFieldScreen extends Screen {
     // end::tag-comparator[]
     // end::create-items[]
 
-    // tag::caption-provider[]
-    @Install(to = "employeesTagField", subject = "tagCaptionProvider")
-    private String employeesTagFieldTagCaptionProvider(Employee employee) {
+    // tag::simple-tag-field-search-executor[]
+    @Install(to = "simpleTagField", subject = "searchExecutor")
+    protected List<Employee> simpleTagFieldSearchExecutor(String searchString,
+                                                          Map<String, Object> searchParams) {
+        return dataManager.load(Employee.class)
+                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .list();
+    }
+
+    // end::simple-tag-field-search-executor[]
+    // tag::tag-field-caption-provider[]
+    @Install(to = "tagFieldCaption", subject = "tagCaptionProvider")
+    protected String tagFieldCaptionTagCaptionProvider(Employee employee) {
         return employee.getName() + ", salary: " + employee.getSalary();
     }
-    // end::caption-provider[]
+    // end::tag-field-caption-provider[]
+    @Install(to = "tagFieldCaption", subject = "searchExecutor")
+    protected List<Employee> tagFieldCaptionSearchExecutor(String searchString, Map<String, Object> searchParams) {
+        return dataManager.load(Employee.class)
+                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .list();
+    }
 
+    @Install(to = "tagFieldClick", subject = "searchExecutor")
+    protected List<Employee> tagFieldClickSearchExecutor(String searchString, Map<String, Object> searchParams) {
+        return dataManager.load(Employee.class)
+                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .list();
+    }
     // tag::click-listener[]
-    @Subscribe("employeesTagField")
-    public void onEmployeesTagFieldTagClick(TagField.TagClickEvent<Employee> event) {
+    @Subscribe("tagFieldClick")
+    protected void onTagFieldClickTagClick(TagField.TagClickEvent<Employee> event) {
         screenBuilders.editor(Employee.class, this)
                 .editEntity(event.getItem())
                 .show();
     }
     // end::click-listener[]
+    @Install(to = "tagFieldComparator", subject = "searchExecutor")
+    protected List<Employee> tagFieldComparatorSearchExecutor(String searchString, Map<String, Object> searchParams) {
+        return dataManager.load(Employee.class)
+                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .list();
+    }
 
+    @Install(to = "tagFieldStyle", subject = "searchExecutor")
+    protected List<Employee> tagFieldStyleSearchExecutor(String searchString, Map<String, Object> searchParams) {
+        return dataManager.load(Employee.class)
+                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .list();
+    }
     // tag::style-provider[]
-    @Install(to = "employeesTagField", subject = "tagStyleProvider")
-    private String employeesTagFieldTagStyleProvider(Employee employee) {
+    @Install(to = "tagFieldStyle", subject = "tagStyleProvider")
+    protected String tagFieldStyleTagStyleProvider(Employee employee) {
         if (employee != null) {
             switch (employee.getPosition()) {
                 case DEV:
@@ -108,5 +144,4 @@ public class TagFieldScreen extends Screen {
         return null;
     }
     // end::style-provider[]
-
 }
