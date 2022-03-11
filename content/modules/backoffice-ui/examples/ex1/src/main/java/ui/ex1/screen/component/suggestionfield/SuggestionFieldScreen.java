@@ -21,42 +21,57 @@ import java.util.stream.Stream;
 @UiController("suggestionField-screen")
 @UiDescriptor("suggestionfield-screen.xml")
 public class SuggestionFieldScreen extends Screen {
+    // tag::autowired-data-manager[]
+    @Autowired
+    private DataManager dataManager;
+
+    // end::autowired-data-manager[]
+
     // tag::enum-search-executor[]
     @Autowired
     private Messages messages;
 
     @Install(to = "enumField", subject = "searchExecutor")
-    private List enumFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List enumFieldSearchExecutor(String searchString,
+                                         Map<String, Object> searchParams)
+    {
         return Stream.of(Hobby.values())
-                .filter(status -> StringUtils.containsIgnoreCase(messages.getMessage(status), searchString))
+                .filter(status ->
+                        StringUtils.containsIgnoreCase(messages.getMessage(status),
+                                searchString))
                 .collect(Collectors.toList());
     }
     // end::enum-search-executor[]
     // tag::string-search-executor[]
     @Install(to = "stringField", subject = "searchExecutor")
-    private List stringFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List stringFieldSearchExecutor(String searchString,
+                                           Map<String, Object> searchParams)
+    {
         return Stream.of("John", "Andy", "Dora", "Martin", "Peter", "George")
                 .filter(str -> StringUtils.containsIgnoreCase(str, searchString))
                 .collect(Collectors.toList());
     }
     // end::string-search-executor[]
     // tag::entity-search-executor[]
-    @Autowired
-    private DataManager dataManager;
 
     @Install(to = "entityField", subject = "searchExecutor")
-    private List entityFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List<Country> entityFieldSearchExecutor(String searchString,
+                                           Map<String, Object> searchParams)
+    {
         return dataManager.load(Country.class)
-                .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
+                .query("e.name like ?1 order by e.name", "(?i)%"
+                        + searchString + "%")
                 .list();
     }
     // end::entity-search-executor[]
     // tag::escape-for-like[]
     @Install(to = "entitySuggestionField", subject = "searchExecutor")
-    private List entitySuggestionFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List<Customer> entitySuggestionFieldSearchExecutor(String searchString,
+                                                     Map<String, Object> searchParams) {
         searchString = QueryUtils.escapeForLike(searchString);
         return dataManager.load(Customer.class)
-                .query("e.firstName like ?1 escape '\\' order by e.firstName", "(?i)%" + searchString + "%")
+                .query("e.firstName like ?1 escape '\\' order by e.firstName", "(?i)%"
+                        + searchString + "%")
                 .list();
     }
     // end::escape-for-like[]
@@ -79,9 +94,22 @@ public class SuggestionFieldScreen extends Screen {
     }
     // end::option-style-provider[]
     @Install(to = "customerSuggestionField", subject = "searchExecutor")
-    private List customerSuggestionFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List<Customer> customerSuggestionFieldSearchExecutor(String searchString,
+                                                       Map<String, Object> searchParams) {
         return dataManager.load(Customer.class)
-                .query("e.firstName like ?1 order by e.firstName", "(?i)%" + searchString + "%")
+                .query("e.firstName like ?1 order by e.firstName", "(?i)%"
+                        + searchString + "%")
                 .list();
     }
+    // tag::data-aware-search-executor[]
+    @Install(to = "countryField", subject = "searchExecutor")
+    protected List<Country> countryFieldSearchExecutor(String searchString,
+                                                       Map<String, Object> searchParams)
+    {
+        return dataManager.load(Country.class)
+                .query("e.name like ?1 order by e.name", "(?i)%"
+                        + searchString + "%")
+                .list();
+    }
+    // end::data-aware-search-executor[]
 }
