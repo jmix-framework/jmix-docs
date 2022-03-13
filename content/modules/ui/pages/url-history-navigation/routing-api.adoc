@@ -1,0 +1,109 @@
+= Routing API
+:page-aliases: backoffice-ui:url-history-navigation/routing-api.adoc
+
+This section describes the key concepts of the routing API.
+
+[[route-registration]]
+== Route Registration
+
+To register a route for a screen, add the `@Route` annotation to the screen controller, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/button/ButtonScreen.java[tags=route;button-screen-start;button-screen-end]
+----
+
+The annotation has three parameters:
+
+* `path` (or `value`) is the route itself;
+* `parentPrefix` is used for route squashing (see <<route-squashing,below>>).
+* `root` is the boolean property that enables to specify whether a route is registered for the root screen (like xref:screens/root-screens.adoc#login-screen[Login screen] or xref:screens/root-screens.adoc#main-screen[Main screen]). The default value is `false`.
+
+[[root-screen-for-anonymous-user]]
+== Creating a Root Screen for Anonymous User
+
+If you create a root screen with a path other than the default `login` and make it available by a link without login, you should enable it for the anonymous user. Otherwise, when users enter the URL like `/#your-root-screen`, they will be re-directed to the `/#login` link instead of opening your root screen.
+
+. Create your screen, for example, `MyAnonymousScreen`, with a button that opens the login screen:
++
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/screen/myanonymous/MyAnonymousScreen.java[tags=my-anonymous-screen]
+----
+
+. Create the `AnonymousRole` and allow access to `MyAnonymousScreen`:
++
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/security/AnonymousRole.java[tags=anonymous-role]
+----
+
+. Grant `AnonymousRole` to the anonymous user in the `DatabaseUserRepository`:
++
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/security/DatabaseUserRepository.java[tags=init-anonymous-user]
+----
+
+. In the `application.properties` file enable anonymous access and specify which screen should be displayed for the anonymous user:
++
+[source,properties,indent=0]
+----
+include::example$/ex2/src/main/resources/application.properties[tags=anonymous-access]
+----
+
+. Launch the application and make sure that the screen you created opens at `/#anonymous`.
+
+[[route-squashing]]
+== Route Squashing
+
+This feature is designed to keep the URL clean and readable when opening multiple screens with routes having the same parts.
+
+Suppose that we have browser and editor screens for the `Customer` entity:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/entity/customer/CustomerBrowse.java[tags=route;customer-browse-start;customer-browse-end]
+----
+
+[source,java,indent=0]
+----
+@Route("customers/edit")
+public class CustomerEdit extends StandardEditor<Customer> {
+}
+----
+
+URL squashing is used to avoid repeating the `customers` route in the URL when the editor screen is opened right after the browser. Just specify the repeated part in the `parentPrefix` parameter of the `@Route` annotation on the editor screen:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/entity/customer/CustomerEdit.java[tags=route;customer-edit-start;customer-edit-end]
+----
+
+When the editor is opened in the same tab as the browser, the resulting address will be like `#main/0/customers/edit?id=…`
+
+[[mapping-of-UI-state-to-URL]]
+== UI State Mapping to URL
+
+The `UrlRouting` interface allows you to change the current application URL according to the current screen and some parameters. It has the following methods:
+
+* `pushState()` - changes the address and pushes new browser history entry;
+* `replaceState()` - replaces the address without adding new browser history entry;
+* `getState()` - returns a current state as the `NavigationState` object.
+
+The `pushState()/replaceState()` methods accept the current screen controller and optional map of parameters.
+
+See an example of using `UrlRouting` in the section xref:url-history-navigation/url-navigation-api-usage.adoc#mapping-state-to-url[below].
+
+[[navigation-filter]]
+== Navigation Filter
+
+The navigation filter mechanism allows you to prevent transition to some routes.
+
+A navigation filter is a Spring bean that implements the `NavigationFilter` interface. The `@Order` annotation can be used to configure the order of invocation of all navigation filters. The `JmixOrder.HIGHEST_PRECEDENCE` and `JmixOrder.LOWEST_PRECEDENCE` constants define the range which is used by filters defined in the framework.
+
+The `NavigationFilter` interface has the `allowed()` method, which accepts two arguments: current navigation state `fromState` and requested navigation state `toState`. The method returns the `AccessCheckResult` instance and checks whether the transition from the current navigation state to the requested navigation state is allowed.
+
+See `JmixLoginScreenFilter` as an example. It is designed for checking whether the current session is authenticated to prevent navigation to the login screen when the user is logged in already.
+
+

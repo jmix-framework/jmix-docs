@@ -1,0 +1,249 @@
+= EntitySuggestionField
+:page-aliases: backoffice-ui:vcl/components/entity-suggestion-field.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/sampler/#main/sample?id=entitysuggestionfield-dataaware" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+`EntitySuggestionField` allows searching for entity instances according to a string entered by a user. It performs actions when a user clicks buttons on the right.
+
+`EntitySuggestionField` is an input field with the additional functionality: a user enters a few characters, and if several matches have been found, a drop-down list will display all of them. `EntitySuggestionField` refreshes the list of options on each entered symbol.
+
+The list of options is loaded in the background according to the logic defined by the application developer on the server-side.
+
+In fact, `EntitySuggestionField` is a hybrid of xref:vcl/components/suggestion-field.adoc[SuggestionField] and xref:vcl/components/entity-picker.adoc[EntityPicker].
+
+Component’s XML-name: `entitySuggestionField`.
+
+== Basics
+
+Use `EntitySuggestionField` if:
+
+* Users need to select a single xref:data-model:entities.adoc[entity] instance.
+* The number of options in the list of suggested values is too large to use  xref:vcl/components/entity-combo-box.adoc[EntityComboBox].
+* You want to provide high-performance search in the database without loading much data to the UI layer.
+
+image::vcl/components/entity-suggestion-field.gif[align="center"]
+
+To create `EntitySuggestionField` connected to data, use the xref:vcl/xml.adoc#data-container[dataContainer] and xref:vcl/xml.adoc#property[property] attributes and the <<query,query>> element:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitysuggestionfield/entitysuggestionfield-screen.xml[tags=data-start;instance;data-end;layout-start;basic;layout-end]
+----
+<1> `InstanceContainer` for the `Address` entity.
+<2> Inline fetch plan of the entity instance located in the container.
+
+The screen defines the `addressDc` data container for the `Address` entity having the `country` attribute in the example above. In the `entitySuggestionField` element, the `dataContainer` attribute contains a link to the `addressDc` data container, and the `property` attribute refers to the `country` entity attribute. The entity attribute should be a reference to an entity. In our example, it is `Country`.
+
+[[options]]
+== Defining Options
+
+You can specify a list of options either in the XML descriptor using the `query` nested element or programmatically in the controller using the `SearchExecutor` interface.
+
+[[query]]
+=== query
+
+`query` is an optional element that enables defining a query for selecting suggested values.
+
+The `query` element has the following attributes:
+
+[[entityClass]]
+* `entityClass` (required) - a full qualified name of an entity class.
+
+[[fetch-plan]]
+* `fetchPlan` - an optional attribute that specifies the fetch plan to be used for loading the queried entity.
+
+[[escape-value-for-like]]
+* `escapeValueForLike` - enables searching for the values that contain special symbols: `%`, `\`, etc. The default value is `false`.
+
+[[search-string-format]]
+* `searchStringFormat` - a Groovy string; thus, you can use any valid Groovy-string expressions.
+
+[[search-executor]]
+=== SearchExecutor
+
+If `query` is not defined, you should programmatically set the list of options using `SearchExecutor`.
+
+`SearchExecutor` is a functional interface that contains a single method: `List<E> search(String searchString, Map<String, Object> searchParams)`.
+
+Use the `searchString` parameter to filter candidates using the string entered by the user.
+
+First, declare a component in the XML descriptor:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitysuggestionfield/entitysuggestionfield-screen.xml[tags=entity-field]
+----
+
+Then set `SearchExecutor` to the component:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitysuggestionfield/EntitySuggestionFieldScreen.java[tags=search-executor]
+----
+
+[TIP]
+====
+You can generate the `SearchExecutor` implementation stub using Studio.
+====
+
+[WARNING]
+====
+The `search()` method is executed in a background thread, so it cannot access visual components or data containers used by visual components. Call xref:data-access:data-manager.adoc[DataManager] or a middleware service directly, or process and return data loaded to the screen beforehand.
+====
+
+You can use the `escapeForLike()` method to search for the values that contain special symbols:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=escape-for-like]
+----
+
+[[meta-class]]
+== metaClass
+
+You can use `EntitySuggestionField` without binding to the data container, that is, without setting `dataContainer` and `property`. In this case, use the `metaClass` attribute to specify an entity type for `EntitySuggestionField`. For example:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitysuggestionfield/entitysuggestionfield-screen.xml[tags=meta-class]
+----
+
+The search logic is defined using <<search-executor,SearchExecutor>>:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitysuggestionfield/EntitySuggestionFieldScreen.java[tags=search-executor-metaclass]
+----
+
+[[actions]]
+== Actions
+
+You can define custom and predefined actions for `EntitySuggestionField` displayed as buttons on the right.
+You can do it either in the XML descriptor using the `actions` nested element or programmatically in the controller using the `addAction()` method.
+
+[[predefined-actions]]
+=== Predefined Actions
+
+If you create `EntitySuggestionField` without actions, the XML loader will define only the `entity_lookup` and `entity_open` actions. There are also the `entity_clear` and `entity_openComposition` actions.
+
+To add other predefined action, for example, the `entity_clear`, you should specify the `actions` element as follows:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/entitysuggestionfield/entitysuggestionfield-screen.xml[tags=field-with-actions]
+----
+
+The `actions` element does not extend but overrides a set of standard actions. You should define the identifiers of all required actions explicitly.
+
+Use `addAction()` to set actions programmatically. If the component is defined in the XML descriptor without `actions` nested element, it is sufficient to add missing actions:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitysuggestionfield/EntitySuggestionFieldScreen.java[tags=add-action;init-start;add-action-2;init-end]
+----
+
+[[custom-actions]]
+=== Custom Actions
+
+Custom actions for `EntitySuggestionField` are similar to xref:vcl/components/entity-picker.adoc#custom-actions[custom actions] for `EntityPicker`.
+
+[[arrow-down-handler]]
+== ArrowDownHandler Usage
+
+`ArrowDownEvent` is fired when a user presses *Arrow Down* key when the popup with suggestions is hidden.
+
+You can set up your own action handler and use `EntitySuggestionField.showSuggestions()` method, which accepts the list of entities to show suggestions:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitysuggestionfield/EntitySuggestionFieldScreen.java[tags=arrow-down]
+----
+
+[[handlers]]
+== Events and Handlers
+
+include::../events-hanlers-generation-tip.adoc[]
+
+[[context-help-icon-click-handler]]
+=== ContextHelpIconClickHandler
+
+See xref:vcl/api.adoc#context-help-icon-click-handler[ContextHelpIconClickHandler].
+
+[[field-icon-provider]]
+=== FieldIconProvider
+
+See xref:vcl/components/entity-picker.adoc#field-icon-provider[FieldIconProvider].
+
+[[formatter]]
+=== Formatter
+
+Adds a xref:vcl/miscellaneous/formatter.adoc[formatter] instance to the component.
+
+In the example below, we will show a `formatter` usage for the `cityFieldFormat` entity suggestion field:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/entitysuggestionfield/EntitySuggestionFieldScreen.java[tags=formatter]
+----
+
+To add a formatter programmatically, use the `addFormatter()` component method.
+
+[[validator]]
+=== Validator
+
+See xref:vcl/components/combo-box.adoc#validator[Validator].
+
+[[xml]]
+== EntitySuggestionField XML Attributes
+
+include::../xml-studio-tip.adoc[]
+
+xref:vcl/xml.adoc#align[align] -
+xref:vcl/components/suggestion-field.adoc#async-search-delay-ms[asyncSearchDelayMs] -
+xref:vcl/xml.adoc#caption[caption] -
+xref:vcl/xml.adoc#caption-as-html[captionAsHtml] -
+xref:vcl/xml.adoc#caption-property[captionProperty] -
+xref:vcl/xml.adoc#colspan[colspan] -
+xref:vcl/xml.adoc#context-help-text[contextHelpText] -
+xref:vcl/xml.adoc#context-help-text-html-enabled[contextHelpTextHtmlEnabled] -
+xref:vcl/xml.adoc#css[css] -
+xref:vcl/xml.adoc#data-container[dataContainer] -
+xref:vcl/xml.adoc#description[description] -
+xref:vcl/xml.adoc#description-as-html[descriptionAsHtml] -
+xref:vcl/xml.adoc#editable[editable] -
+xref:vcl/xml.adoc#enable[enable] -
+xref:vcl/xml.adoc#box-expand-ratio[box.expandRatio] -
+xref:vcl/xml.adoc#height[height] -
+xref:vcl/xml.adoc#html-sanitizer-enabled[htmlSanitizerEnabled] -
+xref:vcl/xml.adoc#icon[icon] -
+xref:vcl/xml.adoc#id[id] -
+xref:vcl/xml.adoc#input-prompt[inputPrompt] -
+<<meta-class,metaClass>> -
+xref:vcl/components/suggestion-field.adoc#min-search-string-length[minSearchStringLength] -
+xref:vcl/components/suggestion-field.adoc#popup-width[popupWidth] -
+xref:vcl/xml.adoc#property[property] -
+xref:vcl/xml.adoc#required[required] -
+xref:vcl/xml.adoc#required-message[requiredMessage] -
+xref:vcl/xml.adoc#responsive[responsive] -
+xref:vcl/xml.adoc#rowspan[rowspan] -
+xref:vcl/xml.adoc#stylename[stylename] -
+xref:vcl/components/suggestion-field.adoc#suggestions-limit[suggestionsLimit] -
+xref:vcl/xml.adoc#tab-index[tabIndex] -
+xref:vcl/xml.adoc#visible[visible] -
+xref:vcl/xml.adoc#width[width]
+
+== EntitySuggestionField XML Elements
+
+<<actions,actions>> -
+xref:vcl/miscellaneous/formatter.adoc[formatter] -
+<<query,query>> -
+xref:vcl/components/entity-combo-box.adoc#validators-element[validators]
+
+[[api]]
+== API
+
+<<arrow-down-handler,ArrowDownEvent>>

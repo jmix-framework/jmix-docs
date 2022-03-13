@@ -1,0 +1,243 @@
+= SuggestionField
+:page-aliases: backoffice-ui:vcl/components/suggestion-field.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/sampler/#main/sample?id=suggestionfield-dataaware" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+`SuggestionField` allows searching for certain values according to a string entered by a user.
+
+It can use any types of options: entities, strings, or enum values. `SuggestionField` does not have action buttons. The list of options is loaded in the background according to the logic defined by the application developer on the server-side.
+
+Component’s XML-name: `suggestionField`.
+
+== Basics
+
+Use `SuggestionField` if:
+
+* Users need to select a single option.
+* The number of options in the list of suggested values is too large to use xref:vcl/components/combo-box.adoc[ComboBox] or xref:vcl/components/entity-combo-box.adoc[EntityComboBox].
+* You want to provide high-performance search in the database without loading much data to the UI layer.
+
+`SuggestionField` is an input text field with the additional functionality: a user enters a few characters, and if several matches have been found, all of them will be displayed in a drop-down list. `SuggestionField` refreshes the list of options on each entered symbol.
+
+image::vcl/components/suggestion-field.gif[align="center"]
+
+To create `SuggestionField` connected to data, use the xref:vcl/xml.adoc#data-container[dataContainer] and xref:vcl/xml.adoc#property[property] attributes:
+
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/suggestionfield/suggestionfield-screen.xml[tags=data;layout-start;data-aware;layout-end]
+----
+<1> `InstanceContainer` for the `Address` entity.
+<2> Inline fetch plan of the entity instance located in the container.
+
+To enable `SuggestionField` suggestions, you should use the <<search-executor,search executor>>, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=autowired-data-manager;data-aware-search-executor]
+----
+
+[[search-executor]]
+== SearchExecutor
+
+`SearchExecutor` is a functional interface that contains a single method: `List<E> search(String searchString, Map<String, Object> searchParams)`.
+
+Use the `searchString` parameter to filter candidates using the string entered by the user.
+
+In the most common case, it is sufficient to set a `SearchExecutor` implementation to the component.
+
+`SearchExecutor` can return any types of options, for example, entities, strings, or enum values.
+
+[[search-executor-entities]]
+* Entities
++
+First, declare a component in the XML descriptor:
++
+[source, xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/suggestionfield/suggestionfield-screen.xml[tags=entity-search-executor]
+----
++
+Then set `SearchExecutor` to the component:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=autowired-data-manager;entity-search-executor]
+----
++
+[TIP]
+====
+You can generate the `SearchExecutor` implementation stub using Studio.
+====
+
+[[search-executor-strings]]
+* Strings
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=string-search-executor]
+----
+
+[[enum-executor-strings]]
+* Enum
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=enum-search-executor]
+----
+
+[WARNING]
+====
+The `search()` method is executed in a background thread, so it cannot access visual components or data containers used by visual components. Call xref:data-access:data-manager.adoc[DataManager] or a service directly, or process and return data loaded to the screen beforehand.
+====
+
+=== escapeForLike
+You can use the `escapeForLike()` method to search for the values that contain special symbols:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=autowired-data-manager;escape-for-like]
+----
+
+[[suggestions-managing]]
+== Suggestions Managing
+
+[[async-search-delay-ms]]
+=== asyncSearchDelayMs
+
+The `asyncSearchDelayMs` attribute sets the delay between the last key press action and asynchronous search.
+
+[[min-search-string-length]]
+=== minSearchStringLength
+
+The `minSearchStringLength` attribute sets the minimal string length, which is required to perform suggestions search.
+
+If you set `minSearchStringLength = 1` the suggestion popup is displayed almost immediately after the user starts typing, and too many suggestions appear at first. If you search through a large amount of data, make `SuggestionField` less sensitive, for example:
+
+[source,code,indent=0]
+----
+minSearchStringLength="4"
+----
+
+[[popup-width]]
+=== popupWidth
+
+The `popupWidth` attribute sets the width of the suggestion popup.
+
+Possible options:
+
+* `auto` - the popup width will be equal to the maximum width of suggestions.
+* `parent` - the popup width will be equal to the width of the main component.
+* absolute (for example, `"170px"`) or relative (for example, `"50%"`) value.
+
+[[suggestions-limit]]
+=== suggestionsLimit
+
+The `suggestionsLimit` attribute sets the limit of suggestions to be displayed. The default value is `10`.
+
+[[handlers]]
+== Events and Handlers
+
+include::../events-hanlers-generation-tip.adoc[]
+
+[[arrow-down-handler]]
+=== ArrowDownHandler
+
+See xref:vcl/components/entity-suggestion-field.adoc#arrow-down-handler[ArrowDownHandler Usage].
+
+[[context-help-icon-click-handler]]
+=== ContextHelpIconClickHandler
+
+See xref:vcl/api.adoc#context-help-icon-click-handler[ContextHelpIconClickHandler].
+
+[[enter-press-handler]]
+=== EnterPressHandler
+
+See the example of programmatic registration in the xref:vcl/components/combo-box.adoc#handling-user-input[Handling User Input] section for `ComboBox`.
+
+`EnterPressHandler` can be provided declaratively using the `@Install` annotation in the screen controller. See this example in the xref:vcl/components/entity-combo-box.adoc#handling-user-input[Handling User Input] section for `EntityComboBox`.
+
+[[formatter]]
+=== Formatter
+
+See xref:vcl/components/entity-suggestion-field.adoc#formatter[Formatter].
+
+[[options-style-provider]]
+=== OptionsStyleProvider
+
+`OptionsStyleProvider` allows you to manage additional style names for the suggested options displayed by `SuggestionField`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/suggestionfield/SuggestionFieldScreen.java[tags=option-style-provider]
+----
+
+Then you should define the item styles set in the application theme. Detailed information on creating a theme is available in xref:themes.adoc[Themes]. Style names representing in the controller, together with prefixes identifying each item, form CSS selectors. For example:
+
+[source, css,indent=0]
+----
+include::example$/ex1/src/main/themes/helium-extended/helium-extended.scss[tags=suggestion-field-styles]
+----
+
+image::vcl/components/suggestion-field-styles.gif[align="center"]
+
+[[search-executor-interface]]
+=== SearchExecutor
+
+See <<search-executor, SearchExecutor>>.
+
+[[validator]]
+=== Validator
+
+See xref:vcl/components/combo-box.adoc#validator[Validator].
+
+[[value-change-event]]
+=== ValueChangeEvent
+
+See xref:vcl/api.adoc#value-change-event[ValueChangeEvent].
+
+[[xml]]
+== SuggestionField XML Attributes
+
+include::../xml-studio-tip.adoc[]
+
+xref:vcl/xml.adoc#align[align] -
+<<async-search-delay-ms,asyncSearchDelayMs>> -
+xref:vcl/xml.adoc#caption[caption] -
+xref:vcl/xml.adoc#caption-as-html[captionAsHtml] -
+xref:vcl/xml.adoc#colspan[colspan] -
+xref:vcl/xml.adoc#context-help-text[contextHelpText] -
+xref:vcl/xml.adoc#context-help-text-html-enabled[contextHelpTextHtmlEnabled] -
+xref:vcl/xml.adoc#css[css] -
+xref:vcl/xml.adoc#data-container[dataContainer] -
+xref:vcl/xml.adoc#description[description] -
+xref:vcl/xml.adoc#description-as-html[descriptionAsHtml] -
+xref:vcl/xml.adoc#editable[editable] -
+xref:vcl/xml.adoc#enable[enable] -
+xref:vcl/xml.adoc#box-expand-ratio[box.expandRatio] -
+xref:vcl/xml.adoc#height[height] -
+xref:vcl/xml.adoc#html-sanitizer-enabled[htmlSanitizerEnabled] -
+xref:vcl/xml.adoc#icon[icon] -
+xref:vcl/xml.adoc#id[id] -
+xref:vcl/xml.adoc#input-prompt[inputPrompt] -
+<<min-search-string-length,minSearchStringLength>> -
+<<popup-width,popupWidth>> -
+xref:vcl/xml.adoc#property[property] -
+xref:vcl/xml.adoc#required[required] -
+xref:vcl/xml.adoc#required-message[requiredMessage] -
+xref:vcl/xml.adoc#responsive[responsive] -
+xref:vcl/xml.adoc#rowspan[rowspan] -
+xref:vcl/xml.adoc#stylename[stylename] -
+<<suggestions-limit,suggestionsLimit>> -
+xref:vcl/xml.adoc#tab-index[tabIndex] -
+xref:vcl/xml.adoc#visible[visible] -
+xref:vcl/xml.adoc#width[width]
+
+== SuggestionField XML Elements
+
+xref:vcl/miscellaneous/formatter.adoc[formatter] -
+xref:vcl/components/entity-combo-box.adoc#validators-element[validators]
