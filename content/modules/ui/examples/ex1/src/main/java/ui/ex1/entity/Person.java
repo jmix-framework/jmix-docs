@@ -51,6 +51,8 @@ public class Person {
     @Column(name = "IMAGE")
     private FileRef image;
 
+    /*setters and getters*/
+    // end::file-storage-upload-field[]
     public java.lang.Boolean getStatus() {
         return status;
     }
@@ -58,7 +60,6 @@ public class Person {
     public void setStatus(java.lang.Boolean status) {
         this.status = status;
     }
-    // end::file-storage-upload-field[]
 
     public Date getBirthday() {
         return birthday;
