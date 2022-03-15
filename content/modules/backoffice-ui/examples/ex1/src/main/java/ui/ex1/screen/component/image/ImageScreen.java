@@ -51,7 +51,9 @@ public class ImageScreen extends Screen {
         // end::set-source[]
         personsTable.addGeneratedColumn("image", entity -> {
             Image<FileRef> image = uiComponents.create(Image.NAME);
-            image.setValueSource(new ContainerValueSource<>(personsTable.getInstanceContainer(entity), "image"));
+            image.setValueSource(
+                    new ContainerValueSource<>(personsTable.getInstanceContainer(entity),
+                            "image"));
             image.setHeight("100px");
             image.setScaleMode(Image.ScaleMode.CONTAIN);
             return image;
