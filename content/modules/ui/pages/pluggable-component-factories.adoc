@@ -1,0 +1,40 @@
+= Pluggable Component Factories
+
+The pluggable component factories mechanism extends the standard component creation procedure and allows you to create different edit fields in xref:ui:vcl/components/form.adoc[Form], xref:ui:vcl/components/table.adoc[Table] and xref:ui:vcl/components/data-grid.adoc[DataGrid]. It means that application components or your project itself can provide custom strategies that will create non-standard components and/or support custom data types.
+
+An entry point to the mechanism is the `UiComponentsGenerator.generate(ComponentGenerationContext)` method. First, it to find `ComponentGenerationStrategy` implementations. If at least one strategy exists, then it iterates over strategies according to the `org.springframework.core.Ordered` interface and returns the first created not `null` component.
+
+`ComponentGenerationStrategy` implementations are used to create UI components. A project can contain any number of such strategies.
+
+`ComponentGenerationContext` is a class which stores the following information that can be used when creating a component:
+
+* `metaClass` - defines the entity for which the component is created.
+* `property` - defines the entity attribute for which the component is created.
+* `valueSource` - a value source that can be used to create the component.
+* `options` - an options object that can be used to show options.
+* `xmlDescriptor` - an XML descriptor which contains additional information, in case the component is declared in an XML descriptor.
+* `targetClass` - a target class for which a component is created, e.g. `Form`, `Table`, `DataGrid`.
+
+There are two built-in component strategies:
+
+* `DefaultComponentGenerationStrategy` - is used to create a component according to the given `ComponentGenerationContext` object. Has the order value `JmixOrder.LOWEST_PLATFORM_PRECEDENCE` (1000). Higher values are interpreted as lower priority, the lowest value has the highest priority, same order values will result in arbitrary sort positions for the affected objects.
+* `CustomDatatypesComponentGenerationStrategy` - is intended for generating a default field corresponding to a datatype for which other generation strategies didn't create a field. For instance, when a datatype is custom and doesn't match any type for which the `DefaultComponentGenerationStrategy` creates fields. Has the order value `Integer.MAX_VALUE` (0x7fffffff).
+
+The sample below shows how to replace the default `Form` field generation for a certain attribute of a specific entity.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/pluggable-factories/SalesComponentGenerationStrategy.java[]
+----
+<1> Check the specific field of the `Order` entity
+<2> Check that the component is created for the `Form` component
+<3> Creates the specific `DatePicker` component
+<4> Binds the component to a data source
+<5> Gets the order value of this object.
+
+The sample below shows how to define a `ComponentGenerationStrategy` for a specific xref:data-model:data-types.adoc[datatype].
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/pluggable-factories/ColorComponentGenerationStrategy.java[]
+----
