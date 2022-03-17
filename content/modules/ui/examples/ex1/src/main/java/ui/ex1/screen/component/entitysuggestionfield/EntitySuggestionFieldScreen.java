@@ -2,6 +2,7 @@ package ui.ex1.screen.component.entitysuggestionfield;
 
 import io.jmix.core.DataManager;
 import io.jmix.ui.Actions;
+import io.jmix.ui.Notifications;
 import io.jmix.ui.action.entitypicker.EntityClearAction;
 import io.jmix.ui.component.EntitySuggestionField;
 import io.jmix.ui.component.SuggestionFieldComponent;
@@ -20,6 +21,8 @@ import java.util.Map;
 @UiDescriptor("entitysuggestionfield-screen.xml")
 public class EntitySuggestionFieldScreen extends Screen {
     @Autowired
+    protected Notifications notifications;
+    @Autowired
     private CollectionLoader<Country> countriesDl;
 
     // tag::arrow-down[]
@@ -30,17 +33,22 @@ public class EntitySuggestionFieldScreen extends Screen {
     private EntitySuggestionField<Country> countryField;
 
     @Install(to = "countryField", subject = "arrowDownHandler")
-    private void countryFieldArrowDownHandler(SuggestionFieldComponent.ArrowDownEvent arrowDownEvent) {
+    private void countryFieldArrowDownHandler(SuggestionFieldComponent.ArrowDownEvent
+                                                          arrowDownEvent) {
         countryField.showSuggestions(new ArrayList<>(countriesDc.getItems()));
     }
     // end::arrow-down[]
 
-    // tag::search-executor[]
+    // tag::autowired-data-manager[]
     @Autowired
     private DataManager dataManager;
 
+    // end::autowired-data-manager[]
+
+    // tag::search-executor[]
     @Install(to = "entityField", subject = "searchExecutor")
-    private List entityFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List entityFieldSearchExecutor(String searchString,
+                                           Map<String, Object> searchParams) {
         return dataManager.load(Country.class)
                 .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
                 .list();
@@ -49,7 +57,8 @@ public class EntitySuggestionFieldScreen extends Screen {
 
     // tag::search-executor-metaclass[]
     @Install(to = "metaClassField", subject = "searchExecutor")
-    private List<Country> metaClassFieldSearchExecutor(String searchString, Map<String, Object> searchParams) {
+    private List<Country> metaClassFieldSearchExecutor(String searchString,
+                                                       Map<String, Object> searchParams) {
         return dataManager.load(Country.class)
                 .query("e.name like ?1 order by e.name", "(?i)%" + searchString + "%")
                 .list();
