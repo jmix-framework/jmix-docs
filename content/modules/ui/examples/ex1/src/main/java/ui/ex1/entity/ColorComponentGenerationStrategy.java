@@ -1,3 +1,5 @@
+package ui.ex1.entity;
+
 import io.jmix.core.metamodel.datatype.Datatype;
 import io.jmix.core.metamodel.model.MetaPropertyPath;
 import io.jmix.core.metamodel.model.Range;
@@ -30,7 +32,7 @@ public class ColorComponentGenerationStrategy implements ComponentGenerationStra
         if (mpp != null) {
             Range mppRange = mpp.getRange();
             if (mppRange.isDatatype()
-                    && ((Datatype) mppRange.asDatatype()) instanceof ColorDatatype) {
+                    && (Datatype) mppRange.asDatatype() instanceof ColorDatatype) {
                 ColorPicker colorPicker = uiComponents.create(ColorPicker.class);
                 colorPicker.setDefaultCaptionEnabled(true);
 
