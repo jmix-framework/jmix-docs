@@ -1,3 +1,5 @@
+package ui.ex1.entity;
+
 import io.jmix.core.Metadata;
 import io.jmix.core.metamodel.model.MetaClass;
 import io.jmix.ui.UiComponents;
@@ -11,7 +13,6 @@ import java.sql.Date;
 
 @org.springframework.stereotype.Component(SalesComponentGenerationStrategy.NAME)
 public class SalesComponentGenerationStrategy implements ComponentGenerationStrategy, Ordered {
-
     public static final String NAME = "sample_SalesComponentGenerationStrategy";
 
     @Inject
@@ -27,14 +28,14 @@ public class SalesComponentGenerationStrategy implements ComponentGenerationStra
         MetaClass orderMetaClass = metadata.getClass(Order.class);
 
         if (orderMetaClass.equals(context.getMetaClass())
-                && "date".equals(property) <1>
+                && "date".equals(property) // <1>
                 && context.getClass() != null
-                && Form.class.isAssignableFrom(context.getClass())) { <2>
-            DatePicker<Date> datePicker = uiComponents.create(DatePicker.TYPE_DATE); <3>
+                && Form.class.isAssignableFrom(context.getClass())) { // <2>
+            DatePicker<Date> datePicker = uiComponents.create(DatePicker.TYPE_DATE); // <3>
 
             ValueSource valueSource = context.getValueSource();
             if (valueSource != null) {
-                datePicker.setValueSource(valueSource); <4>
+                datePicker.setValueSource(valueSource); // <4>
             }
 
             return datePicker;
@@ -45,6 +46,6 @@ public class SalesComponentGenerationStrategy implements ComponentGenerationStra
 
     @Override
     public int getOrder() {
-        return 50; <5>
+        return 50; // <5>
     }
 }
