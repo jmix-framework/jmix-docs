@@ -1,17 +1,23 @@
+package ui.ex1.screen.data;
+
 import com.vaadin.ui.Label;
+import io.jmix.core.DataManager;
 import io.jmix.core.SaveContext;
 import io.jmix.ui.model.DataContext;
 import io.jmix.ui.screen.*;
-import com.company.sample.entity.Customer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.entity.Customer;
+import ui.ex1.entity.User;
+import ui.ex1.screen.entity.customer.CustomerBrowse;
 
 import java.util.Set;
 
 @UiController("Customer.browse")
 @UiDescriptor("customer-browse.xml")
 @LookupComponent("customersTable")
-public class CustomerBrowse extends StandardLookup<Customer> {
+public class CustomerBrowseDataContextEvents extends StandardLookup<Customer> {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerBrowse.class);
 
@@ -29,15 +35,6 @@ public class CustomerBrowse extends StandardLookup<Customer> {
         return dataManager.save(saveContext);
     }
     // end::commit-delegate[]
-
-    // tag::prevent-commit[]
-    @Subscribe(target = Target.DATA_CONTEXT)
-    public void onPreCommit(DataContext.PreCommitEvent event) {
-        if (checkSomeCondition()) {
-            event.preventCommit();
-        }
-    }
-    // end::prevent-commit[]
 
     // tag::pre-commit-event[]
     @Subscribe(target = Target.DATA_CONTEXT)
@@ -60,4 +57,5 @@ public class CustomerBrowse extends StandardLookup<Customer> {
         indicatorLabel.setValue("Changed");
     }
     // end::change-event[]
+
 }
