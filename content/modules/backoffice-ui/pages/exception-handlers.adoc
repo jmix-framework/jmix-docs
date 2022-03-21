@@ -1,0 +1,49 @@
+= Exception Handlers
+
+Unhandled exceptions thrown on the client are passed to the special handlers mechanism.
+
+An exception handler is a Spring bean implementing the `UiExceptionHandler` interface. Its `handle()` method should process the exception and return true, or immediately return false if this handler is not able to handle the passed exception. This behavior enables creating a "chain of responsibility" for handlers.
+
+It is recommended to inherit your handlers from the `AbstractUiExceptionHandler` base class, which can disassemble the exceptions chain (including ones packed inside `RemoteException`) and handle specific exception types. Exception types supported by this handler are defined by passing a string array to the base constructor from the handler constructor. Each string of the array should contain one full class name of the handled exception.
+
+Suppose you have the following exception class:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ZeroBalanceException.java[tags=exception]
+----
+
+Create the handler for this exception with the following constructor:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ZeroBalanceExceptionHandler.java[tags=zero-balance-exception-handler;constructor]
+----
+
+If the exception class is not accessible on the client-side, specify its name with the string literal:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ForeignKeyViolationExceptionHandler.java[tags=foreign-key-violation-exception-handler]
+----
+
+In the case of using `AbstractUiExceptionHandler` as a base class, the processing logic is located in the `doHandle()` method and looks as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ZeroBalanceExceptionHandler.java[tags=zero-balance-exception-handler;constructor;do-handle]
+----
+
+If the name of the exception class is insufficient to make a decision whether this handler can be applied to the exception, define the `canHandle()` method. This method accepts also the text of the exception. If the handler is applicable for this exception, the method must return `true`. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ZeroBalanceExceptionHandler.java[tags=zero-balance-exception-handler;can-handle]
+----
+
+The xref:dialogs.adoc[Dialogs] interface available via the `UiContext` parameter of the `doHandle()` method provides a special dialog for displaying exceptions containing a collapsable area with the complete exception stack trace. This dialog is used in the default handler, but you can use it for your exceptions too, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/exception/ZeroAccountBalanceExceptionHandler.java[tags=do-handle]
+----
