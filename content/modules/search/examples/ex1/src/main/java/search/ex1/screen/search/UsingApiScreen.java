@@ -38,12 +38,12 @@ public class UsingApiScreen extends Screen {
     // tag::click-event[]
     @Subscribe("searchBtn") // <1>
     public void onSearchBtnClick(Button.ClickEvent event) {
-        SearchContext searchContext = new SearchContext("silver")
-                .setSize(10)
-                .setEntities("search_Order"); // <2>
-        SearchResult searchResult = entitySearcher.search(searchContext); // <3>
+        SearchContext searchContext = new SearchContext("silver") // <2>
+                .setSize(20) // <3>
+                .setEntities("search_Order"); // <4>
+        SearchResult searchResult = entitySearcher.search(searchContext); // <5>
         Collection<Object> instances =
-                searchResultProcessor.loadEntityInstances(searchResult); // <4>
+                searchResultProcessor.loadEntityInstances(searchResult); // <6>
         // ...
     }
     // end::click-event[]
