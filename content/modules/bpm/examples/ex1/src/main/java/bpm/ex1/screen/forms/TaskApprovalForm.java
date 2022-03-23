@@ -1,6 +1,5 @@
 package bpm.ex1.screen.forms;
 
-import bpm.ex1.entity.Order;
 import io.jmix.bpmui.processform.ProcessFormContext;
 import io.jmix.bpmui.processform.annotation.Outcome;
 import io.jmix.bpmui.processform.annotation.ProcessForm;

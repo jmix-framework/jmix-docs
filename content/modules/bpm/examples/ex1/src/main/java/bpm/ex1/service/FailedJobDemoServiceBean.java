@@ -1,6 +1,5 @@
 package bpm.ex1.service;
 
-import org.flowable.job.service.impl.asyncexecutor.FailedJobCommandFactory;
 import org.springframework.stereotype.Component;
 
 @Component("smpl_FailedJobDemoBean")

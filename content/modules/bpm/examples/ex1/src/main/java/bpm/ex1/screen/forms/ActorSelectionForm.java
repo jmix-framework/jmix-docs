@@ -1,14 +1,11 @@
 package bpm.ex1.screen.forms;
 
-import bpm.ex1.entity.User;
 import io.jmix.bpm.data.form.FormParam;
 import io.jmix.bpmui.processform.ProcessFormContext;
 import io.jmix.bpmui.processform.annotation.Param;
 import io.jmix.bpmui.processform.annotation.ProcessForm;
 import io.jmix.bpmui.processform.annotation.ProcessFormParam;
 import io.jmix.ui.component.Button;
-import io.jmix.ui.component.ComboBox;
-import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.EntityPicker;
 import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
