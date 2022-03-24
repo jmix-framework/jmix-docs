@@ -1,6 +1,7 @@
 package ui.ex1.screen.screens.fragments;
 
 import io.jmix.ui.UiComponents;
+import io.jmix.ui.component.TextField;
 import io.jmix.ui.model.InstanceContainer;
 import io.jmix.ui.screen.*;
 import org.slf4j.Logger;
@@ -9,12 +10,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Address;
 
 // tag::fragment-java1[]
+// tag::fragment-java3[]
 @UiController("sample_AddressFragment")
 @UiDescriptor("address-fragment.xml")
 public class AddressFragment extends ScreenFragment {
     // end::fragment-java1[]
 
-    private String stringParam;
+    @Autowired
+    private TextField<String> zipcodeField;
+
+    private String zipcode;
+
+    // end::fragment-java3[]
     private InstanceContainer<Address> containerParam;
     private UiComponents componentParam;
 
@@ -26,13 +33,17 @@ public class AddressFragment extends ScreenFragment {
     @Autowired
     private InstanceContainer<Address> addressDc;
 
-    public void setStringParam(String stringParam) {
-        this.stringParam = stringParam;
+    // tag::fragment-java4[]
+    public void setZipcode(String zipcode) { // <1>
+        this.zipcode = zipcode;
     }
 
-    public String getStringParam(){
-        return this.stringParam;
+    @Subscribe
+    public void onInit(InitEvent event) {
+        zipcodeField.setInputPrompt(zipcode); // <2>
     }
+
+    // end::fragment-java4[]
 
     public void setContainerParam(InstanceContainer<Address> containerParam) {
         this.containerParam = containerParam;
