@@ -5,6 +5,7 @@ import io.jmix.ui.component.Button;
 import io.jmix.ui.component.ScreenFacet;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.screen.entity.customer.CustomerBrowse;
 
 @UiController("sample_ScreenFacetScreen")
 @UiDescriptor("screen-facet-screen.xml")
@@ -26,4 +27,10 @@ public class ScreenFacetScreen extends Screen {
         screenFacet.show();
     }
     // end::show[]
+    // tag::screen-configurer[]
+    @Install(to = "screenFacetC", subject = "screenConfigurer")
+    protected void screenFacetCScreenConfigurer(CustomerBrowse customerBrowse) {
+        customerBrowse.setSomeParameter(55);
+    }
+    // end::screen-configurer[]
 }
