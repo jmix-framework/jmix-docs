@@ -22,8 +22,8 @@ public class AddressFragment extends ScreenFragment {
     private String zipcode;
 
     // end::fragment-java3[]
-    private InstanceContainer<Address> containerParam;
-    private UiComponents componentParam;
+
+    private InstanceContainer<Address> addressInstanceDc;
 
     // tag::logger[]
     private static final Logger log = LoggerFactory.getLogger(AddressFragment.class);
@@ -45,20 +45,8 @@ public class AddressFragment extends ScreenFragment {
 
     // end::fragment-java4[]
 
-    public void setContainerParam(InstanceContainer<Address> containerParam) {
-        this.containerParam = containerParam;
-    }
-
-    public InstanceContainer<Address> getContainerParam(){
-        return this.containerParam;
-    }
-
-    public UiComponents getComponentParam() {
-        return componentParam;
-    }
-
-    public void setComponentParam(UiComponents componentParam) {
-        this.componentParam = componentParam;
+    public void setAddressInstanceDc(InstanceContainer<Address> addressInstanceDc) {
+        this.addressInstanceDc = addressInstanceDc;
     }
 
     // tag::events[]
