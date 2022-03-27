@@ -34,7 +34,7 @@ public class OrderEdit extends StandardEditor<Order> {
         if (justCreated) { // <2>
             notificationManager.createNotification() // <3>
                     .withSubject("New order")// <4>
-                    .withRecipientUsernames("operator") // <5>
+                    .withRecipientUsernames("admin") // <5>
                     .toChannelsByNames("in-app") // <6>
                     .withContentType(ContentType.PLAIN) // <7>
                     .withBody("A new order with number " + numberField.getValue()+ " is created.") // <8>
