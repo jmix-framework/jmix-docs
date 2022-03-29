@@ -8,6 +8,8 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
 
@@ -28,4 +30,14 @@ public class SampleDataAccessApplication {
     @EnableWebSecurity
     static class SecurityConfiguration extends CoreSecurityConfiguration {
     }
+
+    // tag::transaction-template[]
+    @Bean
+    @Primary
+    TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
+        return new TransactionTemplate(transactionManager);
+    }
+    // end::transaction-template[]
+
+
 }

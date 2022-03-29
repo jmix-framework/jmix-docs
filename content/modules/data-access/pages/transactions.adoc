@@ -1,3 +1,64 @@
 = Transaction Management
 
-Coming soon
+Jmix supports both standard ways to configure transactions in Spring applications: declarative (annotations) and programmatic (AOP).
+
+[[declarative-transactions]]
+== Declarative Transaction Management
+
+The most straightforward way of transaction management is Jmix applications is to use the `@org.springframework.transaction.annotation.Transactional` annotation. This annotation indicates a method that should run inside a database transaction. When used on the class level, `@Transactional` applies to all methods of this class and its subclasses.
+
+The `@Transactional` annotation will automatically create a transaction when the method is called, and the commit or rollback implementation will be managed implicitly by Spring. A number of parameters can be used to refine the `@Transactional` behavior, for example, the isolation level or propagation: these parameters are described in the https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html[Spring documentation^].
+
+Example of `@Transactional` usage for creating multiple entities within a single transaction:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transactional]
+----
+<1> You simply put the annotation, Spring does all the rest: the proxy will be created to inject the transactional logic before (starting transaction) and after (committing or rollback) the running method.
+
+Declarative transaction management allows you to reduce the amount of boilerplate code, but it has the following drawback: transactions are committed outside the application code, which often complicates debugging because it conceals the moment when changes are sent to the database and the entities become `detached`. Additionally, keep in mind that declarative markup will only work if the method is called by the container, i.e. calling a transaction method from another method of the same object will not start a transaction.
+
+With this in mind, we recommend using declarative transaction management only for simple cases like a xref:rest:business-logic.adoc[service method] reading a certain object and returning it to the client.
+
+[[programmatic-transactions]]
+== Programmatic Transaction Management
+
+Programmatic transaction management is done using the `org.springframework.transaction.support.TransactionTemplate` class. To get an instance of `TransactionTemplate`, you may declare a bean and initialize it with a `PlatformTransactionManager`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=transaction-template]
+----
+
+Now you can inject `TransactionTemplate` with `@Autowired` in any service of your application
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=transaction-template-inject]
+----
+
+If you don't need `TransactionTemplate` to be available everywhere in the project, you can set it up locally in a service using `PlatformTransactionManager`, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template]
+----
+
+Use the `execute()` method to run a block of code inside a transaction. This method handles the transaction lifecycle and possible exceptions, so you don't need to handle them explicitly:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template-execute]
+----
+
+In case you don't need the transaction to return any result, you can use the `executeWithoutResult()` method which is derived from `execute()` but uses the `TransactionCallbackWithoutResult` callback interface:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=transaction-template-without-result]
+----
+
+The default https://docs.spring.io/spring-framework/docs/3.0.0.M3/reference/html/ch11s05.html#transaction-declarative-txadvice-settings[transactional settings^], such as the propagation mode, the isolation level, the timeout etc., can be customized with the `TransactionTemplate` setters.
+
+For mode detailed information on `TransactionTemplate` consult the https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/support/TransactionTemplate.html[Spring documentation^].
