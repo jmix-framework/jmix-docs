@@ -238,7 +238,8 @@ Use-cases for custom controllers could be:
 
 In these situations, the generic Services API might be not flexible enough to accomplish your goals. Therefore Jmix allows natively integrate Spring MVC controllers into a Jmix application.
 
-=== Create Custom Controllers
+[[creating-custom-controllers]]
+=== Creating Custom Controllers
 
 To create a Spring MVC controller, it is only required to create a Spring bean in the Jmix application annotated as a Spring MVC controller. Jmix itself does not have any further requirements over Spring MVC. Let's look at an example Controller:
 
@@ -268,7 +269,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-// ...
+@RestController
+@RequestMapping("/orders")
 public class OrderController {
 
     @GetMapping("/calculateTotalAmount") // <1>
@@ -315,14 +317,15 @@ Content-Type: application/json
 }
 ----
 
+[[securing-custom-controllers]]
 === Securing Custom Controllers
 
-To secure a custom Controller via the same OAuth2 mechanism that the other parts of the Jmix REST APIs use, it is possible to register the controller's URL pattern in the application configuration:
+To secure a custom controller via the same OAuth2 mechanism that the other parts of the Jmix REST APIs use, register the controller's URL pattern in the `jmix.rest.authenticated-url-patterns` application property:
 
 [source,properties]
 .application.properties
 ----
-jmix.rest.authenticatedUrlPatterns=/orders/**
+jmix.rest.authenticated-url-patterns = /orders/**
 ----
 
 Here, the `/orders/**` wildcard indicates to Jmix that all endpoints that start with `/orders/` should also use the OAuth2 mechanism.
@@ -341,4 +344,45 @@ WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_de
 "error": "unauthorized",
 "error_description": "Full authentication is required to access this resource"
 }
+----
+
+Authenticated endpoints can rely on data access control provided by the Jmix xref:security:index.adoc[security] subsystem. If your controller uses xref:data-access:data-manager.adoc[DataManager] to load or save data, it will check rights of the authenticated user on xref:security:resource-roles.adoc#entity-policy[entity operations]. In the following example, the "Access denied" exception will be thrown if the user has no rights to read the `Order` entity:
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @GetMapping("/all")
+    public List<Order> loadAll() {
+        return dataManager.load(Order.class).all().list();
+    }
+----
+
+If you want to limit access also to entity attributes, use the `EntitySerialization` bean for serializing entities returned from the endpoint. In the following example, only attributes, permitted by the xref:security:resource-roles.adoc#entity-attribute-policy[entity attribute policy] will be returned in JSON to the client:
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+    @Autowired
+    private EntitySerialization entitySerialization;
+
+    @GetMapping("/all")
+    public String loadAll() {
+        List<Order> orders = dataManager.load(Order.class).all().list();
+        return entitySerialization.toJson(
+                orders,
+                null,
+                EntitySerializationOption.DO_NOT_SERIALIZE_DENIED_PROPERTY
+        );
+    }
 ----
