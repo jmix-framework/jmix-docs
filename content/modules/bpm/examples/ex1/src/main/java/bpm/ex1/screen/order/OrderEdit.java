@@ -5,8 +5,8 @@ import io.jmix.ui.component.Button;
 import io.jmix.ui.screen.*;
 import bpm.ex1.entity.Order;
 import org.flowable.engine.RuntimeService;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,7 +16,7 @@ import java.util.Map;
 @ProcessForm
 public class OrderEdit extends StandardEditor<Order> {
     // tag::run-process[]
-    @Inject
+    @Autowired
     private RuntimeService runtimeService;
 
     @Subscribe("startProcessBtn")
