@@ -2,7 +2,6 @@ package dataaccess.ex1.bean;
 
 import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.CustomerGrade;
-import dataaccess.ex1.entity.CustomerGradeChange;
 import io.jmix.core.DataManager;
 import io.jmix.core.Id;
 import io.jmix.core.Sort;
@@ -10,7 +9,6 @@ import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
@@ -152,22 +150,9 @@ public class CustomerService {
     }
     // end::remove-by-id[]
 
-    // unused example
-/*    @Transactional
-    void updateCustomerGrade(UUID customerId, CustomerGrade newGrade) {
-        Customer customer = dataManager.load(Customer.class)
-                .id(customerId)
-                .optional() // <1>
-                .orElse(dataManager.create(Customer.class));
-        String oldGrade = customer.getGrade().getId();
-        customer.setGrade(newGrade);
-        dataManager.save(customer);
-        CustomerGradeChange change = dataManager.create(CustomerGradeChange.class);
-        change.setCustomer(customer);
-        change.setOldGrade(CustomerGrade.fromId(oldGrade));
-        change.setNewGrade(newGrade);
-        dataManager.save(change);
-    }*/
+    public Customer updateCustomerGrade(Customer customer) {
+        return customer;
+    }
 
     // tag::transaction-template-inject[]
     @Autowired
@@ -183,7 +168,5 @@ public class CustomerService {
         });
     }
     // end::transaction-template-without-result[]
-
-
 
 }

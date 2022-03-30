@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.inject.Qualifier;
 import javax.sql.DataSource;
 
 @SpringBootApplication
@@ -38,6 +39,5 @@ public class SampleDataAccessApplication {
         return new TransactionTemplate(transactionManager);
     }
     // end::transaction-template[]
-
 
 }

@@ -22,8 +22,6 @@ public class OrderService {
 
     @Autowired
     private DataManager dataManager;
-    @Autowired
-    private FetchPlans fetchPlans;
 
     // tag::transaction-template[]
     @Autowired
@@ -173,17 +171,7 @@ public class OrderService {
     }
     // end::transaction-template-execute[]
 
-    // tag::transactional[]
-    @Transactional // <1>
-    void createOrderAndCustomer() {
-        Customer customer = dataManager.create(Customer.class);
-        customer.setName("Alice");
-
-        Order order = dataManager.create(Order.class);
-        order.setCustomer(customer);
-
-        dataManager.save(order, customer);
+    public BigDecimal calculateDiscount(Order order) {
+        return order.getAmount().subtract(order.getAmount().multiply(BigDecimal.valueOf(0.2)));
     }
-    // end::transactional[]
-
 }
