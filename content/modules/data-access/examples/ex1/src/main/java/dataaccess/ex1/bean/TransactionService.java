@@ -4,6 +4,7 @@ import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.Order;
 import io.jmix.core.DataManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,6 +40,13 @@ public class TransactionService {
         }
     }
     // end::transactional[]
+
+
+    // tag::transaction-template-inject[]
+    @Autowired
+    @Qualifier("db1TransactionTemplate") // <1>
+    private TransactionTemplate db1TransactionTemplate;
+    // end::transaction-template-inject[]
 
 
 }
