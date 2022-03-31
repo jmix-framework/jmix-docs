@@ -43,7 +43,7 @@ public class ClipboardTriggerScreen extends Screen {
                     .show();
         } else {
             notifications.create()
-                    .withCaption("Something goes wrong during copying")
+                    .withCaption("Something went wrong during copying")
                     .show();
         }
     }
