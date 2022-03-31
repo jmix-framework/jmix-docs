@@ -33,20 +33,20 @@ public class OrderService {
     // end::load-by-query[]
 
     // tag::load-values[]
-    String getCustomerPurchases(LocalDate toDate) {
+    String getCustomerPurchases(LocalDate fromDate) {
         List<KeyValueEntity> kvEntities = dataManager.loadValues(
                 "select o.customer, sum(o.amount) from sample_Order o " +
                         "where o.date >= :date group by o.customer")
                 .store("main")                      // <1>
                 .properties("customer", "sum")      // <2>
-                .parameter("date", toDate)
+                .parameter("date", fromDate)
                 .list();
 
         StringBuilder sb = new StringBuilder();
         for (KeyValueEntity kvEntity : kvEntities) {
             Customer customer = kvEntity.getValue("customer");  // <3>
             BigDecimal sum = kvEntity.getValue("sum");          // <3>
-            sb.append(customer.getName()).append(" : ").append(sum);
+            sb.append(customer.getName()).append(" : ").append(sum).append("\n");
         }
         return sb.toString();
     }
