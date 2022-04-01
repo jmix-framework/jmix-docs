@@ -157,19 +157,35 @@ public class OrderService {
     // end::lazy-loading[]
 
     // tag::transaction-template-execute[]
-    public void createOrder() {
-        transactionTemplate.execute(status -> {
+    public UUID createOrderAndReturnId() {
+        return transactionTemplate.execute(status -> {
             Customer customer = dataManager.create(Customer.class);
             customer.setName("Alice");
+            customer = dataManager.save(customer);
 
             Order order = dataManager.create(Order.class);
             order.setCustomer(customer);
 
-            EntitySet savedEntities = dataManager.save(order, customer);
-            return savedEntities.get(order).getId();
+            order = dataManager.save(order);
+            return order.getId();
         });
     }
     // end::transaction-template-execute[]
+
+    // tag::transaction-template-without-result[]
+    public void createOrder() {
+        transactionTemplate.executeWithoutResult(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            customer = dataManager.save(customer);
+
+            Order order = dataManager.create(Order.class);
+            order.setCustomer(customer);
+
+            dataManager.save(order);
+        });
+    }
+    // end::transaction-template-without-result[]
 
     public BigDecimal calculateDiscount(Order order) {
         return order.getAmount().subtract(order.getAmount().multiply(BigDecimal.valueOf(0.2)));

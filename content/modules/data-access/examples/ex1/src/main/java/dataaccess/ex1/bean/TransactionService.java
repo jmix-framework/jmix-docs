@@ -3,6 +3,7 @@ package dataaccess.ex1.bean;
 import dataaccess.ex1.entity.Customer;
 import dataaccess.ex1.entity.Order;
 import io.jmix.core.DataManager;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -32,10 +33,7 @@ public class TransactionService {
             BigDecimal newTotal = orderService.calculateDiscount(order);
             order.setAmount(newTotal);
             dataManager.save(order);
-            Customer customer = dataManager.load(Customer.class)
-                    .id(order.getCustomer().getId())
-                    .one();
-            customer = customerService.updateCustomerGrade(customer);
+            Customer customer = customerService.updateCustomerGrade(order.getCustomer());
             dataManager.save(customer);
         }
     }
@@ -48,5 +46,11 @@ public class TransactionService {
     private TransactionTemplate db1TransactionTemplate;
     // end::transaction-template-inject[]
 
+    // tag::transactional-additional-ds[]
+    @Transactional("db1TransactionManager")
+    public void makeChangesInDb1DataStore() {
+        // ...
+    }
+    // end::transactional-additional-ds[]
 
 }
