@@ -1,18 +1,20 @@
 package dataaccess.ex1.bean;
 
-import dataaccess.ex1.entity.Customer;
-import dataaccess.ex1.entity.Order;
-import dataaccess.ex1.entity.Product;
+import dataaccess.ex1.entity.*;
 import io.jmix.core.*;
 import io.jmix.core.entity.KeyValueEntity;
 import io.jmix.core.querycondition.PropertyCondition;
 import io.jmix.data.PersistenceHints;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -20,8 +22,17 @@ public class OrderService {
 
     @Autowired
     private DataManager dataManager;
+
+    // tag::transaction-template[]
     @Autowired
-    private FetchPlans fetchPlans;
+    private PlatformTransactionManager transactionManager;
+
+    private TransactionTemplate transactionTemplate;
+
+    public void setTransactionTemplate() {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+    }
+    // end::transaction-template[]
 
     // tag::load-by-query[]
     List<Order> loadOrdersByProduct(String productName) {
@@ -144,4 +155,39 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
     // end::lazy-loading[]
+
+    // tag::transaction-template-execute[]
+    public UUID createOrderAndReturnId() {
+        return transactionTemplate.execute(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            customer = dataManager.save(customer);
+
+            Order order = dataManager.create(Order.class);
+            order.setCustomer(customer);
+
+            order = dataManager.save(order);
+            return order.getId();
+        });
+    }
+    // end::transaction-template-execute[]
+
+    // tag::transaction-template-without-result[]
+    public void createOrder() {
+        transactionTemplate.executeWithoutResult(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            customer = dataManager.save(customer);
+
+            Order order = dataManager.create(Order.class);
+            order.setCustomer(customer);
+
+            dataManager.save(order);
+        });
+    }
+    // end::transaction-template-without-result[]
+
+    public BigDecimal calculateDiscount(Order order) {
+        return order.getAmount().subtract(order.getAmount().multiply(BigDecimal.valueOf(0.2)));
+    }
 }

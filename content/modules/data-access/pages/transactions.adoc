@@ -1,3 +1,93 @@
 = Transaction Management
 
-Coming soon
+Jmix supports both standard ways to control transactions in Spring applications: declarative (with annotations) and programmatic.
+
+[[declarative-transactions]]
+== Declarative Transaction Management
+
+The most straightforward way of transaction management is Jmix applications is to use the `@org.springframework.transaction.annotation.Transactional` annotation. This annotation indicates a method that should run inside a database transaction. When used on the class level, `@Transactional` applies to all methods of this class and its subclasses.
+
+The `@Transactional` annotation will automatically create a transaction when the method is called, and the commit or rollback will be managed implicitly by Spring. Thus, the declarative transaction management allows you to reduce the amount of boilerplate code.
+
+A number of parameters can be used to refine the `@Transactional` behavior, for example, the isolation level or propagation: these parameters are described in the https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html[Spring documentation^].
+
+Example of `@Transactional` usage for updating multiple entities within a single transaction:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transactional]
+----
+<1> You simply put the annotation, Spring does all the rest: the proxy will be created to inject the transactional logic before (starting transaction) and after (committing or rolling back) the running method.
+
+CAUTION: Keep in mind that declarative markup works only if the method is called on an instance injected to another bean or obtained by `ApplicationContext.getBean()`, that is through the proxy created by the container. Calling an annotated method from another method of the same object will not start a transaction.
+
+If you need to declare a transaction for an xref:data-model:data-stores.adoc#additional[additional data store], specify the name of the data store's transaction manager bean in the `@Transactional` annotation. If you created the data store using Studio, its transaction manager's bean name is `<DATA-STORE-NAME>TransactionManager`. For example, if the data store name is `db1`, a transactional method for it is defined as follows:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transactional-additional-ds]
+----
+
+[[programmatic-transactions]]
+== Programmatic Transaction Management
+
+For programmatic transaction management, Spring offers the `org.springframework.transaction.support.TransactionTemplate` class.
+
+[[creating-transaction-template]]
+=== Creating TransactionTemplate
+
+To create an instance of `TransactionTemplate`, you may declare a bean in the main application class (annotated with `@SpringBootApplication`) and initialize it with a `PlatformTransactionManager`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=transaction-template]
+----
+
+Now you can inject `TransactionTemplate` in any bean of your application:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=transaction-template-inject]
+----
+
+Additional data stores, if any, require their own `TransactionTemplate` instances. If you create an additional data store with Studio, the data store's Spring configuration class will be created automatically with some beans in it. Add a new one for creating `TransactionTemplate` with the `Qualifier` annotation in the following way:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/Db1StoreConfiguration.java[tags=transaction-template]
+----
+<1> The `@Qualifier` annotation is used for injecting a particular bean by its name: in this case, it's the `PlatformTransactionManager` defined for the additional data store named `db1`.
+
+So, you can inject the required `TransactionTemplate` with the `Qualifier` annotation to manage transactions in the additional data store:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transaction-template-inject]
+----
+<1> Here, the `@Qualifier` annotation allows Spring to select the bean that we defined above for the `db1` data store.
+
+If you don't need `TransactionTemplate` to be available everywhere in the project, you can set it up locally in a bean using `PlatformTransactionManager`, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template]
+----
+
+[[using-transaction-template]]
+=== Using TransactionTemplate
+
+Use the `execute()` method to run a block of code inside a transaction. This method handles the transaction lifecycle and possible exceptions, so you don't need to handle them explicitly:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template-execute]
+----
+
+If you don't need to return any result from the transactional code block, you can use the `executeWithoutResult()` method which is derived from `execute()` but uses the `TransactionCallbackWithoutResult` callback interface:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template-without-result]
+----
+
+The default https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#tx-prog-template-settings[transaction settings^], such as the propagation mode, the isolation level, the timeout etc., can be customized with the `TransactionTemplate` setters.

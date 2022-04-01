@@ -9,6 +9,7 @@ import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -148,4 +149,24 @@ public class CustomerService {
         dataManager.remove(Id.of(customerId, Customer.class));
     }
     // end::remove-by-id[]
+
+    public Customer updateCustomerGrade(Customer customer) {
+        return customer;
+    }
+
+    // tag::transaction-template-inject[]
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    // end::transaction-template-inject[]
+
+    // tag::transaction-template-without-result[]
+    public void createCustomer() {
+        transactionTemplate.executeWithoutResult(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            dataManager.save(customer);
+        });
+    }
+    // end::transaction-template-without-result[]
+
 }
