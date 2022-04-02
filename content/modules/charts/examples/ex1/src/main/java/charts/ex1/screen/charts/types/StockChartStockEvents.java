@@ -47,7 +47,7 @@ public class StockChartStockEvents extends Screen {
 
     private void generateData() {
         List<DateValueVolume> items = new ArrayList<>();
-        LocalDate localDate = LocalDate.of(2015, Month.DECEMBER, 31);
+        LocalDate localDate = LocalDate.of(2021, Month.DECEMBER, 31);
         Date startDate = Date.from(localDate.minusDays(DAYS_COUNT).atStartOfDay(ZoneId.systemDefault()).toInstant());
         for (int i = 0; i < DAYS_COUNT; i++) {
             items.add(generateDateValueVolume(DateUtils.addDays(startDate, i), i));

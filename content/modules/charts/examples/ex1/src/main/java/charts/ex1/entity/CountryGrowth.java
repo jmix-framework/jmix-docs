@@ -21,10 +21,10 @@ public class CountryGrowth {
     protected String country;
 
     @JmixProperty(mandatory = true)
-    protected Double year2014;
+    protected Double year2020;
 
     @JmixProperty(mandatory = true)
-    protected Double year2015;
+    protected Double year2021;
 
     public CountryGrowth() {
         this.id = UUID.randomUUID();
@@ -46,20 +46,20 @@ public class CountryGrowth {
         return country;
     }
 
-    public void setYear2014(Double year2014) {
-        this.year2014 = year2014;
+    public void setYear2020(Double year2020) {
+        this.year2020 = year2020;
     }
 
-    public Double getYear2014() {
-        return year2014;
+    public Double getYear2020() {
+        return year2020;
     }
 
-    public void setYear2015(Double year2015) {
-        this.year2015 = year2015;
+    public void setYear2021(Double year2021) {
+        this.year2021 = year2021;
     }
 
-    public Double getYear2015() {
-        return year2015;
+    public Double getYear2021() {
+        return year2021;
     }
 }
 // end::country-growth[]
