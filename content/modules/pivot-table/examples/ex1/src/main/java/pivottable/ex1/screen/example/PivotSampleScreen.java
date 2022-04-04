@@ -24,11 +24,11 @@ public class PivotSampleScreen extends Screen {
     @Subscribe
     protected void onInit(InitEvent event) {
         List<TipInfo> items = new ArrayList<>();
-        items.add(tips(16.99, 1.01, Sex.FEMALE, false, Day.FRIDAY, Time.DINNER, 2));
-        items.add(tips(10.34, 1.66, Sex.FEMALE, true, Day.THURSDAY, Time.LUNCH, 3));
-        items.add(tips(21.01, 3.5, Sex.MALE, true, Day.FRIDAY, Time.LUNCH, 3));
-        items.add(tips(23.68, 3.31, Sex.FEMALE, false, Day.MONDAY, Time.DINNER, 2));
-        items.add(tips(24.59, 3.61, Sex.MALE, false, Day.TUESDAY, Time.LUNCH, 4));
+        items.add(tips(16.99, 1.01, Sex.FEMALE, false, Day.FRI, Time.DINNER, 2));
+        items.add(tips(10.34, 1.66, Sex.FEMALE, true, Day.THU, Time.LUNCH, 3));
+        items.add(tips(21.01, 3.5, Sex.MALE, true, Day.FRI, Time.LUNCH, 3));
+        items.add(tips(23.68, 3.31, Sex.FEMALE, false, Day.MON, Time.DINNER, 2));
+        items.add(tips(24.59, 3.61, Sex.MALE, false, Day.TUE, Time.LUNCH, 4));
         tipsDc.setItems(items);
     }
 
