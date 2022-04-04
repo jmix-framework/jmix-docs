@@ -7,13 +7,13 @@ import javax.annotation.Nullable;
 
 public enum Day implements EnumClass<String> {
 
-    SUNDAY("Sun"),
-    MONDAY("Mon"),
-    TUESDAY("Tue"),
-    WEDNESDAY("Wed"),
-    THURSDAY("Thu"),
-    FRIDAY("Fri"),
-    SATURDAY("Sat");
+    SUN("Sun"),
+    MON("Mon"),
+    TUE("Tue"),
+    WED("Wed"),
+    THU("Thu"),
+    FRI("Fri"),
+    SAT("Sat");
 
     private String id;
 
