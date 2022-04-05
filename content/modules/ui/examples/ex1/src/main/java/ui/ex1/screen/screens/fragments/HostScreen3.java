@@ -19,7 +19,7 @@ public class HostScreen3 extends Screen {
     @Subscribe(id = "addressFragment", target = Target.CONTROLLER) // <2>
     protected void onChange(AddressFragment.ChangeEvent event) {
         notifications.create()
-                .withCaption("Address changed in" + addressFragment.getId())
+                .withCaption("Address changed in " + addressFragment.getId())
                 .show();
     }
     // end::fragment-event[]
