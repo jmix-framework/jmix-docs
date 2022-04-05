@@ -1,9 +1,12 @@
 package search.ex1.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.metamodel.annotation.DependsOnProperties;
+import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
+import java.util.Date;
 import java.util.UUID;
 
 @JmixEntity
@@ -18,6 +21,10 @@ public class Order {
     @Column(name = "NUMBER_")
     private String number;
 
+    @Column(name = "DATE_")
+    @Temporal(TemporalType.DATE)
+    private Date date;
+
     @Column(name = "AMOUNT")
     private Integer amount;
 
@@ -27,6 +34,14 @@ public class Order {
     @JoinColumn(name = "CUSTOMER_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Customer customer;
+
+    public Date getDate() {
+        return date;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
 
     public Customer getCustomer() {
         return customer;
@@ -66,5 +81,11 @@ public class Order {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    @InstanceName
+    @DependsOnProperties({"date", "number", "amount"})
+    public String getInstanceName() {
+        return String.format("%s %s %s", date, number, amount);
     }
 }
