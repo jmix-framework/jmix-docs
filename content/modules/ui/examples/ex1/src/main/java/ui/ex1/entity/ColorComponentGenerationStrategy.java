@@ -14,11 +14,10 @@ import org.springframework.core.annotation.Order;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+//tag::strategy[]
 @Order(100)
-@org.springframework.stereotype.Component(ColorComponentGenerationStrategy.NAME)
+@org.springframework.stereotype.Component("sample_ColorComponentGenerationStrategy")
 public class ColorComponentGenerationStrategy implements ComponentGenerationStrategy {
-
-    public static final String NAME = "sample_ColorComponentGenerationStrategy";
 
     @Inject
     private UiComponents uiComponents;
@@ -47,3 +46,4 @@ public class ColorComponentGenerationStrategy implements ComponentGenerationStra
     }
 
 }
+//end::strategy[]

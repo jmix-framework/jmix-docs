@@ -11,9 +11,9 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.sql.Date;
 
-@org.springframework.stereotype.Component(SalesComponentGenerationStrategy.NAME)
+// tag::strategy[]
+@org.springframework.stereotype.Component("sample_SalesComponentGenerationStrategy")
 public class SalesComponentGenerationStrategy implements ComponentGenerationStrategy, Ordered {
-    public static final String NAME = "sample_SalesComponentGenerationStrategy";
 
     @Inject
     private UiComponents uiComponents;
@@ -49,3 +49,4 @@ public class SalesComponentGenerationStrategy implements ComponentGenerationStra
         return 50; // <5>
     }
 }
+//end::strategy[]
