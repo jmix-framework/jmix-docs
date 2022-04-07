@@ -25,7 +25,7 @@ public class PokemonWidgetEditor extends ScreenFragment {
 
     @Subscribe("pokemonPicker") // <2>
     public void onPokemonPickerValueChange(HasValue.ValueChangeEvent<String> event) {
-        pet=pokemonPicker.getValue(); // <3>
+        pet = pokemonPicker.getValue(); // <3>
     }
 
 }
