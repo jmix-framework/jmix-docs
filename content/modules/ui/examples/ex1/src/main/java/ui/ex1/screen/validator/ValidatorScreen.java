@@ -146,6 +146,7 @@ public class ValidatorScreen extends Screen {
     protected void onValidateBtn1Click(Button.ClickEvent event) {
         numberField.validate();
     }
+
     // tag::decimal-max-validator[]
     @Subscribe("addValidBtn1")
     protected void onAddValidBtn1Click(Button.ClickEvent event) {
@@ -153,6 +154,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(DecimalMaxValidator.class, new BigDecimal(1000));
         numberField.addValidator(maxValidator);
     }
+
     // end::decimal-max-validator[]
     @Subscribe("validateBtn2")
     protected void onValidateBtn2Click(Button.ClickEvent event) {
@@ -166,6 +168,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(DecimalMinValidator.class, new BigDecimal(100));
         numberField2.addValidator(minValidator);
     }
+
     // end::decimal-min-validator[]
     @Subscribe("validateBtn3")
     protected void onValidateBtn3Click(Button.ClickEvent event) {
@@ -179,6 +182,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(DigitsValidator.class, 3, 2);
         numberField3.addValidator(digitsValidator);
     }
+
     // end::digits-validator[]
     @Subscribe("validateBtn4")
     protected void onValidateBtn4Click(Button.ClickEvent event) {
@@ -189,26 +193,30 @@ public class ValidatorScreen extends Screen {
     @Subscribe("addValidBtn4")
     protected void onAddValidBtn4Click(Button.ClickEvent event) {
         DoubleMaxValidator maxValidator = applicationContext
-                .getBean(DoubleMaxValidator.class,new Double(1000));
+                .getBean(DoubleMaxValidator.class, Double.valueOf(1000));
         numberField4.addValidator(maxValidator);
     }
+
     // end::double-max-validator[]
     @Subscribe("validateBtn5")
     protected void onValidateBtn5Click(Button.ClickEvent event) {
         numberField5.validate();
     }
+
     // tag::double-min-validator[]
     @Subscribe("addValidBtn5")
     protected void onAddValidBtn5Click(Button.ClickEvent event) {
         DoubleMinValidator minValidator = applicationContext
-                .getBean(DoubleMinValidator.class,new Double(100));
+                .getBean(DoubleMinValidator.class, Double.valueOf(100));
         numberField5.addValidator(minValidator);
     }
+
     // end::double-min-validator[]
     @Subscribe("validateBtn6")
     protected void onValidateBtn6Click(Button.ClickEvent event) {
         dateTimeField.validate();
     }
+
     // tag::future-or-present-validator[]
     @Subscribe("addValidBtn6")
     protected void onAddValidBtn6Click(Button.ClickEvent event) {
@@ -216,11 +224,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(FutureOrPresentValidator.class);
         dateTimeField.addValidator(futureOrPresentValidator);
     }
+
     // end::future-or-present-validator[]
     @Subscribe("validateBtn7")
     protected void onValidateBtn7Click(Button.ClickEvent event) {
         localTimeField.validate();
     }
+
     // tag::future-validator[]
     @Subscribe("addValidBtn7")
     protected void onAddValidBtn7Click(Button.ClickEvent event) {
@@ -228,11 +238,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(FutureValidator.class);
         localTimeField.addValidator(futureValidator);
     }
+
     // end::future-validator[]
     @Subscribe("validateBtn8")
     protected void onValidateBtn8Click(Button.ClickEvent event) {
         numberField8.validate();
     }
+
     // tag::max-validator[]
     @Subscribe("addValidBtn8")
     protected void onAddValidBtn8Click(Button.ClickEvent event) {
@@ -240,23 +252,27 @@ public class ValidatorScreen extends Screen {
                 .getBean(MaxValidator.class, 20500);
         numberField8.addValidator(maxValidator);
     }
+
     // end::max-validator[]
     @Subscribe("validateBtn9")
     protected void onValidateBtn9Click(Button.ClickEvent event) {
         numberField9.validate();
     }
+
     // tag::min-validator[]
     @Subscribe("addValidBtn9")
     protected void onAddValidBtn9Click(Button.ClickEvent event) {
         MinValidator minValidator = applicationContext
-                .getBean(MinValidator.class,30);
+                .getBean(MinValidator.class, 30);
         numberField9.addValidator(minValidator);
     }
+
     // end::min-validator[]
     @Subscribe("validateBtn10")
     protected void onValidateBtn10Click(Button.ClickEvent event) {
         numberField10.validate();
     }
+
     // tag::negative-or-zero-validator[]
     @Subscribe("addValidBtn10")
     protected void onAddValidBtn10Click(Button.ClickEvent event) {
@@ -264,11 +280,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(NegativeOrZeroValidator.class);
         numberField10.addValidator(negativeOrZeroValidator);
     }
+
     // end::negative-or-zero-validator[]
     @Subscribe("validateBtn11")
     protected void onValidateBtn11Click(Button.ClickEvent event) {
         numberField11.validate();
     }
+
     // tag::negative-validator[]
     @Subscribe("addValidBtn11")
     protected void onAddValidBtn11Click(Button.ClickEvent event) {
@@ -276,6 +294,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(NegativeValidator.class);
         numberField11.addValidator(negativeValidator);
     }
+
     // end::negative-validator[]
     @Subscribe("validateBtn12")
     protected void onValidateBtn12Click(Button.ClickEvent event) {
@@ -289,11 +308,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(NotBlankValidator.class);
         numberField11.addValidator(notBlankValidator);
     }
+
     // end::not-blank-validator[]
     @Subscribe("validateBtn13")
     protected void onValidateBtn13Click(Button.ClickEvent event) {
         numberField13.validate();
     }
+
     // tag::not-empty-validator[]
     @Subscribe("addValidBtn13")
     protected void onAddValidBtn13Click(Button.ClickEvent event) {
@@ -301,11 +322,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(NotEmptyValidator.class);
         numberField13.addValidator(notEmptyValidator);
     }
+
     // end::not-empty-validator[]
     @Subscribe("validateBtn14")
     protected void onValidateBtn14Click(Button.ClickEvent event) {
         numberField14.validate();
     }
+
     // tag::not-null-validator[]
     @Subscribe("addValidBtn14")
     protected void onAddValidBtn14Click(Button.ClickEvent event) {
@@ -313,11 +336,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(NotNullValidator.class);
         numberField14.addValidator(notNullValidator);
     }
+
     // end::not-null-validator[]
     @Subscribe("validateBtn15")
     protected void onValidateBtn15Click(Button.ClickEvent event) {
         dateField.validate();
     }
+
     // tag::past-or-present-validator[]
     @Subscribe("addValidBtn15")
     protected void onAddValidBtn15Click(Button.ClickEvent event) {
@@ -325,6 +350,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(PastOrPresentValidator.class);
         dateField.addValidator(pastOrPresentValidator);
     }
+
     // end::past-or-present-validator[]
     @Subscribe("validateBtn16")
     protected void onValidateBtn16Click(Button.ClickEvent event) {
@@ -338,11 +364,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(PastValidator.class);
         dateField16.addValidator(pastValidator);
     }
+
     // end::past-validator[]
     @Subscribe("validateBtn17")
     protected void onValidateBtn17Click(Button.ClickEvent event) {
         numberField17.validate();
     }
+
     // tag::positive-or-zero-validator[]
     @Subscribe("addValidBtn17")
     protected void onAddValidBtn17Click(Button.ClickEvent event) {
@@ -350,11 +378,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(PositiveOrZeroValidator.class);
         numberField17.addValidator(positiveOrZeroValidator);
     }
+
     // end::positive-or-zero-validator[]
     @Subscribe("validateBtn18")
     protected void onValidateBtn18Click(Button.ClickEvent event) {
         numberField18.validate();
     }
+
     // tag::positive-validator[]
     @Subscribe("addValidBtn18")
     protected void onAddValidBtn18Click(Button.ClickEvent event) {
@@ -362,11 +392,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(PositiveValidator.class);
         numberField18.addValidator(positiveValidator);
     }
+
     // end::positive-validator[]
     @Subscribe("validateBtn19")
     protected void onValidateBtn19Click(Button.ClickEvent event) {
         numberField19.validate();
     }
+
     // tag::regexp-validator[]
     @Subscribe("addValidBtn19")
     protected void onAddValidBtn19Click(Button.ClickEvent event) {
@@ -374,11 +406,13 @@ public class ValidatorScreen extends Screen {
                 .getBean(RegexpValidator.class);
         numberField19.addValidator(regexpValidator);
     }
+
     // end::regexp-validator[]
     @Subscribe("validateBtn20")
     protected void onValidateBtn20Click(Button.ClickEvent event) {
         numberField20.validate();
     }
+
     // tag::size-validator[]
     @Subscribe("addValidBtn20")
     protected void onAddValidBtn20Click(Button.ClickEvent event) {
@@ -386,6 +420,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(SizeValidator.class);
         numberField20.addValidator(sizeValidator);
     }
+
     // end::size-validator[]
     @Subscribe("validateBtn21")
     protected void onValidateBtn21Click(Button.ClickEvent event) {
@@ -403,6 +438,7 @@ public class ValidatorScreen extends Screen {
     protected void onValidateBtn23Click(Button.ClickEvent event) {
         numberField23.validate();
     }
+
     // tag::email-validator[]
     @Subscribe("addValidBtn23")
     protected void onAddValidBtn23Click(Button.ClickEvent event) {
@@ -410,6 +446,7 @@ public class ValidatorScreen extends Screen {
                 .getBean(EmailValidator.class);
         numberField23.addValidator(emailValidator);
     }
+
     // end::email-validator[]
     @Subscribe("validateBtn24")
     protected void onValidateBtn24Click(Button.ClickEvent event) {
