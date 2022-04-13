@@ -12,10 +12,10 @@ import ui.ex1.widgets.ColorButton;
 public class ColorButtonScreen extends Screen {
     @Subscribe
     protected void onInit(InitEvent event) {
-        ColorButton button = new ColorButton();
+        ColorButton button = new ColorButton(); // <1>
         button.setCaption("Button");
         button.setColor("#AFEEEE");
-        getWindow().unwrap(Layout.class).addComponent(button);
+        getWindow().unwrap(Layout.class).addComponent(button); // <2>
     }
 }
 // end::color-button-screen[]
