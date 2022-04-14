@@ -48,7 +48,7 @@ public class CustomerEdit extends StandardEditor<Customer> {
     @Subscribe("commitAndCloseBtn")
     public void onCommitAndCloseBtnClick(Button.ClickEvent event) {
         Customer customer = getEditedEntity();
-        String name = getEditedEntity().getName();
+        String name = customer.getName();
         Map<String, Object> params = new HashMap<>();
         params.put("customer", customer); // <1>
         params.put("name", name); // <2>
