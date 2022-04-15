@@ -1,5 +1,6 @@
 package bpm.ex1.service;
 
+import bpm.ex1.entity.User;
 import io.jmix.bpm.service.BpmTaskService;
 import io.jmix.core.security.CurrentAuthentication;
 import org.flowable.engine.RuntimeService;
@@ -70,5 +71,9 @@ public class MyCustomBean {
         for (int i = 0; i < getActiveProcessInstances().size(); i++) {
             log.info(getActiveProcessInstances().get(i).getProcessDefinitionKey());
         }
+    }
+
+    public String getEmail(User user){
+        return user.getEmail();
     }
 }
