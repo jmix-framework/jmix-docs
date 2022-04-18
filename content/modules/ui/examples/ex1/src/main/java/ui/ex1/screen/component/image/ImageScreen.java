@@ -12,6 +12,7 @@ import io.jmix.ui.screen.Screen;
 import io.jmix.ui.screen.Subscribe;
 import io.jmix.ui.screen.UiController;
 import io.jmix.ui.screen.UiDescriptor;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Person;
 
@@ -21,6 +22,7 @@ import java.net.URL;
 @UiController("sample_ImageScreen")
 @UiDescriptor("image-screen.xml")
 public class ImageScreen extends Screen {
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImageScreen.class);
     // tag::value-source[]
     @Autowired
     private GroupTable<Person> personsTable;
@@ -61,13 +63,13 @@ public class ImageScreen extends Screen {
         // end::value-source[]
 
         // tag::set-source[]
-        String address = "https://www.cuba-platform.com/sites/all/themes/cuba_adaptive/img/upper-header-logo.png";
+        String address = "https://www.jmix.io/images/jmix-logo.svg";
         URL url = null;
         try {
             url = new URL(address);
             programmaticImage.setSource(UrlResource.class).setUrl(url);
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            log.error("Error", e);
         }
         // end::set-source[]
 
