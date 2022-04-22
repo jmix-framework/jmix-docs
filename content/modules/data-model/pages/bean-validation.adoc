@@ -1,0 +1,208 @@
+= Bean Validation
+
+Java Bean Validation is an approach for data validation. The current version is 2.0, described in https://beanvalidation.org/specification/[JSR-380^]. The reference implementation of Bean Validation is https://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/?v=5.3[Hibernate Validator^].
+
+Using Bean Validation approach brings quite a lot of benefits to your project:
+
+* Validation logic is located next to your domain model: defining value, method, bean constraint is done naturally that allows to bring the OOP approach to the next level.
+* Bean Validation standard gives you tens of https://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/#validator-defineconstraints-spec[validation annotations out-of-the-box^], like `@NotNull`, `@Size`, `@Min`, `@Max`, `@Pattern`, `@Email`, `@Past`, less standard like `@URL`, `@Length`, and many others.
+* You are not limited by predefined constraints and can define your own constraint annotations. You can make a new annotation also, by combining a couple others or make a brand new one and define a Java class that will be served as a validator.
++
+For example, you can define a <<custom-constraints,class-level>> annotation `@ValidPassportNumber` to check that passport number follows the right format, which depends on the `location` field value.
+* You can put constraints not just on fields and classes but also on methods and method parameters. It is called <<validation-by-contract,"validation by contract">>.
+
+Bean Validation is automatically invoked in UI screens when user submits the data and in the xref:rest:index.adoc[generic REST API].
+
+[[defining-constraints]]
+== Defining Constraints
+
+You can define constraints using annotations of the `javax.validation.constraints` package or custom annotations. The annotations can be set on an entity or POJO class declaration, field or getter, and on a service method.
+
+The standard set of constraints includes the most commonly used and universal ones. In addition, Bean Validation allows developers to add their <<custom-constraints,own constraints>>.
+
+* `@NotNull` validates that the annotated property value is not `null`.
+* `@Size` validates that the annotated property value has a size between the `min` and `max` attributes; can be applied to `String`, `Collection`, `Map`, and array properties.
+* `@Min` validates that the annotated property has a value higher than or equal to the `value` attribute.
+* `@Max` validates that the annotated property has a value less than or equal to the `value` attribute.
+* `@Email` validates that the annotated property is a valid email address.
+* `@NotEmpty` validates that the property is not `null` or empty; can be applied to `String`, `Collection`, `Map` or `Array` values.
+* `@NotBlank` can be applied only to text values and validates that the property is not `null` or whitespace.
+* `@Positive` and `@PositiveOrZero` apply to numeric values and validate that they are strictly positive, or positive, including 0.
+* `@Negative` and `@NegativeOrZero` apply to numeric values and validate that they are strictly negative, or negative, including 0.
+* `@Past` and `@PastOrPresent` validate that a date value is in the past or the past, including the present.
+* `@Future` and `@FutureOrPresent` validate that a date value is in the future, or in the future, including the present.
+* `@Pattern` checks if the annotated string property matches the regular `regex` expression.
+
+//TODO: добавить информацию, как задать перечисленные аннотации для сущностей в Studio. Подождать, когда появится соответствующий подраздел и дать на него ссылку
+
+[[entity-bean-validation]]
+=== Entity Bean Validation
+
+Example of using standard validation annotations on entity fields:
+
+.Person.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=entity-start;entity-fields;entity-end]
+----
+
+<1> Length of a person's first name should be longer than 3 characters.
+<2> Email string should be a properly formatted email address.
+<3> A person's height should be larger than 0.
+<4> A person's height should be less than or equal to 300.
+
+Let’s check how bean validation is running automatically, when user submits data in UI.
+
+image::validation-ui.png[align="center"]
+
+As you can see, our application not just shows error messages to a user but also highlights form fields that have not passed single-field bean validations with red lines.
+
+[[custom-constraints]]
+==== Custom Constraints
+
+You can create your domain-specific constraints with programmatic or declarative validation.
+
+To create a constraint with programmatic validation, do the following:
+
+. Create an annotation:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidPassportNumber.java[tags=annotation]
+----
+<1> Defines that the target of this runtime annotation is a class.
+<2> States that the annotation implementation is in the `ValidPassportNumberValidator` class.
+
+. Create a validator class:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidPassportNumberValidator.java[tags=validator]
+----
+<1> The `isValid()` method does the actual check.
+
+. Use our class-level annotation:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=custom-validation-annotation;entity-start;entity-end]
+----
+
+You can also create custom constraints using a composition of existing ones, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidZipCode.java[tags=annotation]
+----
+
+When using a composite constraint, the resulting set of constraint violations will contain separate entries for each enclosed constraint. If you want to return a single violation, annotate the annotation class with `@ReportAsSingleViolation`.
+
+[[validation-by-contract]]
+=== Validation by Contract
+
+With bean validation, constraints can be applied to the parameters and return values of methods or constructors of any Java type to check for their calls pre-conditions and post-conditions. This is called "validation by contract".
+
+With the "validation by contract" approach, you have clear, compact, and easily supported code.
+
+Services perform validation of parameters and results if a method has the `@Validated` annotation in the service interface. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/service/PersonApiService.java[tags=person-api-service]
+----
+<1> Specifies that every object in the list returned by the `getPersons()` method needs to be validated against `Person` class constraints as well.
+<2> Indicates that the method should be validated.
+<3> The `@Valid` annotation can be used if you need the cascaded validation of method parameters. In the example above, the constraints declared on the `Person` object will be validated as well.
+
+If you perform some custom programmatic validation in service, use `CustomValidationException` to inform clients about validation errors in the same format as the standard bean validation does. It can be particularly relevant for REST API clients.
+
+[NOTE]
+Bean validation is inheritable. If you annotate some class or field or method with a constraint, all descendants that extend or implement this class or interface would be affected by the same constraint check.
+
+[[constraint-groups]]
+=== Constraint Groups
+
+Constraint groups enable applying only a subset of all defined constraints, depending on the application logic. For example, you may want to force a user to enter a value for an entity attribute, but at the same time to have the ability to set this attribute to `null` by some internal mechanism. To do it, you should specify the `groups` attribute on the constraint annotation. Then the constraint will take effect only when the same group is passed to the validation mechanism.
+
+The framework passes to the validation mechanism the following constraint groups:
+
+* `RestApiChecks` - bean validation constraint group used by xref:jmix:rest:index.adoc[REST API] for data validation.
+* `UiComponentChecks` - bean validation constraint group used by UI for fields validation.
+* `UiCrossFieldChecks` - bean validation constraint group used by UI for cross-field validation.
+* `javax.validation.groups.Default` - this group is always passed, except on the UI editor commit.
+
+[[validation-messages]]
+=== Validation Messages
+
+Constraints can have messages to be displayed to users.
+
+Messages can be set directly in the validation annotations, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message1]
+----
+
+You can also place the message in the xref:localization:message-bundles.adoc[message bundle] and specify the message key in an annotation. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message2]
+----
+
+Messages can contain parameters and expressions. Parameters are enclosed in `{}` and represent either localized messages or annotation parameters, for example `+{min}+`, `+{max}+`, `+{value}+`. Expressions are enclosed in `${}` and can include the validated value variable `validatedValue`, annotation parameters like `value` or `min`, and JSR-341 (EL 3.0) expressions. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message3]
+----
+
+Localized message values can also contain parameters and expressions.
+
+// TODO after https://github.com/jmix-framework/jmix/issues/686
+//=== Validation of Related Objects
+
+[[running-validation]]
+== Running Validation
+
+[[ui-validation]]
+=== Validation in UI
+
+UI components connected to data automatically get `BeanPropertyValidator` to check the field value. The validator is invoked from the `Validatable.validate()` method implemented by the visual component and can throw the `ValidationException` exception.
+
+The standard validator can be removed or initialized with a different <<constraint-groups,constraint group>>:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonEdit.java[tags=person-edit-start;set-or-remove;person-edit-end]
+----
+<1> Completely removes bean validation from the UI component.
+<2> Here, validators checks only constraints with explicitly set `UiComponentChecks` group because the `Default` group will not be passed.
+
+By default, `AbstractBeanValidator` has both `Default` and `UiComponentChecks` groups.
+
+If an entity attribute is annotated with `@NotNull` without constraint groups, it will be marked as mandatory in metadata and UI components binding to data will have `required = true`.
+
+The xref:ui:vcl/components/date-field.adoc[DateField] and xref:ui:vcl/components/date-picker.adoc[DatePicker] components automatically set their `rangeStart` and `rangeEnd` properties by the `@Past`, `@PastOrPresent`, `@Future`, `@FutureOrPresent` annotations.
+
+Entity editor xref:ui:screens/screen-controllers.adoc[screens] perform xref:ui:screens/validation.adoc[validation] against class-level constraints on commit if the constraint includes the `UiCrossFieldChecks` group and if all attribute-level checks are passed. You can turn off the validation of this kind using the `setCrossFieldValidate()` method of the controller:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonEdit.java[tags=person-edit-start;set-cross-field-validate;person-edit-end]
+----
+
+[[rest-api-validation]]
+=== Validation in REST API
+
+Generic REST API automatically performs bean validation for xref:rest:entities-api/create-entities.adoc#entity-validation[creating and updating] actions and when using the xref:rest:business-logic.adoc#services-api[Services API] approach.
+
+[[programmatic-validation]]
+=== Programmatic Validation
+
+You can perform bean validation programmatically using the `validate()` method of `javax.validation.Validator` interface. The result of validation is a set of `ConstraintViolation` objects. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonBrowse.java[tags=validator;save]
+----
