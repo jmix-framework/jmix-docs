@@ -1,5 +1,6 @@
 package localization_demo.ex1.screen.user;
 
+import io.jmix.ui.Notifications;
 import io.jmix.ui.component.Table;
 import io.jmix.ui.navigation.Route;
 import io.jmix.ui.screen.*;
@@ -15,6 +16,8 @@ public class UserBrowse extends StandardLookup<User> {
     //tag::inject-message-bundle[]
     @Autowired
     private MessageBundle messageBundle;
+    @Autowired
+    private Notifications notifications;
     //end::inject-message-bundle[]
 
     @Subscribe
@@ -36,5 +39,8 @@ public class UserBrowse extends StandardLookup<User> {
         //tag::format-message[]
         String formattedMessage = messageBundle.formatMessage("userInfo", user.getUsername());
         //end::format-message[]
+        notifications.create()
+                .withCaption(formattedMessage)
+                .show();
     }
 }
