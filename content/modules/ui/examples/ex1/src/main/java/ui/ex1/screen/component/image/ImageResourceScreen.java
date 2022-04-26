@@ -45,7 +45,7 @@ public class ImageResourceScreen extends Screen {
         //end::image-classpath[]
 
         //tag::image-file-resource[]
-        File file = new File("C:/logo.png");
+        File file = new File("D:\\JMIX\\jmix-logo.png");
         image.setSource(FileResource.class)
                 .setFile(file);
         //end::image-file-resource[]
