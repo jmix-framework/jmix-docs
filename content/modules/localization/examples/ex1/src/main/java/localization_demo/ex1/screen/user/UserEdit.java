@@ -2,6 +2,7 @@ package localization_demo.ex1.screen.user;
 
 import io.jmix.core.EntityStates;
 import io.jmix.ui.Notifications;
+import io.jmix.ui.component.ComboBox;
 import io.jmix.ui.component.PasswordField;
 import io.jmix.ui.component.TextField;
 import io.jmix.ui.navigation.Route;
@@ -10,7 +11,9 @@ import localization_demo.ex1.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.TimeZone;
 
 @UiController("User.edit")
 @UiDescriptor("user-edit.xml")
@@ -28,7 +31,7 @@ public class UserEdit extends StandardEditor<User> {
     private PasswordField passwordField;
 
     @Autowired
-    private TextField usernameField;
+    private TextField<String> usernameField;
 
     @Autowired
     private PasswordField confirmPasswordField;
@@ -39,6 +42,9 @@ public class UserEdit extends StandardEditor<User> {
     @Autowired
     private MessageBundle messageBundle;
 
+    @Autowired
+    private ComboBox<String> timeZoneField;
+
     @Subscribe
     public void onInitEntity(InitEntityEvent<User> event) {
         usernameField.setEditable(true);
@@ -46,6 +52,12 @@ public class UserEdit extends StandardEditor<User> {
         confirmPasswordField.setVisible(true);
     }
 
+    @Subscribe
+    public void onAfterShow(AfterShowEvent event) {
+        if (entityStates.isNew(getEditedEntity())) {
+            usernameField.focus();
+        }
+    }
     @Subscribe
     protected void onBeforeCommit(BeforeCommitChangesEvent event) {
         if (entityStates.isNew(getEditedEntity())) {
@@ -57,5 +69,10 @@ public class UserEdit extends StandardEditor<User> {
             }
             getEditedEntity().setPassword(passwordEncoder.encode(passwordField.getValue()));
         }
+    }
+
+    @Subscribe
+    public void onInit(InitEvent event) {
+        timeZoneField.setOptionsList(Arrays.asList(TimeZone.getAvailableIDs()));
     }
 }
