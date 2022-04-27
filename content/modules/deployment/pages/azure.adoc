@@ -1,0 +1,99 @@
+= Azure App Services
+
+In this guide, we describe how to deploy a Jmix application to Azure App Services cloud.
+
+The guide focuses on what should be configured in the application in order to run on Azure cloud. However, running real production deployments requires more proficiency with Azure environment.
+
+Before starting the guide, create a Microsoft Azure account and Azure DevOps account, and ensure that you have access to link:https://portal.azure.com/[Azure portal^].
+
+[[azure-env]]
+== Creating The Azure Environment
+
+Launch the link:https://docs.microsoft.com/en-in/azure/cloud-shell/overview[Azure Cloud Shell^] from the Azure portal and begin with creating a resource group:
+
+[source,shell,indent=0]
+----
+az group create --name JmixGroup --location eastus
+----
+
+Create an App service plan for the resource group:
+
+[source,shell,indent=0]
+----
+az webapp create --resource-group JmixGroup --plan JmixPlan --name JmixAppName
+----
+
+Next, create a database server. We will use PostgreSQL as a database for this guide. Here, `sku` stands for Stock Keeping Unit, so `--sku-name GP_Gen5_32` maps to General Purpose pricing tier, Generation 5, and 32 virtual cores. Pass your own database credentials in the command:
+
+[source,shell,indent=0]
+----
+az postgres server create --resource-group JmixGroup --name jmixpostgresqlserver --admin-user jmixadmin --admin-password P2ssw0rd@123 --sku-name GP_Gen5_2
+----
+
+Check the link:https://azuredevopslabs.com/labs/vstsextend/tomcat/#exercise-1-creating-azure-web-app-and-mysql-database[tutorial^] on how to connect the running web application to the created database server using the Azure portal.
+
+[[azure-project-setup]]
+== Jmix Project Setup
+
+When the database server is successfully created, you will get the connection string to be used in your Jmix application, for example:
+
+[source,properties,indent=0]
+----
+jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require
+----
+
+Besides the cloudshell output, you can find the connection credentials by navigating to the resource group on the portal, then opening the *Connection strings* section in the database server settings.
+
+Let’s create `application-azure.properties` file according to naming rules described in link:https://docs.spring.io/spring-boot/docs/2.6.x/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot Documentation^]. In this file, specify the connections properties:
+
+[source,properties,indent=0]
+----
+main.datasource.url = jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require
+main.datasource.username = jmixadmin
+main.datasource.password = P25ssw0rd@123jmix
+----
+
+Next, setup the link:https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[Gradle Plugin for Azure Web Apps^] by adding the plugin to your `build.gradle` script:
+
+[source,groovy,indent=0]
+----
+plugins {
+  id "com.microsoft.azure.azurewebapp" version "1.2.0"
+}
+----
+
+Add a new build task to `build.gradle` and specify your Azure credentials in it:
+
+[source,groovy,indent=0]
+----
+azurewebapp {
+    subscription = '<your-subscription-id>'
+    resourceGroup = 'JmixGroup'
+    appName = 'JmixApp'
+    pricingTier = 'P1v2'
+    region = 'eastus'
+    appServicePlanName = 'JmixPlan'
+    runtime {
+        os = 'Windows'
+        webContainer = 'Tomcat 10.0'
+        javaVersion = 'Java 8'
+    }
+    appSettings {
+        url = 'jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require'
+        username = 'jmixadmin'
+        password = 'P25ssw0rd@123'
+    }
+    auth {
+        type = 'oauth2'
+    }
+}
+----
+
+Now, deploy the application to Azure cloud with one command:
+
+[source,shell,indent=0]
+----
+gradle azureWebAppDeploy
+----
+
+Finally, open the `https://jmixapp.azurewebsites.net/` to see the running application.
