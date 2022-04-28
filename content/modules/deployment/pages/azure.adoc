@@ -2,9 +2,9 @@
 
 In this guide, we describe how to deploy a Jmix application to Azure App Services cloud.
 
-The guide focuses on what should be configured in the application in order to run on Azure cloud. However, running real production deployments requires more proficiency with Azure environment.
-
 Before starting the guide, create a Microsoft Azure account and Azure DevOps account, and ensure that you have access to link:https://portal.azure.com/[Azure portal^].
+
+NOTE: We will use PostgreSQL as a database for this guide.
 
 [[azure-env]]
 == Creating The Azure Environment
@@ -13,87 +13,92 @@ Launch the link:https://docs.microsoft.com/en-in/azure/cloud-shell/overview[Azur
 
 [source,shell,indent=0]
 ----
-az group create --name JmixGroup --location eastus
+az group create --name MyJmixGroup1 --location eastus
 ----
 
-Create an App service plan for the resource group:
-
-[source,shell,indent=0]
-----
-az webapp create --resource-group JmixGroup --plan JmixPlan --name JmixAppName
-----
-
-Next, create a database server. We will use PostgreSQL as a database for this guide. Here, `sku` stands for Stock Keeping Unit, so `--sku-name GP_Gen5_32` maps to General Purpose pricing tier, Generation 5, and 32 virtual cores. Pass your own database credentials in the command:
+After that, create a PostgreSQL server. Here `sku` stands for Stock Keeping Unit, so `--sku-name GP_Gen5_2` maps to General Purpose pricing tier, Generation 5, and 2 virtual cores. Pass your own database credentials in the command:
 
 [source,shell,indent=0]
 ----
-az postgres server create --resource-group JmixGroup --name jmixpostgresqlserver --admin-user jmixadmin --admin-password P2ssw0rd@123 --sku-name GP_Gen5_2
+az postgres server create --resource-group MyJmixGroup1 --name myjmixpostgres1 --admin-user jmixadmin --admin-password ChangeMe@42 --sku-name GP_Gen5_2
 ----
 
-Check the link:https://azuredevopslabs.com/labs/vstsextend/tomcat/#exercise-1-creating-azure-web-app-and-mysql-database[tutorial^] on how to connect the running web application to the created database server using the Azure portal.
+Remember the password, as you will not be able to see it anywhere in the Azure interface.
+
+Navigate to *myjmixpostgres1* in portal, open *Connection security*, set *Allow access to Azure services* to *Yes* and click *Save*.
+
+//Go to the portal dashboard and open *myjmixpostgres1*, find *Connection strings* and copy JDBC URL. It
 
 [[azure-project-setup]]
 == Jmix Project Setup
 
-When the database server is successfully created, you will get the connection string to be used in your Jmix application, for example:
+If you want to use a local PostgreSQL database for development, your Data Store settings and `application.properties` should contain connection parameters for the local database, for example:
 
 [source,properties,indent=0]
 ----
-jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require
+main.datasource.url = jdbc:postgresql://localhost/demo
+main.datasource.username = root
+main.datasource.password = root
 ----
 
-Besides the cloudshell output, you can find the connection credentials by navigating to the resource group on the portal, then opening the *Connection strings* section in the database server settings.
+The Azure PostgreSQL connection parameters should be specified in the Gradle task configuration as described below.
 
-Let’s create `application-azure.properties` file according to naming rules described in link:https://docs.spring.io/spring-boot/docs/2.6.x/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot Documentation^]. In this file, specify the connections properties:
-
-[source,properties,indent=0]
-----
-main.datasource.url = jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require
-main.datasource.username = jmixadmin
-main.datasource.password = P25ssw0rd@123jmix
-----
-
-Next, setup the link:https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[Gradle Plugin for Azure Web Apps^] by adding the plugin to your `build.gradle` script:
+Open `build.gradle` and add the https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[Azure WebApp Plugin for Gradle^] to the `plugins` section:
 
 [source,groovy,indent=0]
 ----
 plugins {
-  id "com.microsoft.azure.azurewebapp" version "1.2.0"
+    // ...
+    id "com.microsoft.azure.azurewebapp" version "1.2.0"
 }
 ----
 
-Add a new build task to `build.gradle` and specify your Azure credentials in it:
+Then add the `azurewebapp` task configuration with your Azure parameters and credentials:
 
 [source,groovy,indent=0]
 ----
 azurewebapp {
     subscription = '<your-subscription-id>'
-    resourceGroup = 'JmixGroup'
-    appName = 'JmixApp'
+    resourceGroup = 'MyJmixGroup1' // <1>
+    appServicePlanName = 'MyJmixPlan1' // <2>
+    appName = 'MyJmixApp1' // <3>
     pricingTier = 'P1v2'
     region = 'eastus'
-    appServicePlanName = 'JmixPlan'
     runtime {
-        os = 'Windows'
-        webContainer = 'Tomcat 10.0'
-        javaVersion = 'Java 8'
+        os = 'Linux'
+        webContainer = 'Java SE' // <4>
+        javaVersion = 'Java 11' // <5>
     }
-    appSettings {
-        url = 'jdbc:postgresql://jmixpostgresqlserver.postgres.database.azure.com:5432/demo?user=jmixadmin@jmixpostgresqlserver&password=P25ssw0rd@123&sslmode=require'
-        username = 'jmixadmin'
-        password = 'P25ssw0rd@123'
-    }
-    auth {
-        type = 'oauth2'
+    appSettings { // <6>
+        put('main.datasource.url', 'jdbc:postgresql://myjmixpostgres1.postgres.database.azure.com:5432/postgres')
+        put('main.datasource.username', 'jmixadmin@myjmixpostgres1')
+        put('main.datasource.password', 'ChangeMe@42')
     }
 }
 ----
+<1> The resource group which you created in Azure portal.
+<2> The app service plan will be created automatically on first deployment.
+<3> The app name which will be used also in your application URL.
+<4> A container for Spring Boot executable JAR.
+<5> Java version must correspond to the version used to compile the application.
+<6> The `appSettings` section allows you to set environment variables for connecting to the Azure PostgreSQL when the application is deployed to the cloud. Here `myjmixpostgres1` is the name of PostgreSQL server created above.
 
-Now, deploy the application to Azure cloud with one command:
+Now you can deploy the application to Azure cloud with the following command:
 
-[source,shell,indent=0]
+[source,shell]
 ----
-gradle azureWebAppDeploy
+./gradlew azureWebAppDeploy
 ----
 
-Finally, open the `https://jmixapp.azurewebsites.net/` to see the running application.
+If the deployment was successful, the running application is available at `++https://myjmixapp1.azurewebsites.net++`.
+
+If you got an error from Gradle, try to execute the command again with the `--stacktrace` option to see the cause:
+
+[source,shell]
+----
+./gradlew azureWebAppDeploy --stacktrace
+----
+
+To https://docs.microsoft.com/en-us/azure/app-service/troubleshoot-diagnostic-logs#enable-application-logging-linuxcontainer[enable application logging^], open the app in the portal and select *App Service logs*. In the *Application logging* field, select *File System* and click *Save*. After that, redeploy the application from the command line or restart it at the app overview page in the portal.
+
+To view or download the logs, go to the app page in the portal, *Diagnose and solve problems* -> *Availability and Performance* -> *Application Logs*.
