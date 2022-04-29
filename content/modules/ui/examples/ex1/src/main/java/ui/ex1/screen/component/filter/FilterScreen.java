@@ -18,7 +18,7 @@ import ui.ex1.entity.*;
 @UiDescriptor("filter-screen.xml")
 public class FilterScreen extends Screen {
     // tag::inject-ui-components[]
-    @Autowired 
+    @Autowired
     protected UiComponents uiComponents;
 
     // end::inject-ui-components[]
@@ -30,30 +30,31 @@ public class FilterScreen extends Screen {
     // tag::inject-single-filter-support[]
     @Autowired
     protected SingleFilterSupport singleFilterSupport;
-
-    // end::inject-single-filter-support[]
-    @Autowired
-    private Notifications notifications;
     // tag::inject-pfdtc-filter[]
     @Autowired
     protected Filter pfdtcFilter;
-
     // end::inject-pfdtc-filter[]
     // tag::inject-jfdtc-filter[]
     @Autowired
     protected Filter jfdtcFilter;
-
     // end::inject-jfdtc-filter[]
     // tag::inject-jpql-filter-support[]
     @Autowired
     protected JpqlFilterSupport jpqlFilterSupport;
-
     // end::inject-jpql-filter-support[]
     // tag::inject-gfdtc-filter[]
     @Autowired
     protected Filter gfdtcFilter;
+    // end::inject-single-filter-support[]
+    @Autowired
+    private Notifications notifications;
 
     // end::inject-gfdtc-filter[]
+    // tag::inject-parameterless-filter[]
+    @Autowired
+    private Filter parameterlessFilter;
+
+    // end::inject-parameterless-filter[]
 
     // tag::configuration-change-event[]
     @Subscribe("filter")
@@ -63,6 +64,7 @@ public class FilterScreen extends Screen {
                         ". After: " + event.getNewConfiguration().getName())
                 .show();
     }
+
     // end::configuration-change-event[]
     // tag::expanded-state-change-event[]
     @Subscribe("filter")
@@ -78,6 +80,7 @@ public class FilterScreen extends Screen {
     private boolean filterPropertiesFilterPredicate(MetaPropertyPath metaPropertyPath) {
         return !metaPropertyPath.getMetaProperty().getName().equals("hobby");
     }
+
     // end::properties-filter-predicate[]
     // tag::on-after-init-start[]
     @Subscribe
@@ -91,7 +94,7 @@ public class FilterScreen extends Screen {
 
         DesignTimeConfiguration javaDefaultConfiguration =
                 filter.addConfiguration("javaDefaultConfiguration",
-                "Default configuration"); // <2>
+                        "Default configuration"); // <2>
 
         PropertyFilter<Integer> agePropertyFilter =
                 uiComponents.create(PropertyFilter.NAME); // <3>
@@ -111,21 +114,22 @@ public class FilterScreen extends Screen {
         javaDefaultConfiguration.getRootLogicalFilterComponent().add(agePropertyFilter); // <5>
         filter.setCurrentConfiguration(javaDefaultConfiguration); // <6>
 
-        VBoxLayout tab = (VBoxLayout)getWindow()
+        VBoxLayout tab = (VBoxLayout) getWindow()
                 .getComponentNN("programmaticFilterTab"); // <7>
         tab.add(filter); // <8>
         // end::filter-creating[]
         // tag::on-after-init-end[]
     }
+
     // end::on-after-init-end[]
     // tag::on-init-start[]
     @Subscribe
     protected void onInit(InitEvent event) {
-    // end::on-init-start[]
+        // end::on-init-start[]
         // tag::property-filter-design-time[]
         DesignTimeConfiguration javaDefaultConfigurationPF =
                 pfdtcFilter.addConfiguration("javaDefaultConfiguration",
-                "Default configuration"); // <1>
+                        "Default configuration"); // <1>
         DataLoader dataLoaderPF = pfdtcFilter.getDataLoader();
 
         PropertyFilter<City> cityPropertyFilter =
@@ -165,7 +169,7 @@ public class FilterScreen extends Screen {
         // tag::jpql-filter-design-time[]
         DesignTimeConfiguration javaDefaultConfigurationJF =
                 jfdtcFilter.addConfiguration("javaDefaultConfiguration",
-                "Default configuration"); // <1>
+                        "Default configuration"); // <1>
         DataLoader dataLoaderJF = jfdtcFilter.getDataLoader();
 
         JpqlFilter<Brand> jpqlFilter =
@@ -191,7 +195,7 @@ public class FilterScreen extends Screen {
         // tag::group-filter-design-time[]
         DesignTimeConfiguration javaDefaultConfigurationGF =
                 gfdtcFilter.addConfiguration("javaDefaultConfiguration",
-                "Default configuration"); // <1>
+                        "Default configuration"); // <1>
         DataLoader dataLoaderGF = gfdtcFilter.getDataLoader();
 
         GroupFilter groupFilter =
@@ -252,7 +256,7 @@ public class FilterScreen extends Screen {
 
         pointsPropertyFilter.setValue(1000);
         javaDefaultConfigurationGF.setFilterComponentDefaultValue(
-                        pointsPropertyFilter.getParameterName(), 1000); // <8>
+                pointsPropertyFilter.getParameterName(), 1000); // <8>
 
         hobbyPropertyFilter.setValue(Hobby.FISHING);
         javaDefaultConfigurationGF.setFilterComponentDefaultValue(
@@ -262,6 +266,41 @@ public class FilterScreen extends Screen {
         javaDefaultConfigurationGF.setFilterComponentDefaultValue(
                 agePropertyFilter.getParameterName(), 30);
         // end::group-filter-design-time[]
+
+        // tag::parameterless-filter-design-time[]
+        DesignTimeConfiguration javaConfiguration = parameterlessFilter
+                .addConfiguration("javaConfiguration", "Java configuration");
+        DataLoader dataLoader = parameterlessFilter.getDataLoader();
+
+        JpqlFilter<Boolean> jpqlFilterNoParams = uiComponents.create(JpqlFilter.NAME);
+        jpqlFilterNoParams.setFrame(getWindow());
+        jpqlFilterNoParams.setConditionModificationDelegated(true);
+        jpqlFilterNoParams.setDataLoader(dataLoader);
+        jpqlFilterNoParams.setCondition("{E}.active = true", null);
+        jpqlFilterNoParams.setParameterClass(Void.class);
+        jpqlFilterNoParams.setCaption("Active == true");
+        jpqlFilterNoParams.setParameterName(jpqlFilterSupport.generateParameterName(
+                jpqlFilterNoParams.getId(),
+                jpqlFilterNoParams.getParameterClass().getSimpleName()));
+        jpqlFilterNoParams.setValueComponent(singleFilterSupport.generateValueComponent(
+                dataLoader.getContainer().getEntityMetaClass(),
+                jpqlFilterNoParams.hasInExpression(),
+                jpqlFilterNoParams.getParameterClass()
+        ));
+
+        jpqlFilterNoParams.setValue(true);
+        javaConfiguration.setFilterComponentDefaultValue(jpqlFilterNoParams.getParameterName(),
+                jpqlFilterNoParams.getValue());
+
+        javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
+
+        jpqlFilterNoParams.setValue(true);
+        javaConfiguration.setFilterComponentDefaultValue(jpqlFilterNoParams.getParameterName(),
+                jpqlFilterNoParams.getValue());
+
+        javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
+        // end::parameterless-filter-design-time[]
+
         // tag::on-init-end[]
     }
     // end::on-init-end[]
