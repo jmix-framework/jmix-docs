@@ -1,14 +1,10 @@
 package ui.ex1.screen.screens;
 
-import io.jmix.ui.Dialogs;
 import io.jmix.ui.Notifications;
-import io.jmix.ui.UiScreenProperties;
 import io.jmix.ui.action.Action;
 import io.jmix.ui.component.CheckBox;
-import io.jmix.ui.component.TextField;
 import io.jmix.ui.component.ValidationErrors;
 import io.jmix.ui.screen.*;
-import io.jmix.ui.util.UnknownOperationResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.Order;
 
@@ -91,34 +87,4 @@ public class OrderEdit1 extends StandardEditor<Order> {
         });
     }
     // end::commit[]
-
-
-    @Override
-    // tag::prevent-unsaved[]
-    protected void preventUnsavedChanges(BeforeCloseEvent event) {
-        CloseAction action = event.getCloseAction();
-
-        if (action instanceof ChangeTrackerCloseAction
-                && ((ChangeTrackerCloseAction) action).isCheckForUnsavedChanges()
-                && hasUnsavedChanges()) {
-            ScreenValidation screenValidation = getApplicationContext().getBean(ScreenValidation.class);
-
-            UnknownOperationResult result = new UnknownOperationResult();
-
-            if (getApplicationContext().getBean(UiScreenProperties.class).isUseSaveConfirmation()) {
-                screenValidation.showSaveConfirmationDialog(this, action) // <1>
-                        .onCommit(() -> result.resume(closeWithCommit()))
-                        .onDiscard(() -> result.resume(closeWithDiscard()))
-                        .onCancel(result::fail);
-            } else {
-                screenValidation.showUnsavedChangesDialog(this, action) // <2>
-                        .onDiscard(() -> result.resume(closeWithDiscard()))
-                        .onCancel(result::fail);
-            }
-
-            event.preventWindowClose(result);
-        }
-    }
-    // end::prevent-unsaved[]
-
 }
