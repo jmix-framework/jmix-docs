@@ -7,6 +7,8 @@ import io.jmix.core.Id;
 import io.jmix.core.Sort;
 import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
+import io.jmix.core.session.SessionData;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -21,6 +23,15 @@ public class CustomerService {
     @Autowired
     private DataManager dataManager;
     // end::inject-dm[]
+
+    // tag::session-data[]
+    @Autowired
+    private ObjectProvider<SessionData> sessionDataProvider;
+
+    void setCustomerCodeInSession(String code) {
+        sessionDataProvider.getObject().setAttribute("customerCode", code);
+    }
+    // end::session-data[]
 
     // tag::load-by-id[]
     Customer loadById(UUID customerId) {
