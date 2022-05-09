@@ -54,7 +54,8 @@ public class ImageScreen extends Screen {
         personsTable.addGeneratedColumn("image", entity -> {
             Image<FileRef> image = uiComponents.create(Image.NAME);
             image.setValueSource(
-                    new ContainerValueSource<>(personsTable.getInstanceContainer(entity),
+                    new ContainerValueSource<>(
+                            personsTable.getInstanceContainer(entity),
                             "image"));
             image.setHeight("100px");
             image.setScaleMode(Image.ScaleMode.CONTAIN);
@@ -63,10 +64,8 @@ public class ImageScreen extends Screen {
         // end::value-source[]
 
         // tag::set-source[]
-        String address = "https://www.jmix.io/images/jmix-logo.svg";
-        URL url = null;
         try {
-            url = new URL(address);
+            URL url = new URL("https://www.jmix.io/images/jmix-logo.svg");
             programmaticImage.setSource(UrlResource.class).setUrl(url);
         } catch (MalformedURLException e) {
             log.error("Error", e);
