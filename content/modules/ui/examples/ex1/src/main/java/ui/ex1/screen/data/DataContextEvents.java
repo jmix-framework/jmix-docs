@@ -23,10 +23,14 @@ public class CustomerBrowse extends StandardLookup<Customer> {
     private User user;
 
     // tag::commit-delegate[]
+    @Autowired
+    private SampleService service;
+
     @Install(target = Target.DATA_CONTEXT)
     private Set<Object> commitDelegate(SaveContext saveContext) {
-        log.debug("Saving: " + saveContext.getEntitiesToSave());
-        return dataManager.save(saveContext);
+        return service.saveEntities(
+                saveContext.getEntitiesToSave(),
+                saveContext.getEntitiesToRemove());
     }
     // end::commit-delegate[]
 
