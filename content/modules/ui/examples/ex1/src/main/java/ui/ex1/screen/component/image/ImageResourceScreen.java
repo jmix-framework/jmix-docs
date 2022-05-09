@@ -52,10 +52,10 @@ public class ImageResourceScreen extends Screen {
 
 
         UUID uuid = UUID.randomUUID();
-        //tag::image-file-storage-resource[]
         Person person = dataManager.load(Person.class)
                 .id(uuid)
                 .one();
+        //tag::image-file-storage-resource[]
         image.setSource(FileStorageResource.class)
                 .setFileReference(person.getImage());
         //end::image-file-storage-resource[]
@@ -69,7 +69,11 @@ public class ImageResourceScreen extends Screen {
             URLConnection connection = new URL("https://picsum.photos/300").openConnection();
             InputStream inputStream = connection.getInputStream();
             //tag::image-stream[]
-            byte[] picture = IOUtils.toByteArray(inputStream);
+            byte[] picture;
+            // picture = ...
+            //end::image-stream[]
+            picture = IOUtils.toByteArray(inputStream);
+            //tag::image-stream[]
             image.setSource(StreamResource.class)
                     .setStreamSupplier(() -> new ByteArrayInputStream(picture));
             //end::image-stream[]
@@ -78,9 +82,8 @@ public class ImageResourceScreen extends Screen {
         }
 
         //tag::image-theme[]
-        String logoImagePath = messages.getMessage("application.logoImage");
         image.setSource(ThemeResource.class)
-                .setPath(logoImagePath);
+                .setPath("images/jmix-icon-login.svg");
         //end::image-theme[]
 
         //tag::image-url[]
@@ -88,7 +91,7 @@ public class ImageResourceScreen extends Screen {
             image.setSource(UrlResource.class)
                     .setUrl(new URL("https://www.jmix.io/images/jmix-logo.svg"));
         } catch (MalformedURLException e) {
-            log.error("Image url error", e);
+            log.error("Invalid URL format", e);
         }
         //end::image-url[]
 

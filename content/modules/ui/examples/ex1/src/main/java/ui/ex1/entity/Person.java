@@ -18,24 +18,28 @@ import java.util.UUID;
 @Table(name = "UIEX1_PERSON")
 @Entity(name = "uiex1_Person")
 public class Person {
+
+    /* other attributes */
+
+    // end::date-field[]
+    // end::file-upload-field[]
+    // end::file-storage-upload-field[]
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
 
     @Column(name = "STATUS")
-    private java.lang.Boolean status;
+    private Boolean status;
 
     @InstanceName
     @Column(name = "NAME", nullable = false)
     @NotNull
     private String name;
 
-    // end::file-storage-upload-field[]
-    // end::date-field[]
+    // tag::file-upload-field[]
     @Column(name = "DOCUMENT")
     private byte[] document;
-
     // end::file-upload-field[]
 
     // tag::date-field[]
@@ -44,20 +48,16 @@ public class Person {
     private Date birthday;
     // end::date-field[]
 
-    //todo: Check why studio is generating @PropertyDatatype annotation. Works correctly without it.
-    //@PropertyDatatype("fileRef")
     // tag::file-storage-upload-field[]
-    @PropertyDatatype("fileRef")
-    @Column(name = "IMAGE")
+    @Column(name = "IMAGE", length = 1024)
     private FileRef image;
 
-    /*setters and getters*/
     // end::file-storage-upload-field[]
-    public java.lang.Boolean getStatus() {
+    public Boolean getStatus() {
         return status;
     }
 
-    public void setStatus(java.lang.Boolean status) {
+    public void setStatus(Boolean status) {
         this.status = status;
     }
 
@@ -100,10 +100,4 @@ public class Person {
     public void setId(java.util.UUID id) {
         this.id = id;
     }
-    // tag::file-storage-upload-field[]
-    // tag::file-upload-field[]
-    // tag::date-field[]
 }
-// end::date-field[]
-// end::file-storage-upload-field[]
-// end::file-upload-field[]
