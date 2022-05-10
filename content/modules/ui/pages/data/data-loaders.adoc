@@ -27,28 +27,6 @@ In the entity editor screen, the loader XML element is usually empty, because th
 include::example$/ex1/src/main/resources/ui/ex1/screen/data/customer-edit-data2.xml[tags=loaders1]
 ----
 
-Loaders can delegate actual loading to a function that can be provided using the `setLoadDelegate()` method or declaratively using the `@Autowired` annotation in the screen controller, for example:
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=data-manager;delegate]
-----
-<1> The `customersDlLoadDelegate()` method will be used by the `customersDl` loader to load the list of `Customer` entities.
-<2> The method accepts `LoadContext` that will be created by the loader based on its parameters: query, filter (if any), etc.
-<3> In the example, the loading is done via `DataManager` that is effectively the same as the standard loader implementation, but you can use a custom service or perform any post-processing of the loaded entities. 
-
-[WARNING]
-====
-If you declare custom data loading with delegation, and you display the loaded data in the table with a pagination component (xref:vcl/components/pagination.adoc[Pagination] or xref:vcl/components/simple-pagination.adoc[SimplePagination]), then most likely you also need to define the custom logic to count total number of rows. Take a look at xref:vcl/components/simple-pagination.adoc#total-count-delegate[TotalCountDelegate] handler for the `SimplePagination` component associated with the table.
-====
-
-You can listen to `PreLoadEvent` and `PostLoadEvent` to add some logic before or after loading:
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=load]
-----
-
 A loader can also be created and configured programmatically, for example:
 
 [source,java,indent=0]
@@ -57,6 +35,57 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerTable.java[tags=d
 ----
 
 When xref:ui:data/data-context.adoc[DataContext] is set for a loader (which is always the case when the loader is defined in XML descriptor), all loaded entities are automatically merged into the data context.
+
+[[data-context-events]]
+== Events and Handlers
+
+This section describes the data loader lifecycle events that can be handled in screen controllers.
+
+[TIP]
+====
+To generate a handler stub in Jmix Studio, select the data container element in the screen descriptor XML or in the *Component Hierarchy* panel and use the *Handlers* tab of the *Component Inspector* panel.
+
+Alternatively, you can use the *Generate Handler* button in the top panel of the screen controller.
+====
+
+[[load-delegate]]
+=== loadDelegate
+
+Loaders can delegate actual loading to a method of the screen controller, where you can call a custom service instead of `DataManager` used by default. For example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=delegate]
+----
+<1> The `customersDlLoadDelegate()` method will be used by the `customersDl` loader to load the list of `Customer` entities.
+<2> The method accepts `LoadContext` that will be created by the loader based on its parameters: query, filter (if any), etc.
+<3> The loading is done via `CustomerService.loadCustomers()` method which accepts the filtering conditions, sorting and pagination set to the loader by visual components of the screen.
+
+Apart from invoking a custom service, the load delegate allows you to perform any post-processing of the loaded entities.
+
+If you declare custom data loading with a delegate, and you display the loaded data in the table with a pagination component (xref:vcl/components/pagination.adoc[Pagination] or xref:vcl/components/simple-pagination.adoc[SimplePagination]), then you may also need to define the custom logic to count total number of rows. Take a look at xref:vcl/components/pagination.adoc#total-count-delegate[TotalCountDelegate] handler for the pagination component associated with the table.
+
+[[pre-load-event]]
+=== PreLoadEvent
+
+This event is sent before loading entities.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=pre-load]
+----
+
+You can prevent load using the `preventLoad()` method of the event.
+
+[[post-load-event]]
+=== PostLoadEvent
+
+This event is sent after successful loading of entities, merging them into `DataContext` and setting to the container.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=post-load]
+----
 
 [[quiery-conditions]]
 == Query Conditions
