@@ -6,6 +6,7 @@ import io.jmix.core.Metadata;
 import io.jmix.core.SaveContext;
 import io.jmix.core.metamodel.datatype.Datatype;
 import io.jmix.core.metamodel.datatype.Enumeration;
+import io.jmix.core.metamodel.datatype.impl.BigDecimalDatatype;
 import io.jmix.core.metamodel.model.MetaClass;
 import io.jmix.core.metamodel.model.MetaProperty;
 import io.jmix.core.metamodel.model.Range;
@@ -18,6 +19,8 @@ import datamodel.ex1.entity.Order;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import java.math.BigDecimal;
+import java.text.ParseException;
 
 @Service
 public class CustomerService {
@@ -56,8 +59,10 @@ public class CustomerService {
     // end::hard-delete-em[]
 
     // tag::metadata[]
+    // tag::get-datatype[]
     @Autowired
     private Metadata metadata;
+    // end::get-datatype[]
 
     public void printOrderProperties() {
         MetaClass metaClass = metadata.getClass(Order.class); // <1>
@@ -92,4 +97,19 @@ public class CustomerService {
         }
     }
     // end::metadata[]
+
+    // tag::get-datatype[]
+
+    private BigDecimal parseAmountValue(String stringValue) {
+        MetaClass metaClass = metadata.getClass(Order.class);
+        Datatype<BigDecimal> amountDatatype = metaClass.getProperty("amount")
+                .getRange().asDatatype();
+        assert amountDatatype instanceof BigDecimalDatatype;
+        try {
+            return amountDatatype.parse(stringValue);
+        } catch (ParseException e) {
+            throw new RuntimeException("Cannot parse amount", e);
+        }
+    }
+    // end::get-datatype[]
 }
