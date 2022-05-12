@@ -1,9 +1,10 @@
 package ui.ex1.screen.screens.fragments;
 
 import io.jmix.core.common.event.Subscription;
-import io.jmix.ui.UiComponents;
+import io.jmix.ui.component.EntityComboBox;
 import io.jmix.ui.component.HasValue;
 import io.jmix.ui.component.TextField;
+import io.jmix.ui.component.data.value.ContainerValueSource;
 import io.jmix.ui.model.InstanceContainer;
 import io.jmix.ui.screen.*;
 import org.slf4j.Logger;
@@ -29,8 +30,6 @@ public class AddressFragment extends ScreenFragment {
 
     // end::fragment-java3[]
 
-    private InstanceContainer<Address> addressInstanceDc;
-
     // tag::logger[]
     private static final Logger log = LoggerFactory.getLogger(AddressFragment.class);
 
@@ -44,16 +43,16 @@ public class AddressFragment extends ScreenFragment {
         this.zipcode = zipcode;
     }
 
+    public void setAddressContainer(InstanceContainer<Address> dataContainer) { // <1>
+        //
+    }
+
     @Subscribe
     public void onInit(InitEvent event) {
         zipcodeField.setInputPrompt(zipcode); // <2>
     }
 
     // end::fragment-java4[]
-
-    public void setAddressInstanceDc(InstanceContainer<Address> addressInstanceDc) {
-        this.addressInstanceDc = addressInstanceDc;
-    }
 
     // tag::events[]
     @Subscribe
@@ -73,19 +72,27 @@ public class AddressFragment extends ScreenFragment {
 
     // tag::fragment-event[]
 
-    public static class ChangeEvent extends EventObject { // <1>
-        public ChangeEvent(Object source) {
+    public static class CountryChangeEvent extends EventObject { // <1>
+
+        private Country country;
+
+        public CountryChangeEvent(Object source, Country value) {
             super(source);
+            country = value;
+        }
+
+        public Country getCountry() {
+            return country;
         }
     }
 
-    public Subscription addChangeListener(Consumer<ChangeEvent> listener) {
-        return getEventHub().subscribe(ChangeEvent.class, listener); // <2>
+    public Subscription addChangeListener(Consumer<CountryChangeEvent> listener) {
+        return getEventHub().subscribe(CountryChangeEvent.class, listener); // <2>
     }
 
     @Subscribe("countryField")
     public void onCountryFieldValueChange(HasValue.ValueChangeEvent<Country> event) {
-        fireEvent(ChangeEvent.class, new ChangeEvent(this)); // <3>
+        fireEvent(CountryChangeEvent.class, new CountryChangeEvent(this, event.getValue())); // <3>
     }
 
     // end::fragment-event[]
