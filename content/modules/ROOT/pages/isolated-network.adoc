@@ -1,0 +1,158 @@
+= Работа в изолированной сети
+
+В этом разделе рассказывается, как установить локальный репозиторий, чтобы использовать его для хранения всех необходимых артефактов - версий Jmix, аддонов и дополнительных библиотек - вместо публичного репозитория Jmix. Это рекомендуется делать в следующих случаях:
+
+* У вас нестабильное или слабое интернет-соединение. Несмотря на то что Gradle кэширует артефакты на компьютере разработчика, время от времени все-таки необходимо подключаться к репозиторию артефактов, например, при первом запуске проекта или при переключении на новую версию фреймворка.
+* У вас ограничен доступ к интернету из-за политики безопасности организации.
+//Это нужно?
+////
+* Вы не собираетесь продлевать подписку на премиум-дополнения, но вы бы хотели продолжить разработку вашего приложения в будущем, используя загруженные версии артефактов.
+////
+
+[[install-nexus]]
+== Установка локального Nexus
+
+Рассмотрим пример установки менеджера репозиториев Sonatype Nexus OSS.
+
+* Скачайте на компьютер Sonatype Nexus OSS версии 3.x по ссылке https://help.sonatype.com/repomanager3/product-information/download/download-archives---repository-manager-3[^].
+* Распакуйте архив.
+* Перейдите в подкаталог `bin` и запустите менеджер репозиториев командой `run`:
++
+.On Windows
+[source,bash]
+----
+nexus.exe /run
+----
++
+.On Linux
+[source,bash]
+----
+./nexus run
+----
+* Откройте в браузере адрес `++http://localhost:8081++`.
+* После первого запуска смените пароль по умолчанию:
++
+image::ROOT:nexus-login.png[align="center"]
+
+[[create-jmix-repository]]
+== Создание репозитория Jmix
+
+Далее сконфигурируем репозиторий, который будет использоваться для установки артефактов.
+
+* Перейдите в меню администратора и далее нажмите на кнопку *Repositories*.
++
+image::ROOT:nexus-repository.png[align="center"]
+* Нажмите на кнопку *Create repository*.
+* Выберите тип `maven2 hosted`.
+* Заполните поле *Name* и нажмите на кнопку *Create repository*:
++
+image::ROOT:nexus-repository-create.png[align="center"]
+
+[[download-artefacts]]
+== Загрузка архива артефактов
+
+Скачайте ZIP-архив необходимой версии Jmix с сайта https://www.jmix.ru/sdk-resources/[^]. Архив содержит все бесплатные аддоны и остальные зависимости, необходимые для работы с проектом Jmix.
+
+В примере ниже будем использовать версию Jmix 1.2.2.
+
+[[import-artefacts]]
+== Импорт артефактов
+
+* Скачайте последний доступный релиз CUBA SDK для вашей операционной системы по ссылке https://github.com/cuba-platform/cuba-sdk/releases[^].
+* Произведите установку CUBA SDK согласно инструкции, доступной по ссылке https://github.com/cuba-platform/cuba-sdk#installation[^].
+* После первичной установки добавьте сконфигурированный на предыдущем шаге репозиторий в качестве `target` в CUBA SDK с помощью команды:
++
+[source,bash]
+----
+cuba-sdk repository add target
+----
+* Проследуйте дальнейшим инструкциям. Пример такого диалога ниже:
++
+image::ROOT:cuba-sdk.png[align="center"]
+* После того, как `target` репозиторий добавлен, импорт может быть осуществлён командой
++
+[source,bash]
+----
+cuba-sdk import <path-to-zip-archive>
+----
++
+Результатом выполнения данной операции должен быть заполненный локальный репозиторий артефактов.
+
+[[install-gradle]]
+== Установка Gradle
+
+* Скачайте Gradle версии 7.x с сайта https://gradle.org/releases/[^].
+* Распакуйте в рабочий каталог, например, `C:\tools`.
+* Добавьте подкаталог `bin` установленного Gradle в переменную `PATH` операционной системы.
+
+[[create-jmix-project]]
+== Создание проекта Jmix
+
+* Запустите IntelliJ IDEA с установленным xref:setup.adoc#studio[плагином Jmix].
+* Создайте xref:studio:project.adoc#creating-new-project[новый] Jmix проект с кастомной конфигурацией репозиториев, в которой укажите путь и параметры подключения к локальному репозиторию:
++
+image::ROOT:new-project-custom-conf.png[align="center"]
++
+Список доступных версий Jmix определяется версиями имеющихся в репозитории артефактов `io.jmix.templates.studio:jmix-studio-templates`.
+
+* После открытия проекта отредактируйте `build.gradle` следующим образом (замените пароль администратора на тот который вы задали в Nexus):
++
+[source,groovy]
+----
+buildscript{
+    repositories {
+        maven {
+            url 'http://localhost:8081/repository/jmix/' // local repository URL
+            allowInsecureProtocol = true // required if HTTP used instead of HTTPS
+            credentials {
+                username(rootProject.hasProperty('repoUser') ? rootProject['repoUser'] : 'admin')
+                password(rootProject.hasProperty('repoPass') ? rootProject['repoPass'] : 'adminpass')
+            }
+        }
+    }
+
+    dependencies {
+        classpath 'io.jmix.gradle:jmix-gradle-plugin:1.2.0' // 'jmix' plugin version
+    }
+}
+
+apply plugin: 'io.jmix'
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+
+jmix {
+    bomVersion = '1.2.2'
+}
+
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    maven {
+        url 'http://localhost:8081/repository/jmix/' // local repository URL
+        allowInsecureProtocol = true // required if HTTP used instead of HTTPS
+        credentials {
+            username(rootProject.hasProperty('repoUser') ? rootProject['repoUser'] : 'admin')
+            password(rootProject.hasProperty('repoPass') ? rootProject['repoPass'] : 'adminpass')
+        }
+    }
+}
+
+dependencies {
+// ...
+----
+* Укажите корректный путь к Gradle в *Gradle Settings*:
++
+image::ROOT:gradle-settings.png[align="center"]
+
+* В окне xref:studio:tool-window.adoc#_gradle[инструмента Gradle] нажмите *Reload All Gradle Projects*, чтобы обновить конфигурацию проекта Gradle.
++
+[NOTE]
+====
+В случае возникновения ошибок нужно зайти в терминал и выполнить:
+
+[source,bash]
+----
+gradle --no-daemon clean assemble
+----
+====
