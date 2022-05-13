@@ -1,57 +1,57 @@
-= Entity Events
+= 实体事件
 
-When you save and load entities using `DataManager`, the Jmix data access subsystem sends specific Spring application events. You can create event listeners to perform some additional actions with saved or loaded entity instances.
+当使用 `DataManager` 读写数据时，Jmix 数据访问子系统会发送特定的 Spring 应用程序事件。可以创建事件监听器对保存和加载的实体实例做一些额外的操作。
 
 [[entity-changed-event]]
-== Using EntityChangedEvent
+== 使用 EntityChangedEvent
 
-`EntityChangedEvent` is sent by the framework when an entity instance is saved to the database. You can handle the event both inside the transaction and after its completion. In both cases, at the time of the event, the database already contains the changed data.
+当实体保存至数据库时，框架会发送 `EntityChangedEvent` 事件。可以在保存会话内或者会话结束后处理该事件，无论哪种情况，此时数据库已经保存了变更后的数据。
 
-`EntityChangedEvent` contains change type (create, update or delete), the identifier of the changed entity, the information on what attributes were changed, and old values of changed attributes. For reference attributes, the old values contain identifiers of the referenced entities.
+`EntityChangedEvent` 包含变更操作的类型（创建、更新或删除）、变更实体的 id，还有变更属性的相关信息以及属性的旧值。对于引用属性，旧值包含引用实体的 id。
 
 [[before-commit]]
-=== Handling Changes Before Commit
+=== 提交之前处理变更
 
-To handle `EntityChangedEvent` in the current transaction, create a bean method annotated with `@EventListener`. The method will be called by the framework right after saving the entity to the database but before the transaction commit. In the listener method, you can make any changes to data and they will be committed together with the initial changes. If an exception occurs, everything will be rolled back.
+如需在当前数据库会话中处理 `EntityChangedEvent`，创建一个带 `@EventListener` 注解的 bean 方法。框架会在实体保存至数据库但是会话尚未提交时调用该方法。在监听器方法中，可以对数据做任何修改，这些修改会与原始的修改一并提交。如果抛出任何异常，则回退所有操作。
 
-In the example below, we create a linked entity to register the change of an attribute. Both the changed `Customer` and the created `CustomerGradeChange` instances will be committed in the same transaction:
+下面的例子中，我们创建了 `Customer` 的一个关联实体，用来登记属性的改动。`Customer` 和 `CustomerGradeChange` 的变更会在同一个会话中提交：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=listener-bean;data-manager;before-commit]
 ----
-<1> Determining the change type.
-<2> Checking if an attribute was actually changed.
-<3> Getting the changed entity id.
-<4> Obtaining an old value of the changed attribute.
-<5> Loading the new state of the changed entity.
+<1> 确定变更类型。
+<2> 确认属性修改。
+<3> 获取变更实体的 id。
+<4> 获取变更属性的旧值。
+<5> 加载变更实体的新状态。
 
-Let's look at another example. Here the `amount` attribute of the `Order` entity is updated whenever one of its `OrderLine` instances is created, updated or deleted:
+我们看看另一个例子。如果对 `Order` 实体的 `OrderLine` 进行新建、更新或删除，都会修改 `Order` 的 `amount` 属性：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/OrderLineEventListener.java[tags=entity-changed]
 ----
-<1> When the entity is deleted, we cannot load its instance anymore, so we use old values to get the reference to the enclosing `Order`.
-<2> Use `getOldReference()` and `getOldCollection()` instead of `getOldValue()` for to-one and to-many reference attributes.
+<1> 当 `OrderLine` 实体被删除时，我们无法加载该实例，所以只能用旧值加载关联的 `Order`。
+<2> 用 `getOldReference()` 和 `getOldCollection()` 而非 `getOldValue()` 加载对一和对多的引用属性。
 
 [[after-commit]]
-=== Handling Changes After Commit
+=== 提交之后处理变更
 
-To handle `EntityChangedEvent` after the changes are saved to the database and the transaction is committed, create a bean method annotated with `@TransactionalEventListener`.
+如需在变更提交至数据库完成之后处理 `EntityChangedEvent`，创建一个带 `@TransactionalEventListener` 注解的 bean 方法。
 
-Note that exceptions occurred in an "after commit" event listener are not propagated to the calling code and not logged. So it is recommended to wrap your code in the try-catch clause.
+注意，此时在“提交之后”事件处理器中的异常不会返回给调用端，也不会记录。因此，推荐在 try-catch 中调用代码。
 
-If you need to load or save any data in an "after commit" event listener, always start a new transaction.
+如需在“提交之后”事件处理器中加载或保存任何数据，都需要新起一个会话。
 
-The example below demonstrates exception handling and loading an entity with `DataManager` in a separate transaction (see `joinTransaction(false)` method):
+下面的例子中展示了异常处理和使用 `DataManager` 在单独的会话中加载实体（参考 `joinTransaction(false)` 方法）：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=listener-bean;logger;data-manager;after-commit]
 ----
 
-If you need to save an entity in an "after commit" event listener, use `SaveContext` and its `setJoinTransaction(false)` method, for example:
+如需在“提交之后”事件处理器中保存实体，使用 `SaveContext` 及其 `setJoinTransaction(false)` 方法，示例：
 
 [source,java,indent=0]
 ----
@@ -59,29 +59,29 @@ include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListene
 ----
 
 [[saving-loading-events]]
-== Using EntitySavingEvent and EntityLoadingEvent
+== 使用 EntitySavingEvent 和 EntityLoadingEvent
 
-`EntitySavingEvent` is sent by the framework when an entity instance is about to be saved to the database. As opposed to <<entity-changed-event,EntityChangedEvent>>, which contains the entity id, `EntitySavingEvent` contains the entity instance itself. It allows you to change the instance state before it is saved in the database fields.
+框架在将要保存至数据库时，会发送 `EntitySavingEvent` 事件。与包含实体 id 的 <<entity-changed-event,EntityChangedEvent>> 不同，`EntitySavingEvent` 包含实体本身。可以在保存至数据库之前修改实体的信息。
 
-The event has the `isNewEntity()` method that returns true if the event is sent for a new instance that will be inserted to a database table.
+如果是在数据库表新增实例时发出的事件，则事件的 `isNewEntity()` 方法返回 true。
 
-An `EntitySavingEvent` listener can be used to initialize entity attributes before saving to the database. For example:
+可以用 `EntitySavingEvent` 监听器在实体保存至数据库之前初始化实体属性。示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/OrderEventListener.java[tags=saving-event]
 ----
 
-`EntityLoadingEvent` is sent by the framework when an entity instance is loaded from the database. You can use it for initializing non-persistent attributes from the persistent state.
+当实体实例从数据库加载时，框架会发送 `EntityLoadingEvent` 事件。可以在该事件中，用实体的持久化属性初始化实体的非持久化属性。
 
-In the example below, `EntitySavingEvent` and `EntityLoadingEvent` listeners maintain an encrypted attribute:
+下面的例子中，用 `EntitySavingEvent` 和 `EntityLoadingEvent` 维护一个加密属性：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/entity/Customer.java[tags=entity;encryption]
 ----
 
-When the entity is saved, the sensitive content is encrypted and stored in the database. On loading, the content is decrypted and set back to the transient attribute to be accessible by users:
+当实体保存实体时，敏感内容会被加密之后再存入数据库。而加载时，内容会先被解密然后设置到非持久化属性中以便用户访问：
 
 [source,java,indent=0]
 ----

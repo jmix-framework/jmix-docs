@@ -1,11 +1,11 @@
-= Authentication
+= 用户认证
 
-Authentication is the first part of the interaction with the REST API. It is required so that Jmix can identify the user, who performs the requests. This allows Jmix to impose permission / data-access constraints on the requests to ensure the user is only allowed to see/interact with the parts of the system that it should be.
+用户认证是与 REST API 交互的第一步。Jmix 必须通过这一步来识别用户，哪个用户发起了请求。Jmix 依据用户对请求添加权限/数据访问限制，以确保仅允许用户查看或者交互系统中允许的部分内容。
 
 [[authentication-request]]
-== Authentication Request
+== 认证请求
 
-To interact with the Jmix REST API, it is required to authenticate through an OAuth2 flow. The following sequence diagram explains the general interaction with the REST API:
+如需使用 Jmix REST API 交互，需要经过 OAuth2 流程进行认证。下面的序列图解释了用 REST API 的一般交互过程：
 
 [plantuml]
 ....
@@ -34,9 +34,9 @@ deactivate "Entities API"
 @enduml
 ....
 
-First, the API client needs to request an access token through the authentication request. For that, you need to send a `www-form-urlencoded` request with the username and password as part of the form body to Jmix:
+首先，API 客户端需要使用认证请求获取一个访问 token。给 Jmix 发送一个 `www-form-urlencoded` 请求，请求的表单中包含 username 和 password：
 
-.Authentication Request
+.认证请求
 [source, http request]
 ----
 POST http://localhost:8080/oauth/token
@@ -47,12 +47,12 @@ grant_type=password // <3>
 &username={{username}} // <4>
 &password={{password}}
 ----
-<1> The Authentication Request itself is authenticated with Basic Auth xref:app-properties.adoc#jmix.security.oauth2.client-id[client_id] and xref:app-properties.adoc#jmix.security.oauth2.client-secret[client_secret].
-<2> The content of the authentication request is `application/x-www-form-urlencoded`.
-<3> The `grant_type` is `password` to indicate the type of login.
-<4> The user credentials are provided as part of the form with the keys `username` and `password`.
+<1> 认证请求本身也需要使用基本的 xref:app-properties.adoc#jmix.security.oauth2.client-id[client_id] 和 xref:app-properties.adoc#jmix.security.oauth2.client-secret[client_secret] 进行认证。
+<2> 认证请求的 content type 为 `application/x-www-form-urlencoded`。
+<3> `grant_type` 为 `password`，指定认证类型。
+<4> 用户的凭证，使用表单的 `username` 和 `password` 键值提供。
 
-After a successful login, Jmix returns the access token as part of the HTTP response:
+成功登录后，Jmix 在 HTTP 响应中返回访问 token：
 
 .HTTP/1.1 200
 [source, json]
@@ -67,18 +67,17 @@ After a successful login, Jmix returns the access token as part of the HTTP resp
 }
 ----
 
-The attribute `access_token` contains the token, that you can use in further requests: `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`.
+`access_token` 属性值为访问 token，可以用在后续其他请求中。
 
-=== Refresh Token
+=== 更新 Token
 
-The token acts as a temporary credential/password. After a particular period, the token expires and you need to request a new token.
-The first option for requesting a new token to ask the user for their credentials again and perform a regular Authentication Request again.
+Token 只是用作临时的凭证/密码。一段时间之后，token 就会过期，你需要请求一个新的 token。一个方法是要求用户使用凭证再做一次常规的认证请求。
 
-WARNING: Do not store the username and password in your client application so that the user does not need to re-enter its credentials. Either ask the user again for their credentials or use the refresh token to prevent token expiration.
+WARNING: 不要为了图方便在你的客户端应用程序中存储用户的 username 和 password，以便用户不用再次输入凭证。如果需要的话，应该再次要求用户输入，或者使用 refresh token 防止 token 过期。
 
-The original Authentication Request contains a `refresh_token`, that you can use to create a new access token. While the access token is comparably short-lived (by default 12 hours for Jmix), the refresh token is valid for 365 days by default. Therefore it is well suited as a long-lived credential to issue new tokens.
+最初的认证请求返回体中包含一个 `refresh_token`，可以用来创建新的访问 token。访问 token 的有效期相对比较短（Jmix 默认为 12 小时），而刷新 token 的有效期默认为 365 天。因此，可以刷新 token 非常适合用来做长期有效的凭证以获取新 token。
 
-To get a new access token via the refresh token, you can use the same endpoint of obtaining a token. But instead of using the `grand_type`: `password`, you can also use `refresh_token`. Here is an example of how to use the refresh token to obtain a new access token:
+如需使用刷新 token 获取访问 token，可以用获取 token 的相同接口，但是 `grant_type` 不是 `password` 而是 `refresh_token`。下面是使用刷新 token 获取新访问 token 的示例：
 
 
 .Refresh Authentication Request
@@ -91,20 +90,20 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=refresh_token // <1>
 &refresh_token=Hh2xCuZ7fgd35obagEBNGevF4ws= // <2>
 ----
-<1> The `grant_type` is `refresh_token` to indicate the type of login that is performed.
-<2> The refresh token is provided as part of the form with the key `refresh_token`.
+<1> `grant_type` 为 `refresh_token`，表示登录的类型。
+<2> 刷新 token 使用 `refresh_token` 键值提供。
 
-The response contains a new access token, that has a new expiration period. With that, you can keep access to the API without the need to ask the user for their credentials after the access token expires.
+返回结果包含一个新的访问 token，具有新的过期时间。使用这种方式，在 token 过期后无需向用户索要凭证继续使用 API。
 
 [[making-api-requests]]
-== Making API Requests
+== 发起 API 请求
 
-There are two ways on how to use the access token to authenticate against the different Jmix APIs, depending on the use case. Let's start with the first and main way of providing the access token: via an HTTP header in the following requests.
+对不同场景的 Jmix API，有两种使用访问 token 进行认证的方式。我们先看第一种主要的使用方式：通过 HTTP 请求头提供。
 
 [[authenticate-via-header]]
-=== Authenticate via Header
+=== 请求头认证
 
-With the received access token `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`, you can now perform requests against the REST API. The access token needs to be passed in as the `Authorization` Header in every request, like in the following example:
+收到访问 token 后就可以发起 REST API 请求。访问 token 要在每个请求头的 `Authorization` 中提供，示例：
 
 .Create Customers Request
 [source, http request]
@@ -118,16 +117,16 @@ Authorization: Bearer CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=  //<1>
   name: "Randall Bishop"
 }
 ----
-<1> The API request is authenticated with the authorization type `Bearer`, and the received access token.
+<1> API 请求使用 `Bearer` 类型和访问 token 进行认证。
 
 [[authenticate-via-url-parameter]]
-=== Authenticate via URL Parameter
+=== URL 参数认证
 
-It is also possible to pass the access token as a URL query parameter. This is necessary when the HTTP headers cannot be set. In case of the browser linking to a file or render an image.
+访问 token 还可以用于 URL 查询参数中。主要用在 HTTP 请求头无法设置的情况。比如，提供浏览器中的文件链接，或者渲染图片时。
 
-In the following example an image from the xref:files-api.adoc[Files API] should be rendered via `<img src="..." />` on a website.
+下面的示例中，来自 xref:files-api.adoc[文件 API] 的图片需要在网页的 `<img src="..." />` 中展示。
 
-In this case, it is not possible to set the HTTP headers. Therefore, you can pass in the `access_token` as a URL as a query parameter:
+此时，无法设置 HTTP 请求头，因此可以将 `access_token` 作为 URL 参数传入：
 
 [source,html]
 ----
@@ -139,14 +138,13 @@ In this case, it is not possible to set the HTTP headers. Therefore, you can pas
 ----
 
 [[anonymous-access]]
-== Anonymous Access
+== 匿名访问
 
-By default, all endpoints are only available after a successful authentication against the application.
-But it is also possible to expose certain parts of the REST API without authentication. This is possible by using the anonymous access functionality of Jmix. In this case, the API request is performed as the user `anonymous`, which is configured by default in a Jmix application.
+默认情况下，所有的接口都需要先进行用户认证之后才能使用。但是也支持使用 Jmix 的匿名访问功能将某些 REST API 开放为匿名接口。此时，API 请求是通过用户 `anonymous` 发起的，此用户是 Jmix 应用程序默认自带的。
 
-For every secured endpoint that is called without the `Authentication` header, the user will be authenticated with the `anonymous` user session.
+在没有使用 `Authentication` 请求头的情况下调用受保护的接口，会使用 `anonymous` 用户会话进行认证。
 
-To whitelist specific endpoints for anonymous access, set a comma-separated list of URL patterns in the xref:rest:app-properties.adoc#jmix.rest.anonymous-url-patterns[jmix.rest.anonymous-url-patterns] application property. For example:
+如需添加匿名访问的接口白名单，可在 xref:rest:app-properties.adoc#jmix.rest.anonymous-url-patterns[jmix.rest.anonymous-url-patterns] 应用程序属性设置 URL pattern。示例：
 
 [source,properties]
 ----
@@ -156,9 +154,9 @@ jmix.rest.anonymous-url-patterns = \
   /rest/entities/Product/*
 ----
 
-The last pattern in the example above is needed if you want to update or delete the `Product` entity, because in this case the URL has the id part.
+上面配置的最后一行是必要的，因为如果是更新或者删除 `Product` 实体，URL 最后还有一部分是实体 ID。
 
-Once this setting is in place, it is possible to interact with the `ProductService` without sending an `Authorization` header:
+设置完成后，可以无需使用 `Authorization` 请求头与 `ProductService` 进行交互：
 
 .GetProductInformation Request
 [source, http request]
@@ -171,7 +169,7 @@ GET {{baseRestUrl}}
 # Authorization: not set
 ----
 
-This request will respond in a successful response of the Service:
+该请求会成功收到服务的响应：
 
 .HTTP/1.1 200
 [source, json]
@@ -183,7 +181,7 @@ This request will respond in a successful response of the Service:
 }
 ----
 
-If you want to provide anonymous access to some xref:rest:entities-api.adoc[entities] endpoints, make sure the `anonymous` user has rights to these entities. You can do it by creating a xref:security:resource-roles.adoc[resource role] and assigning it to the `anonymous` user in the `DatabaseUserRepository.initAnonymousUser()` method. For example:
+如需提供对某些 xref:rest:entities-api.adoc[实体] 接口的匿名访问，请确保 `anonymous` 用户有访问这些实体的权限。可以创建一个 xref:security:resource-roles.adoc[资源角色]，然后在 `DatabaseUserRepository.initAnonymousUser()` 方法中为 `anonymous` 用户分配该角色。示例：
 
 [source,java,indent=0]
 ----
@@ -218,7 +216,7 @@ public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User>
 }
 ----
 
-TIP: The anonymous access feature *does not* require that `anonymous` user has the `rest-minimal` role.
+TIP: 匿名访问功能 *不需要* `anonymous` 用户有 `rest-minimal` 角色。
 
 //== LDAP Authentication
 //

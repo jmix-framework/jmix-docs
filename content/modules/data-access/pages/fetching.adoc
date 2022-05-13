@@ -1,45 +1,45 @@
-= Fetching Data
+= 加载数据
 
-In this section, we describe how and when data is fetched into memory in the process of loading entities from the database.
+本章节中，我们将介绍从数据库加载实体的过程中，数据是如何以及何时被提取到内存的。
 
-The data model entities often have references to other entities, for example `Order` has a related `Customer` in the `Order.customer` attribute. Jmix allows you to access related entities by navigating the reference attributes in Java code using getters, for example `order.getCustomer().getName()`, and in data-aware UI components using dot notation, for example `order.customer.name`.
+数据模型实体经常会有对其他实体的引用，例如，`Order` 通过 `Order.customer` 关联 `Customer` 实体。在 Jmix 的 Java 代码中可以使用引用属性的 getters 访问关联实体，如 `order.getCustomer().getName()`，而在数据感知的 UI 组件中，则用“.”，如 `order.customer.name`。
 
-In general, there are two strategies of loading related entities:
+通常来说，加载关联实体有两中策略：
 
-* _Eager loading_ means that the related entity is loaded from the database together with the root entity.
-* _Lazy loading_ means that the related entity is transparently loaded from the database when the reference property is accessed.
+* _Eager loading（预加载）_ 关联实体与主实体一起从数据库加载。
+* _Lazy loading（懒加载）_ 仅当访问引用属性时，才从数据库透明地加载关联实体。
 
 [[lazy-loading]]
-== Lazy Loading
+== 懒加载
 
-Jmix supports lazy loading of references for JPA entities loaded using xref:data-manager.adoc[DataManager]. It means that if you have used `DataManager` or UI xref:ui:data/data-loaders.adoc[data loaders] for loading an entity, you can access its reference attributes to get the related entities, and Jmix will load them from the database on demand. This process is recursive, so you can traverse the whole object graph just by accessing the reference attributes.
+当使用 xref:data-manager.adoc[DataManager] 加载 JPA 实体时，Jmix 支持实体中引用属性的懒加载。也就是说，如果使用了 `DataManager` 或 UI 的 xref:ui:data/data-loaders.adoc[数据加载器] 来加载实体，则可以直接访问其引用属性获得关联实体，Jmix 会按需加载。这个过程是递归的，因此可以通过访问引用属性遍历整个对象关系图。
 
-For example:
+示例：
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=lazy-loading]
 ----
-<1> Loads the `Customer` entity.
-<2> Loads a collection of the `OrderLine` entities.
-<3> Loads the `Product` entity.
+<1> 加载 `Customer` 实体。
+<2> 加载 `OrderLine` 实体集合。
+<3> 加载 `Product` 实体。
 
-Lazy loading is very convenient, but it often doesn't provide the best possible performance. This is especially true for working with collections of entities. Look at the `getProductNames()` method above: it loads the collection of order lines and then for each order line it goes to the database for a related product. This leads to N+1 queries, where N is the number of order lines in the collection.
+懒加载非常方便，但是通常无法提供最佳性能。对于处理实体集合尤其如此。如上面的 `getProductNames()` 方法：首先加载了 order lines 的集合，然后对于每个 order line，再次访问数据库加载关联的 product。这样就是 N+1 次查询，N 是集合中 order line 的数量。
 
-Another example of the N+1 problem is lazy loading in an entity browser screen. For example, if you load a list of orders, and for each order you show a related customer, you need to define a UI table column bound to the `Order.customer` attribute. Then with lazy loading you will get 1 database query for orders, then N queries for customers, where N is the orders table page size.
+另一个 N+1 问题的例子是在浏览界面加载一个实体。例如，加载一组 order，然后对于每个 order 展示其关联的 customer，那么需要定义一个 UI 表格的列展示 `Order.customer` 属性。此时懒加载会首先执行一次查询加载所有的 order，然后 N 次查询加载每个 order 的 customer，N 是 order 表格页的行数。
 
-When you face a performance issue with lazy loading, introduce eager loading with <<fetch-plan, fetch plans>> as described in the next section.
+如果你遇到了懒加载的性能瓶颈，请使用下一节介绍的 <<fetch-plan, fetch plans>> 进行预加载。
 
 [[fetch-plan]]
 == Fetch Plans
 
-A _fetch plan_ defines what object graph should be eagerly loaded from the database in a particular operation. It can be used in xref:data-manager.adoc[DataManager] and UI xref:ui:data-components.adoc[data components] for performance optimization, and in xref:rest:index.adoc[REST API] for defining the shape of returned data without creating a separate set of DTOs.
+一个 _fetch plan_ 定义在一次特定的操作中，需要从数据库预加载什么样的对象关系图。Fetch plan 可以用在 xref:data-manager.adoc[DataManager]、UI xref:ui:data-components.adoc[数据组件] 中以提高性能，或者用在 xref:rest:index.adoc[REST API] 中定义返回数据的格式，而无需创建单独的一组 DTO。
 
-TIP: Fetch plans are fully compatible with lazy loading of related entities. It means that you can load some part of a graph with a fetch plan, and then load other related entities lazily by navigating references.
+TIP: Fetch plan 与关联实体的懒加载完全兼容。也就是说，可以使用 fetch plan 加载实体关系图的其中一部分，当访问到某些未加载的引用时，再进行延迟加载。
 
 [[fetch-plan-example]]
-=== Fetch Plan Usage Example
+=== Fetch Plan 使用示例
 
-Let's consider a few use cases around the `Order` entity and its related entities comprising the following data model:
+我们考虑一些围绕 `Order` 实体及其相关实体的示例，这些实体包括以下数据模型：
 
 [plantuml]
 ....
@@ -92,7 +92,7 @@ OrderLine -- Product
 @enduml
 ....
 
-. Suppose we need to display the list of orders in a browse screen, and the UI table must contain the `number`, `date`, `amount` and `customer.name` columns. Then loading the following object graph would be optimal:
+. 假设我们要在一个浏览界面展示 order 列表，UI 表格中必须包含以下列：`number`、`date`、`amount` 和 `customer.name`。那么，下面这个对象图应该是最佳加载方案了：
 +
 --
 [plantuml]
@@ -119,31 +119,31 @@ Order -- Customer
 @enduml
 ....
 
-To eagerly load this graph, the following fetch plan can be defined in the screen:
+为了预加载这个对象图，可以在界面中定义这样的 fetch plan：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-browse.xml[tags=fetch-plan]
 ----
 
-As a result, the framework executes a single SQL query with the join between the order and customer tables, and related customers are eagerly loaded together with orders. It eliminates the N+1 problem that would arise if the customers were loading lazily.
+结果是，框架会执行一条单一的 SQL 查询语句，语句中对 order 和 customer 表进行关联查询，将相关的 customer 实体与 order 实体一起预加载。这样排除了对 customer 实体进行懒加载的 N+1 问题。
 
-Also, as the fetch plan defines individual local attributes, the SQL result set includes only these attributes and omits the `customer.email` field. This field is not fetched from the database and does not consume server memory in the entity instance. This is good for performance, but such <<partial-entities,partially loaded>> entity instances must be handled with care.
+还有，由于 fetch plan 中定义都是单独的本地属性，SQL 结果集也只包含这些属性而省略了 `customer.email` 字段。该字段不从数据库读取也不会消耗实例占用的服务器内存。性能上这样做当然是更好的选择，但是要小心处理此类 <<partial-entities,部分加载>> 的实体实例。
 
 [NOTE]
 ====
-When you create a screen for an entity using Studio, by default the screen creation wizard offers the `_base` fetch plan for the root entity and selected related entities, so the fetch plan definition will look a bit different:
+当用 Studio 为一个实体创建界面时，界面创建向导默认会为主实体和选中的关联实体提供 `_base` fetch plan，因此 fetch plan 的定义会看上去有一点不同：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-browse-1.xml[tags=fetch-plan]
 ----
 
-`_base` is a built-in fetch plan (see more on this <<built-in-fetch-plans,below>>), and in this case all local attributes of the entities are always loaded.
+`_base` 是一个内置的 fetch plan（参阅后面 <<built-in-fetch-plans,章节>> 了解详情 ），会加载实体的所有本地属性。
 ====
 --
 
-. Now consider the case of editing an order in an edit screen. The screen should allow a user to edit the order attributes, select a customer, as well as create and edit order lines, select products for them, and recalculate the total order amount. In this case, we need almost all entities, but some attributes of the related entities can be omitted:
+. 现在考虑在编辑界面编辑 order 实体的情形。用户可以通过界面编辑 order 属性、选择 customer、以及创建和编辑 order line，并为之选择 product，最后重新计算 order 总价。这样的话，我们需要几乎所有的实体，只是有些关联实体的某些属性可以省略：
 +
 --
 [plantuml]
@@ -187,20 +187,20 @@ OrderLine -- Product
 @enduml
 ....
 
-If you use the Studio screen wizard and select related entities with the default `_base` fetch plan, the following fetch plan is created in the screen:
+如果用 Studio 界面向导并选择带默认 `_base` fetch plan 的关联实体，则会为界面创建下面的 fetch plan：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/dataaccess/ex1/screen/order/order-edit.xml[tags=fetch-plan]
 ----
 
-TIP: You could select individual local attributes instead of the `_base` fetch plan for the entities, but we don't recommend it for an editor screen. See more on partially loaded entities below.
+TIP: 虽然可以为实体选择单独的本地属性而不使用 `_base` fetch plan，但是在编辑界面我们不建议这么做。参阅下面关于实体部分加载的相关内容。
 --
 
 [[partial-entities]]
-=== Partial Entities
+=== 部分实体
 
-If you use a fetch plan that doesn't include some local attributes of the entity, the entity will be loaded partially. The attributes absent in the fetch plan  will be empty in the entity instance. If you access such an attribute by invoking its getter/setter or by using it in a UI component, the framework throws an exception like this:
+如果使用了不包含实体某些本地属性的 fetch plan，则实体只能部分加载：fetch plan 中不加载的属性在实体实例中为空。此时如果通过 getter/setter 或者 UI 组件访问这样的属性，框架会抛出异常：
 
 [source,text]
 ----
@@ -208,41 +208,41 @@ java.lang.IllegalStateException: Cannot get unfetched attribute [foo] from
     detached object com.company.entity.Bar-7f9e689a-fe04-8b5f-35db-5fa51a9a9d71 [detached].
 ----
 
-We recommend using partial fetch plans sparingly, only if you see real performance benefits from not loading all attributes. It is usually the case when your entities are "wide" (tens or hundreds of attributes), and you load large lists of entities with many references, which multiplies the amount of unneeded data to fetch.
+因此，我们推荐谨慎使用部分加载的 fetch plan，除非不加载全部属性真的能带来不小的性能提升。例如，你的实体很“宽”（具有几十或几百个属性），需要加载大量的实体及其关联实体，这种情况可以用部分 fetch plan 大大减少不需要的数据加载。
 
-If you load a single root entity or a small collection, rely on <<lazy-loading,lazy loading>> or use a fetch plan extended from `_base` to avoid N+1 problem. On the one hand, the performance benefit from partial entities would be negligible in this case; on the other hand, you may encounter problems if you accidentally access unfetched attributes.
+如果只是加载一个主实体或者很小的一组实体，那么请使用 <<lazy-loading,懒加载>> 或基于 `_base` 的 fetch plan 以避免 N+1 问题，而不要使用部分实体。因为一方面，这种情况下使用部分实体 fetch plan 得到的性能提升十分有限；另一方面，如果不小心访问了未加载的属性，还容易遇到问题。
 
-NOTE: The entity identifier and xref:data-model:entities.adoc#versioned-trait[version] attributes are always loaded regardless of the fetch plan.
+NOTE: 不论用什么 fetch plan，都会加载实体 id 和 xref:data-model:entities.adoc#versioned-trait[版本] 属性。
 
 [[built-in-fetch-plans]]
-=== Built-in Fetch Plans
+=== 内置 Fetch Plans
 
-Jmix provides three built-in fetch plans for each entity:
+Jmix 为每个实体提供了三个内置的 fetch plan：
 
-* `_local` fetch plan includes all local attributes (immediate attributes that are not references).
-* `_instance_name` fetch plan includes all attributes forming the xref:data-model:entities.adoc#instance-name[instance name]. These can be local attributes and references. If instance name is not specified for an entity, this fetch plan is empty.
-* `_base` fetch plan includes all attributes of the `_local` and `_instance_name` fetch plans. It differs from `_local` only if the `_instance_name` fetch plan includes reference attributes.
+* `_local` fetch plan 包含所有本地属性（直接属性，非实体引用属性）。
+* `_instance_name` fetch plan 包含所有构成 the xref:data-model:entities.adoc#instance-name[实例名称] 的属性。可以是本地属性或引用属性。如果实体未指定实例名称，则该 fetch plan 为空。
+* `_base` fetch plan 包含所有 `_local` 和 `_instance_name` fetch plan 内的属性。因此，仅当 `_instance_name` fetch plan 包含引用属性时，该属性才与 `_local` 不同。
 
-TIP: Use the `_base` fetch plan until you face a performance problem with loading large lists of "wide" entities. It will save you from issues with unfetched attributes, explained in the <<partial-entities,partial entities>> section.
+TIP: 除非加载大量“宽”实体遇到性能问题，否则都应使用 `_base` fetch plan。这样能避免未加载属性引起的问题，参阅 <<partial-entities,partial entities>> 了解详情。
 
 [[creating-fetch-plans]]
-=== Creating Fetch Plans
+=== 创建 Fetch Plans
 
-You can define custom fetch plans in the following ways:
+可以用下面的方式自定义 fetch plans：
 
-. As inline fetch plans in UI screen descriptors. This is demonstrated in the example <<fetch-plan-example,above>>.
+. UI 界面描述中的 inline fetch plan。上面的 <<fetch-plan-example,示例>> 演示了这种方式。
 
-. Programmatically in Java.
+. Java 中通过编程的方式。
 +
 --
-You can build a fetch plan using `FetchPlans` factory and use it in a `DataManager` operation as follows:
+可以用 `FetchPlans` 工厂创建 fetch plan，并在 `DataManager` 操作中使用：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plans;fetch-plan-builder]
 ----
 
-You can also use the fetch plan builder right in the `DataManager` fluent loading interface:
+也可以在 `DataManager` 流式加载接口中使用 fetch plan builder：
 
 [source,java,indent=0]
 ----
@@ -251,30 +251,30 @@ include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[ta
 
 --
 
-. In the shared fetch plans repository.
+. 在共享 fetch plan 仓库创建。
 +
 --
-You can create fetch plans in the shared repository and use them by name anywhere in your project like the <<built-in-fetch-plans,built-in>> ones.
+在共享仓库中创建 fetch plan，然后在项目中通过名称使用，与 <<built-in-fetch-plans,内置>> 的 fetch plan 类似。
 
-First, create the `fetch-plans.xml` file in the resources root under the base package of the application. You can do it in Studio by clicking *New -> Advanced -> Fetch Plan Configuration File* in Jmix tool window.
+首先，在项目的根包内的资源根目录创建 `fetch-plans.xml`。Studio 中通过 Jmix 工具窗口的 *New -> Advanced -> Fetch Plan Configuration File* 创建该文件。
 
-After creating the file in your project, the *New -> Advanced* menu of the Jmix tool window will contain the *Fetch Plan* item. It allows you to define a fetch plan using a designer.
+创建好之后，Jmix 工具窗口的 *New -> Advanced* 菜单会包含一个 *Fetch Plan* 条目。这里可以通过设计器定义 fetch plan。
 
-Below is an example of a fetch plan defined in `fetch-plans.xml`.
+下面是定义在 `fetch-plans.xml` 中的 fetch plan。
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/dataaccess/ex1/fetch-plans.xml[tags=fetch-plan]
 ----
 
-This fetch plan can be used by name in a `DataManager` operation:
+这个 fetch plan 可以在 `DataManager` 操作中通过名称使用：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/test/java/dataaccess/ex1/bean/OrderServiceTest.java[tags=fetch-plan]
 ----
 
-Another option is to get the fetch plan instance from the repository:
+另一个方法是从仓库获取 fetch plan 实例：
 
 [source,java,indent=0]
 ----

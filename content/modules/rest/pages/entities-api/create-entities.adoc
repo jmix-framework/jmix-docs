@@ -1,18 +1,18 @@
-= Create Entities
+= 创建实体
 
-The Entities API lets you create entities by performing a `POST` request against the `/entities/:entityName` endpoint.
+实体 API 支持通过 `/entities/:entityName` 接口的 `POST` 请求创建实体。
 
 [[create-entity]]
-== Create an Entity
+== 创建单一实体
 
-The request body contains a JSON object with the attributes of the entity.
+请求体的 JSON 对象包含实体属性值。
 
-NOTE: Attributes from xref:data-model:entities.adoc#traits[Entity Traits] like `id` or `createdBy` should not be part of the request. Those attributes are automatically added by Jmix while storing the entity.
+NOTE: 无需在请求中提供 xref:data-model:entities.adoc#traits[实体特性] 属性，例如 `id` 或 `createdBy`。Jmix 会在保存实体时自动添加这些属性。
 
-When the entity is created successfully, the HTTP response status code `201 - Created` is returned. By default, a JSON metadata representation of the entity is returned mainly containing the newly created `id` attribute for further reference.
+当实体成功创建时，HTTP 会返回状态码 `201 - Created`。默认情况下，会返回一个带有实体元数据的 JSON 对象，主要包含新建实体的 `id` 属性，以便将来使用。
 
 [source, http request]
-.Create Customer Request
+.创建 Customer
 ----
 POST http://localhost:8080/rest/entities/sample_Customer
 
@@ -20,7 +20,6 @@ POST http://localhost:8080/rest/entities/sample_Customer
   name: "Randall Bishop"
 }
 ----
-
 
 [source, json]
 .Response: 201 - Created
@@ -32,29 +31,28 @@ POST http://localhost:8080/rest/entities/sample_Customer
 }
 ----
 
-Alternatively, it is possible to define which attributes should be returned once the entity is created. This can be achieved through the URL query parameter `responseFetchPlan`.
+或者，通过 URL 参数 `responseFetchPlan` 可以指定在实体创建成功后返回的实体属性。
 
-For example, the URL `/entities/sample_Order?responseFetchPlan=order-with-details` would return the complete order with all its details containing order lines, customer references etc.
+例如，URL `/entities/sample_Order?responseFetchPlan=order-with-details` 请求，会返回 order 的完整信息包括 order lines、customer 引用等。
 
-TIP: The HTTP response Header `Location` indicates also the URL to the newly created entity instance for further operations (like fetching, updating, or deleting).
+TIP: HTTP 响应头的 `Location` 字段也会包含新创建实体实例的 URL，方便将来使用（例如，读取、更新、或删除）。
 
 [[entity-validation]]
-== Entity Validation
+== 实体验证
 
-When an entity is created or updated, the regular entity validation is active and enforced by default. This means that invalid input (according to the entity validation annotations) from the API is rejected with the HTTP response status code `400 - Bad Request`.
+当新建或更新实体时，默认会启用常规实体验证机制。即，根据实体验证的注解，如果有非法的输入，则 API 会拒绝请求并返回状态码 `400 - Bad Request`。
 
-The API returns detailed error messages for each validation violation in the following form of a JSON array. Each entry follows the structure:
+API 会以 JSON 数组的形式返回包含违反验证规则的详细错误信息。数组中每条记录有下列结构：
 
-message:: the (translated) human-readable error message of the violation
-messageTemplate:: the non-interpolated error message for this constraint violation
-path:: the attribute name (or property path) of the attribute that caused the violation
-invalidValue:: the value that was part of the request for the attribute, which causes the violation
+message:: 经翻译后可读的错误信息
+messageTemplate:: 未经解析的错误信息
+path:: 导致验证错误发生的属性名（或属性路径）
+invalidValue:: 请求中导致验证错误属性的值
 
-
-The following request contains two errors in the request, as 1. the `customer` attribute is required and 2. the `date` should not be in the future.
+下列请求中包含两个错误，第一，`customer` 为必需属性；第二，`date` 日期不能是将来时间。
 
 [source, http request]
-.Invalid Order Request
+.非法 Order 请求
 ----
 POST http://localhost:8080/rest/entities/sample_Order
 
@@ -65,7 +63,7 @@ POST http://localhost:8080/rest/entities/sample_Order
 }
 ----
 
-The API then returns the list of violations of the entity validations.
+API 返回实体验证错误的信息列表：
 
 [source, json]
 .Response: 400 - Bad Request
@@ -87,14 +85,14 @@ The API then returns the list of violations of the entity validations.
 ----
 
 [[association-attributes]]
-== Association Attributes
+== 关联属性
 
-When the entity to create should be linked to another existing entity, it is required to reference the other entity in the request.
+当需要创建的实体与其他已有实体关联时，需要在请求中引用关联实体。
 
-In the Order example, you want to reference a Customer via the `customer` attribute when you create the Order. This is done through a JSON object containing only the ID of the existing entity. Jmix performs a lookup of the customer by the provided ID from the JSON request and links the customer to the new order.
+在 Order 示例中，需要在创建 Order 的时候使用 `customer` 属性引用 Customer 实体。请提供一个包含已有实体 ID 的 JSON 对象。Jmix 会根据提供的 ID 查询 customer，然后将找到的实体与新的 Order 进行关联。
 
 [source, http request]
-.Request with N:1 reference
+.N:1 引用的请求
 ----
 POST http://localhost:8080/rest/entities/sample_Order
 
@@ -107,9 +105,9 @@ POST http://localhost:8080/rest/entities/sample_Order
 }
 ----
 
-For all kinds of associations: `1:N`, `N:1`, `M:N` the way to reference other entities is always via its ID.
+对于所有类型的关联关系：`1:N`、`N:1`、`M:N` 均可通过 ID 指定关联实体。
 
-The second example shows how to link a `Product` to multiple `ProductTag` entities via an `M:N` relationship, as described in the Product entity definition.
+第二个例子展示如何将一个 `Product` 通过 `M:N` 关系关联至多个 `ProductTag` 实体，Product 实体如下：
 
 [source,java]
 .Product.java
@@ -131,10 +129,10 @@ public class Product {
 }
 ----
 
-In the request, the `ProductTag` entity instances are references by their ids. This time, the JSON object is put into an array, as there are multiple product tags to reference.
+请求中，通过 ID 引用 `ProductTag` 实体。这里，由于需要引用多个 product tag，JSON 对象放在了一个数组中。
 
 [source, http request]
-.Request with `M:N` references
+.`M:N` 引用关系的请求
 ----
 POST http://localhost:8080/rest/entities/sample_Product?responseFetchPlan=product-with-tags
 
@@ -171,15 +169,15 @@ POST http://localhost:8080/rest/entities/sample_Product?responseFetchPlan=produc
   ]
 }
 ----
-<1> The tags are referenced as a list of JSON objects containing the ID of the already existing `ProductTag`.
-<2> The response contains the stored association to the two `ProductTag` entities.
+<1> 通过一组包含 ID 的 JSON 对象表示已有的 `ProductTag`。
+<2> 响应中也包含了关联的两个 `ProductTag` 实体。
 
 [[composition-attributes]]
-== Composition Attributes
+== 组合属性
 
-For attributes that are marked as `@Composition` the situation is slightly different. As this relationship type indicates that the child entities only exist as part of the parent entity, it is also possible to directly create child entities as part of the request to create a parent.
+对于标记 `@Composition` 的属性，情况稍有不同。由于组合关系表示子实体只是作为父实体的部分存在，因此也可以直接在创建父实体的请求中创建子实体。
 
-In the next example, the `OrderLine` entity is a child entity of the `Order` entity. This is expressed through the `@Composition` annotation on the `lines` attribute of the `Order` entity.
+下面示例中，`OrderLine` 是 `Order` 的子实体。通过 `Order` 实体 `lines` 属性的 `@Composition` 注解实现。
 
 [source, java]
 .Order.java
@@ -198,12 +196,12 @@ public class Order {
 }
 ----
 
-When you create an order through the API you can directly create its order lines as part of the request. In this case, all the attributes of the child entity need to be provided. The relationship from the parent to the child does not need to be additionally referenced. Putting the child entity into the JSON array is enough to establish the connection.
+当用 API 创建 Order 时，也可以在同一个请求中创建其包含的 order lines。这里需要提供子实体的所有属性，并且无需额外提供父子实体之间的关联关系。将子实体放入 JSON 数组中即可。
 
-The following JSON request will create an order with its order lines:
+下列请求会创建一个 order 及其 order lines：
 
 [source, http request]
-.Request with child entities
+.带有子实体的请求
 ----
 POST http://localhost:8080/rest/entities/sample_Order
 
@@ -229,16 +227,16 @@ POST http://localhost:8080/rest/entities/sample_Order
   ]
 }
 ----
-<1> Order lines are created as an array of JSON objects containing all the attributes of the entity.
-<2> In case a child entity needs to reference another entity (like the `N:1` reference from the `OrderLine` to `Product`), the same rules of referencing via JSON object containing the ID apply.
+<1> Order lines 使用包含所有实体属性的 JSON 对象数组创建
+<2> 如果子实体需要有其他实体的引用（例如 `OrderLine` 和 `Product` 的 `N:1` 关系），一样可以使用 ID 引用的方式。
 
 [[bulk-creation]]
-== Bulk Creation
+== 批量创建
 
-The Create-Entity API also allows you to create multiple entities within one request. For this the JSON request body should contain an array of JSON objects representing each entity.
+实体创建 API 还支持在一个请求中创建多个实体。JSON 请求体需要包含每个实体 JSON 对象的数组。
 
 [source, http request]
-.Bulk Creation Request
+.批量创建请求
 ----
 POST http://localhost:8080/rest
             /entities
@@ -267,7 +265,7 @@ POST http://localhost:8080/rest
 ]
 ----
 
-In case of a violation of an entity validation, the entities will not be created, and a corresponding Error message will be returned. See  <<Entity Validation, Entity Validation>> for further details.
+如果违反了任何实体验证约束，则所有实体都不会创建并返回错误消息。参阅 <<entity-validation, 实体验证>> 了解详情。
 
 ////
 NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.

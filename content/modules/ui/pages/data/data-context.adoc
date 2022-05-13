@@ -1,45 +1,45 @@
-= DataContext
+= 数据上下文
 :page-aliases: backoffice-ui:data/data-context.adoc
 
-`DataContext` is an interface for tracking changes in entities loaded to the UI layer. Tracked entities are marked as "dirty" on any modification of their attributes, and `DataContext` saves dirty entities when its `commit()` method is invoked.
+`DataContext` 是跟踪加载到 UI 层的实体改动的接口。跟踪实体的任何属性修改后都标记成 “dirty”（表示发生变化），然后 `DataContext` 会在调用 `commit()` 方法的时候将发生变化的实体发送到中间件进行保存。
 
-Within `DataContext`, an entity with the given identifier is represented by a single object instance, no matter where and how many times it is used in object graphs.
+在 `DataContext` 内，具有唯一标识符的实体总是以单一的对象实例呈现，不管对象关系图中它在哪里被使用或者使用了多少次。
 
-In order to be tracked, an entity must be put into `DataContext` using its `merge()` method. If the context does not contain the entity with the same id, the context creates a new instance, copies the state of the passed instance to the new one and returns it. If the context already contains an instance with the same id, it copies the state of the passed instance to the existing one and returns it. This mechanism allows the context to always have only one instance of an entity with a particular identifier.
+为了能跟踪实体变化，必须使用其 `merge()` 方法将实体放入 `DataContext` 中。如果数据上下文不包含同样id的实体，则会创建一个新实例，将传递的实体状态拷贝至新实例，并将新实例返回。如果上下文已经有同样id的实例，则会将传递实例的状态拷贝至已经存在的实例并返回。使用这个机制保证在数据上下文中对于同一个 id 始终只有一个实例。
 
-When you merge an entity, the whole object graph with the root in this entity will be merged. That is all referenced entities (including collections) will become tracked.
+当合并实体时，实体内包含根节点的整个实体对象关系图都会被合并。也就是说，所有的引用实体（包括集合）都会处于被跟踪状态。
 
-NOTE: The main rule of using the `merge()` method is to continue working with the returned instance and discarding the passed one. In most cases, the returned object instance will be different. The only exception is when you pass to `merge()` an instance that was earlier returned from another invocation of `merge()` or `find()` of the same context.
+NOTE: 使用 `merge()` 方法的重要原则就是，使用返回的实例进行继续操作而丢掉传入的那个实例。在很多情况下，返回的对象实例会跟传入的不同。唯一的例外是在给 `merge()` 方法传递实例时，如果该实例是在同一个数据上下文中调用另一个 `merge()` 或者 `find()` 返回的实例，则没有区别。
 
-An example of merging an entity into `DataContext`:
+合并实体到 `DataContext` 的示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context;data-manager;collection;load]
 ----
 
-A single instance of `DataContext` exists for a given screen and all its nested fragments. It is created if the `<data>` element exists in the screen XML descriptor.
+对于一个特定的界面和它所有的内部 fragment 来说，只存在一个 `DataContext` 单例。在界面 XML 描述存在 `<data>` 元素的情况下创建。
 
-The `<data>` element can have `readOnly="true"` attribute, in that case, a special "no-op" implementation is used that actually doesn’t track entities and hence doesn’t affect performance. By default, entity browsers scaffolded by Studio have the read-only data context, so if you need to track changes and commit dirty entities in a browser, remove the `readOnly="true"` XML attribute.
+`<data>` 元素可以有 `readOnly="true"` 属性，此时会使用一个特殊的 “不操作” 的 `DataContext` 实现，该实现不跟踪实体的改动，因此不会影响性能。默认情况下，Studio 生成的实体浏览界面会有只读的数据上下文，所以如果需要在实体浏览界面跟踪实体改动并且提交改动的实体，需要再删除 XML 的 `readOnly="true"` 属性。
 
 [[obtaining-data-context]]
-== Obtaining DataContext
+== 获取 DataContext
 
-. `DataContext` of a screen can be obtained in its controller using injection:
+. 界面的 `DataContext` 可以在控制器用注入的方式获取：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData2.java[tags=data-context]
 ----
 +
-. If you have a reference to a screen, you can get its `DataContext` using the `UiControllerUtils` class:
+. 如果只有界面的引用，则可以通过 `UiControllerUtils` 类获取其 `DataContext`：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DepartmentBrowseData.java[tags=sample-method]
 ----
 +
-. A UI component can obtain `DataContext` of the current screen as follows:
+. UI 组件可以通过下面的方法获取当前界面的 `DataContext`：
 +
 [source,java,indent=0]
 ----
@@ -47,39 +47,39 @@ DataContext dataContext = UiControllerUtils.getScreenData(getFrame().getFrameOwn
 ----
 
 [[parent-data-context]]
-== Parent DataContext
+== 父 DataContext
 
-DataContext instances can form parent-child relationships. If a `DataContext` instance has parent context, it commits changed entities to the parent instead of saving them to the data store. This feature enables editing compositions when detail entities are saved only together with the master entity. If an entity attribute is annotated with `@Composition`, the framework automatically sets parent context in the attribute editor screen, so the changed attribute entity will be saved to the data context of the master entity.
+`DataContext` 实例可以形成父子关系。如果一个 `DataContext` 有父上下文，它会将改动的实体提交给父上下文而不是直接保存至数据存储。通过这个功能支持编辑实体的组合关系，从实体只能跟主实体一起保存到数据库。如果一个实体属性使用 `@Composition` 注解，框架会自动在此属性的编辑界面设置父上下文，从而该属性的改动会保存到主实体的数据上下文。
 
-You can easily provide the same behavior for any entities and screens.
+可以很容易为任何实体和界面提供与此相同的行为。
 
-If you open an edit screen that should commit data to the current screen’s data context, use the `withParentDataContext()` method of the builder:
+如果打开的编辑界面需要提交数据到当前界面的数据上下文，可以使用 builder 的 `withParentDataContext()` 方法：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screen-builders;data-context;person-edit]
 ----
 
-If you open a simple screen using the `Screens` bean, provide a setter method accepting the parent data context:
+如果使用 `Screens` bean 打开简单界面，需要提供 setter 方法接收父数据上下文：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/SmplScreen.java[tags=sample-screen]
 ----
 
-And use it after creating the screen:
+然后在创建了界面之后使用：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/PersonBrowseCondition.java[tags=screens;data-context;sample-screen]
 ----
 
-CAUTION: Make sure that the parent data context is not defined with `readOnly="true"` attribute. Otherwise, you will get an exception when trying to use it as a parent for another context.
+CAUTION: 确保父数据上下文没有使用 `readOnly="true"` 属性。否则在使用其作为父上下文的时候会抛出异常。
 
 [[data-context-events]]
-== Events and Handlers
+== 事件和事件处理器
 
-This section describes the DataContext lifecycle events that can be handled in screen controllers.
+本章节介绍可以在界面控制器处理的 DataContext 生命周期事件。
 
 include::events-handlers-generation-data-tip.adoc[]
 
@@ -88,7 +88,7 @@ image::data/data-events.png[align="center"]
 [[data-change]]
 === ChangeEvent
 
-This event is sent when the context detects changes in a tracked entity: a new instance is merged or an entity is removed.
+该事件在上下文检测到跟踪实体变化时发送：合并了新实体或者删除了旧实体。
 
 [source,java,indent=0]
 ----
@@ -98,8 +98,8 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/DataContextEvents.java[ta
 [[data-post-commit]]
 === PostCommitEvent
 
-This event is sent after committing changes.
-In the corresponding event listener, you can get the collection of committed entities returned from the middle tier, for example:
+该事件在提交改动之后发送。
+在对应的事件监听器中，可以获取提交之后的实体集合，示例：
 
 [source,java,indent=0]
 ----
@@ -109,15 +109,15 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/DataContextEvents.java[ta
 [[data-pre-commit]]
 === PreCommitEvent
 
-This event is sent before committing changes.
-In this event listener, you can add arbitrary entity instances to the committed collections returned by `getModifiedInstances()` and `getRemovedInstances()` methods, for example:
+该事件在提交改动之前发送。
+在对应的事件监听器中，可以在 `getModifiedInstances()` 和 `getRemovedInstances()` 方法返回的实体机和中添加任何实体，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/DataContextEvents.java[tags=pre-commit-event]
 ----
 
-You can also prevent the commit using the `preventCommit()` method of the event, for example:
+还可以用事件的 `preventCommit()` 方法阻止提交，示例：
 
 [source,java,indent=0]
 ----
@@ -127,9 +127,9 @@ include::example$/ex1/src/main/java/ui/ex1/screen/data/DataContextEvents.java[ta
 [[commit-delegate]]
 === CommitDelegate
 
-The standard behavior of Jmix UI components suggests CRUD operations on JPA entities. In case of data binding to DTO entities you need to override the built-in logic of working with data context.
+Jmix UI 组件的标准行为是对 JPA 实体进行 CRUD 操作。因此，如果数据绑定至 DTO 实体，则需要重写数据上下文内置的数据处理逻辑。
 
-The `commitDelegate` handler allows you to access the `SaveContext` object containing the modified entity instances. Use it to specify the custom xref:data-access:data-manager.adoc#save[save logic], for example:
+`commitDelegate` 处理器可以访问包含修改过实体实例的 `SaveContext` 对象。用这个对象自定义 xref:data-access:data-manager.adoc#save[保存逻辑]，示例：
 
 [source,java,indent=0]
 ----

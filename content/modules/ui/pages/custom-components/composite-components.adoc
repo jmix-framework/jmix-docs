@@ -1,98 +1,96 @@
-= Composite Components
+= 组合组件
 :page-aliases: backoffice-ui:custom-components/composite-components.adoc
 
 ++++
 <div class="jmix-ui-live-demo-container">
-    <a href="https://demo.jmix.io/sampler/#main/sample?id=composite-component" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+    <a href="https://demo.jmix.io/sampler/#main/sample?id=composite-component" class="live-demo-btn" target="_blank">在线示例</a>
 </div>
 ++++
 
-A composite component is a component consisting of other components. Like xref:using-fragments.adoc[screen fragments], composite components allow you to reuse some presentation layout and logic. We recommend using composite components in the following cases:
+组合组件是由其他多个组件组合而成。与 xref:using-fragments.adoc[界面 fragments] 类似，组合组件也是一种可重用组件，能复用一些展示布局和逻辑。下列情况我们建议使用组合组件：
 
-* The component functionality can be implemented as a combination of existing xref:vcl.adoc[visual components]. If you need some non-standard features, use xref:custom-components/js-component.adoc[Generic JavaScriptComponent].
-* The component is relatively simple and does not load or save data itself. Otherwise, consider creating a screen fragment.
+* 组件功能可以用已有的 xref:vcl.adoc[可视化组件] 以组合的方式来实现。如果需要非标准功能，请使用 xref:custom-components/js-component.adoc[通用 JavaScript 组件]。
+* 组件相对比较简单，本身并不会加载或者保存数据。否则的话，考虑创建界面 fragment。
 
-The class of a composite component must extend the `CompositeComponent` base class. A composite component must have a single component at the root of the inner components tree. The root component can be obtained using the `CompositeComponent.getComposition()` method.
+组合组件的类必须继承 `CompositeComponent` 类，且必须以一个单一组件为内部组件树的基础 - 称为根组件。根组件可以通过 `CompositeComponent.getComposition()` 方法获取。
 
-Inner components are usually created declaratively in an XML descriptor. In this case, the component class should have the `@CompositeDescriptor` annotation, which specifies the path to the descriptor file. If the annotation value does not start with /, the file is loaded from the component’s class package.
+内部组件通常在 XML 描述中通过声明式的方式创建。此时，组件类必须要有 `@CompositeDescriptor` 注解，用来指定相应描述文件的路径。如果注解值不是以 `/` 开头，会从组件类所在的包加载该文件。
 
-Alternatively, the inner components tree can be created programmatically in a `CreateEvent` listener.
+另外，内部组件树也可以在 `CreateEvent` 监听器内通过编程的方式创建。
 
-`CreateEvent` is sent by the framework when it finishes the initialization of the component. At this moment, if the component uses an XML descriptor, it is loaded, and the `getComposition()` method returns the root component. This event can be used for any additional initialization of the component or creating the inner components without XML.
+当框架完成组件的初始化之后，会发送 `CreateEvent` 事件。此时，如果组件使用了 XML 描述，则会进行加载并通过 `getComposition()` 方法返回根组件。这个事件可以用来添加额外的组件初始化逻辑，或者用来创建内部组件（不使用 XML）。
 
-Below we demonstrate the creation of the `Stepper` component, which is designed to edit integer values in the input field by clicking on up/down buttons located next to the field.
+下面我们示范如何创建 `Stepper`（步骤）组件，并通过点击组件旁边的上下按钮来调整输入框的整数值。
 
 [[component-layout-descriptor]]
-== Creating Component Layout Descriptor
+== 创建组件布局描述
 
-Create an XML descriptor with the component layout:
+创建带有组件布局的 XML 描述文件：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/components/stepper/stepper-component.xml[]
 ----
 
-<1> XSD defines the content of the component descriptor.
-<2> A single root component.
-<3> Any number of nested components.
-<4> Specify names of styles, which will be defined later in <<styling, Custom Styling>>. Besides custom styles defined in the project, the following predefined styles are used: xref:vcl/containers/css-layout.adoc#v-component-group[v-component-group], `icon-only`.
+<1> XSD 定义了组件描述的内容
+<2> 单一的根组件
+<3> 任何数量的内部组件
+<4> 指定样式名称，样式会在 <<styling, 自定义样式>> 稍后定义。除了使用项目自定义的样式之外，还使用了这些内置的样式：xref:vcl/containers/css-layout.adoc#v-component-group[v-component-group]、`icon-only`。
 
-== Creating Component Implementation Class
+== 创建组件实现类
 
-Create the component implementation class in the same package:
+在同一个包内创建组件的实现类:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/components/stepper/StepperField.java[]
 ----
 
-<1>  The `@CompositeDescriptor` annotation specifies the path to the component layout descriptor, which is located in the class package.
-<2> The component class extends `CompositeComponent` parameterized by the type of the root component.
-<3> The `StepperField` component implements the `Field<Integer>` interface because it is designed to display and edit an integer value.
-<4> A set of interfaces with default methods to implement standard Jmix UI component functionality.
-<5> Name of the component which is used to register this component to be recognized by the framework.
-<6> Fields containing references to inner components.
-<7> Component’s property, which defines the value of a single click to up/down buttons. It has a public getter/setter methods and can be assigned in screen XML.
-<8> Component initialization is done in the `CreateEvent` listener.
+<1> `@CompositeDescriptor` 注解指定了组件布局的描述文件路径，这个文件也在同一包内。
+<2> 组件类继承了 `CompositeComponent`，使用根组件的类型作为参数。
+<3> `StepperField` 组件实现了 `Field<Integer>` 接口，因为组件要用来展示和编辑一个整数值。
+<4> 一组带有默认方法的接口，实现了 Jmix 标准 UI 组件的功能。
+<5> 组件名称，用来注册组件，以便框架识别。
+<6> 包含内部组件引用的字段。
+<7> 组件的属性，定义单击一次上/下按钮能改变的值。具有公共 getter/setter，并能在界面 XML 中设置。
+<8> 组件初始化在 `CreateEvent` 监听器内完成。
 
-== Creating Component Loader
+== 创建组件加载器
 
-Create the component loader which is needed to initialize the component when it is used in screen XML descriptors:
+创建组件加载器，当组件在界面 XML 描述中使用的时候需要用加载器进行初始化：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/components/stepper/StepperFieldLoader.java[]
 ----
 
-<1> Loader class must extend `AbstractComponentLoader` parameterized by the class of the component. As our component implements `Field`, use a more specific `AbstractFieldLoader` base class.
-<2> Create the component by its name.
-<3> Load the `step` property value from XML if it is specified.
+<1> 加载器类必须继承 `AbstractComponentLoader`，并使用组件类作为参数。由于我们的组件实现了 `Field`，所以可以用更具体的 `AbstractFieldLoader` 作为基类。
+<2> 使用组件名称创建组件。
+<3> 如果在 XML 中设置了 `step` 属性，则进行加载。
 
-== Component Registration
+== 组件注册
 
-To register the component and its loader with the framework, use the `ComponentRegistration` bean with component information:
+为了在框架中注册组件及其加载器，使用 `ComponentRegistration` bean：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/SampleUiApplication.java[tags=stepper-field-registration]
 ----
 
-The code above registers the new `StepperField` component with:
+上面的代码注册了新的 `StepperField` 组件：
 
-* *name*: `StepperField.NAME`;
-* *class*: `StepperField.class`;
-* *XML tag name*: `StepperField.NAME`;
-* *loader class*: `StepperFieldLoader.class`;
+* *name*: `StepperField.NAME`；
+* *class*: `StepperField.class`；
+* *XML tag name*: `StepperField.NAME`；
+* *loader class*: `StepperFieldLoader.class`；
 
-Now the framework will recognize the new component in XML descriptors of application screens.
-
-`ComponentRegistrationBuilder` is a builder class for creating the registration bean.
+现在框架能识别应用程序界面 XML 中包含的新组件了。
 
 [NOTE]
 ====
-Use the Spring `@Order` annotation to handle the order of registering components. The order of providing `ComponentRegistration` beans is very important because components with the same name will be filtered if they have lower priority. For example, we have two configurations:
+使用 Spring 的 `@Order` 注解处理注册组件的顺序。提供 `ComponentRegistration` 的顺序十分重要，因为相同名称优先级低的组件会被过滤掉。例如，我们有这样两个配置：
 
-* configuration from some add-on:
+* 在某些扩展组件内的配置：
 +
 [source,java,indent=0]
 ----
@@ -105,7 +103,7 @@ protected ComponentRegistration newButton() {
             .build();
 }
 ----
-* project configuration with component overriding the `WebChart` component:
+* 在项目中的配置组件覆盖了 `WebChart` 组件：
 +
 [source,java,indent=0]
 ----
@@ -119,47 +117,47 @@ protected ComponentRegistration newButton() {
 }
 ----
 
-In this case, the component from the add-on has lower priority and will not be registered at all. It means that you should provide complete information for the `MyWebChart` component: name, tag (if it is not the same as name), component class, and loader class.
+此时，扩展组件中的配置具有低优先级，则不会被注册。也就是说，如果不希望项目中的配置覆盖扩展组件中的配置，需要提供 `MyWebChart` 组件的完整信息：名称、标签（如果与名称不同）、组件类、加载器类。
 ====
 
-== Creating Component XSD
+== 创建组件 XSD
 
-XSD is required to use the component in screen XML descriptors.
+如果需要在界面 XML 描述中使用组件，则必须有 XSD 定义。
 
-Create the `app-ui-component.xsd` file in same directory as the <<component-layout-descriptor,component layout descriptor>>:
+在 <<component-layout-descriptor,组件布局描述>> 所在目录创建 `app-ui-component.xsd` 文件：
 
 [source,xsd,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/components/stepper/app-ui-components.xsd[]
 ----
 
-<1> Inherit all base field properties.
-<2> Define an attribute for the `step` property.
+<1> 继承所有基本的字段属性。
+<2> 为 `step` 定义属性。
 
 [[styling]]
-== Custom Styling
+== 自定义样式
 
-Now let’s apply some custom styles specified earlier in the xref:vcl/xml.adoc#stylename[stylename] attribute to improve the component look.
+现在我们对 xref:vcl/xml.adoc#stylename[stylename] 属性指定的样式名使用一些自定义的样式让组件变得更好看一些。
 
-Create a xref:themes/custom_theme.adoc[custom theme] and add some CSS styles:
+创建一个 xref:themes/custom_theme.adoc[自定义主题]，并添加一些 CSS 样式：
 
 [source, css,indent=0]
 ----
 include::example$/ex1/src/main/themes/helium-ext/helium-ext.scss[tags=helium-start;stepper-field;helium-end]
 ----
 
-== Using Composite Component
+== 使用组合组件
 
-The following example shows how the component can be used in a screen:
+下面的示例展示了如何在界面中使用该组件：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/ui/ex1/screen/component/compositecomponent/composite-component-screen.xml[]
 ----
 
-<1> The namespace referencing the component’s XSD.
-<2> The composite component connected to the `rating` attribute of an entity.
+<1> 命名空间引用了组件的 XSD。
+<2> 组合组件连接到实体的 `rating` 属性。
 
-Restart the application server and open the screen. The form with our composite `Stepper` component should look as follows:
+重启应用程序服务并打开界面。带有我们组合 `Stepper` 组件的表单如下：
 
 image::vcl/components/composite-component.png[align="center"]

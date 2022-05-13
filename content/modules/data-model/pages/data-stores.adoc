@@ -1,109 +1,109 @@
-= Data Stores
+= 数据存储
 
-A data store represents a database or any other source of data in your application.
+数据存储表示应用程序中的数据库或任何其他数据源。
 
-Jmix provides `JpaDataStore` which stores xref:entities.adoc#jpa[JPA entities] in a relational database. This is the main persistence mechanism in Jmix applications, and when we mention a data store in this manual, we always mean `JpaDataStore` if not explicitly stated otherwise.
+Jmix 提供了 `JpaDataStore`，它将 xref:entities.adoc#jpa[JPA 实体] 存储在关系型数据库中。 这是 Jmix 应用程序中的主要的持久化机制，如果没有明确说明，在本手册中提到数据存储都是指  `JpaDataStore` 。
 
 [[main]]
-== Main Store
+== 主数据存储
 
-When you create a new Jmix project in Studio, it has a single data store called _main_ that connects to a relational database. The connection parameters are specified in the following application properties:
+当您使用 Studio 创建一个新的 Jmix 项目时，它会有一个名为 _main_ 的数据存储用来连接到一个关系型数据库。 连接参数通过以下应用程序属性指定：
 
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=main-data-store]
 ----
 
-TIP: Use Studio interface to define database connection properties for a data store.
+TIP: 可以使用 Studio 图形界面为数据存储定义数据库连接参数。
 
-The main application class contains a corresponding JDBC `DataSource` bean declaration:
+主应用程序类包含一个对应的 JDBC `DataSource` bean 声明：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/SampleDataModelApplication.java[tags=main-data-source]
 ----
 
-All JPA entities by default are associated with the main data store.
+所有的 JPA 实体均默认关联到主数据存储。
 
 [[additional]]
-== Additional Stores
+== 附加数据存储
 
-In order to work with multiple databases, you need additional data stores.
+如果需要处理多个数据库，您需要 additional data stores - 附加数据存储。
 
-TIP: Use Studio interface to define additional data stores.
+TIP: 可以使用 Studio 图形界面定义附加数据存储。
 
-Each additional store has a unique name, which is specified in the comma-separated list of the `jmix.core.additionalStores` application property. Parameters of the database connection have the store name as a prefix. In the examples below, the `locations` additional store is configured:
+每个附加数据存储都有唯一的名称，该名称在 `jmix.core.additionalStores` 应用程序属性指定, 该属性是一个以逗号做为分隔符的列表。 数据库连接的参数以数据存储的名称作为前缀。 在下面的示例中，配置了一个名称为 `locations` 的附加数据存储：
 
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=add-data-store]
 ----
 
-For each additional store, Studio creates a Spring configuration class and defines the JDBC `DataSource` and other related beans in it:
+对于每个额外数据存储，Studio 会创建一个 Spring 配置类并在其中定义 JDBC `DataSource` 和其他相关的 bean：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/LocationsStoreConfiguration.java[tags=add-data-source]
 ----
 
-To associate an entity with an additional data store, use the `@Store` annotation on the entity class:
+要将一个实体与附加数据存储关联，用 `@Store` 标注它：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Country.java[tags=store-ann]
 ----
 
-TIP: Studio adds `@Store` annotation when you select an additional data store for the entity in the entity designer.
+TIP: 当您在实体设计器中为实体选择附加数据存储时，Studio 会帮你添加 `@Store` 注解。
 
-In the example above, the `Country` entity will be stored in the database connected as the `locations` data store.
+在上面的示例中，`Country` 实体将被存储在 `locations` 数据存储连接的数据库中。
 
 [[custom]]
-== Custom Data Store
+== 定制数据存储
 
-A custom data store may help you to work with some DTO entities in the same way as with JPA entities - by using `DataManager`. If your DTO entity is associated with a custom store, `DataManager` will delegate its CRUD operations to your data store and use it when resoving references to your DTOs from other entities.
+定制数据存储可以帮助您以处理 JPA 实体相同的方式处理某些 DTO 实体 - 通过使用 `DataManager`。 如果您的 DTO 实体与定制数据存储关联，则 `DataManager` 会为您代理定制数据存储的 CRUD 操作，并能处理其他实体对 DTO 的引用。
 
-Let's consider the process of creating a custom data store. Imagine a transient `Metric` entity and an in-memory store for it.
+我们来看一下创建定制数据存储的过程。 假设一个 transient 的 `Metric` 实体，它存储在内存中。
 
-. Create a class that implements the `DataStore` interface. The class must be a Spring prototype bean. The example below contains a primitive implementation that is capable of storing entities of different types in memory.
+. 创建一个实现 `DataStore` 接口的类。 该类必须是 Spring prototype bean。 下面是一个能够在内存中存储不同类型实体的基本实现。
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/store/InMemoryStore.java[tags=custom-store-1;custom-store-2]
 ----
 
-. Create a class that implements the `StoreDescriptor` interface. It must be a Spring singleton bean, and its `getBeanName()` method must return the name of the data store implementation bean created on the previous step:
+. 创建一个实现 `StoreDescriptor` 接口的类。 它必须是一个 Spring singleton bean，它的 `getBeanName()` 方法必须返回上一步创建的实现 `DataStore` bean 的名称：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/store/InMemoryStoreDescriptor.java[tags=custom-store]
 ----
 
-. Add the data store name (`inmem` in this case) to the `jmix.core.additionalStores` property:
+. 将数据存储名称（在本例中为 `inmem`） 添加到 `jmix.core.additionalStores` 属性：
 +
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-1]
 ----
 
-. Set the `StoreDescriptor` bean name in the `jmix.core.storeDescriptor_<store_name>` property:
+. 在 `jmix.core.storeDescriptor_<store_name>` 属性中设置 `StoreDescriptor` bean 名称：
 +
 [source,properties]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=custom-data-store-2]
 ----
 
-. Add `@Store` annotation to the entity:
+. 为实体添加 `@Store` 注解：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Metric.java[tags=custom-store]
 ----
 
-. Now you can save and load the entity using `DataManager` and it will delegate the CRUD operations to your custom data store:
+. 现在您可以使用 `DataManager` 保存和加载实体了，它会帮您代理定制数据库存储的 CRUD 操作：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/test/java/datamodel/ex1/EntitiesTest.java[tags=custom-store]
 ----
 +
-Also, if another entity has a reference to `Metric`, the `Metric` instance will be loaded automatically when accessing the reference attribute.
+此外，如果另一个实体引用了 `Metric`，则在访问该引用属性时会自动加载 `Metric` 实例。

@@ -1,16 +1,16 @@
-= Update Entities
+= 更新实体
 
-The Entities API also allows you to update already existing entities through the endpoint: `/entities/:entityName/:entityId` with the HTTP method `PUT`.
+实体 API 支持通过 `/entities/:entityName/:entityId` 接口的 `PUT` 请求更新已有实体。
 
 [[update-entity]]
-== Update an Entity
+== 更新单一实体
 
-When the entity is updated successfully, the HTTP response status code `200 - OK` is returned. By default, a JSON metadata representation of the entity is returned mainly containing the `id` attribute for further reference.
+当实体更新成功后，HTTP 返回状态码 `200 - OK`。默认情况下，会返回一个带有实体元数据的 JSON 对象，主要包含新建实体的 `id` 属性，以便将来使用。
 
-Here is an example of how to update an entity:
+更新实体示例：
 
 [source, http request]
-.Create Customer Request
+.更新 Customer 请求
 ----
 PUT http://localhost:8080/rest
             /entities
@@ -32,20 +32,20 @@ PUT http://localhost:8080/rest
 }
 ----
 
-The Update Entity API behaves similarly to the xref:entities-api/create-entities.adoc[Create Entities API] regarding validation and entity references. The main difference is how `1:N` associations and compositions are handled. The endpoint also allows you to <<Partial Updates,partially update entities>> by only having those attributes in the request JSON.
+在实体验证和实体关联方面，更新实体的 API 与 xref:entities-api/create-entities.adoc[创建实体 API] 类似。主要区别是如何处理 `1:N` 关联和组合。实体更新接口还支持 <<partial-updates,实体部分更新>>，在请求 JSON 中可以只包含需要更新的属性。
 
 
 [[association-attributes]]
-== Association Attributes
+== 关联属性
 
-In case you want to update a `1:1` or `N:1` association attribute, it is enough to send the new ID of the entity to reference. For `1:N` or `M:N` associations an updated list of entity references changes what the entity is associated to.
+如需更新 `1:1` 或 `N:1` 关联属性，只需要发送关联实体的新 ID 即可。对于 `1:N` 或 `M:N` 关系，需要发送实体变更关联的多个实体列表。
 
-CAUTION: The Update Entity endpoint will _replace_ the existing association collection for a `1:N` or `M:N` association with what is part of the request. For every entity reference that is not part of the request, the reference will be removed. But, the entity that has been referenced _will not be deleted_ from the database.
+CAUTION: 更新实体接口会用请求内的数据 _替换_ 掉已有的 `1:N` 或 `M:N` 关联集合。即，会删除请求中没有的实体引用。只是删除引用关系，不会删除引用实体本身。
 
-In this example, you will see how to update an `M:N` association between `Product` and `ProductTag`. Assuming that the stored Product before the update looks like this:
+下面例子中，展示如何更新 `Product` 和 `ProductTag` 之间的 `M:N` 关系。假设在更新执行前 Product 数据如下：
 
 [source, json]
-.Existing Product
+.已有的 Product
 ----
 {
   "id": "e1d586b4-aefb-2ee7-3b91-b07357b178ea",
@@ -65,14 +65,14 @@ In this example, you will see how to update an `M:N` association between `Produc
 }
 ----
 
-In this example you would like to change the tags of the Product in the following ways:
+然后，我们希望这样修改 Product 的标签：
 
-* `great` should be removed from the tags.
-* `amazing` should be added to the tags.
-* The tag `shiny` should be kept.
+* 删除 `great` 标签。
+* 添加 `amazing` 标签。
+* 保留 `shiny` 标签。
 
 [source, http request]
-.Update Tag Associations Request
+.更新关联 Tag 请求
 ----
 PUT http://localhost:8080/rest
             /entities
@@ -93,10 +93,10 @@ PUT http://localhost:8080/rest
   ]
 }
 ----
-<1> The ID of the product tag `shiny` is part of the request to keep the association.
-<2> The ID of the product tag `amazing` is newly added to the association.
+<1> 请求中带了 `shiny` 标签的 ID，这样此标签可以保留。
+<2> `amazing` 标签的 ID，添加新的标签。
 
-NOTE: As the ID of the product tag `great (c4c028f0-fec1-7512-83cd-c17537d1f502)` is not part of the request anymore, it will be removed from the association.
+NOTE: 由于请求中没有标签 `great（c4c028f0-fec1-7512-83cd-c17537d1f502）` 的 ID，因此，该标签的关联关系将被删除。
 
 [source,json]
 .Response: 200 - OK
@@ -119,26 +119,26 @@ NOTE: As the ID of the product tag `great (c4c028f0-fec1-7512-83cd-c17537d1f502)
   ]
 }
 ----
-<1> The `shiny` reference is still there, as it was part of the request
-<2> The `amazing` reference has been added, whereas the tag `great` is not part of the association anymore.
+<1> 保留了 `shiny` 的关联。
+<2> 新增了 `amazing` 的关联，但是 `great` 的关联已经删除了。
 
 [NOTE]
-.Remove `*:1` Entity References
+.删除 `*:1` 实体关联
 ====
-To remove a reference for `N:1` or `1:1` associations, you need to send in `null` as a value. The absence of the attribute in the request will _not_ lead that the reference is removed, because of the <<Partial Updates>> feature. In this case, the attribute would just be ignored and not changed as part of the request.
+如需删除 `N:1` 或 `1:1` 关联关系，需要发送该属性值 `null`。由于有 <<partial-updates>> 功能，请求中缺失该属性不会导致删除关联关系，仅仅是被忽略而已。
 ====
 
 [[composition-attributes]]
-== Composition Attributes
+== 组合属性
 
-In case you want to update a Composition attribute, it is possible to directly update the content of the child entity as part of the update request for the parent entity. This is true for `1:1` as well as `1:N` compositions.
+如需更新组合关系属性，可以直接在更新父实体的请求中更新子实体，适用于 `1:1` 和 `1:N` 组合关系。
 
-CAUTION: the Update Entity endpoint will _replace_ the existing composition collection with what is part of the request. For every entity reference that is not part of the request, the reference will be removed. Moreover, the entity that has been referenced before _will be deleted_ from the application as well.
+CAUTION: 更新实体接口会用请求内的数据 _替换_ 掉已有的组合关系集合。即，会删除请求中没有的实体引用。而且，引用实体本身也会被删除。
 
-In this example, you will see how to update a `1:N` composition between `Order` and `OrderLine`. Assuming that the stored Order before the update looks like this:
+下面示例中，展示如何更新 `Order` 和 `OrderLine` 的 `1:N` 组合关系。假设更新前的 Order 实体如下：
 
 [source, json]
-.Existing Order
+.已有 Order
 ----
 {
   "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
@@ -171,17 +171,17 @@ In this example, you will see how to update a `1:N` composition between `Order` 
   }
 }
 ----
-<1> The first order line references the `Solar-One HUP Flooded Battery 48V` product.
-<2> The second order line references the `Cotek Battery Charger` product.
+<1> 第一个 order line 关联 `Solar-One HUP Flooded Battery 48V` product。
+<2> 第二个 order line 关联 `Cotek Battery Charger` product。
 
-In this example you would like to change the order lines in the following ways:
+然后，我们希望这样修改 order lines：
 
-* The `quantity` of the Order Line with the product `Solar-One HUP Flooded Battery 48V` should be increased to `3.0`.
-* The order line with the product `Cotek Battery Charger` should be removed.
-* A new order line with the product `Outback Power Remote Power System` should be added.
+* 有 `Solar-One HUP Flooded Battery 48V` 产品的 order Line 的 `quantity` 上调至 `3.0`。
+* 删除具有 `Cotek Battery Charger` 产品的 order line。
+* 添加具有 `Outback Power Remote Power System` 产品的 order line。
 
 [source, http request]
-.Update Composition Request
+.更新组合请求
 ----
 PUT http://localhost:8080/rest
             /entities
@@ -214,13 +214,13 @@ PUT http://localhost:8080/rest
   ]
 }
 ----
-<1> The ID of the existing order line is added to update the existing order line
-<2> The `quantity` value is set to `3.0` for the `Solar-One HUP Flooded Battery 48V` product
-<3> A new order line is added for the product `Outback Power Remote Power System`
+<1> 已有 order line 的 ID，用来更新此 order line
+<2> `Solar-One HUP Flooded Battery 48V` 产品的数量设置为 `3.0`
+<3> 添加新的 order line，有产品 `Outback Power Remote Power System`
 
-NOTE: When updating a child entity, like the order line in the example above, the ID of the existing order line needs to be added, so that Jmix recognizes it as an update. Otherwise, it would treat the child entity as a new entity.
+NOTE: 当更新子实体时，例如上面示例中的 order line，需要添加已有 order line 的 id，Jmix 才能识别是需要更新。否则，将作为新建子实体处理。
 
-The response to this update request contains the desired changes:
+更新请求的返回符合我们的要求：
 
 [source,json]
 .Response: 200 - OK
@@ -255,20 +255,18 @@ The response to this update request contains the desired changes:
   }
 }
 ----
-<1> The `quantity` has been updated for `Solar-One HUP Flooded Battery 48V`.
-<2> The `version` attribute was increased to indicate the update.
-<3> The new order line for `Outback Power Remote Power System` has been added to the order.
-
-With this response, the order lines of the Order have been successfully updated.
+<1> `quantity` 属性已经更新。
+<2> `version` 也增加了，表示数据有更新。
+<3> order 中增加了 `Outback Power Remote Power System` 的 order line。
 
 [IMPORTANT]
 ====
-When a child entity should not be updated, but still be kept in the composition, the ID of the existing order line needs to be part of the request nevertheless. This way Jmix recognizes it as still being part of the composition and does not delete it. Not putting that ID into the request would lead to Jmix deleting the entity (as this is how `@Composition` is handled), which might be considered accidental behavior, but is behaving as designed.
+当子实体不需要更新且仍然保留与父实体的组合关系时，尽管如此，请求中还是需要有它们的 ID。这样 Jmix 才能识别这些实体仍然是组合关系的一部分，而不会删除它们。如果不带这些实体的 ID，会导致 Jmix 删除这些实体（这是 `@Composition` 本身的处理逻辑）。
 
-In the example from above when the order line for `Cotek Battery Charger (55b925e5-9f3a-a725-9eb3-1240f9c1fe9)` should not be changed at all, in the update it still needs to be listed with its ID:
+例如，上面的示例中，如果不更新 `Cotek Battery Charger (55b925e5-9f3a-a725-9eb3-1240f9c1fe9)` order line，则仍然需要将它的 ID 列在请求中：
 
 [source, json]
-.Update Composition Request containing non-changing child entities
+.更新组合请求，包含无改动子实体
 ----
 {
   "lines": [
@@ -293,31 +291,31 @@ In the example from above when the order line for `Cotek Battery Charger (55b925
   ]
 }
 ----
-<1> Child entities that are not changed (like `Cotek Battery Charger`) but should still be part of the composition are referenced through its `id`.
+<1> 无需改动的子实体（例如，`Cotek Battery Charger`），仍然需要提供 `id`。
 
 ====
 
 
 [[security-constraints-for-associations]]
-== Security Constraints for Association/Composition
+== 关联/组合的安全约束
 
-As we learned above, the Update Entity endpoint will _replace_ the existing association/composition collection with what is part of the request. For every entity reference that is not part of the request, the reference will be removed. Moreover, the entity that has been referenced before _will be deleted_ from the application as well.
+从上面的内容我们可以知道，实体更新接口会用请求中的数据 _替换_ 掉已有的关联/组合实体集合。并且会删除请求中没有的实体关联关系。还有，甚至还有可能会 _删除_ 实体本身。
 
-Having that in mind, let's see how this situation behaves when Jmix Row-level Security is active for an entity:
+这样的话，我们看看在启用 Jmix 行级数据安全机制的情况下，会有什么问题：
 
-Assuming you load an `Order` instance together with the nested collection of `OrderLine` instances.
+假设你加载 `Order` 实例及其内部的 `OrderLine` 实例集合。
 
-There are security constraints that filter out some `OrderLine` instances, so you don't load them and don't know they exist. Say `line5` is not loaded by the client but exists in the database. If you update the Order and remove `line2` from the order lines, there are two outcomes:
+有一些安全约束，导致某些 `OrderLine` 实例被过滤掉，因此你无法加载这些关联的实体，也不知道它们的存在。假设 `line5` 没有被加载，但是却存在于数据库。如果此时，你更新了 Order 实体，并删除 order line 中的 `line2`，那么会有两种结果：
 
-* If the constraints have not been changed since you loaded the entities, the framework restores the filtered `line5` instance in the collection and deletes only `line2`, which is the correct behavior.
-* If the constraints have been changed in a way that `line5` is now available to you, the framework cannot restore the information about filtered collection elements correctly. As a result, both `line2` and `line5` will be deleted.
+* 如果安全约束从加载实体后没有变化，那么框架会恢复集合中过滤掉的 `line5`，只删除 `line2`，这个是正确的行为。
+* 如果约束变化了，此时你能看到 `line5`，那么框架就无法正确恢复集合中的元素，结果就是 `line2` 和 `line5` 都被删除。
 
-You can eliminate possible data loss by sending a special system attribute in the JSON representing your entities. This attribute is called `__securityToken` and automatically included in resulting JSON if the `jmix.core.entitySerializationTokenRequired` application property is set to `true`.
+因此，想避免可能引起的数据丢失，需要在表示实体的 JSON 中发送一个特殊的系统属性。该属性称为 `__securityToken`，如果 `jmix.core.entitySerializationTokenRequired` 系统参数设置为 `true`，则返回结果 JSON 中会自动包含该属性。
 
-Once you receive this `__securityToken` as part of the load response of the Entity, you can pass the value on to the Update Entity request. Here is an example of entity JSON including security token:
+如果在加载实体的返回体中收到了 `__securityToken` 属性，可以将该属性值与更新实体请求一并发送。下面是包含安全 token 的请求 JSON：
 
 [source, json]
-.Request with Security Token
+.带有安全 token 的请求
 ----
 {
   "id": "fa430b56-ceb2-150f-6a85-12c691908bd1",
@@ -334,19 +332,19 @@ Once you receive this `__securityToken` as part of the load response of the Enti
   "__securityToken": "0NXc6bQh+vZuXE4Fsk4mJX4QnhS3lOBfxzUniltchpxPfi1rZ5htEmekfV60sbEuWUykbDoY+rCxdhzORaYQNQ==" // <1>
 }
 ----
-<1> The Security Token is the value that has been previously received by the Load Entities API.
+<1> 安全 token 的值是之前使用实体加载 API 获取的。
 
-The `__securityToken` attribute contains encoded identifiers of filtered instances, so the framework can always restore the required information regardless of changes in constraints.
+`__securityToken` 属性包含被过滤实体的加密 id，因此框架总是可以通过这些信息恢复实体集合，无需考虑安全约束的变化。
 
 [[partial-updates]]
-== Partial Updates
+== 部分更新
 
-It is possible to only send in the attributes that should be changed. In this case, all other attributes of the entity will stay untouched.
+可以只发送需要修改的属性。此时实体的其他属性将保持不变。
 
-In the example below, you can send in an updated order date of the `Order` entity. Although the Order entity contains more attributes like `customer`, `amount`, `lines`.
+下面的示例中，可以只传入 `Order` 实体修改的 `date` 属性，尽管 Order 实体还包含其他属性，例如，`customer`、`amount`、`lines`。
 
 [source, http request]
-.Partial Order Update Request
+.Order 部分更新请求
 ----
 PUT http://localhost:8080
          /entities
@@ -369,18 +367,18 @@ PUT http://localhost:8080
   "version": 2 //<3>
 }
 ----
-<1> The `date` attribute was updated to the new order date.
-<2> Other attributes of the entity stay untouched.
-<3> The `version` attribute of the Order entity was increased to indicate the update.
+<1> `date` 属性更新为新的时间。
+<2> 实体的其他属性保持不变。
+<3> Order 的 `version` 属性增加了，表示实体已更新。
 
 
 [[bulk-update]]
-== Bulk Update
+== 批量更新
 
-The Update-Entity API also allows you to update multiple entities within one request. For this, the JSON request body should contain an array of JSON objects representing each entity.
+实体更新 API 还支持在一个请求中更新多个实体。只需在 JSON 请求体中包含每个实体的 JSON 对象即可。
 
 [source, http request]
-.Bulk Update Request
+.批量更新请求
 ----
 PUT http://localhost:8080/rest
             /entities
@@ -413,7 +411,8 @@ PUT http://localhost:8080/rest
 ]
 ----
 
-In case of a violation of an entity validation, the entities will not be created, and a corresponding Error message will be returned. See  xref:entities-api/create-entities.adoc#_entity_validation[Entity Validation] for further details.
+如果违反了任何实体验证约束，则所有实体都不会更新并返回错误消息。参阅 xref:entities-api/create-entities.adoc#_entity_validation[实体验证] 了解详情。
+
 
 ////
 NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.

@@ -1,98 +1,98 @@
-= Using DataManager
+= 使用 DataManager
 
-`DataManager` is the main interface for CRUD (Create, Read, Update, Delete) operations on entities. It allows you to load graphs of entities by ID or query, to save changed instances or remove them. You can use xref:data-access:entity-events.adoc[entity event] listeners to perform actions on loading and saving of particular entities. `DataManager` maintains cross-datastore references for both JPA, DTO, and mixed entity graphs.
+对实体进行 CRUD 操作的主要接口是 `DataManager`。基本功能包括通过 ID 或查询语句加载实体关系图、保存实体和删除实体。可以用实体事件监听器在加载和保存特定实体时做一些额外的操作。`DataManager` 中也维护了跨数据库的实体引用，包括 JPA、DTO 和混合实体的实体关系图。
 
-You can inject `DataManager` to a Spring bean or a screen controller, for example:
+可以在 Spring bean 或界面控制器内注入 `DataManager`，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=inject-dm]
 ----
 
-In the examples below, we skip the definition and assume that the `dataManager` variable is a reference to `DataManager`.
+在下面的所有例子中，我们都省略定义的代码并默认 `dataManager` 变量就是 `DataManager`。
 
 [[load]]
-== Loading Entities
+== 加载实体
 
-`DataManager` provides a fluent API for loading entities. Use `load()` methods accepting entity class or `Id` as entry points to this API.
+`DataManager` 提供加载实体的流式接口。流式接口的入口是使用 `load()` 方法，该方法可以接收实体类或者 `Id` 参数。
 
 [[load-by-id]]
-=== Loading Entity by Id
+=== 用 Id 加载实体
 
-The following method loads an entity by its identifier value:
+下面的方式使用实体的 id 加载实体：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-id]
 ----
-<1> Entry point to the fluent loader API.
-<2> `id()` method accepts the identifier value.
-<3> `one()` method loads the entity instance. If there is no entity with the given identifier, the method throws `IllegalStateException`.
+<1> 流式加载器 API 的入口。
+<2> `id()` 接收 id 值。
+<3> `one()` 方法加载实体实例。如果给定的 id 匹配不到实体，该方法会抛出 `IllegalStateException`。
 
-The identifier can also be specified using `Id<E>` class which contains information about the entity type. Then the application code doesn't need to use concrete type of the entity identifier (`UUID`, `Long`, etc.) and the loading code becomes even shorter:
+实体标识符还可以使用 `Id<E>` 类指定，该类包含实体类型的信息。代码中就不需要使用实体 id 的具体类型（`UUID`、`Long` 等）了，加载实体的代码也更加简洁：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-generic-id]
 ----
 
-If the entity with the given identifier may not exist, instead of `one()` terminal method use `optional()` which returns `Optional<E>`. In the example below, if the entity not found, a new instance is created and returned:
+如果给定 id 的实体可能不存在的话，除了用 `one()` 结束流式操作之外，还可以使用 `optional()` 返回 `Optional<E>`。下面的示例中，如果实体不存在，则会创建一个新实体并返回：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-optional]
 ----
-<1> Returns `Optional<Customer>`.
+<1> 返回 `Optional<Customer>`。
 
-You can also load a list of entities by their identifiers passed to the `ids()` method, for example:
+也可以用 `ids()` 方法接收多个实体 id 加载实体列表，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-ids]
 ----
 
-Entities in the result list have the same order as provided identifiers.
+结果列表中的实体顺序与 id 传入的顺序一致。
 
 [[load-all]]
-=== Loading All Entities
+=== 加载所有实体
 
-The following method loads all instances of the entity in a list:
+下面的方法将所有的实体加载到一个列表中：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-all]
 ----
 
-CAUTION: Load all instances only if you are sure that the number of rows in the corresponding table is always low. Otherwise, use a <<load-by-query,query>>, <<load-by-conditions,conditions>> and/or <<paging-and-sorting,paging>>.
+CAUTION: 仅当你确定表格中的数据不多时才加载所有实体。否则，请使用 <<load-by-query,查询语句>>、<<load-by-conditions,查询条件>> 以及 <<paging-and-sorting,分页查询>>。
 
 [[load-by-query]]
-=== Loading Entities by Query
+=== 用查询语句加载实体
 
-When working with relational databases, use https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] queries to load data. See the xref:data-access:jpql-extensions.adoc[] for information on how JPQL in Jmix differs from the JPA standard. Also note that `DataManager` can execute only "select" queries.
+当使用关系型数据库时，可以用 https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] 查询语句加载实体。参阅 xref:data-access:jpql-extensions.adoc[] 了解 Jmix 中的 JPQL 与 JPA 标准有何不同。还有一点需要注意，`DataManager` 只能执行 "select" 查询语句。
 
-The following method loads a list of entities using a full JPQL query and two parameters:
+下面的方法使用完整的 JPQL 和两个参数加载实体列表：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-full-query]
 ----
 
-The `query()` method of the fluent loader interface accepts both full and abbreviated query string. The latter should be created in accordance with the following rules:
+流式加载器接口的 `query()` 方法可以使用完整的或者简写的查询语句。如果使用简写的查询语句，则需要遵守下列规则：
 
-* You can always omit the `"select <alias>"` clause.
+* 可以省略 `"select <alias>"` 语句。
 
-* If the `"from"` clause contains a single entity and you don’t need a specific alias for it, you can omit the `"from <entity> <alias> where"` clause. In this case, the framework assumes that the alias is `e`.
+* 如果 `"from"` 语句中只包含单一实体，且不需要一个特殊的别名，则可以省略 `"from <entity> <alias> where"` 语句。此时，实体的默认别名为 `e`。
 
-* You can use positional parameters and pass their values right to the `query()` method as additional arguments.
+* 可以用占位参数，然后直接在 `query()` 方法中用额外参数的方式传递参数值。
 
-Below is an abbreviated equivalent of the previous example:
+下面是前一个列子的简写版本：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-query]
 ----
 
-An example of a more complex abbreviated query with join:
+带有 join 语句的复杂查询的省略写法：
 
 [source,java,indent=0]
 ----
@@ -100,26 +100,26 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=l
 ----
 
 [[load-by-conditions]]
-=== Loading Entities by Conditions
+=== 使用 Conditions 加载实体
 
-You can use conditions instead of a JPQL query to filter results. For example:
+除了 JPQL 查询语句，还可以直接使用查询条件过滤结果。示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-conditions]
 ----
-<1> `condition()` method accepts a single root condition.
-<2> `LogicalCondition.and()` method creates AND condition with the given nested conditions.
-<3> Property conditions compare entity attributes with the specified values.
+<1> `condition()` 方法接收最外层条件。
+<2> `LogicalCondition.and()` 方法使用内部的条件创建一个 AND 条件。
+<3> 属性条件比较实体属性和指定的值
 
-If you need a single property condition, pass it directly to the `condition()` method:
+如果仅需要单一属性条件，直接将条件传递给 `condition()` 方法即可：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-by-condition]
 ----
 
-`PropertyCondition` lets you specify properties of referenced entities, for example:
+`PropertyCondition` 还可以使用引用实体的属性，示例：
 
 [source,java,indent=0]
 ----
@@ -127,56 +127,56 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=l
 ----
 
 [[load-scalars]]
-=== Loading Scalar and Aggregate Values
+=== 加载纯数值和聚合值
 
-Besides entity instances, `DataManager` can load scalar and aggregate values in the form of xref:data-model:entities.adoc#key-value[key-value entities].
+除了实体实例之外，`DataManager` 还能以 xref:data-model:entities.adoc#key-value[key-value 实体] 的形式加载纯数值和聚合值。
 
-The `loadValues(String query)` method loads a list of `KeyValueEntity` instances populated with a given query results. For example:
+`loadValues(String query)` 方法加载由给定查询结果填充的 `KeyValueEntity` 实例的列表。示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-values]
 ----
-<1> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
-<2> Specify names of the resulting key-value entity attributes. The order of the properties must correspond to the columns in the query result set.
-<3> Get loaded values from the key-value entity attributes.
+<1> 指定数据所在的数据存储。如果实体在主数据存储，则可以省略该方法。
+<2> 指定结果 key-value 实体中的属性名称。属性名的顺序要与查询语句中结果集字段的顺序一致。
+<3> 从 key-value 实体属性获取加载的值。
 
-The `loadValue(String query, Class valueType)` method loads a single value of the given type by the query. For example:
+`loadValue(String query, Class valueType)` 方法加载由查询语句指定的单一类型值。示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-value]
 ----
-<1> The type of the returned value.
-<2> Specify data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+<1> 返回值的类型。
+<2> 指定数据所在的数据存储。如果实体在主数据存储，则可以省略该方法。
 
 [[paging-and-sorting]]
-=== Paging and Sorting
+=== 分页和排序
 
-When you load entities using `all()`, `query()` or `condition()` methods, you can also sort results and split them into pages.
+当使用 `all()`、`query()` 或 `condition()` 方法加载实体时，还可以对结果进行排序或分页。
 
-Use `firstResult()` and `maxResults()` methods for paging:
+使用 `firstResult()` 和 `maxResults()` 方法进行分页：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-page-by-query]
 ----
 
-Use `sort()` method for sorting results:
+使用 `sort()` 方法对结果排序：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=load-and-sort]
 ----
 
-In the `Sort.by()` method, you can specify properties of referenced entities, for example:
+`Sort.by()` 方法中，还可以指定引用实体的属性，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=load-sorted]
 ----
 
-When loading by a JPQL query, you can also use the standard `order by` clause in the query:
+当用 JPQL 查询时，也可以使用标准的 `order by` 语句：
 
 [source,java,indent=0]
 ----
@@ -184,36 +184,36 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tag
 ----
 
 [[save]]
-== Saving Entities
+== 保存实体
 
-Use `save()` method to save new and modified entities in the database.
+用 `save()` 方法保存新建和修改过的实体至数据库。
 
-In the simplest form, the method accepts an entity instance and returns a saved instance:
+最简单的形式，该方法接收一个实体实例，返回一个保存了的实例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=save]
 ----
 
-NOTE: Usually the passed and returned instances are not the same. The returned instance can be affected by entity event listeners, database triggers or access control rights. So if you need to save an entity and then continue working with it, always use the instance returned from the `save()` method.
+NOTE: 通常传入和返回的实例并不相同。返回的实例可能会受实体事件监听器、数据库触发器或访问控制权限影响。因此，如果需要保存实体后继续处理该实体，则需要使用 `save()` 方法返回的实例。
 
-The `save()` method can accept multiple instances at once. In this case, it returns the `EntitySet` object which can be used to easily get the saved instances. In the example below, we create and save two linked entities, and return one of them:
+`save()` 方法可以一次接收多个实例。此时，它返回 `EntitySet` 对象，可以用来获取保存的实例。下面的例子中，我们创建并保存两个相关联的实体，并返回其中一个：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=save-multiple]
 ----
-<1> Save two linked entities. The order of `save()` parameters is not important.
-<2> The `EntitySet.get()` method lets you obtain the saved instance by its source instance.
+<1> 保存关联实体。`save()` 方法参数的顺序不重要。
+<2> `EntitySet.get()` 方法可以通过源实例获取保存后的实例。
 
-The most powerful form of the `save()` method accepts `SaveContext` object that can be used to add multiple instances and specify additional parameters of saving. In the example below, we save a collection of entities using `SaveContext`:
+`save()` 方法最强大的形式是能接收 `SaveContext` 对象，这个对象能用来添加多个实例并指定额外的保存参数。下面的例子中，我们用 `SaveContext` 保存实体集合：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=save-context]
 ----
 
-If you save a large collection of entities and don't need saved instances immediately, use `SaveContext.setDiscardSaved(true)` method. It will improve performance because `DataManager` will not fetch saved entities back from the database. For example:
+如果一次保存大量的实体而不需要返回保存的实例，可以使用 `SaveContext.setDiscardSaved(true)`。这能提高性能，因为 `DataManager` 不需要从数据库加载保存后的实体了。示例：
 
 [source,java,indent=0]
 ----
@@ -221,39 +221,39 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=s
 ----
 
 [[remove]]
-== Removing Entities
+== 删除实体
 
-Use `remove()` method to remove entities from the database.
+用 `remove()` 方法从数据库删除实体。
 
-In the simplest form, the method accepts an entity instance to remove:
+最简单的形式，该方法接收一个将要删除的实体实例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove]
 ----
 
-The `remove()` method can accept multiple instances, arrays and collections:
+`remove()` 方法可以接收多个实例、数组或者集合：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove-list]
 ----
 
-If you remove linked entities, the order of parameters can be important. First pass the entities that depend on the others, for example:
+如果要删除关联实体，那么参数的顺序就很重要了。要先传入依赖其他实体的实体，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=remove-multiple]
 ----
 
-If you don't have an entity instance but only its identifier, construct the `Id` object from the identifier and pass it to the `remove()` method:
+如果没有实体实例，而只有它的 id，那么可以从 id 构造一个 `Id` 对象并传给 `remove()` 方法：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=remove-by-id]
 ----
 
-If you need to specify additional parameters of the remove operation, for example to turn off xref:data-model:soft-deletion.adoc[soft deletion] and completely remove from the database an entity with the soft delete trait, use the `save()` method with `SaveContext` and pass the removed entities to its `removing()` method:
+如需为删除操作设置额外的参数，例如，需要关掉 xref:data-model:soft-deletion.adoc[软删除]，将带有软删除特性的实体完全删除，那么需要用 `save()` 方法，带 `SaveContext` 参数，并将要删除的实体传给 `SaveContext` 的 `removing()` 方法：
 
 [source,java,indent=0]
 ----

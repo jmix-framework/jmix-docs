@@ -1,21 +1,21 @@
-= Load Entities
+= 加载实体
 
-The Entities API allows you to load entities through the API in various ways:
+实体 API 支持以多种方式加载实体：
 
-* <<Load Entity by ID,Load Entity by ID>> loads a single entity by its unique identifier (ID).
+* <<load-by-id,用 ID 加载实体>>，使用实体的唯一标识符（ID）加载单一实体。
 
-* <<Load List of Entities,Load List of Entities>> load all entities with pagination and sorting.
+* <<load-list,加载实体列表>>，加载所有实体，并使用分页和排序。
 
-* <<Load Entities via Search Filter,Load Entities via Search Filter>> allows you to filter for entities by filter criteria in the Request.
+* <<load-list-search-filter,用过滤条件加载实体>>，使用请求中的过滤条件加载特定实体。
 
-* <<Load Entities via JPQL,Load Entities via JPQL>> loads entities via pre-configuring named JPQL queries.
+* <<load-list-jpql,用 JPQL 加载实体>>，用预定义的 JPQL 命名查询语句加载实体。
 
 [[load-by-id]]
-== Load Entity by ID
+== 用 ID 加载实体
 
-The first way of loading an entity via the Entities API is by loading it via its ID. The corresponding endpoint for this is the Load Entity endpoint `/entities/:entityName/:entityId`.
+第一个加载实体的方法就是用实体的 ID 加载单一实体。对应的 *实体加载* 接口地址是：`/entities/:entityName/:entityId`。
 
-The `:entityName` path parameter defines which entity type it is. The value is defined in the entity definition:
+`:entityName` 路径参数定义实体名称，实体名称在定义实体时提供：
 
 [source,java]
 .Order.java
@@ -28,13 +28,12 @@ public class Order {
     // ...
 }
 ----
-<1> The name attribute value `sample_Order` of the `@Entity` JPA annotation indicates the `entityName` parameter in the Entities API.
+<1> JPA `@Entity` 注解的 name 属性指定的 `sample_Order` 值可作为实体 API 中 `entityName` 参数的值。
 
-The Load Entity endpoint returns a single instance in case it is found by its identifier. Otherwise, HTTP status code `404 - Not Found` is returned.
-
+如果有此 ID 的实体实例，则 *实体加载* 接口返回此实例。否则返回 HTTP 状态码 `404 - Not Found`。
 
 [source, http request]
-.Load Order Request
+.加载单一 Order 实体
 ----
 GET http://localhost:8080/rest
             /entities
@@ -57,14 +56,14 @@ GET http://localhost:8080/rest
   "version": 1
 }
 ----
-<1> Some metadata about the entity instance is returned as JSON keys (`entityName`, `_instanceName` and `id`).
-<2> The JSON Object contains each business attribute as a key.
+<1> 实体实例的部分元数据也在 JSON 中返回（`entityName`、`_instanceName` 和 `id`）。
+<2> JSON 对象中其他业务属性键值。
 
 [TIP]
 ====
-Some attributes of the `Order` entity are missing in the JSON, as by default only local and persistent attributes of the entity are loaded. In case of reference attributes should also be included in the response you need to use <<Using Fetch Plans,Fetch Plans>> as described below.
+并非 `Order` 实体的全部属性都在 JSON 中加载，默认仅加载实体的本地和持久化属性。如需在响应中包含实体的引用属性，则需要使用 <<_using_fetch_plans,Fetch Plan>>。
 
-In case you want to include xref:dyn-attr:index.adoc[dynamic attributes] in the response, use the `dynamicAttributes` parameter to add a special hint to the query:
+如需在响应中包含 xref:dyn-attr:index.adoc[动态属性]，使用 `dynamicAttributes` 参数：
 
 [source, http request]
 ----
@@ -76,17 +75,18 @@ GET http://localhost:8080/rest
 ----
 ====
 
-=== Using Fetch Plans
+[[_using_fetch_plans]]
+=== 使用 Fetch Plan
 
-Which attributes are needed normally varies based on the clients' use-case, UIs, or integration scenario. Loading only the direct attributes of an entity is oftentimes not enough.
+根据客户的用例、UI 或集成场景不同，需要加载的实体属性通常也会有所不同。因此，仅加载实体的直接属性通常是不够的。
 
-With only the ability to load each entity type in a dedicated request, it would require loading referenced entity information in subsequent requests. This would lead to N+1 query problems in the overall application. In particular, when interacting through HTTP, the corresponding overhead can be tremendous.
+由于每种实体类型只能在专门的请求中加载，所以需要在后续请求中加载实体引用的信息。然而，这将导致整个应用程序中出现 N+1 查询问题。特别是当通过 HTTP 进行交互时，相应的开销可能会非常大。
 
-Therefore, the concept of xref:data-access:fetching.adoc[Fetch Plans] is also supported in the Load Entities API. With Fetch Plans you can configure a tree of attributes that should be loaded all in one batch from the database and transferred through the Load Entities API to the client.
+为此，*实体加载* API 也支持 xref:data-access:fetching.adoc[Fetch Plan] 的概念。使用 Fetch plan 可以配置一次从数据库需要加载的属性树，并通过实体加载 API 传递给客户端。
 
-The following example demonstrates how to load a list of Orders with additional information about the corresponding customer, the linked order lines, and even information about the product of that product line.
+下面的示例展示如何加载 Orders 实体及其相关的 customer、order lines 信息，甚至 order line 的 product 信息。
 
-First, you need to register the fetch plan `order-with-details` in the `fetch-plans.xml` configuration file:
+首先，需要在 `fetch-plans.xml` 配置文件中注册 `order-with-details`：
 
 [source,xml]
 .fetch-plans.xml
@@ -103,12 +103,12 @@ First, you need to register the fetch plan `order-with-details` in the `fetch-pl
 </fetchPlans>
 ----
 
-With that fetch plan configuration in place, you can perform the request and reference the fetch plan through the `fetchPlan` URL parameter.
+Fetch plan 配置好后，可以用 URL 参数 `fetchPlan` 使用并发起请求。
 
-In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded with the fetch plan `order-with-details` in order to additionally load `customer` and `lines` data:
+下面示例中 ID 为 `21021f78-edac-224b-e6f8-6e71e02a0f0d` 的 Order 通过 fetch plan `order-with-details` 进行加载，此时会加载附加的 `customer` 和 `lines` 数据：
 
 [source, http request]
-.Load Order with Fetch Plan Request
+.使用 Fetch plan 请求加载 Order
 ----
 GET http://localhost:8080/rest
             /entities
@@ -141,12 +141,12 @@ GET http://localhost:8080/rest
   }
 }
 ----
-<1> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
+<1> Fetch plan `order-with-details` 保证了结果包含额外的属性 `lines` 和 `customer`。
 
 [[load-list]]
-== Load List of Entities
+== 加载实体列表
 
-You can load a list of entities of any type using the Load Entity List API endpoint: `/entities/:entityName`. This API includes pagination, sorting, and fetch plans.
+使用 *加载实体列表* API 接口 `/entities/:entityName` 可以加载任何类型的实体列表。此 API 包含分页、排序和 fetch plan 参数。
 
 [source, http request]
 .Request
@@ -173,29 +173,29 @@ GET http://localhost:8080/rest/entities/sample_Customer
 ]
 ----
 
-NOTE: Every entity in the response has a `_entityName` attribute with the name of the entity, and an `_instanceName` attribute with the xref:data-model:entities.adoc#instance-name[Instance Name] of the entity.
+NOTE: 响应中的每个实体都有 `_entityName` 属性，表示实体的名称；以及 `_instanceName` 属性，表示 xref:data-model:entities.adoc#instance-name[实例名称]。
 
-It is also possible to further control the behavior of the API by using the following URL query parameters:
+还可以用下列 URL 查询参数进一步控制 API 的行为：
 
-dynamicAttributes:: whether xref:dyn-attr:index.adoc[dynamic attributes] should be loaded for an entity `(Boolean)`.
-fetchPlan:: name of an entity's xref:data-access:fetching.adoc[fetch plan] `(String)`.
-limit:: the number of entities to be returned by the API `(int)`.
-offset:: the position of the first returned entity `(int)`.
-sort:: an entity attribute that will be used for sorting `(String)`.
+dynamicAttributes:: 是否加载实体的 xref:dyn-attr:index.adoc[动态属性] `（Boolean）`。
+fetchPlan:: 实体的 xref:data-access:fetching.adoc[fetch plan] 名称 `（String）`。
+limit:: 限制 API 获取实例的个数 `（int）`。
+offset:: 查询第一个实体的偏移量 `（int）`。
+sort:: 用于排序的实体属性 `（String）`。
 +
-* `+attribute` or simply `attribute` for ascending order
-* `-attribute` for descending order.
+* `+attribute` 或 `attribute` 用于正排序；
+* `-attribute` 用于倒排序。
 
 [[load-list-sorting]]
-=== Using Sorting
+=== 使用排序
 
-The Load Entities API supports the sorting of the result by entity attributes. You can use the `sort` URL parameter for controlling the order of entities.
+*加载实体列表* API 支持使用实体属性对查询结果进行排序。用 `sort` URL 参数指定实体属性排序。
 
-NOTE: When the `sort` parameter is not specified, the default sort order depends on the database implementation. Normally databases sort by the timestamp of record creation, but this behavior is not guaranteed and can vary in different situations.
+NOTE: 当未指定 `sort` 参数时，默认排序依赖数据库的实现。通常数据库会按照实体创建的时间戳进行排序，但是这个机制在不同场景也不是绝对有效。
 
-Jmix has a special syntax to define the sort order. Ascending order is expressed through a `+` before the attribute name. This is optional though, as it is the default behavior sorting order. For descending order, you need to prefix the entity attribute with a `-` character.
+Jmix 使用特殊的语法定义排序。正排序通过属性名前可选的 `+` 号表示。默认是正排序。`-` 号表示按属性名倒排序。
 
-The following example shows how you can sort Customers by their `name` attribute ascending.
+下面示例展示如何使用 `name` 属性对 Customer 进行正排序。
 
 [source, http request]
 .Request
@@ -221,8 +221,7 @@ GET http://localhost:8080/rest
 ]
 ----
 
-You can also sort by multiple attributes. In this case, the sort order takes a comma-separated list of attributes to sort by.
-
+实体实例也可以按多个属性排序。此时，多个属性间使用逗号分隔：
 
 [source, http request]
 .Request
@@ -254,23 +253,23 @@ GET http://localhost:8080/rest
   }
 ]
 ----
-<1> The result with the oldest date is returned first.
-<2> When the `date` attribute is the same, the `amount` is used to sort the results.
+<1> 按时间正排序。
+<2> 当 `date` 属性值相同时，按 `amount` 倒排序。
 
 
 [[load-list-pagination]]
-=== Using Pagination
+=== 使用分页
 
-The Entities API supports Pagination to respect the data processing limitation that might be present on the server or client-side. In case you want to load only a particular subset of the entities, you can provide the `offset` and `limit` URL parameters.
+*加载实体列表* API 支持对数据进行分页，以便适应服务端或客户端的数据处理能力。如果只需要加载部分实体列表，可以给请求提供 `offset` 和 `limit` 参数。
 
 [NOTE]
 ====
-Pagination is active by default, even if it is not explicitly requested by the client. In case no `limit` value is present in the request, the Load APIs will return only the first `10,000` entities.
+分页是默认开启的，即使客户端没有显式的加上分页请求。如果请求没有 `limit` 参数，API 返回前 `10,000` 个实体。
 
-This default value is configurable globally via xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] or on an entity-by-entity basis via xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize].
+默认值通过 xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] 参数进行全局配置，或者通过 xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize] 参数在实体级别配置。
 ====
 
-The following example demonstrates how to load the third Page containing two `Customer` entities (5. & 6. entity):
+下面示例中展示如何加载包含两个 `Customer` 实体的第 3 页数据（第 5/6 个实体）：
 
 [source, http request]
 .Load Customer Request with Pagination
@@ -300,42 +299,42 @@ GET http://localhost:8080/rest
 
 
 [[load-list-search-filter]]
-== Load Entities via Search Filter
+== 用过滤条件加载实体
 
-You can specify filter criteria when loading entities using the Entity Search Endpoint: `/entities/:entityName/search`.
+当使用 *实体搜索* 接口 `/entities/:entityName/search` 加载实体列表时，可以指定过滤条件。
 
-Both HTTP methods `GET` and `POST` are possible when interacting with the search endpoint. In both cases, the filter criterion has to be provided as part of the request.
+该接口支持使用 `GET` 和 `POST` 两种 HTTP 方法。两种方法中，过滤条件都需要作为请求的一部分提供。
 
-The filter definition is a JSON structure that contains a set of conditions. A condition consists of the following attributes:
+过滤条件通过 JSON 结构定义，可以包含一组过滤条件。一个条件可以包含下列属性：
 
-property:: the entity attribute that is being filtered on (like `amount` on the Order entity).
+property:: 需要过滤的实体属性（例如 Order 实体的 `amount` 属性）。
 +
-In case the attribute is a reference to another entity, it can also be a property path like `customer.name`
+如果该属性是实体引用，则支持属性路径，例如，`customer.name`。
 
-operator:: the filter operator. An operator describes how to filter for a particular attribute. There are multiple operators that can be used independently of the datatype:
+operator:: 过滤器操作符。操作符描述如何对属性进行过滤。对不同的数据类型，有多个可使用的操作符：
 +
-* Standard Operators: `=`, `<>`, `notEmpty`, `isNull`
-* List Operators: `in`, `notIn`
+* 标准操作符：`=`、`<>`、`notEmpty`、`isNull`
+* 列表操作符：`in`、`notIn`
 
-Additionally, some operators are only possible for particular datatypes:
+以及，某些操作符只能用于特定数据类型：
 [cols="1,1"]
 |===
-|Datatype | Specific Operators
+|数据类型 | 特定操作符
 
 |String, UUID
-|`startsWith`, `endsWith`, `contains`, `doesNotContain`
+|`startsWith`、`endsWith`、`contains`、`doesNotContain`
 
 |Integer, Long, Double, BigDecimal, Date, DateTime, Time, LocalDate, LocalDateTime,  LocalTime, OffsetDateTime, OffsetTime
-|`=`, `<>`, `>`, `>=`, `<`, `&lt;=`
+|`=`、`<>`、`>`、`>=`、`<`、`&lt;=`
 
 |===
 
-value:: the value to search for. Value is not required for the `notEmpty` and `isNull` operators.
+value:: 需要搜索的值，对于 `notEmpty` 和 `isNull` 操作符，不需要提供值。
 
-Additionally, conditions can be combined via `AND`, `OR` group conditions to define a more complex filter criterion. The JSON structure of the filter definitions looks like this:
+条件可以用 `AND`、`OR` 进行组合，以便定义复杂的过滤条件。过滤条件的 JSON 结构示例：
 
 [source,json]
-.Filter Criterion JSON structure
+.过滤条件 JSON 结构
 ----
 {
   "conditions": [
@@ -363,12 +362,12 @@ Additionally, conditions can be combined via `AND`, `OR` group conditions to def
 }
 ----
 
-This is a representation of the Filter criterion: `\((stringField = stringValue) OR (intField > 100) AND (booleanField = true))`.
+这是此过滤条件的 JSON 展示：`\((stringField = stringValue) OR (intField > 100) AND (booleanField = true))`。
 
-When using the HTTP POST method, the filter is part of the request body.
+当使用 HTTP `POST` 方法请求时，过滤条件作为请求体提供：
 
 [source,http request]
-.Filter POST Request
+.POST 过滤条件请求
 ----
 POST http://localhost:8080/rest/entities/sample_Order/search
 
@@ -385,10 +384,10 @@ POST http://localhost:8080/rest/entities/sample_Order/search
 }
 ----
 
-When using the `GET` method, the JSON filter criterion needs to be transferred via the URL Query parameter `filter`.
+当使用 `GET` 方法时，JSON 过滤条件需要通过 URL 查询参数 `filter` 提供：
 
 [source, http request]
-.Filter GET Request
+.GET 过滤条件请求
 ----
 GET http://localhost:8080/rest
             /entities
@@ -398,29 +397,29 @@ GET http://localhost:8080/rest
 ----
 
 [IMPORTANT]
-.URI Encoding
+.URI 编码
 ====
-The HTTP URI standard only allows ASCII characters as part of the URI / URL. When using URL Query parameters for the filter definition, the JSON definition has to be URL encoded to match this requirement. This is also true for the `value` data that normally contains user input.
+HTTP URI 标准仅允许在 URI/URL 中使用 ASCII 编码的字符。因此，当使用 URL 查询参数过滤条件时，JSON 定义需要用 URL 编码。对于 `value` 提供的数据也是一样的要求。
 
-As there is also a practical limit of the URI length that can cause problems for big filter definitions, the `POST` method for filtering entities should be preferred as those restrictions do not apply.
+另外，还有一个对 URI 长度实际的限制也会导致使用复杂过滤条件的问题。所以，推荐使用 `POST` 方法对实体列表进行过滤，可避免受到这些限制的影响。
 ====
 
 
 [[load-list-jpql]]
-== Load Entities via JPQL
+== 用 JPQL 加载实体
 
-Another alternative to loading entities from the application is to use predefined JPQL queries. The Entity Query Endpoint `/queries/:entityName/:queryName` is responsible for providing this capability. Queries can contain a list of parameters, that need to be provided by the client. Additionally, the endpoint contains the same general parameters for pagination, fetch plans, etc.
+从应用程序加载实体的另一个方法就是使用预定义的 JPQL 查询语句。*实体查询* 接口 `/queries/:entityName/:queryName` 提供此功能。查询语句可以包含一组由客户端负责提供的参数。此外，接口也可以使用通用的分页、fetch plan 等参数。
 
 
 [TIP]
-.When to use JPQL vs. Search Filter?
+.何时该用 JPQL 或 *实体搜索* ？
 ====
-Jmix provides various ways to load entity data generically. Use pre-defined JPQL queries when the search filter is not advanced enough to express the filter criterion. Also in case, the parameter should be pre-defined and not be adjustable by the API client.
+Jmix 提供了多种加载实体列表的方式。当过滤条件参数不方便表示实际所需的条件，或者条件参数需要预先定义而非调用时由客户端提供，请使用预定义 JPQL 查询。
 ====
 
-=== JPQL Query Configuration
+=== JPQL 查询配置
 
-To use the Entity Query endpoint you need to define the accessible queries. This happens via an XML configuration file, normally called `rest-queries.xml`. You need to create this new file in your Jmix application under `src/main/resources`. It lists all published queries with information about their parameters.
+如需使用 *实体查询* 接口，需要先定义可用的查询语句。查询语句通过 XML 配置文件定义，一般为 `rest-queries.xml`。需要在 Jmix 应用程序的 `src/main/resources` 目录创建此文件。文件内列出所有发布的查询语句及其使用的参数。
 
 [source,xml]
 .rest-queries.xml
@@ -442,11 +441,11 @@ To use the Entity Query endpoint you need to define the accessible queries. This
 </queries>
 ----
 
-A query needs to have a unique `name` value as well as an `entity` reference. The combination of `name` and `entity` needs to be unique. Also, a `fetchPlan` needs to be referenced to indicate which entity attributes are returned.
+一个查询语句要有 `name` 属性和一个 `entity` 引用属性。要求 `name` 和 `entity` 的组合值必须唯一。此外，`fetchPlan` 属性指定加载实体的哪些属性。
 
-In the `<jpql>` tag the actual query is configured. The parameters need to be listed within the `params` tag defining their name and Java type. In the query parameters, you can reference via their name prefixed with a colon like `:customerName`.
+在 `jpql` 元素中配置查询语句。查询参数在 `params` 元素中定义名称和 Java 类型。JPQL 语句中可以用冒号加参数名的方式引用参数，例如，`:customerName`。
 
-After the file has been created, and the queries have been defined, you need to register the `rest-queries.xml` configuration in the `application.properties` of your Jmix application:
+在文件和查询语句都创建好之后，需要在 Jmix 的 `application.properties` 文件中注册 `rest-queries.xml` 配置：
 
 [source,properties]
 .application.properties
@@ -454,10 +453,10 @@ After the file has been created, and the queries have been defined, you need to 
 jmix.rest.queries-config = rest/sample/rest-queries.xml
 ----
 
-You can invoke the Entity Query endpoint either by the `GET` or `POST` HTTP method. In the case of `GET`, the parameters are appended as URL query parameters.
+*实体查询* 接口支持通过 `GET` 或 `POST` 请求调用。使用 `GET` 时，查询参数在 URL 中提供：
 
 [source, http request]
-.Query API GET Request
+.GET 查询 API 调用
 ----
 GET http://localhost:8080/rest
         /queries
@@ -468,15 +467,15 @@ GET http://localhost:8080/rest
 
 
 [IMPORTANT]
-.URI Encoding
+.URI 编码
 ====
-The URL should only contain ASCII characters. This means the values of the parameters need to be URL encoded, as those values normally represent direct user input and therefore it cannot be ensured that non-ASCII characters are used.
+HTTP URI 标准仅允许在 URI/URL 中使用 ASCII 编码的字符。因此，当使用 URL 查询参数过滤条件时，JSON 定义需要用 URL 编码。对于 `value` 提供的数据也是一样的要求。
 ====
 
-In the case of using `POST`, the query parameters are transferred in the JSON body containing each parameter as a key.
+使用 `POST` 时，查询参数在 JSON 请求体中提供，每个 key 表示一个参数：
 
 [source, http request]
-.Query API POST Request
+.POST 查询 API 调用
 ----
 POST http://localhost:8080/rest/queries/sample_Order/ordersByCustomerName
 
@@ -485,9 +484,9 @@ POST http://localhost:8080/rest/queries/sample_Order/ordersByCustomerName
 }
 ----
 
-=== Collection Parameters
+=== 集合参数
 
-It is also possible to define a parameter as a collection type. In this case, the query definition should contain an `[]` indicator after the Java type.
+查询参数也支持集合类型。查询语句的定义中，参数的 Java 类型需要使用 `[]`：
 
 [source,xml]
 .rest-queries.xml
@@ -502,9 +501,9 @@ It is also possible to define a parameter as a collection type. In this case, th
     </query>
 </queries>
 ----
-<1> The `ids` parameter is marked as collection of `UUID` type.
+<1> `ids` 参数是 `UUID` 集合类型。
 
-When this parameter is used in a query, the corresponding  IDs have to be provided as a JSON array.
+在调用端传递该参数时，对应的 ID 需要用 JSON 数组提供：
 
 [source, http request]
 .Query API Collection Parameters Request
@@ -521,16 +520,16 @@ POST http://localhost:8080/rest/queries/sample_Order/ordersByIds
 
 
 [[empty-values-json]]
-== Return Empty Values in JSON
+== JSON 中返回空值
 
-By default, Jmix will remove empty values (`null`) from the JSON response, so that the attribute keys are not present in the JSON document.
+默认情况下，Jmix 会从 JSON 返回体中删除空值（`null`），这样空值属性的 key 就不会在 JSON 中出现。
 
-You can control this behavior by using the URL query parameter `returnNulls` and set its value to `true`. With that, Jmix will always add the attribute keys to the response, independent if the value is empty or not.
+可以用 URL 查询参数 `returnNulls` 控制该行为。如果设置为 `true`，Jmix 则会在 JSON 中添加空值属性的 key。
 
-In the following example, a Customer is loaded by its ID and also requesting to contain all empty values:
+下面示例中，使用 ID 加载了一个 customer，并请求了所有的空值属性：
 
 [source, http request]
-.Load Customer with empty values
+.加载带空值属性的 Customer
 ----
 GET http://localhost:8080/rest
             /entities
@@ -557,6 +556,6 @@ GET http://localhost:8080/rest
   "deletedBy": null
 }
 ----
-<1> The response contains the key `type` although it is empty
+<1> 响应中包含空值的 `type` 属性
 
-NOTE: The Parameter `returnNulls` is present in all Entity Load APIs: Load by ID, Load List, Search and Load by Query.
+NOTE: `returnNulls` 可以用在所有的实体加载 API 中：按 ID 加载，加载列表，搜索实体和查询实体。
