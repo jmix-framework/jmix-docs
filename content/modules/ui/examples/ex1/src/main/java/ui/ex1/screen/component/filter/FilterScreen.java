@@ -276,26 +276,28 @@ public class FilterScreen extends Screen {
         jpqlFilterNoParams.setFrame(getWindow());
         jpqlFilterNoParams.setConditionModificationDelegated(true);
         jpqlFilterNoParams.setDataLoader(dataLoader);
-        jpqlFilterNoParams.setCondition("{E}.active = true", null);
+        jpqlFilterNoParams.setCondition("{E}.age > 21", null);
         jpqlFilterNoParams.setParameterClass(Void.class);
-        jpqlFilterNoParams.setCaption("Active == true");
-        jpqlFilterNoParams.setParameterName(jpqlFilterSupport.generateParameterName(
-                jpqlFilterNoParams.getId(),
+        jpqlFilterNoParams.setCaption("Customer's age > 21");
+        jpqlFilterNoParams.setParameterName(jpqlFilterSupport
+                .generateParameterName(jpqlFilterNoParams.getId(),
                 jpqlFilterNoParams.getParameterClass().getSimpleName()));
-        jpqlFilterNoParams.setValueComponent(singleFilterSupport.generateValueComponent(
-                dataLoader.getContainer().getEntityMetaClass(),
+        jpqlFilterNoParams.setValueComponent(singleFilterSupport
+                .generateValueComponent(dataLoader.getContainer().getEntityMetaClass(),
                 jpqlFilterNoParams.hasInExpression(),
                 jpqlFilterNoParams.getParameterClass()
         ));
 
         jpqlFilterNoParams.setValue(true);
-        javaConfiguration.setFilterComponentDefaultValue(jpqlFilterNoParams.getParameterName(),
+        javaConfiguration.setFilterComponentDefaultValue(
+                jpqlFilterNoParams.getParameterName(),
                 jpqlFilterNoParams.getValue());
 
         javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
 
         jpqlFilterNoParams.setValue(true);
-        javaConfiguration.setFilterComponentDefaultValue(jpqlFilterNoParams.getParameterName(),
+        javaConfiguration.setFilterComponentDefaultValue(
+                jpqlFilterNoParams.getParameterName(),
                 jpqlFilterNoParams.getValue());
 
         javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
