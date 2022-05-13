@@ -16,15 +16,15 @@ public class UserBrowse extends StandardLookup<User> {
     //tag::inject-message-bundle[]
     @Autowired
     private MessageBundle messageBundle;
+    //end::inject-message-bundle[]
     @Autowired
     private Notifications notifications;
-    //end::inject-message-bundle[]
 
     @Subscribe
     public void onInit(InitEvent event) {
 
         //tag::message-bundle-set-group[]
-        messageBundle.setMessageGroup("additional_messages");
+        messageBundle.setMessageGroup("some.group");
         //end::message-bundle-set-group[]
 
         //tag::message-bundle[]
