@@ -21,7 +21,7 @@ public class UserBrowse extends StandardLookup<User> {
     public void onInit(InitEvent event) {
 
         //tag::message-bundle-set-group[]
-        messageBundle.setMessageGroup("additional_messages");
+        messageBundle.setMessageGroup("some.group");
         //end::message-bundle-set-group[]
 
         //tag::message-bundle[]
