@@ -1,80 +1,80 @@
-= Migration from CUBA Platform
+= 从 CUBA 平台迁移
 
-== Overview
+== 介绍
 
-Jmix framework is a direct successor of CUBA platform. It offers the same rapid application development approach but with modernized infrastructure. You can think of Jmix as a new major version of CUBA, so if your CUBA project is in active development, consider upgrading to Jmix. To facilitate this process, we provide a compatibility module with a set of CUBA APIs and features that were changed or removed in Jmix. Also, Jmix Studio contains an advanced procedure for converting a CUBA project into Jmix one.
+Jmix 框架直接继承了 CUBA 平台。提供了相同的快速应用程序开发方式，但采用了更现代化的基础架构。可以将 Jmix 视为 CUBA 的最新主版本，因此，如果你的 CUBA 项目正在开发中，可以考虑升级到 Jmix。为了使迁移过程更加方便，我们在 Jmix 中提供了一个 CUBA 兼容模块，其中包含一组 CUBA API 和在 Jmix 中已经更改或删除的功能。此外，Jmix Studio 提供从 CUBA 项目转换为 Jmix 项目的功能。
 
-In this chapter, we describe the main differences between Jmix and CUBA and give you detailed instructions on how to migrate your CUBA project to Jmix.
+本章节中，我们介绍 Jmix 和 CUBA 的主要不同点，并详细说明如何从 CUBA 迁移至 Jmix。
 
 [[differences]]
-== Differences from CUBA
+== 与 CUBA 的不同点
 
 [[project-structure]]
-=== Project Structure
+=== 项目结构
 
-A CUBA project consists of at least three modules: `global`, `core`, `web`. In Jmix, project has a single module by default.
+一个 CUBA 项目至少包含三个模块：`global`、`core`、`web`。而在 Jmix 中，项目默认只有一个模块。
 
-In a CUBA project, source files of all types (Java, Kotlin, XML, properties) are mixed in the same directories under the single source root (one per module). Jmix project follows the standard Maven directory layout when there are separate roots for files of different types:
+在 CUBA 项目中，所有类型的源文件（Java、Kotlin、XML、properties）都放置在每个模块的源码根目录下的同一目录下。而 Jmix 项目遵循标准的 Maven 目录结构，不同类型的文件有单独的根目录：
 
-* `src/main` - sources of production code
-* `src/test` - test sources
-* `src/main/java`, `src/test/java` - for Java classes
-* `src/main/kotlin`, `src/test/kotlin` - for Kotlin files
-* `src/main/resources`, `src/test/resources` - for XML and property files.
+* `src/main` - 产品源码
+* `src/test` - 测试源码
+* `src/main/java`、`src/test/java` - 放置 Java 类
+* `src/main/kotlin`、`src/test/kotlin` - 放置 Kotlin 文件
+* `src/main/resources`、`src/test/resources` - 放置 XML 和 properties 文件。
 
 [[deployment-structure]]
-=== Deployment Structure
+=== 部署结构
 
-A CUBA application is built into two separate web applications: `core` and `web`. Even if you use a "single WAR" or "uber JAR" deployment, these artifacts actually contain the `core` and `web` classes isolated in different classloaders and running in separate Spring contexts.
+CUBA 应用程序构建为两个独立的 Web 应用程序：`core` 和 `web`。即便使用 “单一 WAR” 或 “uber JAR” 部署，这些工件实际上也包含 `core` 和 `web` 类，这些类分别使用不同的类加载器加载，并运行在各自独立的 Spring contexts 中。
 
-A Jmix application is a single web application built as an executable JAR or as a WAR using standard Spring Boot Gradle deployment tasks.
+Jmix 应用程序是单一 web 应用程序，使用标准的 Spring Boot Gradle 部署任务构建为可执行 JAR 或 WAR。 
 
 [[app-properties]]
-=== Application Properties
+=== 应用程序属性
 
-Due to the separate deployment of CUBA modules, a CUBA project properties are set in two files: `app.properties` for the `core` module and `web-app.properties` for the `web` module. These files are located in the base package of the corresponding module.
+由于 CUBA 的模块使用了分离部署，CUBA 项目的属性文件也分在了不同的文件中：`core` 模块的 `app.properties` 和 `web` 模块的 `web-app.properties` 文件。这些文件位于相应模块的根包目录。
 
-In Jmix, all properties are defined in a single `application.properties` file located in the `src/main/resources` root.
+在 Jmix 中，所有属性都在单一的 `application.properties` 文件定义，位于 `src/main/resources` 根目录中。
 
 [[spring-config]]
-=== Spring Configuration
+=== Spring 配置
 
-In CUBA, Spring container configuration is defined in `spring.xml` for the `core` module and `web-spring.xml` for the `web` module.
+在 CUBA 中，Spring 容器在 `core` 模块的 `spring.xml` 和 `web` 模块的 `web-spring.xml` 中定义。
 
-Jmix uses only Java-based container configuration. Spring Boot automatically scans all classes in the base package of the application (where the class annotated with `@SpringBootApplcation` is located) and packages below it for Spring annotations.
+Jmix 只使用基于 Java 的容器配置。Spring Boot 自动扫描应用程序包结构（从带 `@SpringBootApplcation` 注解的类所在包开始）中的所有带 Spring 注解的类。
 
 [[data-model]]
-=== Data Model
+=== 数据模型
 
-CUBA data model entities have to extend one of the base classes (`StandardEntity`, `BaseUuidEntity`, `BaseGenericIdEntity`, etc.) and optionally implement some interfaces (`Versioned`, `Creatable`, `Updatable`, `SoftDelete`).
+CUBA 数据模型的实体必须继承自某一个基类（`StandardEntity`、`BaseUuidEntity`、`BaseGenericIdEntity` 等）并实现某些可选的接口（`Versioned`、`Creatable`、`Updatable`、`SoftDelete`）。
 
-Jmix doesn't force you to inherit your entities from the framework's base classes. Instead, you should just annotate your class with `@JmixEntity` and that's it - the framework will enhance the class' bytecode to implement the features previously implemented by the CUBA entity base classes. Optional behavior (see xref:data-model:entities.adoc#traits[traits]) is also declared with annotations like `@CreatedBy`, `@CreatedDate`, etc. Of course, you can create your own base classes with required characteristics on the project level. The `jmix-cuba` compatibility module provides a set of base classes equivalent to the CUBA ones, so you don't have to rewrite your entities when migrating to Jmix.
+Jmix 并不强制要求实体继承框架的某些基类。而只需将实体类标注 `@JmixEntity` 注解即可，框架会对类的字节码做增强，并实现之前 CUBA 中实体基类的功能。一些可选的实体行为（参阅 xref:data-model:entities.adoc#traits[特性]）也使用注解进行声明，例如，`@CreatedBy`、`@CreatedDate` 等。当然，你也可以在项目级别根据需求创建自己的实体基类。`jmix-cuba` 兼容性模块提供了一组与 CUBA 一样的的基类，因此在迁移至 Jmix 时，无需编写自己的基类。
 
-CUBA JPA entities have to be registered in the `persistence.xml` file located in the base package of the `global` module. In Jmix, the `persistence.xml` file is created automatically  at build time by the Jmix Gradle plugin. The plugin scans the classpath and writes all `@JmixEntity`-annotated classes into `<base-package>/persistence.xml` inside the application JAR/WAR file.
+CUBA JPA 实体必须在 `global` 模块根包的 `persistence.xml` 文件中注册。而在 Jmix 中，`persistence.xml` 文件在构建时由 Jmix Gradle 插件自动创建。插件扫描 classpath，将所有带 `@JmixEntity` 注解的类写入应用程序 JAR/WAR 文件中的 `<base-package>/persistence.xml` 内。
 
-CUBA non-persistent entities and custom datatypes are registered in the `metadata.xml` file. There is no such file in Jmix:
+CUBA 的非持久化实体和自定义数据类型在 `metadata.xml` 文件注册。Jmix 中没有该文件：
 
-* xref:data-model:entities.adoc#dto[DTO entities] are recognized just by the `@JmixEntity` annotation.
-* xref:data-model:data-types.adoc[Custom datatype] classes are annotated with `@DatatypeDef` which makes them Spring beans and allow the framework to find and register them at startup.
+* xref:data-model:entities.adoc#dto[DTO 实体] 也通过 `@JmixEntity` 注解识别。
+* xref:data-model:data-types.adoc[自定义类型] 类使用 `@DatatypeDef` 注解，将类型注册为 Spring bean，框架在启动时会自动注册。
 
 [[data-manager]]
 === DataManager
 
-The `io.jmix.core.DataManager` bean in Jmix core is very similar to the `TransactionalDataManager` in CUBA: it joins an existing transaction and has the `save()` method instead of `commit()`. But it has a crucial difference in handling security permissions: in Jmix, `io.jmix.core.DataManager` checks resource and row-level policies by default, and there is separate `io.jmix.core.UnconstrainedDataManager` that bypasses all access control rules. See details in the xref:security:authorization.adoc#data-access-checks[Authorization] section.
+Jmix 中的 `io.jmix.core.DataManager` bean 与 CUBA 中的 `TransactionalDataManager` 类似，也是将带提交的数据合并至一个会话中，用 `save()` 方法替代了 `commit()`。但是，在处理安全许可方面，这两者有关键的一点不同：Jmix 的 `io.jmix.core.DataManager` 默认会同时检查资源和行级策略，由单独的 `io.jmix.core.UnconstrainedDataManager` 提供无安全限制的访问。参阅 xref:security:authorization.adoc#data-access-checks[认证] 章节。
 
-The `jmix-cuba` compatibility module provides the `com.haulmont.cuba.core.global.DataManager` bean that has the same interface and behavior as in CUBA with respect to security: it checks only row-level policies and has the `secure()` method which returns a `DataManager` implementation that checks also the resource policies.
+`jmix-cuba` 兼容性模块提供 `com.haulmont.cuba.core.global.DataManager` bean，提供与 CUBA 中同样的接口和行为，在安全性方面，只检查行级策略，并提供 `secure()` 方法返回一个 `DataManager` 的实现，该实现会检查资源策略。
 
 [[transactions]]
-=== Transactions
+=== 数据库会话
 
-Unlike CUBA, Jmix doesn't provide any specific interfaces for transaction management. You should use either declarative transaction demarcation with the `@Transactional` annotation on bean methods, or programmatic management with Spring's `TransactionTemplate` class.
+与 CUBA 不同，Jmix 不提供任何管理数据库会话的特定接口。你需要在 bean 方法上使用 `@Transactional` 注解做区分，或者编程式通过 Spring 的 `TransactionTemplate` 类管理。
 
-The `jmix-cuba` compatibility module provides the `com.haulmont.cuba.core.Persistence` and `com.haulmont.cuba.core.Transaction` interfaces that save you from rewriting your business logic working with CUBA APIs.
+`jmix-cuba` 兼容性模块提供 `com.haulmont.cuba.core.Persistence` 和 `com.haulmont.cuba.core.Transaction` 接口，使用这两个接口无需重写 CUBA 业务逻辑。
 
 [[entity-manager]]
 === EntityManager
 
-In Jmix, code working with JPA should use the standard JPA `EntityManager`, `Query` and `TypedQuery` interfaces. The `EntityManager` is obtained using injecton with `@PersistenceContext` annotation, for example:
+Jmix 中，代码中处理 JPA 需要使用标准的 JPA `EntityManager`、`Query` 和 `TypedQuery` 接口。`EntityManager` 通过 `@PersistenceContext` 注解注入获取。示例：
 
 [source,java]
 ----
@@ -82,43 +82,43 @@ In Jmix, code working with JPA should use the standard JPA `EntityManager`, `Que
 private EntityManager entityManager;
 ----
 
-With the `jmix-cuba` compatibility module, you can keep using `com.haulmont.cuba.core.EntityManager` obtained through `com.haulmont.cuba.core.Persistence`.
+`jmix-cuba` 兼容性模块中仍然提供 `com.haulmont.cuba.core.EntityManager`，通过 `com.haulmont.cuba.core.Persistence` 获取。
 
 [[entity-persisting-event]]
 === EntityPersistingEvent
 
-The CUBA's `EntityPersistingEvent` is superseded by xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent] which is sent both on persisting new entities and updating existing ones. The old `EntityPersistingEvent` is provided by the `jmix-cuba` compatibility module and is sent only when saving new instances as it was in CUBA.
+CUBA 中的 `EntityPersistingEvent` 由 xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent] 替换，该事件会在对新实体持久化和更新已有实体时发送。`jmix-cuba` 兼容性模块中仍然提供 `EntityPersistingEvent`，仅当保存新实体时发送。
 
-CAUTION: `EntitySavingEvent` and `EntityPersistingEvent` are sent only when saving entities using `DataManager`. If you persist entities using `EntityManager`, `EntityPersistingEvent` is not sent, regardless of the presence of the `jmix-cuba` module.
+CAUTION: `EntitySavingEvent` 和 `EntityPersistingEvent` 只有当使用 `DataManager` 保存实体时才会发送。如果用 `EntityManager`、`EntityPersistingEvent` 持久化实体，则不论是否使用了 `jmix-cuba` 兼容性模块都不会发送。
 
 [[fetching]]
-=== Fetch Plans and Lazy Loading
+=== Fetch Plans 和延迟加载
 
-Jmix supports partial loading of entities by using _fetch plans_, which are the same as _views_ in CUBA. In addition, Jmix also supports lazy loading of references for JPA entities loaded using `DataManager`, so use of fetch plans is optional and should be considered as a performance optimization. See details in the xref:data-access:fetching.adoc[] section.
+Jmix 通过使用 _fetch plans_ 支持实体的部分加载，与 CUBA 中的 _view_ 一样。此外，Jmix 还支持对使用 `DataManager` 加载的 JPA 实体的引用属性进行延迟加载，因此，可以按需使用 fetch plan，特别是有性能方面考虑时。参阅 xref:data-access:fetching.adoc[]。
 
-The `jmix-cuba` module provides the `com.haulmont.cuba.core.global.View`, `ViewBuilder` and `ViewRepository` classes for backward compatibility.
+`jmix-cuba` 兼容性模块提供向后兼容的 `com.haulmont.cuba.core.global.View`、`ViewBuilder` 和 `ViewRepository` 类。
 
 [[security]]
-=== Security
+=== 安全
 
-Jmix xref:security:resource-roles.adoc[resource roles] and resource policies are very similar to CUBA roles and permissions. The main difference is how they are defined in design time: CUBA roles use classes, Jmix roles use interfaces.
+Jmix 的 xref:security:resource-roles.adoc[资源角色] 和资源策略与 CUBA 中的角色和许可非常类似。主要区别是在设计时定义：CUBA 使用类，而 Jmix 使用接口。
 
-Jmix xref:security:row-level-roles.adoc[row-level roles] have the same purpose as CUBA access group constraints, but there are significant differences:
+Jmix 的 xref:security:row-level-roles.adoc[行级角色] 与 CUBA 的访问组约束有相同的作用，但是有一些显著的不同：
 
-* Jmix row-level roles are stored in a plain list instead of a hierarchy;
-* a user can have any number of row-level roles;
-* there is no equivalent for predefined session attributes of access groups.
+* Jmix 中，行级角色保存在扁平数组中，而非树形结构；
+* Jmix 中，用户可以有多个行级角色；
+* Jmix 中，没有访问组预定义会话属性的对等概念。
 
-The Studio migration procedure converts CUBA design-time roles into Jmix resource roles automatically. Access groups and constraints have to be converted manually, see <<changed-api,Changed APIs>> section for details.
+Studio 迁移程序会将 CUBA 设计时角色自动转换为 Jmix 资源角色。访问组和约束需要手动转换，参阅 <<changed-api,API 变更>>。
 
-NOTE: The migration procedure will preserve your list of users in the database, but all runtime security configuration (roles, policies, role assignments) will have to be done from scratch.
+NOTE: 迁移程序会保留数据库中的用户列表，但是所有运行时的安全配置（角色、策略、角色的分配）需要重新做。
 
 [[session-attributes]]
-=== Session Attributes
+=== 会话属性
 
-If you need to share some values across multiple requests from the same connected user, use the `SessionData` bean. It has methods for reading and writing named values stored in the current user session.
+如需在同一个连接用户的多个请求之间共享某些值，请使用 `SessionData` bean，具有读写当前用户会话中存储的命名值方法。
 
-You can inject the `SessionData` bean into UI screens directly:
+可直接在 UI 界面注入 `SessionData` bean：
 
 [source,java,indent=0]
 ----
@@ -126,9 +126,12 @@ public class MyScreen extends Screen {
 
     @Autowired
     private SessionData sessionData;
+    
+    ...
+}
 ----
 
-In a singleton bean, use `SessionData` through `org.springframework.beans.factory.ObjectProvider`:
+在单例 bean 中，通过 `org.springframework.beans.factory.ObjectProvider` 使用 `SessionData`：
 
 [source,java,indent=0]
 ----
@@ -141,47 +144,49 @@ public class MyService {
     public void saveSessionValue(String value) {
         sessionDataProvider.getObject().setAttribute("my-attribute", value);
     }
+    ...
+}
 ----
 
-When handling UI requests, the shared values are stored in the HTTP session.
+处理 UI 请求时，共享值保存在 HTTP 会话中。
 
-If you want to share session attributes between REST API requests authenticated with the same token, add the following dependency to your `build.gradle`:
+如需在使用同一访问 token 认证的 REST API 请求中共享会话属性，请在 `build.gradle` 中添加依赖：
 
 [source,groovy]
 ----
 implementation 'io.jmix.sessions:jmix-sessions-starter'
 ----
 
-For backward compatibility, the `jmix-cuba` module provides the `com.haulmont.cuba.security.global.UserSession` class that delegates its `getAttribute()` / `setAttribute()` methods to `SessionData`.
+`jmix-cuba` 兼容性模块提供向后兼容的 `com.haulmont.cuba.security.global.UserSession` 类，将 `getAttribute()`/`setAttribute()` 方法代理给 `SessionData`。
 
 [[removed-features]]
-=== Features Removed in Jmix
+=== Jmix 中删除的功能
 
-Below is a list of CUBA features that were removed in Jmix without replacement.
+下列是在 Jmix 中删除且不提供替代方案的 CUBA 功能：
 
-* Attribute access control on the `DataManager` level. Entity attribute permissions are now considered only when displaying data in UI components and returning entities via REST API endpoints. See xref:security:authorization.adoc#data-access-checks[Data Access Checks].
+* `DataManager` 级别的属性访问控制。现在仅在 UI 组件中显示数据以及通过 REST API 返回实体时才考虑实体属性权限。参阅 xref:security:authorization.adoc#data-access-checks[数据访问检查]。
 
-* State-based entity attribute access control with `SetupAttributeAccessHandler` and `SetupAttributeAccessHandler`.
+* 使用 `SetupAttributeAccessHandler` 和 `SetupAttributeAccessHandler` 的基于状态的实体属性访问控制。
 
-* Screen component permissions.
+* 界面组件权限。
 
-* Session attributes defined in the Access Groups.
+* 访问组中定义的会话属性。
 
-* `ClusterManagerAPI` interface and its implementation.
+* `ClusterManagerAPI` 接口及其实现。
 
-* Editor screen opening history and `@TrackEditScreenHistory` annotation.
+* 编辑界面打开历史和 `@TrackEditScreenHistory` 注解。
 
-* Support for Microsoft SQL Server 2005 with `net.sourceforge.jtds.jdbc.Driver`.
+* 使用 `net.sourceforge.jtds.jdbc.Driver` 支持 Microsoft SQL Server 2005。
 
 [[changed-api]]
-=== Changed APIs
+=== API 更改
 
-Below is a list of changed APIs that are not converted by the Studio automatic migration and have no compatibility wrappers in `jmix-cuba` module. Use this information when fixing your code for compilation.
+下面是 Studio 自动迁移程序不会转换且 `jmix-cuba` 模块中没有兼容性包装器的 API 列表。在遇到代码编译问题需要修复时，请参考。
 
 [[changed-api-access-groups]]
-==== Access groups and constraints
+==== 访问组和约束
 
-Convert the annotated class to an interface. The interface methods should return `void` and are used merely for grouping annotations. See details in the xref:security:row-level-roles.adoc[] section.
+将注解类转换为接口。接口中的方法应该返回 `void`，这些方法主要是用来对注解进行分组。参阅 xref:security:row-level-roles.adoc[]。
 
 * `com.haulmont.cuba.security.app.group.annotation.AccessGroup` -> `io.jmix.security.role.annotation.RowLevelRole`
 
@@ -190,9 +195,9 @@ Convert the annotated class to an interface. The interface methods should return
 * `com.haulmont.cuba.security.app.group.annotation.Constraint` -> `io.jmix.security.role.annotation.PredicateRowLevelPolicy`.
 
 [[changed-api-security-entities]]
-==== Security configuration entities
+==== 安全配置实体
 
-Below are rough equivalents of entities used to configure security at runtime:
+以下是在运行时配置安全功能实体的大致对等实体：
 
 * `com.haulmont.cuba.security.entity.Role` -> `io.jmix.securitydata.entity.ResourceRoleEntity`
 
@@ -205,11 +210,11 @@ Below are rough equivalents of entities used to configure security at runtime:
 * `com.haulmont.cuba.security.entity.Constraint` -> `io.jmix.securitydata.entity.RowLevelPolicyEntity`
 
 [[multitenancy]]
-==== Multitenancy
+==== 多租户
 
-After running the automatic migration procedure, follow the steps below.
+运行完自动迁移程序后，请按照下列步骤修复。
 
-. Add the `StandardTenantEntity` to your project:
+. 在项目中添加 `StandardTenantEntity`：
 +
 [source,java]
 ----
@@ -242,9 +247,9 @@ public abstract class StandardTenantEntity extends StandardEntity {
 }
 ----
 +
-In all entities extended from the CUBA `StandardTenantEntity`, replace the import of `com.haulmont.addon.sdbmt.entity.StandardTenantEntity` to the import of your own `StandardTenantEntity`.
+将所有继承自 CUBA `com.haulmont.addon.sdbmt.entity.StandardTenantEntity` 的实体都替换成继承上面的 `StandardTenantEntity`。
 
-. In the `User` entity, implement the `AcceptsTenant` interface and add the `tenant` attribute annotated with `@TenantId` and mapped to the `SYS_TENANT_ID` column:
+. `User` 实体中，实现 `AcceptsTenant` 接口，并添加带 `@TenantId` 注解的 `tenant` 属性，映射至数据库的 `SYS_TENANT_ID` 列：
 +
 [source,java]
 ----
@@ -270,9 +275,9 @@ public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
 }
 ----
 
-. Add `tenant` attribute to the user browse and edit screens as described in items 3, 4, 5 of the xref:multitenancy:index.adoc#configuring-users[Multitenancy / Configuring Users] section.
+. 按照 xref:multitenancy:index.adoc#configuring-users[多租户/配置用户] 部分的第 3、4、5 项中所述，将 `tenant` 属性添加到用户浏览和编辑界面。
 
-. Rename `CUBASDBMT_TENANT` table to `MTEN_TENANT` using the following Liquibase changeset (it's needed only in Jmix 1.1.0, because `jmix-cuba` module in Jmix 1.1.1+ contains this changeset):
+. 使用以下 Liquibase 变更集将 `CUBASDBMT_TENANT` 表重命名为 `MTEN_TENANT`（仅在 Jmix 1.1.0 中需要，Jmix 1.1.1+ 中的 `jmix-cuba` 模块已经包含此变更集）：
 +
 [source,xml]
 ----
@@ -286,12 +291,12 @@ public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
 ----
 
 [[changed-api-reports]]
-==== Reports
+==== 报表
 
-* `com.haulmont.reports.app.service.ReportService`, `com.haulmont.reports.gui.ReportGuiManager` -> `io.jmix.reports.runner.ReportRunner`
+* `com.haulmont.reports.app.service.ReportService`、`com.haulmont.reports.gui.ReportGuiManager` -> `io.jmix.reports.runner.ReportRunner`
 
 [[changed-api-entity-snapshots]]
-==== Entity snapshots
+==== 实体快照
 
 * `com.haulmont.cuba.core.app.EntitySnapshotService` -> `io.jmix.audit.snapshot.EntitySnapshotManager`
 
@@ -300,113 +305,113 @@ public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
 * `<frame id="diffFrame" src="/com/haulmont/cuba/gui/app/core/entitydiff/diff-view.xml"/>` -> `<fragment id="diffFrame" screen="snapshotDiff"/>`
 
 [[changed-api-email]]
-==== Email sending
+==== 发送电子邮件
 
 * `com.haulmont.cuba.core.app.EmailService` -> `io.jmix.email.Emailer`
 
 * `com.haulmont.cuba.core.global.EmailInfoBuilder#setCaption` -> `io.jmix.email.EmailInfoBuilder#setSubject`
 
 [[migration]]
-== How To Migrate
+== 如何迁移
 
-Jmix Studio provides an automatic procedure for converting a CUBA project into Jmix one. It creates a new project with a standard Jmix template and then copies the source code from your CUBA project into the new structure inside the new Jmix project. While copying, Studio makes a lot of changes in the source files: replaces packages and known framework classes, converts screen XML descriptors to the new schema, configures your database connections, adds dependencies to the new add-ons. After the migration procedure completes, you should fix the remaining problems manually.
+Jmix Studio 提供了一个将 CUBA 项目转换为 Jmix 项目的自动程序。该程序使用标准的 Jmix 模板创建一个新项目，然后将 CUBA 项目中的源代码复制到 Jmix 项目的新结构中。 在复制时，Studio 对源文件进行了大量改动：替换包和已知框架类，将界面 XML 描述符转换为新架构，配置数据库连接，新扩展组件的依赖。迁移过程完成后，你需要手动修复剩余的问题。
 
-TIP: The migration procedure keeps your CUBA project untouched, so it's safe to run the procedure on any working copy of a project.
+TIP: 迁移过程不会修改当前的 CUBA 项目，因此在项目的任何拷贝上运行该程序都是安全的。
 
 [IMPORTANT]
 ====
-There are the following limitations of the automatic migration:
+自动迁移有如下局限性：
 
-* Projects using HSQLDB as a main data store may have an invalid connection string. We recommend switching your project to a different database before migration.
+* 使用 HSQLDB 作为主要数据存储的项目可能导致无效的连接字符串问题。我们建议在迁移之前将项目切换到不同的数据库。
 
-* Test classes are not copied to the Jmix project.
+* 测试类不会复制到 Jmix 项目。
 ====
 
 [CAUTION]
 ====
-In Jmix Studio v.1.1.4 and below, the migration procedure may fail if your IntelliJ IDEA contains Kotlin plugin of a version newer than 1.5.10. In such a case, downgrade Kotlin plugin to 1.5.10 or below.
+在 Jmix Studio v.1.1.4 及更低版本中，如果你的 IntelliJ IDEA 包含版本高于 1.5.10 的 Kotlin 插件，迁移过程可能会失败。此时，请将 Kotlin 插件降级到 1.5.10 或更低版本。
 
-In Jmix Studio v.1.1.5 and above, the migration does not have a dependency on Kotlin plugin.
+在 Jmix Studio v.1.1.5 及更高版本中，迁移不再依赖 Kotlin 插件。
 ====
 
 [[main-migration]]
-=== Main Migration
+=== 主迁移过程
 
-Follow the steps below to run the automatic migration procedure.
+按照下列步骤运行自动迁移程序。
 
-. Open your CUBA project in Jmix Studio.
+. 在 Jmix Studio 中打卡 CUBA 项目。
 
-. Wait until the project is imported and fully indexed. Watch the IDE progress bar and wait until it stops displaying new messages.
+. 等待项目导入且索引构建完成。观察 IDE 的进度条，直至无新消息展示为止。
 
-. You should see a notification about migrating to Jmix in the bottom right corner. Click *Migrate* or select *File -> New -> Jmix project from this CUBA project* in the main menu of the IDE.
+. 然后，会在右下角弹出关于迁移至 Jmix 的通知。点击消息中的 *Migrate* 或在 IDE 主菜单选择 *File -> New -> Jmix project from this CUBA project*。
 +
-The notification could not appear if the project was opened and imported to the IDE before. In this case, click *Reload All Gradle Projects* button in the *Gradle* tool window.
+如果项目已经在 IDE 导入并打开过，则不会再次弹出提示。此时需要点击 *Gradle* 工具窗口的 *Reload All Gradle Projects* 按钮重新加载一次项目。
 
-. Studio starts the *New Jmix project* wizard.
+. Studio 启动 *New Jmix project* 向导。
 
-. Select the latest Jmix version (at least 1.1.0) and the project JDK used in your CUBA project. Click *Next*.
+. 选择 Jmix 的最新版本（1.1.0 以上），JDK 用 CUBA 项目中使用的版本。点击 *Next*。
 
-. On the next step of the wizard, enter the new Jmix project name and location. Click *Finish*.
+. 在向导的下一步，输入新 Jmix 项目的名称和存储位置。点击 *Finish*。
 
-. Studio creates a new project with the specified Jmix template and starts the migration process. You will see a notification about it in the bottom right corner of the IDE.
+. Studio 使用指定的 Jmix 模板创建新的项目，并启动迁移程序。IDE 的右下角会显示相关信息。
 +
-When the migration is finished, Studio creates the `MigrationResult.md` file and opens it in the editor window. The file describes what has been done automatically and recommendations on what should be done manually.
+当迁移完成时，Studio 创建 `MigrationResult.md` 文件，并在编辑器窗口打开。该文件描述了自动迁移过程中完成的内容以及推荐需要手动修改的内容。
 
-. Add required dependencies to the `build.gradle` file. The migration procedure adds only the known Jmix counterparts of the CUBA add-ons.
+. 手动在 `build.gradle` 文件中添加项目需要的其他依赖。迁移程序只添加与 CUBA 扩展组件对等的 Jmix 扩展组件。
 
-. Your next goal is to compile the project. Click *Build -> Build Project* in the IDE main menu.
+. 下一个目标是编译项目。点击 IDE 主菜单的 *Build -> Build Project*。
 +
-See compilation errors in the build output panel and fix your code to comply with the new API. Use the information from the <<changed-api,Changed API>> section above.
+分析构建输出中的编译错误并按照新的 API 修复代码。使用上面 <<changed-api>> 提供的信息。
 
-. After successful compilation, check the main database connection in the *Data Stores* section of the Jmix tool window.
+. 成功编译后，在 Jmix 工具窗口的 *Data Stores* 检查主数据库连接。
 +
-CAUTION: Jmix Studio will modify the database schema and run some updates automatically. Never use production databases at the development stage!
+CAUTION: Jmix Studio 会自动修改数据库结构并运行一些更新。因此，开发阶段千万不要使用生产环境的数据库！
 
-. To update an existing CUBA database to be compatible with the new Jmix application, do the following:
+. 如需更新已有的 CUBA 数据库以兼容新的 Jmix 应用程序，按照下列步骤：
 
-.. Ensure that `application.properties` file contains the line:
+.. 确保 `application.properties` 文件包含：
 +
 [source,properties]
 ----
 jmix.liquibase.contexts = cuba
 ----
 
-.. Click *Update* in the context menu of the *Main Data Store* item. Studio will run Liquibase changelogs that come with `jmix-cuba` module. If the process is finished successfully, your database is compatible with Jmix modules included in the project.
+.. 右键点击 *Main Data Store*，选择 *Update*。Studio 会运行 `jmix-cuba` 模块带的 Liquibase 更改集。如果成功运行，则数据库与项目中的 Jmix 模块兼容。
 
-. Now you can run the application using the *Jmix Application* run/debug configuration.
+. 然后可以用 *Jmix Application* 运行/调试配置启动应用程序。
 +
-By default, it first checks the database schema and generates a Liquibase changelog if it differs from the application data model. Review the generated changelog carefully and remove from it all potentially dangerous instructions like `drop` and `alter`. You can use *Remove and Ignore* command in the *Changelog Preview* window to remove a selected instruction. Then your choice will be remembered in the `jmix-studio.xml` file of your project, and when you run the application next time, the ignored instructions will not be generated.
+默认情况下，启动时首先检查数据库结构，如果数据库结构与应用程序数据模型不同时，生成 Liquibase 变更日志。需要仔细检查生成的变更日志，并从中删除有潜在危险的命令，例如，`drop` 和 `alter`。可以在 *Changelog Preview* 窗口中使用 *Remove and Ignore* 命令来删除选定的命令。你的选择会记录在项目的 `jmix-studio.xml` 文件中，下次运行应用程序时，将不会再次生成忽略的命令。
 
-. To create a new empty database for your application, do the following:
+. 如需为应用程序创建一个新的空数据库，按照下列步骤：
 
-.. Change Liquibase context in `application.properties`:
+.. 在 `application.properties` 中修改 Liquibase 上下文：
 +
 [source,properties]
 ----
 jmix.liquibase.contexts = migrated
 ----
 
-.. Replace all appearances of the users table name in `resources/<base-package>/liquibase/changelog/010-init-user.xml` to `SEC_USER`. For example: `<createTable tableName="APP_USER">` -> `<createTable tableName="SEC_USER">`, etc.
+.. 将 `resources/<base-package>/liquibase/changelog/010-init-user.xml` 文件内的所有 _用户_ 表名改为 `SEC_USER`。例如，`<createTable tableName="APP_USER">` -> `<createTable tableName="SEC_USER">`。
 
-.. Click *Recreate* in the context menu of the *Main Data Store* item. Studio will drop/create the database and run Liquibase changelogs from all Jmix modules.
+.. 点击 *Main Data Store* 右键菜单中的 *Recreate*。Studio 会先 drop 然后再 create 数据库，并运行所有 Jmix 模块的 Liquibase 更改日志。
 
-.. Run the application using the *Jmix Application* run/debug configuration. Studio will generate a Liquibase changelog for entities in your data model. Alternatively, you can create a changelog file manually and add all SQL statements from the CUBA project `create-db.sql` files using Liquibase `sql` instructions.
+.. 用 *Jmix Application* 运行/调试配置启动应用程序。Studio 会为项目中的数据模型生成 Liquibase 更改日志。或者，你可以手动创建一个更改日志文件，然后将 CUBA 项目中所有 `create-db.sql` 文件的 SQL 语句通过 `sql` 指令添加进来。
 
 [[file-storage-migration]]
-=== File Storage
+=== 文件存储
 
-xref:files:file-storage.adoc#local-fs[Local file storage] structure in Jmix is the same as in CUBA. You can just move all files from the `work/filestorage` directory of your CUBA application to the Jmix file storage directory which is `{user.dir}/.jmix/work/filestorage` by default and can be changed by the `jmix.localfs.storageDir` property.
+Jmix 中 xref:files:file-storage.adoc#local-fs[本地文件存储] 的结构与 CUBA 相同。你只需将所有文件从 CUBA 应用程序的 `work/filestorage` 文件夹移至 Jmix 文件存储的文件夹，默认为 `{user.dir}/.jmix/work/filestorage`，可以用 `jmix.localfs.storageDir` 属性修改。
 
-Make sure that in screen descriptors, upload fields working with `FileDescriptor` attributes are defined as `cuba:cubaUpload`.
+确保在界面描述中，与 `FileDescriptor` 属性关联的上传组件是使用 `cuba:cubaUpload` 定义。
 
-Jmix CUBA compatibility module of version 1.1.2 and below has an https://github.com/Haulmont/jmix-cuba/issues/119[issue^] with the `_instance_name` fetch plan (called `_minimal` in CUBA). To work around it, specify `_base` or `_local` fetch plan instead of `_instance_name` (or `_minimal`) for attributes of the `FileDescriptor` type in screens.
+Jmix 的 CUBA 兼容模块在 1.1.2 版本以下存在一个 `_instance_name`（CUBA 中的 `_minimal`） fetch plan 的 https://github.com/Haulmont/jmix-cuba/issues/119[问题^]。可以在界面中为 `FileDescriptor` 类型指定 `_base` 或 `_local` fetch plan（而非 `_instance_name` 或 `_minimal`）绕过这个问题。
 
 [[webdav-migration]]
 === WebDAV
 
-This section describes how to migrate code and data related to the xref:webdav:index.adoc[] add-on.
+本节介绍如何迁移与 xref:webdav:index.adoc[] 扩展组件相关的代码和数据。
 
-. Add the premium repository and add-on dependencies to your `build.gradle`:
+. 在 `build.gradle` 中添加 premium 仓库和扩展组件依赖：
 +
 [source,groovy]
 ----
@@ -426,28 +431,29 @@ dependencies {
     implementation 'io.jmix.webdav:jmix-webdav-ui-starter'
     implementation 'io.jmix.webdav:jmix-webdav-rest-starter'
     // ...
+}
 ----
 +
-Refresh the project using *Load Gradle Changes* popup at the top right corner of the edit window or using *Reload All Gradle Projects* action of the Gradle tool window.
+使用编辑窗口右上角的 *Load Gradle Changes* 按钮或 Gradle 工具窗口的 *Reload All Gradle Projects* 操作刷新项目。
 
-. Replace CUBA WebDAV packages with Jmix ones throughout your codebase:
+. 代码中用 Jmix 相关的类替换 CUBA WebDAV 包中的类：
 * `com.haulmont.webdav.entity.` -> `io.jmix.webdav.entity.`
 * `com.haulmont.webdav.annotation.` -> `io.jmix.webdav.annotation.`
 * `com.haulmont.webdav.components.` -> `io.jmix.webdavui.component.`
 
-. Fix WebDAV UI components declaration in your screen XML descriptors.
+. 在界面 XML 描述中修复 WebDAV UI 组件的声明：
 
-* Replace `webdav` schema URI : `xmlns:webdav="http://schemas.haulmont.com/webdav/ui-component.xsd` -> `xmlns:webdav="http://jmix.io/schema/webdav/ui`
+* 替换 `webdav` schema URI：`xmlns:webdav="http://schemas.haulmont.com/webdav/ui-component.xsd` -> `xmlns:webdav="http://jmix.io/schema/webdav/ui`
 
-* Replace component XML elements:
+* 替换组件的 XML 元素：
 ** `document-link` -> `documentLink`
 ** `document-version-link` -> `documentVersionLink`
 ** `webdav-document-upload` -> `webdavDocumentUpload`
 
-. Jmix WebDAV add-on works only with attributes of `WebdavDocument` type, so if you have `FileDescriptor` attributes annotated with `@WebdavSupport`, you should change the attribute type and migrate data stored in the corresponding column. Let's consider this process on an example.
+. Jmix WebDAV 扩展组件只能处理 `WebdavDocument` 类型的属性，因此，如果你有带 `@WebdavSupport` 注解的 `FileDescriptor` 属性，需要修改属性类型并迁移保存在对应列的数据。我们用一个示例来看看这个过程。
 +
 --
-Suppose you have the following entity with a `FileDescriptor` attribute supporting WebDAV:
+假设你有下面的实体，带有 `FileDescriptor` 属性支持 WebDAV：
 
 [source,java,indent=0]
 ----
@@ -460,9 +466,11 @@ public class Doc extends StandardEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "FILE_ID")
     private FileDescriptor file;
+    ...
+}
 ----
 
-First, replace `FileDescriptor` type with `WebdavDocument`:
+首先，用 `WebdavDocument` 替换 `FileDescriptor` 类型：
 
 [source,java,indent=0]
 ----
@@ -475,13 +483,15 @@ public class Doc extends StandardEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "FILE_ID")
     private WebdavDocument file;
+    ...
+}
 ----
 
-`@WebdavSupport` annotation is not required in this case, but it can be used to disable versioning.
+`@WebdavSupport` 注解此时已经不需要了，但是可以用来避免版本。
 
-If there are `WebdavDocumentLink` components created for this attribute, replace `withFileDescriptor()` invocations with `withWebdavDocument()`.
+如果为该属性创建了 `WebdavDocumentLink` 组件，则需要用 `withWebdavDocument()` 方法替换 `withFileDescriptor()`。
 
-Next you need to create a Liquibase changelog updating data of the `FILE_ID` column. Create an XML file  (choose an appropriate name, for example `020-migrate-webdav.xml`) in the `src/main/resources/<base-package>/liquibase/changelog` directory with the following content:
+下一步，需要创建 Liquibase 更改日志，用于更新 `FILE_ID` 列的数据。在 `src/main/resources/<base-package>/liquibase/changelog` 目录创建一个 XML 文件（选一个合适的名称，例如，`020-migrate-webdav.xml`），使用下列内容：
 
 [source,xml,indent=0]
 ----
@@ -509,7 +519,7 @@ where wdv.file_descriptor_id = FILE_ID and wdv.webdav_document_id = wd.id)"/>
 </databaseChangeLog>
 ----
 
-In general, you should create such changelogs for each `FileDescriptor` attribute which you have turned into `WebdavDocument`. The changelogs should match the following pattern:
+一般来讲，需要为每个转换为 `WebdavDocument` 的 `FileDescriptor` 属性创建这样一个文件。更改日志要符合下面这种模式：
 
 [source,xml,indent=0]
 ----
@@ -528,18 +538,18 @@ where wdv.file_descriptor_id = {DOCUMENT_COLUMN_NAME} and wdv.webdav_document_id
 </changeSet>
 ----
 
-where
+这里：
 
-* `\{NUM}` - number of the changelog in the file.
-* `\{ENTITY_TABLE_NAME}` - entity table name.
-* `\{FK_FOR_DOCUMENT}` - foreign key for referenced `FileDescriptor`.
-* `\{DOCUMENT_COLUMN_NAME}` - name of the `FileDescriptor` column.
+* `\{NUM}` - 文件中的更改日志编号。
+* `\{ENTITY_TABLE_NAME}` - 实体表名。
+* `\{FK_FOR_DOCUMENT}` - `FileDescriptor` 外键。
+* `\{DOCUMENT_COLUMN_NAME}` - `FileDescriptor` 列名称。
 
-Click *Update* in the context menu of the *Main Data Store* item. Studio will run existing Liquibase changelogs.
+点击 *Main Data Store* 右键菜单的 *Update*，Studio 会执行 Liquibase 更改日志。
 
 [CAUTION]
 ====
-When you start the application, Studio will generate Liquibase changelogs for the difference between the database schema and your data model. Remove the instruction to drop the `FILE_DESCRIPTOR_ID.WEBDAV_WEBDAV_DOCUMENT_VERSION` column from the changelog (use *Remove and Ignore* command in the *Changelog Preview* window):
+启动应用程序时，Studio 会根据数据库结构和数据模型的差异生成 Liquibase 更改日志。移除更改日志中 drop `FILE_DESCRIPTOR_ID.WEBDAV_WEBDAV_DOCUMENT_VERSION` 列的命令（使用 *Changelog Preview* 窗口中的 *Remove and Ignore* 命令）。
 
 [source,xml,indent=0]
 ----
@@ -547,21 +557,21 @@ When you start the application, Studio will generate Liquibase changelogs for th
             tableName="WEBDAV_WEBDAV_DOCUMENT_VERSION"/>
 ----
 
-Keep this column until you complete the migration.
+在完成迁移之前都保留此列。
 ====
 
-Start the application, go to *Administration -> JMX Console* and open the `jmix.cuba:type=MigrationHelper` MBean. Execute the `convertCubaFileDescriptorsForWebdav()` operation.
+启动应用程序，切换至 *Administration（管理） -> JMX Console（JMX 控制台）* 界面，打开 `jmix.cuba:type=MigrationHelper` MBean。执行 `convertCubaFileDescriptorsForWebdav()` 操作。
 --
 
-. Set up HTTPS for your application. See the xref:webdav:configuration.adoc#https[Configuring HTTPS] guide for how to do it with a self-signed certificate.
+. 为应用程序配置 HTTPS 访问。参阅 xref:webdav:configuration.adoc#https[配置 HTTPS] 了解如何使用自签名的证书。
 
-. Move your local file storage content as described <<file-storage-migration,above>>.
+. 按照 <<file-storage-migration,上面>> 的介绍迁移本地文件存储的内容。
 
 [[frontend-migration]]
-=== Frontend
+=== 前端
 
-If your project has a frontend module created with https://doc.cuba-platform.com/frontend[CUBA React client^], you can migrate it to Jmix as follows:
+如果你的项目使用了 https://doc.cuba-platform.com/frontend[CUBA React 客户端^]，可以用下面的步骤迁移至 Jmix：
 
-. Copy `public`, `src` directories and all files from the root of `modules/front` directory of your CUBA project into `front` directory of your new Jmix project.
+. 复制 CUBA 项目中 `modules/front` 下面的 `public`、`src` 文件夹以及其他所有文件至 Jmix 项目的 `front` 文件夹。
 
-. See https://docs-frontend.jmix.io/jmix-frontend-docs/0.x/getting-started/migration-cuba-to-jmix.html[Jmix Frontend UI -> Migration from CUBA^] guide for further instructions.
+. 参阅 https://docs-frontend.jmix.io/jmix-frontend-docs/0.x/getting-started/migration-cuba-to-jmix.html[Jmix 前端 UI -> 从 CUBA 迁移^] 的说明进行后续步骤。
