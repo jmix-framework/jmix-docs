@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 // tag::my-anonymous-screen[]
 @UiController("MyAnonymousScreen")
 @UiDescriptor("my-anonymous-screen.xml")
-@Route(path = "anonymous")
+@Route(path = "anonymous") // <1>
 public class MyAnonymousScreen extends Screen {
     @Autowired
     private Screens screens;
