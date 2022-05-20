@@ -1,0 +1,53 @@
+= Uploading Files
+
+This section explains how upload files from the user's computer using UI components. For information on how to upload files through REST API, see the xref:rest:files-api.adoc[Files API] section.
+
+[[file-upload-components]]
+== File Upload Components
+
+Jmix provides a set of UI components for uploading files. All of them contain a button which, when clicked, shows a file system dialog for choosing files. Below is a quick explanation of differences between the components. Full information about the components is provided in the respective sections.
+
+* xref:ui:vcl/components/file-upload-field.adoc[] allows you to select a single file and save it as a byte array to an entity attribute. You can also get the content of the file right from the component value without associating it with an entity.
+
+* xref:ui:vcl/components/file-storage-upload-field.adoc[] allows you to select a single file and save it to the xref:file-storage.adoc[file storage]. The value of the component is a `FileRef` object. You can link the component with an entity attribute of `FileRef` type to automatically save the file reference to the database.
+
+* xref:ui:vcl/components/file-multi-upload-field.adoc[] allows you to select multiple files at once and upload them to the <<using-temporary-storage,temporary storage>> on the server. Then you can process them and/or transfer to the permanent file storage.
+
+`FileUploadField` and `FileStorageUploadField` can show the name of the uploaded file next to the button. The file name serves also as a download link.
+
+`FileUploadField` and `FileStorageUploadField` can have "drop zone" and "paste zone" to upload files by drag-and-drop or by pasting from the keyboard.
+
+[[using-temporary-storage]]
+== Using TemporaryStorage
+
+The `FileStorageUploadField` component has the xref:ui:vcl/components/file-storage-upload-field.adoc#file-storage-put-mode[fileStoragePutMode] attribute with the default value `IMMEDIATE`. If you set it to `MANUAL`, the component uploads the file to the temporary storage in the file system of the application, and gives you full control over the uploaded file: you can transfer the file to the file storage as is, pre-process it, or do whatever you need with the file without saving it to the file storage at all.
+
+The same is true for the xref:ui:vcl/components/file-multi-upload-field.adoc[FileMultiUploadField] component: it just uploads files to the temporary storage and notifies your code that the upload is complete.
+
+The `TemporaryStorage` interface provides an API to create temporary files, save them to the file storage, or remove them.
+
+Below is an example of using `FileStorageUploadField` in manual mode to transfer the uploaded file from temporary storage to the file storage.
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/files/ex1/screen/files/files-screen.xml[tags=put-mode-manual]
+----
+<1> Set `fileStoragePutMode="MANUAL"` for the upload field component.
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/files/ex1/screen/files/FilesScreen.java[tags=temporary-storage-1;temporary-storage-2]
+----
+<1> Get local file from the temporary storage using identifier provided by the upload field.
+<2> Transfer local file to the file storage.
+
+The `putFileIntoStorage()` method also removes the temporary local file.
+
+If you only need to process the file locally without saving it to file storage, use the `deleteFile()` method of `TemporaryStorage` after working with the file, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/files/ex1/screen/files/FilesScreen.java[tags=get-and-delete]
+----
+
+The temporary storage tends to accumulate files that were not deleted for various reasons. So it provides a JMX interface for removing such old unused files. You can find it by *jmix.ui:type=TemporaryStorage* name in *Administration -> JMX Console* screen. The MBean has the `clearTempDirectory()` method that removes all files from the temporary directory of the application (`.jmix/temp` by default) which are older than 2 days. You can call this method manually, or use a xref:quartz:index.adoc[Quartz] job to do it periodically. In a job, you should inject the `TemporaryStorageManagementFacade` bean and call its `clearTempDirectory()` method.
