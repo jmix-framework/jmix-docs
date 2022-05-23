@@ -1,69 +1,67 @@
-= Getting Started with Email
+= 开始使用
 :page-aliases: email:quick-start.adoc
 
-This section contains a practical guide on sending emails.
+本章节是发送电子邮件的实用指南。
 
-Let’s consider that we want to send emails to some addresses every time a new instance of an entity is created through the entity browse screen.
+假设在每次通过实体浏览界面创建新实体实例时，我们都需要向某些地址发送电子邮件。
 
-First, add Email Sending to your project according to the xref:index.adoc#installation[installation] section.
+首先，按照 xref:index.adoc#installation[安装] 部分的说明进行安装。
 
-== Creating Entity and Screens
+== 创建实体和界面
 
 //some explanation what we are going to do
 
-1. Create `NewsItem` entity containing the following fields:
+1. 创建 `NewsItem` 实体，包含下列属性：
 
-* `date` with `LocalDate` type.
-* `caption` with `String` type.
-* `content` with `String` type and unlimited length.
+* `date`，为 `LocalDate` 类型。
+* `caption`，为 `String` 类型。
+* `content`，为 `String` 类型，长度无限制。
 
-2. Create `NewsItemBrowse` and `NewsItemEdit` screens.
+2. 创建 `NewsItemBrowse` 和 `NewsItemEdit` 界面。
 
-== Adding Confirmation Dialog
+== 添加确认对话框
 
-First, let's check if the editor opened to create a new entity.
+首先，我们检查是否打开了实体编辑界面用于创建新实体。
 
-Add boolean attribute `justCreated` and subscribe to `InitEntity` event.
+为编辑界面添加 `justCreated` 属性，并订阅 `InitEntity` 事件。
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/email/ex1/screen/newsitem/NewsItemEdit.java[tags=just-created-1;just-created-2]
 ----
 
-`justCreated` is set to `true` every time editor is opened for a new entity.
+当每次为新实体打开编辑界面时，将 `justCreated` 设置为 `true`。
 
-Then, subscribe to `PostCommit` event and add the following code:
+然后，订阅 `PostCommit` 事件并添加下列代码：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/email/ex1/screen/newsitem/NewsItemEdit.java[tags=inject;post-commit-event]
 ----
 
-<1> This method is invoked after commit of data context.
-<2> If a new entity was saved to the database, ask a user about sending an email.
-<3> Invokes a method that sends an email.
+<1> 此方法在数据上下文提交之后调用。
+<2> 如果新实体保存至数据库，询问用户是否发送邮件。
+<3> 调用发送邮件的方法。
 
-== Adding Sending Email Method
+== 添加发送邮件方法
 
-Let's add the `sendbyEmail` method that is invoked in the `postCommit` handler and sends an email asynchronously. To demonstrate how to add attachments, we will add a company's logo image as an attachment.
-
-Here is our method:
+我们添加 `postCommit` 中调用的 `sendbyEmail` 方法，异步发送邮件。为了演示如何添加附件，我们给邮件添加一个公司的 logo 图片：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/email/ex1/screen/newsitem/NewsItemEdit.java[tags=resources;emailer;send-by-email]
 ----
 
-<1> Gets a file as a byte array.
-<2> Creates `EmailAttachment` object.
-<3> Recipients.
-<4> Email subject.
-<5> The `from` address will be taken from the xref:configuration.adoc#jmix.email.from-address[jmix.email.from-address] application property.
-<6> Attachments.
+<1> 将文件转换为字节数组。
+<2> 创建 `EmailAttachment` 对象。
+<3> 收件人。
+<4> 邮件主题。
+<5> 发送人地址从 xref:configuration.adoc#jmix.email.from-address[jmix.email.from-address] 应用程序属性获取。
+<6> 设置附件。
 
-== Setting Sending Parameters
+== 设置发送参数
 
-Set up the SMTP server xref:configuration.adoc#spring-boot-mail-properties[parameters]. You can set the parameters in the `application.properties` file of your application. Add the required parameters:
+SMTP 服务器的 xref:configuration.adoc#spring-boot-mail-properties[参数] 可以在应用程序中的 `application.properties` 文件中配置：
 
 [source,properties,indent=0]
 ----
@@ -71,7 +69,7 @@ spring.mail.host = mail.company.com
 jmix.email.from-address = info@company.com
 ----
 
-Here is an example of connecting to the Google SMTP server:
+下面是连接至 Google SMTP 服务的配置：
 
 [source,properties,indent=0]
 ----
@@ -84,16 +82,16 @@ spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 ----
 
-== Working with User Interface
+== 使用 UI
 
-Launch the application, open the `NewsItem` entity browser and click *Create*. The editor screen will be opened. Fill in the fields and press *OK*. The confirmation dialog with the question about sending emails will be shown. Click *Yes*.
+启动应用程序，打开 `NewsItem` 实体浏览界面，然后点击 *Create（新建）*。在编辑界面填写完实体信息后，点击 *OK*。此时会弹出窗口询问是否发送电子邮件，选择 *Yes*。
 
 image::confirmation.png[align="center"]
 
-Go to the *Administration -> Email History* screen of your application. You will see a record with the `Queue` status. It means that the email is in the queue and not yet sent. Email information is displayed on the right.
+切换至应用程序的 *Administration（管理） -> Email History（邮件历史）* 界面。此时可以看到一行状态为 `Queue（排队中）` 的记录。表示邮件仍然在排队，并未发送。邮件信息展示在右侧。
 
-To send all queued email periodically, configure the xref:configuration.adoc#email-sending-scheduler[Quartz Scheduler].
+如需周期性地发送排队的邮件，可以配置 xref:configuration.adoc#email-sending-scheduler[Quartz 调度器]。
 
-To send an email from the UI, choose it in the *Administration -> Email History* screen and click *Resend email*. You can change or add recipients before sending. After successful sending, you will see a new line in the table with `Sent` status.
+如需从界面发送邮件，在 *Administration（管理） -> Email History（邮件历史）* 中选择需要发送的邮件，然后点击 *Resend email（再次发送）*。可以在发送之前修改或添加收件人。发送成功后，表格中的状态会变成 `Sent（已发送）`。
 
 image::resend.png[align="center"]
