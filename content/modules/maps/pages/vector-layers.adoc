@@ -1,137 +1,135 @@
 [[vector-layers]]
-= Vector Layers
+= 矢量层
 
-`VectorLayer` is a base layer for displaying entities on the map. It is a data-aware component acting as a connector between data (geo-objects) and a map. Vector layers enable simple displaying, interactive editing, and drawing geo-objects on a map.
+矢量层 `VectorLayer` 是用于在地图上显示实体的基础层。该图层是一个数据感知组件，将数据（几何对象）和地图连接起来。矢量图层支持在地图上进行简单显示、交互式编辑和绘制几何对象。
 
-== Geo-objects
+== 几何对象
 
-Geo-object is an entity having a property of a geometry type. This property should have one of the geo-specific datatypes that are included in the `io.jmix.maps.datatype` package:
+几何对象是指具有几何属性的实体。此属性应具有包含在 `io.jmix.maps.datatype` 包中的特定几何数据类型之一：
 
 |===
-| *Datatype* | *Java type*
+| *数据类型* | *Java 类型*
 | geoPoint         | org.locationtech.jts.geom.Point
 | geoPolyline      | org.locationtech.jts.geom.LineString
 | geoPolygon       | org.locationtech.jts.geom.Polygon
 |===
 
-To add the property, create a new attribute and select a geo-specific datatype from the list.
+通过实体设计器创建，添加一个新的属性并在下拉列表选择特定的几何类型。
 
 image::geo-types.png[]
 
-Open code of the entity and add the following annotations:
+打开实体源码，并添加下列注解：
 
-* `@Geometry` — marks that the property is to be used when displaying the geo-object on a map.
+* `@Geometry` - 标记该属性用于在地图中展示几何对象。
 +
-NOTE: Geo-object must have one geometry property, otherwise an exception will be thrown when drawing the layer.
+NOTE: 几何对象必须包含一个几何属性，否则在绘制图层时会抛出异常。
 +
-* `@Convert` — allows you to specify a custom JPA converter defining how the datatype will be persisted.
+* `@Convert` - 指定一个自定义的 JPA 转换器，定义这种数据类型如何进行持久化。
 +
-NOTE: By default, the add-on uses JPA converters that transform coordinates into the https://en.wikipedia.org/wiki/Well-known_text[WKT]
-format which consequently persists as a text. While loading from DB this text will be parsed back into the objects. These converters are included in the package: `io.jmix.maps.converter.wkt`.
+NOTE: 默认情况下，扩展组件会使用 JPA 转换器将坐标转换为 https://en.wikipedia.org/wiki/Well-known_text[WKT] 格式，然后使用文本类型保存。从数据加载时，文本也会反向解析为对象。这些转换器位于 `io.jmix.maps.converter.wkt` 包中。
 
-An example of geo-object `Order`:
+几何对象 `Order` 示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/entity/Order.java[tags=entity-begin;geo-object;entity-end]
 ----
 
-As you can see, `Order` is a simple entity, one of which properties `location` is of the `org.locationtech.jts.geom.Polygon` type.
+可以看到，`Order` 是一个很简单的实体，其中一个属性 `location` 为 `org.locationtech.jts.geom.Polygon` 类型。
 
-== Binding Geo-Objects to a Layer
+== 绑定几何对象至图层
 
-To bind geo-objects to a layer, you need to pass a `datacontainer` to the vector layer. This can be declared in the XML descriptor:
+通过 `datacontainer` 将几何对象绑定至图层。可以在 XML 中声明：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/maps/ex1/screen/order/order-edit3.xml[tags=vector-xml]
 ----
 
-`id` and `dataContainer` are required parameters. Vector layer works with both `InstanceContainer` and `CollectionContainer`.
+`id` 和 `dataContainer` 是必需参数。矢量层可以支持 `InstanceContainer` 和 `CollectionContainer` 数据容器。
 
-`editable` parameter defines that the layer can be modified.
+`editable` 参数定义图层是否可修改。
 
-NOTE: To edit/draw geometries on the editable vector layer, specify the layer in the `selectedLayer` parameter of the `layers` section.
+NOTE: 如需在矢量层编辑/绘制几何图形，需在 `layers` 的 `selectedLayer` 参数指定相应的图层。
 
-Additionally, you can create `VectorLayer` in the screen controller:
+另外，还支持在界面控制器创建 `VectorLayer`：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/screen/order/OrderEdit2.java[tags=vector-controller1;vector-controller2]
 ----
 
-== Setting Geometry Style
+== 设置几何图形样式
 
-To determine geometry style for geo-objects, use `setStyleProvider()` method. You can also perform this declaratively using the `@Install` annotation in the screen controller, 示例：
+使用 `setStyleProvider()` 方法确定几何对象的图形样式。也可以使用 `@Install` 注解在界面控制器中声明式的定义该方法，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/screen/territory/TerritoryBrowse.java[tags=vector-style]
 ----
 
-Use `io.jmix.mapsui.component.layer.style.GeometryStyles` bean to create styles for different geometry types.
+使用 `io.jmix.mapsui.component.layer.style.GeometryStyles` bean 为不同的几何图形类型创建样式。
 
-== Working with Selected Geo-Objects
+== 处理选中的几何对象
 
-Geo-objects can be selected by user click or automatically from the associated data container. If `VectorLayer` is set as selected, it becomes interactive, which means a user can select a geo-object by clicking on it.
+几何对象可以通过用户点击或者通过关联的数据容器自动选中。如果 `VectorLayer` 设置为活动图层，则用户可以通过点击选取几何对象。
 
-`setSelectedGeoObject()` method sets the geo-object which the layer is focused on. For example, if an entity is opened in the editor screen it will be implicitly selected in a corresponding vector layer.
+`setSelectedGeoObject()` 方法设置图层中选中的几何对象。例如，如果实体在编辑界面打开，则会自动在对应的矢量层中选中。
 
-`VectorLayer` is subscribed to changes in the corresponding data container and automatically refreshes when new items are added to the data container or in case of removing items from the container.
+`VectorLayer` 订阅了数据容器变更事件，当数据容器中新增或删除数据时，会自动刷新。
 
-Selecting a geo-object produces the `GeoObjectSelectedEvent`. You can subscribe to this event in the screen controller, for example, to select the geo-object in the table:
+选中几何对象时，会产生 `GeoObjectSelectedEvent` 事件。可以在界面控制器中订阅该事件，例如，在表格中选中几何对象：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/screen/order/OrderBrowse1.java[tags=table;selected]
 ----
 
-== Clustering
+== 聚合
 
-For a vector layer consisting of geo-points it is possible to group nearby points into clusters:
+对于由几何点构成的矢量图层，可以将一些靠近的点划分为一个聚合点，在某些缩放级别将多个点显示为一个点：
 
 image::maps-clustering.png[]
 
-To enable clustering, add the `cluster` element inside `vector` in the XML descriptor:
+如需使用聚合，需要在 XML 的 `vector` 元素内添加 `cluster` 元素：
 
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/maps/ex1/screen/order/cluster.xml[tags=cluster]
 ----
 
-You can specify additional clustering options:
+你还可以配置一些聚合的属性：
 
-* `radius` — maximum radius that a cluster will cover in pixels. The default value is `80`.
-* `weightProperty` — if specified, then each point of the layer will have a weight value (int) defined by the weight property of the geo-object.
-This value will be used when calculating the summed up value of the cluster (by default, the number of points is used).
-* `showCoverage` — shows bounds of the cluster when hovering a mouse over it.
-* `disableAtZoom` — specifies a zoom level from which clustering will be disabled.
-* `showSinglePointAsCluster` — shows a single point as a cluster of 1 size.
+* `radius` - 聚合能覆盖的最大半径，以像素为单位，默认 `80`。
+* `weightProperty` - 如果指定，则图层中每个点都会有一个权重值（int），由几何对象的权重属性定义。该值用于计算聚合中点值的总和（默认情况下，总和为点的数量）。
+* `showCoverage` - 当鼠标悬停于聚合点时，显示其覆盖的范围。
+* `disableAtZoom` - 指定一个缩放级别，从该级别开始不显示聚合点。
+* `showSinglePointAsCluster` - 将单一点也显示为大小为 1 的聚合点。
 
-== Working with Underlying Vaadin Components of Geo-objects
+== 几何对象底层的 Vaadin 组件
 
-For each geo-object displayed on a map, the add-on creates an instance of the `io.jmix.mapsui.component.leaflet.translators.GeoObjectWrapper` class that keeps the underlying Vaadin Component. This class provides methods to work directly with the wrapped component:
+对地图中展示的每个几何对象，扩展组件都会创建一个 `io.jmix.mapsui.component.leaflet.translators.GeoObjectWrapper` 类的实例，其中包含底层的 Vaadin 组件。这个类提供与其包装的组件直接交互的方法：
 
- - `openPopup()` — opens the pop-up window of the geo-object if the pop-up content is specified.
- - `closePopup()` — closes the pop-up window of the geo-object.
- - `openTooltip()` — opens the tooltip of the geo-object if the tooltip content is specified.
- - `closeTooltip()` — closes the tooltip of the geo-object.
- - `getLeafletComponent()` — returns the underlying Vaadin Component connected with the Leaflet component on the client side.
+ - `openPopup()` - 如果指定弹窗内容，则打开几何对象的弹窗。
+ - `closePopup()` - 关闭几何对象的弹窗。
+ - `openTooltip()` - 如果指定提示窗内容，则打开几何对象的提示窗。
+ - `closeTooltip()` - 关闭几何对象的提示窗。
+ - `getLeafletComponent()` - 返回客户端层展示的小树叶组件底层的 Vaadin 组件。
 
-To obtain geo-object wrappers for a vector layer, invoke the `getGeoObjectWrappersMap()` method of the `GeoMapImpl` class (implementation of the `GeoMap`) and pass the layer to it:
+如需获取矢量层的几何对象包装器，可以调用 `GeoMapImpl` 类（实现了 `GeoMap`）的 `getGeoObjectWrappersMap()` 方法，并将矢量层传递给该方法：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/screen/order/OrderBrowse2.java[tags=get-wrapper]
 ----
 
-The returned map contains entries in which keys are geo-objects IDs (or geo-objects themselves for those whose ID = null) and values are corresponding `GeoObjectWrapper` instances. So you can obtain `GeoObjectWrapper` of the particular geo-object this way:
+返回的键值对中的 key 为几何对象的 ID（或几何对象本身，如果 ID = null），value 为对应的 `GeoObjectWrapper` 实例。因此，可以用下面的方式获取特定几何对象的 `GeoObjectWrapper`。
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/maps/ex1/screen/order/OrderBrowse2.java[tags=table;wrapper1;wrapper2]
 ----
 
-WARNING: If the geometry value of the geo-object is null, then there is no `GeoObjectWrapper` for this geo-object.
+WARNING: 如果几何对象的几何值是 null，则该几何对象没有 `GeoObjectWrapper`。
 
-Also, be aware that `GeoObjectWrapper` instances can be changed or replaced after refreshing the layer. So always use this map to get the relevant wrapper instance.
+另外，当刷新图层时，`GeoObjectWrapper` 实例可能会发生改变或被替换。因此每次都需要用这个键值对获取相关的包装类实例。
