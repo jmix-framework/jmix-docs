@@ -1,27 +1,27 @@
-= Multitenancy
+= 多租户
 
-The add-on allows you to build multitenant Jmix applications that store data of all tenants in a single database. A single instance of the application serves multiple tenants - groups of users that are invisible to each other and share only specific (usually read-only) data.
+该扩展组件支持构建多租户的 Jmix 应用程序，所有租户的数据都保存在单一数据库中。一个应用程序实例即可服务于多个租户，租户是指不同的用户组，组之间互相不可见，仅共享特定的（通常是只读的）数据。
 
-There are two types of data in a multitenant application:
+多租户应用程序中有两种类型的数据：
 
-* Common data shared across tenants. Tenant users should have read-only access to this type of data.
-* Tenant-specific data not accessible to other tenants. Tenant users have full access to this type of data.
+* 租户之间共享的通用数据。租户的用户对这些数据应该仅有只读权限。
+* 租户特有的数据，其他租户无法访问。租户享有对此类数据的全部权限。
 
 [[installation]]
-== Installation
+== 安装
 
-Follow the instructions in the xref:ROOT:add-ons.adoc[Add-ons] section to install the add-on into your application.
+按照 xref:ROOT:add-ons.adoc[扩展组件] 章节的说明进行安装。
 
 [[how-it-works]]
-== How it Works
+== 原理
 
-Tenant-specific entities of your project must have an attribute of type String annotated with `@TenantId`. When a tenant user loads such entities, the framework adds `WHERE` condition by the tenant-id attribute to the JPQL query in order to read only data of the user's tenant. Also, the tenant-id attribute is automatically set to the current users's tenant when saving new entities.
+项目中租户特有的实体必须有一个 String 类型的参数，用 `@TenantId` 注解标注。当租户用户加载此类实体时，框架会将租户 ID 的 `WHERE` 条件添加到 JPQL 查询语句中，仅读取用户租户的数据。另外，在保存新实体时，租户 ID 属性会自动设置为当前用户的租户。
 
-CAUTION: There is no automatic filtering for native SQL, so tenant users should not have access to any functionality that provides access to native SQL or Groovy code (JMX Console, creating xref:reports:index.adoc[reports], etc.).
+CAUTION: 原生 SQL 不会自动过滤，因此租户用户不应该有权限访问任何能提供对原生 SQL 或 Groovy 代码访问的功能（包括JMX 控制台、创建 xref:reports:index.adoc[报表] 等）。
 
-The `User` entity of your project must have a tenant-id attribute. This attribute must be set to a particular value for all tenant users. Users without a value in this attribute (that is not belonging to any tenant) can see data of all tenants, which makes sense for __global administrators__ who can set up tenants and maintain the whole system.
+项目的 `User` 实体必须包含租户 ID 属性。所有租户用户的这个属性都需要设置为一个特定的值。属性值为空的用户（不属于任何租户）可以看到所有租户的数据，__全局管理员__ 可以这样设置，方便配置所有租户和维护整个系统。
 
-The following entities of Jmix modules have `sysTenantId` attribute and support multitenancy:
+Jmix 模块中的下列实体具有 `sysTenantId` 属性，支持多租户：
 
 * `EntityLogItem`
 * `SendingMessage`
@@ -34,71 +34,71 @@ The following entities of Jmix modules have `sysTenantId` attribute and support 
 * `UiTablePresentation`
 
 [[managing-tenants]]
-== Managing Tenants
+== 租户管理
 
-The add-on provides *Administration -> Tenants* screen which allows global administrators to create and edit tenants.
+该扩展组件提供了 *Administration（管理） -> Tenants（租户）* 界面，支持全局管理员创建和编辑租户。
 
-The tenant registration entity has two attributes:
+租户注册记录包含两个属性：
 
-* *Tenant id* - identifier that will be used in tenant-specific entities. It cannot be changed after creation.
-* *Tenant name* - a descriptive name of the tenant.
+* *Tenant id（租户 ID）* - 租户特定实体中使用的租户标识符。创建之后无法修改。
+* *Tenant name（租户名称）* - 租户的描述名称。
 
 [[tenant-users]]
-== Tenant Users
+== 租户用户
 
-Tenants can have users with the same login names. To provide uniqueness of the `username` attribute throughout the whole application, tenant users should be registered with the tenant-id prefix in username. For example, if there are two different Alice users in `t1` and `t2` tenants, they should have `t1|alice` and `t2|alice` username respectively.
+不同租户中的用户可能会有相同的登录名。如需在整个应用程序中提供唯一的 `username` 属性，租户用户需要使用租户 ID 为前缀的 username 进行注册。例如，如果 `t1` 和 `t2` 租户中都有叫 Alice 的不同用户，那么她们应该使用分别使用 `t1|alice` 和 `t2|alice` 用户名。
 
-There are two ways to log in tenant users to the application:
+租户用户可以有两种登录应用程序的方法：
 
-. Use an URL parameter specifying tenant-id when opening the login screen, for example `++http://localhost:8080/#login?tenantId=t1++`. Then users can enter their login name without the tenant-id prefix, for example just `alice`.
+. 打开登录界面时，使用租户 ID 作为 URL 参数，例如，`++http://localhost:8080/#login?tenantId=t1++`。然后用户可以输入不带租户 ID 前缀的用户名，例如，仅输入 `alice`。
 +
-You can use the `jmix.multitenancy.tenantIdUrlParamName` application property to specify a different name for the URL parameter.
+可以使用 `jmix.multitenancy.tenantIdUrlParamName` 应用程序属性为该 URL 参数指定不同的名称。
 
-. Users can provide the full username including the tenant-id, for example `t1|alice`.
+. 用户填写包括租户 ID 的完整用户名，例如，`t1|alice`。
 
-NOTE: You can implement your own scheme of unique usernames instead of the described above.
+NOTE: 可以实现自定义的唯一用户名结构。
 
 [[configuring-users]]
-== Configuring Users
+== 用户配置
 
-In this section, we describe how to configure the user management and authentication in your project to support multitenancy.
+本节中，我们介绍在项目中如何配置用户管理和认证以支持多租户。
 
-. Add a string attribute to your `User` entity and annotate it with `@TenantId`:
+. 在 `User` 实体中添加一个属性，并使用 `@TenantId` 注解：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=tenantId]
 ----
 
-. Implement the `io.jmix.multitenancy.core.AcceptsTenant` interface in the `User` entity. The `getTenantId()` method must return the attribute marked with `@TenantId` annotation:
+. `User` 实体实现 `io.jmix.multitenancy.core.AcceptsTenant` 接口。`getTenantId()` 方法必须返回带 `@TenantId` 注解的属性：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=AcceptsTenant-1;AcceptsTenant-2]
 ----
 
-. Add `tenant` column to the table in `user-browse.xml`:
+. 在 `user-browse.xml` 中的表格添加 `tenant` 列：
 +
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-browse.xml[tags=tenant]
 ----
 
-. Add field for selecting tenant in `user-edit.xml`:
+. 在 `user-edit.xml` 中添加一个选择租户的字段：
 +
 [source,xml,indent=0]
 ----
 include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-edit.xml[tags=tenant]
 ----
 
-. Add the following to the `UserEdit` class:
+. 在 `UserEdit` 类添加下列代码：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/multitenancy/ex1/screen/user/UserEdit.java[tags=tenant-1;tenant-2;tenant-3]
 ----
 
-. To support identical login names in different tenants as described <<tenant-users,above>>, add the following to your `LoginScreen` class:
+. 如需支持 <<tenant-users,上面>> 介绍的不同租户相同登录名的功能，在 `LoginScreen` 类添加下列代码：
 +
 [source,java,indent=0]
 ----
@@ -106,9 +106,9 @@ include::example$/ex1/src/main/java/multitenancy/ex1/screen/login/LoginScreen.ja
 ----
 
 [[configuring-security]]
-== Configuring Security
+== 安全配置
 
-When configuring roles for tenant users, exclude tenant-id attributes from entity attribute policies, so users won't see them. For example, if the `Customer` entity is tenant-specific and has `tenant` attribute annotated with `@TenantId`, the role that gives access to the entity should list the attributes explicitly and omit `tenant`:
+为租户用户配置角色时，需要在实体属性策略中排除租户 ID 属性，避免用户能查看该字段。例如，如果 `Customer` 实体是租户特定的实体，并具有 `tenant` 属性带 `@TenantId` 注解，则对于该实体访问权限的角色中，需要显式的列出所有的属性并忽略 `tenant`：
 
 [source,java,indent=0]
 ----
