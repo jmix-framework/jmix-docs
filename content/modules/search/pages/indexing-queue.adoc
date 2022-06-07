@@ -1,53 +1,53 @@
-= Indexing Queue
+= 索引队列
 
-As soon as you include the Search add-on in your application, it starts xref:config-options.adoc#tracking-changes[tracking changes] in your entities. In this section, we describe how to set up the automatic update of the Elasticsearch indexes with the new data.
+在应用程序中添加了搜索扩展组件后，会开始自动 xref:config-options.adoc#tracking-changes[跟踪实体的修改]。本章节我们介绍如何设置使用新数据自动更新 ES 索引。
 
-The change tracking mechanism stores a queue of actions that should be done for changed entity instances in the the `SEARCH_INDEXING_QUEUE` database table. The `IndexingQueueManager` bean contains methods to process the queue and send changed data to Elasticsearch.
+跟踪修改的机制会在 `SEARCH_INDEXING_QUEUE` 数据库表保存对修改后实体操作的队列。`IndexingQueueManager` bean 包含处理队列的方法，并将修改的数据发送至 ES。
 
-NOTE: You should set up periodic processing of the indexing queue, otherwise the search will return stale data.
+NOTE: 应设置索引队列的定期处理机制，否则搜索将返回过时的数据。
 
-You can use Quartz Job Scheduler for periodic queue processing as described below.
+可以按照下面的介绍使用 Quartz 任务调度定期处理队列。
 
 [[default-quartz-configuration]]
-== Default Quartz Configuration
+== 默认 Quartz 配置
 
-The Search add-on provides the default configuration of the Quartz job for processing the indexing queue on a regular basis. To use it, do the following:
+搜索扩展组件提供 Quartz 任务的默认配置，用于定期处理索引队列。按下列步骤使用：
 
-. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+. 按照 Quartz 章节的说明在项目中安装 xref:quartz:index.adoc#installation[安装] 扩展组件。
 
-. Change the CRON expression if necessary. The default value is `0/5 * * * * ?` (every 5 seconds).
+. 视情况修改 CRON 表达式。默认值为 `0/5 * * * * ?`（5 秒一次）。
 +
 [source,properties,indent=0]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=cron]
 ----
 
-The default configuration creates and schedules a job with the `IndexingQueueProcessing` identity.
+默认配置创建并设置 id 为 `IndexingQueueProcessing` 的调度计划。
 
 [[custom-qurtz-configuration]]
-== Custom Quartz Configuration
+== 自定义 Quartz 配置
 
-If you want to use a custom Quartz configuration, do the following:
+如需使用自定义 Quartz 配置，请按照下列步骤：
 
-. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+. 按照 Quartz 章节的说明在项目中安装 xref:quartz:index.adoc#installation[安装] 扩展组件。
 
-. Add the following property to the `application.properties` file to disable the default configuration:
+. 在 `application.properties` 文件添加下列应用程序属性禁用默认配置：
 +
 [source,properties,indent=0]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=not-default]
 ----
 
-. Create a custom job class that invokes `IndexingQueueManager.processNextBatch()`:
+. 创建自定义任务类，调用 `IndexingQueueManager.processNextBatch()`：
 +
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/search/ex1/service/MyCustomQueueProcessingJob.java[tags=custom-job]
 ----
 
-. In the running application, open the *Administration -> Quartz jobs* screen, and configure a job for the `MyCustomQueueProcessingJob` class.
+. 启动程序后，打开 *Administration（管理） -> Quartz jobs（Quartz 任务）* 界面，为 `MyCustomQueueProcessingJob` 类配置调度任务。
 
-. Alternatively, if you want to configure the job at development time, register the following beans in the application:
+. 或者，如需在开发阶段配置调度任务，可以在主程序类中注册下列 bean：
 +
 [source,java,indent=0]
 ----

@@ -1,72 +1,71 @@
-= Search API and Internals
+= 搜索 API 和原理
 
 [[diagram]]
-== Search Components Diagram
+== 搜索组件关系图
 
 image:search:search_architecture.png[Architecture Diagram, align="center"]
 
-Search add-on includes the following components:
+搜索扩展组件包含下列子组件：
 
-* *Startup Index Synchronizer* - automatically validates and recreates irrelevant or missing indexes on application startup. Starts background process with enqueueing all instances of entities related to created indexes.
-* *Entity Tracking Listener* - tracks changes of indexed entities and enqueues corresponding queue items.
-* *Quartz Scheduler* - schedules job that periodically processes items of the Indexing Queue.
-* *Indexing Queue Manager* - enqueues items to the Indexing Queue. Processes previously enqueued items and performs corresponding actions via the Entity Indexer.
-* *Entity Indexer* - performs operations with index data: saves and deletes entity instances.
-* *ES Index Manager* - manages index metadata: creates and drops indexes, validates mappings.
-* *Entity Searcher* - performs searching in indexes and retrieves the search result that can be rendered on a screen.
+* *Startup Index Synchronizer* - 在应用程序启动时自动验证并重建不相关或缺失的索引。启动后台进程，将索引相关的全部实体实例都加入队列。
+* *Entity Tracking Listener* - 跟踪索引实体的变更，并将变更实体加入队列。
+* *Quartz Scheduler* - 计划定期处理索引队列的任务。
+* *Indexing Queue Manager* - 将内容加入索引队列。处理之前队列中的内容并通过 Entity Indexer 执行对应的操作。
+* *Entity Indexer* - 使用索引数据执行操作：保存和删除实体实例。
+* *ES Index Manager* - 管理索引元数据：创建和删除索引，验证字段映射。
+* *Entity Searcher* - 在索引中执行搜索，并获取可在界面渲染的搜索结果。
 
 [[indexing-api]]
-== Indexing API
+== 索引 API
 
-If you want to index/delete entity instances directly without enqueuing an event, use methods of `EntityIndexer`:
+如需直接将实体实例添加至索引或者从索引删除，而无需添加至索引队列中，请使用 `EntityIndexer` 中的方法：
 
-* `index(Object entityInstance)` - stores a provided entity instance to index.
-* `indexCollection(Collection<Object> entityInstances)` - stores provided entity instances to index.
-* `indexByEntityId(Id entityId)` - stores entity instance to index by a provided id.
-* `indexCollectionByEntityIds(Collection<Id> entityIds)` - stores entity instances to index by provided ids.
-* `delete(Object entityInstance)` - deletes a provided entity instance from index.
-* `deleteCollection(Collection<Object> entityInstances)` - deletes provided entity instances from index
-* `deleteByEntityId(Id entityId)` - deletes entity instance from the index by a provided id.
-* `deleteCollectionByEntityIds(Collection<Id> entityIds)` - deletes entity instances from index by provided ids.
+* `index(Object entityInstance)` - 将提供的实体实例添加至索引。
+* `indexCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例添加至索引。
+* `indexByEntityId(Id entityId)` - 使用提供的 ID 将实体实例添加至索引。
+* `indexCollectionByEntityIds(Collection<Id> entityIds)` - 使用提供的一组 ID 将多个实体实例添加至索引。
+* `delete(Object entityInstance)` - 将提供的实体实例从索引删除。
+* `deleteCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例从索引删除。
+* `deleteByEntityId(Id entityId)` - 使用提供的 ID 将实体实例从索引删除。
+* `deleteCollectionByEntityIds(Collection<Id> entityIds)` - 使用提供的一组 ID 将多个实体实例从索引删除。
 
-If you want to enqueue instances to be indexed/deleted, use methods of `IndexingQueueManager`:
+如需将实体实例加入队列，请使用 `IndexingQueueManager` 中的方法：
 
-* `enqueueIndex(Object entityInstance)` - enqueues index event for a provided entity instance.
-* `enqueueIndexCollection(Collection<Object> entityInstances)` - enqueues index events for provided entity instances.
-* `enqueueIndexByEntityId(Id entityId)` - enqueues index event for a provided entity id.
-* `enqueueIndexCollectionByEntityIds(Collection<Id> entityIds)` - enqueues index events for provided entity ids.
-* `enqueueIndexAll()` - enqueues index events for all instances of all entities configured for indexing.
-* `enqueueIndexAll(String entityName)` - enqueues index events for all instances of a provided entity. This entity should be previously configured for indexing.
-* `enqueueDelete(Object entityInstance)` - enqueues delete event for a provided entity instance.
-* `enqueueDeleteCollection(Collection<Object> entityInstances)` - enqueues delete events for provided entity instances.
-* `enqueueDeleteByEntityId(Id entityId)` - enqueues delete event for a provided entity id.
-* `enqueueDeleteCollectionByEntityIds(Collection<Id> entityIds)` - enqueues delete events for provided entity ids.
-* `emptyQueue(String entityName)` - removes all queue items related to a provided entity from the indexing queue.
-* `processNextBatch()` - retrieves the next batch of items from the indexing queue and processes them.
-* `processNextBatch(int batchSize)` - retrieves the next batch (with size equals to `batchSize`) of items from the indexing queue and processes them.
-* `processEntireQueue()` - retrieves all items from indexing queue and processes them.
+* `enqueueIndex(Object entityInstance)` - 将提供的实体实例加入索引事件队列。
+* `enqueueIndexCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例加入索引事件队列。
+* `enqueueIndexByEntityId(Id entityId)` - 将实体 ID 加入索引事件队列。
+* `enqueueIndexCollectionByEntityIds(Collection<Id> entityIds)` - 将一组实体 ID 加入索引事件队列。
+* `enqueueIndexAll()` - 将所有配置了索引的实体实例加入索引事件队列。
+* `enqueueIndexAll(String entityName)` - 将提供的实体的所有实例加入索引事件队列。该实体应当完成了索引配置。
+* `enqueueDelete(Object entityInstance)` - 将提供的实体实例加入删除事件队列。
+* `enqueueDeleteByEntityId(Id entityId)` - 将实体 ID 加入删除事件队列。
+* `enqueueDeleteCollectionByEntityIds(Collection<Id> entityIds)` - 将一组实体 ID 加入删除事件队列。
+* `emptyQueue(String entityName)` - 从索引队列中删除所有与提供的实体相关的内容。
+* `processNextBatch()` - 从索引队列中获取下一组内容，并进行处理。
+* `processNextBatch(int batchSize)` - 从索引队列中获取下一组内容（数量为 `batchSize`），并进行处理。
+* `processEntireQueue()` - 从索引队列中获取所有内容，并进行处理。
 
 [[searching-api]]
-== Searching API
+== 搜索 API
 
-If you want to search entities in the index, use methods of `EntitySearcher`:
+如需在索引中搜索实体，请使用 `EntitySearcher` 中的方法：
 
-* `SearchResult search(SearchContext searchContext, SearchStrategy searchStrategy)` - performs searching in search indexes according to provided `SearchContext` and `SearchStrategy`. 
-* `search(SearchContext searchContext)` - similar to the previous one but uses the default `SearchStrategy`.
-* `searchNextPage(SearchResult previousSearchResult)` - performs a search for the next page based on `SearchResult` of the previous search request. Returns its own `SearchResult` that can be used for the next invocation.
+* `SearchResult search(SearchContext searchContext, SearchStrategy searchStrategy)` - 根据提供的 `SearchContext` 和 `SearchStrategy` 在索引中执行搜索。
+* `search(SearchContext searchContext)` - 与前一个方法类似，但是使用默认的 `SearchStrategy`。
+* `searchNextPage(SearchResult previousSearchResult)` - 根据前一页搜索请求的 `SearchResult` 执行下一页搜索。返回其 `SearchResult` 可用于后续调用。
 
-The returned `SearchResult` object contains the result data:
+返回的 `SearchResult` 对象包含搜索结果数据：
 
-* `SearchContext` - describes the main settings of the current search:
+* `SearchContext` - 当前搜索的主要设置：
 
-** `searchText` - the text to search for.
-** `size` - the maximum amount of documents to return.
-** `offset` - the number of documents that should be skipped.
-** `entities` - a collection of entity names to search. If none is specified, the search will be performed within all indexed entities.
+** `searchText` - 需要搜索的关键词。
+** `size` - 返回文档的最大数量。
+** `offset` - 跳过文档的数量。
+** `entities` - 一组用于搜索的实体名称。如果未指定，则在所有索引实体中搜索。
 
-* `SearchStrategy` - describes the way of `searchText` processing.
+* `SearchStrategy` - 定义 `searchText` 的处理方式。
 
-Also, you can use `SearchResult` to load a collection of related entity instances. For that purpose, use methods of `SearchResultProcessor:`
+另外，还可以使用 `SearchResult` 加载实体实例的集合。请使用 `SearchResultProcessor` 中的方法：
 
 * `Collection<Object> loadEntityInstances(SearchResult searchResult)`
 * `Collection<Object> loadEntityInstances(SearchResult searchResult, Map<String, FetchPlan> fetchPlans)`
@@ -74,28 +73,28 @@ Also, you can use `SearchResult` to load a collection of related entity instance
 [[entity-indexing-mbean]]
 == EntityIndexing MBean
 
-The Search add-on provides an MBean with `jmix.search:type=EntityIndexing` object name that has the following operations:
+搜索扩展组件提供了一个对象名为 `jmix.search:type=EntityIndexing` 的 MBean，具有下列操作：
 
-* `enqueueIndexAll` - enqueues all instances of indexed entities. There are two variants of this operation:
-** with parameter `entityName` - enqueues instances of this entity only.
-** without parameters - enqueues all instances of all indexed entities.
+* `enqueueIndexAll` - 将索引实体的所有实例都加入队列。该操作有两个版本：
+** 带 `entityName` 参数 - 仅处理指定实体的实例。
+** 不带参数 - 处理全部索引实体。
 
-* `processEntireIndexingQueue` - processes all items in Indexing Queue.
-* `processIndexingQueueNextBatch` - processes next batch of items in Indexing Queue.
-* `recreateIndex` - drops and creates index related to a provided entity. All data will be lost.
-* `recreateIndexes` - drops and creates all search indexes defined in the application. All data will be lost.
-* `synchronizeIndexSchema` - synchronizes schema of index related to a provided entity. This may cause deletion of this index with all data - depends on schema management strategy.
-* `synchronizeIndexSchemas` - synchronizes schemas of all search indexes defined in the application. This may cause deletion of indexes with all their data - depends on schema management strategy.
-* `validateIndex` - validates schema of search index related to a provided entity and displays a status.
-* `validateIndexes` - validates schemas of all search indexes defined in the application and displays status for all indexes.
+* `processEntireIndexingQueue` - 处理索引队列中的全部内容。
+* `processIndexingQueueNextBatch` - 处理索引队列中的下一组内容。
+* `recreateIndex` - 删除并重新创建所提供实体的相关索引。会丢失所有索引数据。
+* `recreateIndexes` - 删除并重新创建应用程序中定义的全部索引。会丢失所有索引数据。
+* `synchronizeIndexSchema` - 同步所提供实体的索引结构。根据索引结构管理策略的不同，有可能会删除索引的全部数据。
+* `synchronizeIndexSchemas` - 同步应用程序中定义的全部索引。根据索引结构管理策略的不同，有可能会删除索引的全部数据。
+* `validateIndex` - 验证所提供实体的相关索引结构，并展示验证状态。
+* `validateIndexes` - 验证应用程序中定义的全部索引结构，并展示全部索引的验证状态。
 
 [[security-and-pagination]]
-== Access Control and Pagination
+== 访问控制和分页
 
-Data access control is performed by the Search add-on in two steps:
+数据访问控制通过搜索扩展组件中的两步实现：
 
-* Pre-search - checks xref:security:resource-roles.adoc#entity-policy[entity policies] and excludes indexes related to forbidden entities.
+* 搜索开始前 - 检查 xref:security:resource-roles.adoc#entity-policy[实体策略]，并排除禁止访问实体的相关索引。
 
-* Post-search - checks if there are any xref:security:row-level-roles.adoc#policies[row-level policies] configured for found entities. If they exist, the found instances are reloaded to apply security policies.
+* 搜索完成后 - 检查是否对找到的实体有任何 xref:security:row-level-roles.adoc#policies[行级策略] 配置。如果有的话，会使用安全策略重新加载找到的实例。
 
-`EntitySearcher` tries to fill the entire page with data within its search request execution. If some data are excluded from the current result set due to security restrictions and there are more suitable documents in indexes, `EntitySearcher` automatically performs additional search requests with a shifted offset to fetch more data. This can happen multiple times until the page is full or there are no more results.
+`EntitySearcher` 会尝试使用搜索请求中找到的数据填充整个页面。如果某些数据由于安全限制被排除在结果之外，并且索引中还有其他满足条件的数据，`EntitySearcher` 会自动执行一次额外的搜索请求获取更多的数据。这个过程可能重复多次直到数据填满整个页面或者没有更多的数据。
