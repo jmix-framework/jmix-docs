@@ -1,96 +1,98 @@
-= Amazon Web Services
+= AWS
 :page-aliases: deploy-to-aws.adoc
 
-Before starting the guide, create an account and ensure that you have an access to the link:https://console.aws.amazon.com/console/home[AWS Console^].
+开始之前，请先创建 AWS 账号并确保能访问 link:https://console.aws.amazon.com/console/home[AWS 控制台^]。
 
-NOTE: We will use PostgreSQL as a database for this guide.
+NOTE: 我们将使用 PostgreSQL 数据库。
 
 [[executable-jar]]
-== Deploying Executable JAR
+== 部署可执行 JAR
 
-The simplest way to deploy the application's executable jar to AWS is to use link:https://aws.amazon.com/elasticbeanstalk/[Elastic Beanstalk Service^] (EBS).
+将应用程序的可执行 JAR 部署至 AWS 最简单的方法就是使用 link:https://aws.amazon.com/elasticbeanstalk/[Elastic Beanstalk Service^]（EBS）。
 
 [[prepare-app]]
-=== Preparing The Application
+=== 准备应用程序
 
-Since we have more than one database connection now (local development and AWS), we need to configure additional properties file that will contain connection properties for AWS environment.
+由于现在有多个数据库连接（本地开发库以及 AWS），我们需要配置附加属性文件，包含 AWS 环境的连接参数。
 
-To switch between different configurations, we will use https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[Runtime Profiles^]. For our case, we will use `aws` profile name.
+要在不同的配置文件之间切换，我们将使用 link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[运行时配置文件^]。示例中，我们将使用 `aws` 配置文件名。
 
-Let's create `application-aws.properties` file according to naming rules described in link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot Documentation].
+根据 link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot 文档^] 的命名规则要求，我们新建名为 `application-aws.properties` 的配置文件。
 
-In this file, we will specify database connection properties using AWS Elastic Beanstalk environment variables:
+文件中，我们将使用 AWS Elastic Beanstalk 环境变量指定数据库连接参数：
 
-* `RDS_HOSTNAME` - internal EBS-specific database host name
-* `RDS_PORT` - database port allocated by EBS
-* `RDS_DB_NAME` - database name
-* `RDS_USERNAME` - database username
-* `RDS_PASSWORD` - database password
+* `RDS_HOSTNAME` - 内部 EBS 数据库服务器名
+* `RDS_PORT` - EBS 分配的数据库端口
+* `RDS_DB_NAME` - 数据库名称
+* `RDS_USERNAME` - 数据库用户名
+* `RDS_PASSWORD` - 数据库密码
 
-TIP: Note that these variables should be specified if you create a database using EBS. If you created the database separately using RDS or another AWS service, you may not need these variables
+TIP: 注意，这些变量仅在通过 EBS 创建数据库时使用。如果你是用 RDS 或其他 AWS 服务创建的数据库，则不需要这些变量。
 
-In addition to the datasource coordinates, we may want to specify the following properties before the deployment:
+除了数据源坐标外，我们还需要在部署前设置下列属性：
 
-* `server.port` - should be set to 5000 by default. You can specify EBS environment property `SERVER_PORT` instead if you like. We will show how to set EBS environment later.
-* `jmix.liquibase.enabled` - if set to `true` (default value) - enables automatic execution of Liquibase database migration scripts on application start.
+* `server.port` - 默认设置为 5000。也可以指定为 EBS 的环境属性 `SERVER_PORT`。我们稍后介绍如何设置 EBS 环境。
+* `jmix.liquibase.enabled` - 如果设置为 `true`（默认值），则会在应用程序启动时自动执行 Liquibase 数据库脚本。
 
-So, the `application-aws.properties` file content may look like this:
+所以，`application-aws.properties` 文件内容如下：
 
 [source,properties,indent=0]
+----
 main.datasource.url = jdbc:postgresql://${RDS_HOSTNAME}:${RDS_PORT}/${RDS_DB_NAME}
 main.datasource.username = ${RDS_USERNAME}
 main.datasource.password = ${RDS_PASSWORD}
 server.port=5000
+----
 
-The application is ready, you can create an executable JAR and move to the next step.
+应用程序准备完成，可以创建可执行 JAR 并继续下面的步骤。
 
 [[create-aws-env]]
-=== Creating The AWS environment
+=== 创建 AWS 环境
 
-Log in to the AWS Console and select *Elastic Beanstalk* service from the list of services.
+登录 AWS 控制台，从服务列表选择 *Elastic Beanstalk*。
 
-After that, create the application by clicking on a corresponding link on the EBS main page. Enter application information:
+然后在 EBS 主页面点击相应的按钮创建应用程序。输入下列应用程序信息：
 
-* Application name - any name you prefer.
-* Platform - Java. Select platform branch according to your preferences.
+* Application name - 应用程序名称。
+* Platform - Java。根据需要选择平台分支。
 
-In the *Application code* section select *Upload your code* option. In the *Source code origin* section for the *Local file* option click on *Choose file* button and upload your application's JAR. It is usually located in `/build/libs` folder.
+在 *Application code* 部分选择 *Upload your code*。在 *Source code origin* 部分的 *Local file* 点击 *Choose file* 按钮上传应用程序 JAR。JAR 一般位于 `/build/libs` 文件夹。
 
-Add a database to the environment by clicking on *Configure more options* button. In the configuration page, edit the database parameters:
+点击 *Configure more options* 按钮添加数据库。在配置页面，编辑数据库参数：
 
 image::aws-ebs-add-database.png[align=center]
 
-Set database parameters similar to those on the picture:
+按照这个图片设置数据库参数：
 
 image::aws-rds-parameters.png[align=center]
 
-TIP: Setting *Retention* to `Delete` is recommended for test environments. For production environments set it to `Create snapshot` to avoid data loss in case of the application is deleted accidentally.
+TIP: 推荐测试环境中设置 *Retention* 为 `Delete`。生产环境设置为 `Create snapshot` 避免不小心删除应用程序时数据丢失。
 
-After creating the database, we have one more step specifying runtime profile to enable proper application configuration - `aws`. In order to do this, edit *Software* settings in the environment configuration page:
+创建万数据库后，我们还需要一个步骤指定运行时配置文件启用正确的应用程序配置 - `aws`。在环境配置页面编辑 *Software* 设置：
 
 image::aws-ebs-environment-settings.png[align=center]
 
-In the *Environment properties* section add the `SPRING_PROFILES_ACTIVE` property and set its value to `aws`:
+在 *Environment properties* 部分，添加 `SPRING_PROFILES_ACTIVE` 属性，设置为 `aws`：
 
 image::aws-ebs-environment-values.png[align=center]
 
-Save all settings and create the application. The creation and startup usually takes 5-10 minutes.
+保存全部设置并创建应用程序。创建和启动过程一般需要 5-10 分钟。
 
 [[test]]
-=== Testing The Deploy
+=== 测试部署
 
-When the application is created and deployed, open the environments list and click on the corresponding environment:
+当应用程序创建并部署完成后，打开 environment 列表，点击相应的环境：
 
 image:aws-ebs-app-env-list.png[align=center]
 
-In the environment page, click on the *Go to environment* link to open the deployed application page.
+在环境页面，点击 *Go to environment* 链接打开部署好的应用程序页面。
 
 image:aws-ebs-app-env-page.png[align=center]
 
-The application page should open.
+应用程序应该正常加载。
 
-=== More Information
+=== 参考
 
-The guide is based on the link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[AWS guide^], so you can refer to it for further details.
+本指南基于 link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[AWS 指南^]，更多细节可以参阅该文档。
 
-Also, you may find the link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[guide on deploying Java applications]  useful.
+另外，link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[Beanstalk Java 应用程序部署指南] 也很有帮助。
