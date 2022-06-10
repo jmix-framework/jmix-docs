@@ -1,28 +1,28 @@
 = 软删除
 
-在 _Soft Deletion_ 模式下，对 JPA 实体的删除操作只是将数据库记录标记为已删除，实际上并没有删除。稍后，系统管理员可以彻底删除或恢复它们。
+在 _Soft Deletion_ 模式下，对 JPA 实体的删除操作只是将数据库记录标记为已删除，实际上并没有删除。之后，系统管理员可以彻底删除或恢复这些数据。
 
-软删除可以帮助你降低因用户错误操作而导致数据丢失的风险。另外，即使某些记录有来自其他表的引用，软删除也能允许将它们不可访问。
+软删除可以帮助降低因用户错误操作而导致数据丢失的风险。另外，即使其他表引用了某些记录，软删除也可以让这些记录立即变为不可访问状态。
 
-Jmix 中的软删除机制对应用程序开发人员是透明的。如果为实体定义了 xref:entities.adoc#soft-delete-trait[软删除特性]，框架会为已删除的实体实例标记数据库记录，并根据以下规则加载已删除的实例：
+Jmix 中的软删除机制对应用程序开发人员是透明的。如果为实体定义了 xref:entities.adoc#soft-delete-trait[软删除特性]，框架会为在数据库标记已删除的实体实例，并根据以下规则加载已删除的实例：
 
 * 按 Id 加载时不返回软删除的实例，从 JPQL 查询的结果中过滤掉。
 
-* 在加载的实体图中，软删除的实例会从集合属性（To-Many 引用）中过滤掉，但会存在于单值属性（To-One 引用）中。
+* 在加载的实体关系图中，软删除的实例会从集合属性（To-Many 引用）中过滤掉，但会存在于单值属性（To-One 引用）中。
 +
-例如，想象一个 Customer - Order - OrderLine 数据模型。最初，一个 Order 引用了一个 Customer 和 _五个_ OrderLine 实例。你软删除了 Customer 实例和一个 OrderLine 实例。然后，如果你将 Order、Customer 和 OrderLine 集合一起加载，它将包含已删除的 Customer 和 _四个_ OrderLine 实例的引用。
+例如，想象一个 Customer - Order - OrderLine 数据模型。最初，一个 Order 引用了一个 Customer 和 _五个_ OrderLine 实例。你软删除了 Customer 实例和一个 OrderLine 实例。然后，如果你将 Order、Customer 和 OrderLine 集合一起加载，将包含已删除的 Customer 和 _四个_ OrderLine 实例的引用。
 
 == 对引用的处理
 
-当一个普通的（硬删除的）实体被删除时，数据库中的外键定义了对该实体的引用的处理。默认情况下，如果一个实体被其他实体引用，则无法被删除。要将引用的实体与你的实体一起删除，或将引用设置为 null，请为外键定义 `ON DELETE CASCADE` 或 `ON DELETE SET NULL` 规则。
+当一个普通的（硬删除的）实体被删除时，由数据库中的外键定义对该实体引用的处理。默认情况下，如果一个实体被其他实体引用，则无法被删除。如需将引用的实体与要删除的实体一起删除，或将引用设置为 null，则需要为外键定义 `ON DELETE CASCADE` 或 `ON DELETE SET NULL` 规则。
 
-对于软删除的实体，外键也存在，但它们不会影响删除，因为从数据库的角度来看没有删除。所以默认情况下，当实体实例被软删除时，它不会影响任何有关联的实体。
+对于软删除的实体，外键也存在，但它们不会影响删除，因为从数据库的角度来看没有删除。所以默认情况下，当实体实例被软删除时，不会影响任何有关联的实体。
 
 Jmix 提供了 `@OnDelete` 和 `@OnDeleteInverse` 注解来处理软删除实体之间的引用。
 
-TIP: Studio 实体设计器有提示帮助你选择正确的注解以及他们的值。
+TIP: Studio 实体设计器有提示可以帮助你选择正确的注解及其值。
 
-* `@OnDelete` 注解指定在删除当前实体时如何处理它引用的实体。在下面的例子中，当拥有方 `Order` 实例被删除时，所有的 `OrderLine` 实例都会被删除：
+* `@OnDelete` 注解指定在删除当前实体时如何处理引用的实体。在下面的例子中，当拥有方 `Order` 实例被删除时，所有的 `OrderLine` 实例都会被删除：
 +
 [source,java,indent=0]
 ----
@@ -46,7 +46,7 @@ include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=class-d
 
 == 唯一性约束
 
-软删除使创建数据库唯一约束更加复杂。约束必须考虑到可能有多个记录具有相同的唯一字段值：一个未删除和任意数量的软删除。
+软删除使创建数据库唯一约束更加复杂。约束必须考虑到可能有多个记录具有相同的唯一字段值：一个未删除和任意数量的软删除记录。
 
 对于不同的数据库，该问题的解决方式不同。
 
@@ -68,7 +68,7 @@ create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DA
 create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
 ----
 
-* 否则，你应该使用一个附加列，一个更新它的触发器和一个唯一约束的复合索引。以下是 MySQL 的例子：
+* 否则，应该使用一个附加列，一个更新该列的触发器和一个唯一约束的复合索引。以下是 MySQL 的例子：
 +
 [source,sql]
 ----
