@@ -54,7 +54,7 @@ public class InputDialogFacetScreen extends Screen {
     public void onInputDialogInputDialogClose(InputDialog.InputDialogCloseEvent event) {
         if (event.closedWith(DialogOutcome.OK)) {
             notifications.create()
-                    .withCaption("The order will display in your profile within 5 minutes")
+                    .withCaption("The order will be displayed in your profile within 5 minutes")
                     .show();
         }
     }

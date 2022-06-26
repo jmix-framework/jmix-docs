@@ -16,7 +16,6 @@
 
 服务 API 可以将任意 Spring bean 作为 HTTP 接口开放。Jmix 负责 HTTP 交互，例如，提供 HTTP 响应编码、进行错误处理等。
 
-
 在下面的流程图中，可以看到使用服务 API 时，API 客户端和 Jmix 应用程序之间的交互过程：
 
 [plantuml]
@@ -208,12 +207,6 @@ POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
 }
 ----
 
-参数值格式必须符合对应数据类型的要求。示例：
-
-* 如果参数类型是 `java.util.Date`，值的格式从 DateTimeDatatype 获取。默认为 `yyyy-MM-dd HH:mm:ss.SSS`。
-* 对于 `java.sql.Date` 参数类型，值的格式从 DateDatatype 获取。默认为 `yyyy-MM-dd`。
-* 对于 `java.sql.Time` 参数类型，值的格式从 TimeDatatype 获取。默认为 `HH:mm:ss`。
-
 REST API 方法返回一个序列化的 `OrderValidationResult` POJO：
 
 [source, json]
@@ -224,6 +217,15 @@ REST API 方法返回一个序列化的 `OrderValidationResult` POJO：
   "errorMessage": "Validation of order 00050 failed. validationDate parameter is: 2016-10-01"
 }
 ----
+
+[[service-parameters]]
+==== 参数传递
+
+参数值格式必须符合对应 xref:data-model:data-types.adoc[数据类型] 的要求。
+
+* 如果参数类型是 `java.util.Date`，值的格式由 `DateTimeDatatype` 处理。此数据类型的实现使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE_TIME[ISO_DATE_TIME^] 格式进行解析，其中日期和时间部分以 `T` 分隔，例如，`2011-12-03T10:15:30`。
+* 对于 `java.sql.Date` 参数类型，值的格式 `DateDatatype` 处理。使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE[ISO_DATE^] 格式，例如，`2011-12-03`。
+* 对于 `java.sql.Time` 参数类型，值的格式 `TimeDatatype` 处理。使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_TIME[ISO_TIME^] 格式，例如，`10:15:30`。
 
 [[custom-controller]]
 == 自定义控制器
@@ -239,6 +241,7 @@ REST API 方法返回一个序列化的 `OrderValidationResult` POJO：
 
 这些场景中，通用服务 API 可能不够灵活，难以满足要求。因此，Jmix 支持原生集成 Spring MVC 控制器。
 
+[[creating-custom-controllers]]
 === 创建自定义控制器
 
 如需创建自定义控制器，只需要在 Jmix 应用程序中创建 Spring MVC 控制器的 bean 即可。Jmix 本身没有其他的额外要求。看一个控制器示例：
@@ -269,7 +272,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-// ...
+@RestController
+@RequestMapping("/orders")
 public class OrderController {
 
     @GetMapping("/calculateTotalAmount") // <1>
@@ -316,14 +320,15 @@ Content-Type: application/json
 }
 ----
 
+[[securing-custom-controllers]]
 === 保护自定义控制器
 
-如需为自定义控制器提供与 Jmix REST API 一样的 OAuth2 保护机制，可以在应用程序配置中注册控制器的 URL pattern：
+如需为自定义控制器提供与 Jmix REST API 一样的 OAuth2 保护机制，在 `jmix.rest.authenticated-url-patterns` 应用程序属性中注册控制器的 URL pattern：
 
 [source,properties]
 .application.properties
 ----
-jmix.rest.authenticatedUrlPatterns=/orders/**
+jmix.rest.authenticated-url-patterns = /orders/**
 ----
 
 这里的 `/orders/**` 通配符表示任何以 `/orders/` 开头的接口都使用 OAuth2 保护机制。
@@ -342,4 +347,45 @@ WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_de
 "error": "unauthorized",
 "error_description": "Full authentication is required to access this resource"
 }
+----
+
+认证后的接口可以使用 Jmix xref:security:index.adoc[安全] 子系统提供的数据访问控制。如果你的控制器使用 xref:data-access:data-manager.adoc[DataManager] 读写数据，会自动检查认证用户的 xref:security:resource-roles.adoc#entity-policy[实体操作] 权限。下面示例中，如果用户没有对 `Order` 实体的读权限，会抛出 "Access denied（拒绝访问）" 异常：
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @GetMapping("/all")
+    public List<Order> loadAll() {
+        return dataManager.load(Order.class).all().list();
+    }
+----
+
+如需限制为实体属性的访问，需要使用 `EntitySerialization` bean 将接口返回的实体进行序列化。下面示例中，返回客户端的 JSON 中只带有经过 xref:security:resource-roles.adoc#entity-attribute-policy[实体属性策略] 许可的实体属性。
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+    @Autowired
+    private EntitySerialization entitySerialization;
+
+    @GetMapping("/all")
+    public String loadAll() {
+        List<Order> orders = dataManager.load(Order.class).all().list();
+        return entitySerialization.toJson(
+                orders,
+                null,
+                EntitySerializationOption.DO_NOT_SERIALIZE_DENIED_PROPERTY
+        );
+    }
 ----

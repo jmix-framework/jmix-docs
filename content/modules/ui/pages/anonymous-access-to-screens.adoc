@@ -1,0 +1,67 @@
+= Anonymous Access to Screens
+
+默认情况下，匿名（未认证）用户会话只能访问 xref:ui:screens/root-screens.adoc#login-screen[登录界面]。通过创建新的登录界面，可以在界面上添加任何信息，甚至添加 `WorkArea` 组件，然后便能在该组件内为匿名用户打开其他界面。但是一旦用户登录了，所有在匿名模式下打开的界面都会关闭。
+
+有时也许我们需要将某些应用程序的界面呈现给用户而无论用户是否进行登录认证。比如下面这个需求：
+
+* 当用户打开应用程序，他们能看见为匿名用户准备的带侧边菜单的主界面。
+* 还有一个 *Info（信息）* 界面，展示公开的信息。点击 *Show the Login Screen* 按钮，用户可以跳转登录界面，登录后以认证用户的身份继续在系统里操作。
+* 用户可以从主菜单或者直接通过浏览器输入 URL 打开 *Info* 界面。
+
+下面我们看看实现步骤。
+
+. 使用 *Main screen with side menu* 模板创建新的 xref:ui:screens/root-screens.adoc#main-screen[主界面]。
+. 创建自定义界面，例如，`MyAnonymousScreen`，为匿名用户展示一些信息，并提供打开登录界面的按钮：
++
+.my-anonymous-screen.xml
+[source,xml,indent=0]
+----
+include::example$/ex2/src/main/resources/ui/ex2/screen/myanonymous/my-anonymous-screen.xml[]
+----
++
+使用 xref:url-history-navigation/routing-api.adoc#route-registration[@Route] 注解控制器类，提供能使用链接方式打开的功能：
++
+.MyAnonymousScreen.java
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/screen/myanonymous/MyAnonymousScreen.java[tags=my-anonymous-screen]
+----
+<1> 指定该界面的地址。当该界面在最高层打开的时候，地址栏会显示类似 `++http://localhost:8080/#anonymous++` 的地址。
+. 在 *Application* 菜单下定义新的菜单项：
++
+.menu.xml
+[source,xml,indent=0]
+----
+include::example$/ex2/src/main/resources/ui/ex2/menu.xml[tags=anonymous-screen]
+----
+. 创建 `AnonymousRole` xref:security:resource-roles.adoc[资源角色] 并允许访问 `MyAnonymousScreen` 和 `MainScreenSideMenu`：
++
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/security/AnonymousRole.java[tags=anonymous-role]
+----
+. 在 `DatabaseUserRepository` 中为匿名用户分配 `AnonymousRole`：
++
+[source,java,indent=0]
+----
+include::example$/ex2/src/main/java/ui/ex2/security/DatabaseUserRepository.java[tags=init-anonymous-user]
+----
+. 在 `application.properties` 文件中，启用匿名访问，并指定匿名用户可以查看的界面：
++
+[source,properties,indent=0]
+----
+include::example$/ex2/src/main/resources/application.properties[tags=anonymous-access]
+----
++
+[NOTE]
+====
+注意，此时你的应用程序有两个主界面。认证用户使用的是默认的主界面，而匿名用户使用的是匿名主界面：
+
+[source,properties,indent=0]
+----
+jmix.ui.main-screen-id=MainScreen
+jmix.ui.initial-screen-id=MainScreenSideMenu
+----
+====
+
+. 启动应用程序，确保从主菜单打开新创建的界面为 `/#anonymous` 地址。

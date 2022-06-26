@@ -380,6 +380,13 @@ public class TableScreen extends Screen {
     protected Object printableTableFullNameValueProvider(Customer customer) {
         return null;
     }
+
+    // tag::column-generator-linked-column[]
+    @Install(to = "countryTable.[city.country.name]", subject = "columnGenerator")
+    private Component countryTableCityCountryNameColumnGenerator(Customer customer) {
+        return new Table.PlainTextCell(customer.getCity().getCountry().getName());
+    }
+    // end::column-generator-linked-column[]
     // tag::table-screen-end[]
 }
 // end::table-screen-end[]

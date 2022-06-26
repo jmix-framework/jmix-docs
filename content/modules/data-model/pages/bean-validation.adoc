@@ -1,0 +1,208 @@
+= Bean 验证
+
+Java Bean 验证是数据验证的一种方式。当前版本是 2.0，在 https://beanvalidation.org/specification/[JSR-380^] 介绍。Bean 验证的参考实现是 https://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/?v=5.3[Hibernate Validator^]。
+
+使用 Bean 验证可以为项目带来诸多好处：
+
+* 验证逻辑位于数据模型内：很自然地可以定义值、方法、bean 约束，可以将面向对象编程（OOP）提升至更高的级别。
+* Bean 验证的标准提供几十个即用的 https://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/#validator-defineconstraints-spec[验证注解^]，例如 `@NotNull`、`@Size`、`@Min`、`@Max`、`@Pattern`、`@Email`、`@Past` 以及不太标准的 `@URL`、`@Length`，还有很多其他的注解。
+* 除了使用预定义的约束之外，还可以自定义约束注解。可以通过组合几个已有注解形成新的注解，或者定义全新的注解和用作 validator 的 Java 类。
++
+例如，可以定义 <<custom-constraints,类级别>> 的 `@ValidPassportNumber` 注解，用于检查护照号码的格式是否正确，该注解依赖 `location` 字段值。
+* 约束不仅可以放置于字段和类定义上，还可以放置于方法和方法参数。称为 <<validation-by-contract,"合约验证（validation by contract）">>。
+
+Bean 验证会在 UI 界面中当用户提交数据时自动调用，也会用在 xref:rest:index.adoc[通用 REST API] 中。
+
+[[defining-constraints]]
+== 定义约束
+
+可以使用 `javax.validation.constraints` 包中的注解或者自定义注解来定义约束。可以在一个实体或 POJO 类声明、字段或 getter 方法以及服务方法上设置注解。
+
+标准约束集包括最常用和通用的约束。此外，Bean 验证支持开发者添加 <<custom-constraints,自定义约束>>。
+
+* `@NotNull` 验证注解的属性不是 `null`。
+* `@Size` 验证注解的属性大小（长度、数量）在 `min` 和 `max` 之间；可用于 `String`、`Collection`、`Map` 以及 `Array` 类型的属性。
+* `@Min` 验证注解的属性值大于或等于 `value` 指定的值。
+* `@Max` 验证注解的属性值小于或等于 `value` 指定的值。
+* `@Email` 验证注解的属性是一个有效的 email 地址。
+* `@NotEmpty` 验证属性不是 `null` 或空；可用于 `String`、`Collection`、`Map` 以及 `Array` 类型的属性。
+* `@NotBlank` 只能用于文本值，验证属性不是 `null` 也不是空格。
+* `@Positive` 和 `@PositiveOrZero` 只能用于数字值，验证值大于零或大于等于零。
+* `@Negative` 和 `@NegativeOrZero` 只能用于数字值，验证值小于零或小于等于零。
+* `@Past` 和 `@PastOrPresent` 验证日期值小于或小于等于当前日期时间（过去时间）。
+* `@Future` 和 `@FutureOrPresent` 验证日期值大于或大于等于当前日期时间（将来时间）。
+* `@Pattern` 检查注解的字符串属性是否能匹配 `regex` 指定的正则表达式。
+
+//TODO: добавить информацию, как задать перечисленные аннотации для сущностей в Studio. Подождать, когда появится соответствующий подраздел и дать на него ссылку
+
+[[entity-bean-validation]]
+=== 实体 Bean 验证
+
+在实体字段使用标准验证注解的示例：
+
+.Person.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=entity-start;entity-fields;entity-end]
+----
+
+<1> 姓的长度要大于 3 个英文字符。
+<2> Email 字符串需要是正确的电子邮件地址。
+<3> 身高要大于 0。
+<4> 身高小于等于 300。
+
+我们看一下用户在界面提交数据时，bean 验证如何自动实施检查。
+
+image::validation-ui.png[align="center"]
+
+可以看到，应用程序不仅为用户展示了错误信息，而且将表单中 bean 验证失败的字段用红线高亮标记出来。
+
+[[custom-constraints]]
+==== 自定义约束
+
+可以创建自己特定领域的约束，可以支持编程式或声明式验证。
+
+如需创建编程式验证的约束，按照下列步骤：
+
+. 创建一个注解：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidPassportNumber.java[tags=annotation]
+----
+<1> 定义注解运行时的标的，设置为类或接口。
+<2> 声明注解的实现在 `ValidPassportNumberValidator` 类中。
+
+. 创建验证器类：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidPassportNumberValidator.java[tags=validator]
+----
+<1> `isValid()` 方法做具体检查。
+
+. 使用类级别注解：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=custom-validation-annotation;entity-start;entity-end]
+----
+
+也可以使用已有注解的组合创建自定义约束，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/validation/ValidZipCode.java[tags=annotation]
+----
+
+当使用组合约束时，违反约束的结果集中包含每个内部约束的单独验证结果。如果只需要返回单一违反约束结果，使用 `@ReportAsSingleViolation` 注解此注解类。
+
+[[validation-by-contract]]
+=== 合约验证
+
+使用 bean 验证时，约束可以应用在任何 Java 类型的构造方法或任意方法的参数和返回值，用于检查方法调用的前置条件和后续条件。这就是所谓 “合约验证”
+
+通过 “合约验证” 的方式，可以实现清晰、紧凑和易维护的代码。
+
+在服务接口的方法声明中使用 `@Validated` 注解可以让服务对方法的参数和结果进行验证。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/service/PersonApiService.java[tags=person-api-service]
+----
+<1> `getPersons()` 方法返回列表中的每个对象都需要针对 `Person` 类约束进行验证。
+<2> 表示方法需要验证。
+<3> 如果需要对方法参数进行级联验证，可以使用 `@Valid` 注解。上面的示例中，`Person` 对象上声明的约束也会进行验证。
+
+如果在服务中进行了一些自定义的编程式验证，请使用 `CustomValidationException` 通知用户验证错误，错误通知的格式与标准 bean 验证相同。这种机制特别适合用于 REST API 客户端。
+
+[NOTE]
+Bean 验证是可以继承的。如果某些类、字段或方法使用了约束注解，那么所有继承或实现此类或接口的后代都会受到某些约束检查的影响。
+
+[[constraint-groups]]
+=== 约束组
+
+约束组支持根据应用程序逻辑仅应用所有已定义约束的子集。例如，可能想强制用户输入实体属性的值，但是同时又能够通过某种内部机制设置此属性为 `null`。为此，应该在约束注解上指定 `groups` 属性。然后，只有将相同的组传递给验证机制时，约束才会生效。
+
+框架将下列约束组传递给验证机制：
+
+* `RestApiChecks` - bean 验证约束组，用于 xref:jmix:rest:index.adoc[REST API] 数据验证。
+* `UiComponentChecks` - bean 验证约束组，用于 UI 字段验证。
+* `UiCrossFieldChecks` - bean 验证约束组，用于 UI 跨字段验证。
+* `javax.validation.groups.Default` - 默认传递此组，除了 UI 编辑界面提交时。
+
+[[validation-messages]]
+=== 验证信息
+
+约束可包含要显示给用户的信息。
+
+信息可以直接在验证注解上设置，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message1]
+----
+
+信息也可以在 xref:localization:message-bundles.adoc[消息包] 中设置，在注解中使用消息键值指定。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message2]
+----
+
+信息可以包含参数和表达式。参数包含在 `{}` 中，包括本地化消息或注解参数，例如 `+{min}+`、`+{max}+`、`+{value}+`。表达式包含在 `${}` 中并且可以包含验证值变量 `validatedValue`、注解参数（如 `value` 或 `min`）以及 JSR-341（EL 3.0）表达式。例如:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/entity/Person.java[tags=message3]
+----
+
+本地化消息值也可以包含参数和表达式。
+
+// TODO after https://github.com/jmix-framework/jmix/issues/686
+//=== Validation of Related Objects
+
+[[running-validation]]
+== 运行时验证
+
+[[ui-validation]]
+=== UI 中验证
+
+与数据连接的 UI 组件会自动获取 `BeanPropertyValidator` 以检查字段的值。验证器是在可视化组件实现的 `Validatable.validate()` 方法中调用。如果验证不通过，会抛出 `ValidationException` 异常。
+
+标准的验证器可以删除，也可以使用不同的 <<constraint-groups,约束组>> 进行初始化：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonEdit.java[tags=person-edit-start;set-or-remove;person-edit-end]
+----
+<1> 从 UI 组件中完全删除 bean 验证。
+<2> 这里，验证器将仅检查显式设置了 `UiComponentChecks` 组的约束，因为没有传递 `Default` 组。
+
+默认情况下，`AbstractBeanValidator` 具有 `Default` 和 `UiComponentChecks` 分组。
+
+如果实体属性带有 `@NotNull` 注解且没有定义约束组，则在元数据中这个属性会被标记为强制的（mandatory），并且绑定至数据的 UI 组件将具有 `required = true` 属性。
+
+xref:ui:vcl/components/date-field.adoc[DateField] 和 xref:ui:vcl/components/date-picker.adoc[DatePicker] 组件通过 `@Past`、`@PastOrPresent`、`@Future`、`@FutureOrPresent` 注解自动设置其 `rangeStart` 和 `rangeEnd` 属性。
+
+如果约束包含 `UiCrossFieldChecks` 组并且所有属性级别的检查都没问题，则实体编辑 xref:ui:screens/screen-controllers.adoc[界面] 将在提交时做类级别约束的验证。可以在控制器使用 `setCrossFieldValidate()` 关闭此验证：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonEdit.java[tags=person-edit-start;set-cross-field-validate;person-edit-end]
+----
+
+[[rest-api-validation]]
+=== REST API 中验证
+
+通用 REST API 为实体的 xref:rest:entities-api/create-entities.adoc#entity-validation[创建和更新] 操作以及使用 xref:rest:business-logic.adoc#services-api[服务 API] 自动执行 bean 验证。
+
+[[programmatic-validation]]
+=== 编程式验证
+
+可以使用 `javax.validation.Validator` 接口的 `validate()` 方法以编程的方式执行 bean 验证。验证的结果是一组 `ConstraintViolation` 对象。示例:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/person/PersonBrowse.java[tags=validator;save]
+----

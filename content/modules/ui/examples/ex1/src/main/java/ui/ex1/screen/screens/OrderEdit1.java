@@ -1,10 +1,8 @@
 package ui.ex1.screen.screens;
 
-import io.jmix.ui.Dialogs;
 import io.jmix.ui.Notifications;
 import io.jmix.ui.action.Action;
 import io.jmix.ui.component.CheckBox;
-import io.jmix.ui.component.TextField;
 import io.jmix.ui.component.ValidationErrors;
 import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;

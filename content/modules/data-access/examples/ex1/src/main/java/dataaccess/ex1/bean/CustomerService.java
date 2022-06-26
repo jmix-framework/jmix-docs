@@ -7,8 +7,11 @@ import io.jmix.core.Id;
 import io.jmix.core.Sort;
 import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
+import io.jmix.core.session.SessionData;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +23,15 @@ public class CustomerService {
     @Autowired
     private DataManager dataManager;
     // end::inject-dm[]
+
+    // tag::session-data[]
+    @Autowired
+    private ObjectProvider<SessionData> sessionDataProvider;
+
+    void setCustomerCodeInSession(String code) {
+        sessionDataProvider.getObject().setAttribute("customerCode", code);
+    }
+    // end::session-data[]
 
     // tag::load-by-id[]
     Customer loadById(UUID customerId) {
@@ -148,4 +160,24 @@ public class CustomerService {
         dataManager.remove(Id.of(customerId, Customer.class));
     }
     // end::remove-by-id[]
+
+    public Customer updateCustomerGrade(Customer customer) {
+        return customer;
+    }
+
+    // tag::transaction-template-inject[]
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    // end::transaction-template-inject[]
+
+    // tag::transaction-template-without-result[]
+    public void createCustomer() {
+        transactionTemplate.executeWithoutResult(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            dataManager.save(customer);
+        });
+    }
+    // end::transaction-template-without-result[]
+
 }

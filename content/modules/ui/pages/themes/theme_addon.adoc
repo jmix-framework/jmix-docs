@@ -25,44 +25,127 @@ attributes(['Vaadin-Stylesheets': 'VAADIN/addons/<addon-name>/<addon-name>.scss'
 
 按下列步骤使用 Jmix Studio 创建主题扩展组件：
 
-. 新建项目，选择 *theme-addon* 模板。输入项目名称，例如，`"themeaddon"`，将创建一个简单的 Java 项目，结构如下：
+. 新建项目，选择 *UI Theme Add-On* 模板。输入项目名称，例如，`"themeaddon"`，将创建一个简单的 Java 项目，结构如下：
 +
 image::themes/structure-add-on.png[align="center"]
-. 打开 `themeaddon.scss` 文件并在 `themeaddon` mixin 中定义你的改动，示例：
+. 打开 `themeaddon.scss` 文件，按照需要修改，示例：
 +
 [source, css,indent=0]
 ----
-@mixin themeaddon {
-   .jmix-sidemenu-panel
-   .jmix-sidemenu-item
+@mixin themeaddon { // <1>
    .jmix-sidemenu-item-caption {
       font-size: 16px;
    }
 
-   .v-button:not(.v-button-link) {
-      background-image: none;
-      background-color: #13418D;
+   .jmix-sidemenu-item-caption {
+      font-weight: bold;
    }
 }
+
+@mixin themeaddon-css-variables { // <2>
+  --border-color: #6EB8A3;
+  --error-color: #F3969A;
+  --primary-color: #78C2AD;
+  --primary-color_rgb: 120, 194, 173;
+  --secondary-color: #6CC3D5;
+  --secondary-color_rgb: 108, 195, 213;
+  --success-color: #56CC9D;
+  --warning-color: #FFCE67;
+
+  --error-color-shade-1: #EE7278;
+  --error-color-shade-2: #EA4D55;
+  --error-dim-color: #F6B1B5;
+  --primary-color-shade-1: #5EB59B;
+  --primary-color-shade-2: #4DA88D;
+  --primary-dim-color: #9DD2C2;
+  --secondary-color-shade-1: #4DB6CB;
+  --secondary-color-shade-2: #38ABC2;
+  --secondary-dim-color: #94D3E0;
+  --success-color-shade-1: #3CC38D;
+  --success-color-shade-2: #35AC7C;
+  --success-dim-color: #86DAB8;
+  --warning-contrast-text-color: #FFFFFF;
+}
+----
+<1> 定义主 mixin 中的 CSS 样式。
+<2> 定义带有 CSS 变量的 mixin。
++
+[NOTE]
+====
+我们推荐在单独的 mixin 中定义 CSS 变量。主要是与下列 CSS 特性有关：
+
+* 定义在上面的 CSS 样式比定义在下面的 CSS 样式有更高优先级。
+
+* 但是对于 CSS 变量来说，这个规则正好相反。优先级高的 CSS 变量定义在下面。
+
+因此，将 CSS 样式和 CSS 变量定义在不同的 mixin 中更方便将来在项目其他地方分别引入。
+====
+
+. 如果需要的话，可以在 `themeaddon-defaults.scss` 文件定义 SCSS 常量：
++
+.themeaddon-defaults.scss
+[source, css,indent=0]
+----
+$he-radio-check-size: 10px;
+$he-radio-check-size--small: 7px;
+$he-radio-check-size--large: 13px;
 ----
 . 用下列命令构建并发布至本地 maven 仓库：
 +
 .Windows:
 [source, code,indent=0]
 ----
-gradlew clean assemble publishToMavenLocal
+gradlew clean publishToMavenLocal
 ----
 +
 .Linux & macOS:
 [source, code,indent=0]
 ----
-./gradlew clean assemble publishToMavenLocal
+./gradlew clean publishToMavenLocal
 ----
 
 == 使用主题扩展组件
 
 . 打开需要使用主题扩展组件的项目。
-. 创建一个 xref:themes/custom_theme.adoc[自定义主题]。
+. 创建一个 xref:themes/custom_theme.adoc[自定义主题]，例如，使用 `helium-extended` 名称。
++
+[NOTE]
+====
+在这里需要强调一下如何导入主题扩展组件中的样式。编译主题时，会生成 `addons.scss` 文件，该文件会从主题组件中导入所有主要的 mixin。`@include addons` 位于 `@include helium-extended` 之上，具有更高的优先级：
+
+[source, css,indent=0]
+----
+.helium-extended {
+  @include addons;
+  @include helium-extended;
+}
+----
+
+默认情况下，`styles.scss` 不包括来自主题组件的变量修改。如需包含 CSS 变量，应该在 `styles.scss` 文件的 `@include helium-extended` 之后手动导入，示例：
+
+.styles.scss
+[source, css,indent=0]
+----
+@import "helium-extended-defaults";
+@import "addons";
+@import "helium-extended";
+
+.helium-extended {
+  @include addons;
+  @include helium-extended;
+  @include themeaddon-css-variables;
+}
+----
+
+如果主题组件中定义了 SCSS 常量，在 `helium-extended-defaults.scss` 中导入常量：
+
+.helium-extended-defaults.scss
+[source, css,indent=0]
+----
+@import "../helium/helium-defaults";
+@import "../../addons/themeaddon/themeaddon-defaults.scss";
+----
+====
 . 打开 `build.gradle` 文件，并做如下修改：
 * 将 `mavenLocal()` 添加至仓库列表；
 * 添加组件的依赖：

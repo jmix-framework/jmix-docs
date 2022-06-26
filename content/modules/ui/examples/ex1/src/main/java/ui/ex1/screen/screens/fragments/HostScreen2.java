@@ -23,7 +23,7 @@ public class HostScreen2 extends Screen {
     @Subscribe
     private void onInit(InitEvent event) {
         AddressFragment addressFragment = fragments.create(this, AddressFragment.class);
-        addressFragment.setStringParam("Value"); // <1>
+        addressFragment.setZipcode("2779001"); // <1>
         addressBox.add(addressFragment.getFragment());
     }
     // end::param[]

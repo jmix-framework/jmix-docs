@@ -1,0 +1,104 @@
+= Azure App Services
+
+本章节我们将介绍如何将 Jmix 应用程序部署至 Azure App Services 云服务。
+
+开始之前，请先创建 Microsoft Azure 账号和 Azure DevOps 账号，确保能访问 link:https://portal.azure.com/[Azure 门户^]。
+
+NOTE: 我们将使用 PostgreSQL 数据库。
+
+[[azure-env]]
+== 创建 Azure 环境
+
+从 Azure 门户启动 link:https://docs.microsoft.com/en-in/azure/cloud-shell/overview[Azure Cloud Shell^]，开始创建资源组：
+
+[source,shell,indent=0]
+----
+az group create --name MyJmixGroup1 --location eastus
+----
+
+然后，创建一个 PostgreSQL 服务。这里的 `sku` 表示 Stock Keeping Unit，因此 `--sku-name GP_Gen5_2` 映射至 General Purpose 定价层，Generation 5，2 个虚拟核心。在命令中设置你自己的数据库凭证：
+
+[source,shell,indent=0]
+----
+az postgres server create --resource-group MyJmixGroup1 --name myjmixpostgres1 --admin-user jmixadmin --admin-password ChangeMe@42 --sku-name GP_Gen5_2
+----
+
+请记录密码，Azure 的其他地方是查不到的。
+
+在门户网页中，切换至  *myjmixpostgres1*，打开 *Connection security*，设置 *Allow access to Azure services* 为 *Yes*，并点击 *Save*。
+
+//Go to the portal dashboard and open *myjmixpostgres1*, find *Connection strings* and copy JDBC URL. It
+
+[[azure-project-setup]]
+== Jmix 项目设置
+
+如需在开发时使用本地 PostgreSQL 数据库，则数据存储的设置和 `application.properties` 需要包含本地数据库的参数，例如：
+
+[source,properties,indent=0]
+----
+main.datasource.url = jdbc:postgresql://localhost/demo
+main.datasource.username = root
+main.datasource.password = root
+----
+
+Azure PostgreSQL 连接参数应该在 Gradle 任务配置中设置，下面会介绍。
+
+打开 `build.gradle` 并在 `plugins` 部分添加 https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[Azure WebApp^] 的 Gradle 插件：
+
+[source,groovy,indent=0]
+----
+plugins {
+    // ...
+    id "com.microsoft.azure.azurewebapp" version "1.2.0"
+}
+----
+
+然后添加 `azurewebapp` 任务，需要配置 Azure 参数和凭证：
+
+[source,groovy,indent=0]
+----
+azurewebapp {
+    subscription = '<your-subscription-id>'
+    resourceGroup = 'MyJmixGroup1' // <1>
+    appServicePlanName = 'MyJmixPlan1' // <2>
+    appName = 'MyJmixApp1' // <3>
+    pricingTier = 'P1v2'
+    region = 'eastus'
+    runtime {
+        os = 'Linux'
+        webContainer = 'Java SE' // <4>
+        javaVersion = 'Java 11' // <5>
+    }
+    appSettings { // <6>
+        put('main.datasource.url', 'jdbc:postgresql://myjmixpostgres1.postgres.database.azure.com:5432/postgres')
+        put('main.datasource.username', 'jmixadmin@myjmixpostgres1')
+        put('main.datasource.password', 'ChangeMe@42')
+    }
+}
+----
+<1> 在 Azure 门户中创建的资源组。
+<2> App service plan，会在第一次部署时自动创建。
+<3> App 名称，将用于应用程序的 URL 地址。
+<4> Spring Boot 可执行 JAR 的容器。
+<5> Java 版本必须要与编译应用程序的版本一致。
+<6> `appSettings` 部分可以设置应用程序部署时用于连接 Azure PostgreSQL 的环境变量。这里 `myjmixpostgres1` 是上面创建的 PostgreSQL 服务名称。
+
+现在可以用下面的命令将应用程序部署至 Azure：
+
+[source,shell]
+----
+./gradlew azureWebAppDeploy
+----
+
+如果部署成功，可以通过 `++https://myjmixapp1.azurewebsites.net++` 地址访问应用程序。
+
+如果 Gradle 运行出错，则添加 `--stacktrace` 选项再运行一次检查详细错误：
+
+[source,shell]
+----
+./gradlew azureWebAppDeploy --stacktrace
+----
+
+如需 https://docs.microsoft.com/en-us/azure/app-service/troubleshoot-diagnostic-logs#enable-application-logging-linuxcontainer[启动应用程序日志^]，在门户中打开 App，并选择 *App Service logs*。在 *Application logging* 字段，选择 *File System* 并点击 *Save*。之后，从命令行重新部署应用程序或通过门户的 App 概览界面重启应用。
+
+如需查看或下载日志，在门户中打开 App 页面，选择 *Diagnose and solve problems* -> *Availability and Performance* -> *Application Logs*。

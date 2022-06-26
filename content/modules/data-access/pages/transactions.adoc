@@ -1,3 +1,94 @@
-= Transaction Management
+= 事务管理
 
-Coming soon
+Jmix 支持 Spring 应用程序中两种标准的事务控制方法：声明式（通过注解）和编程式。
+
+[[declarative-transactions]]
+== 声明式事务管理
+
+Jmix 应用程序中最直接的事务管理方法是使用 `@org.springframework.transaction.annotation.Transactional` 注解。这个注解表示一个方法必须在一个数据库事务中运行。当该注解用在类级别时，`@Transactional` 应用在其本身和子类的所有方法中。
+
+`@Transactional` 注解会在方法调用时自动创建一个事务，事务的提交和回滚由 Spring 管理。因此，声明式的事务管理可以减少样板代码的数量。
+
+有许多参数可以优化 `@Transactional` 的行为，例如，隔离级别（isolation level）或传播特性（propagation），这些参数请参考 https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html[Spring 文档^]。
+
+使用 `@Transactional` 在单一事务中更新多个实体的示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transactional]
+----
+<1> 只需添加注解，Spring 会自动处理：创建代理并注入事务逻辑，启动方法前开始事务，方法完成后提交或回滚事务。
+
+CAUTION: 请记住，声明式的事务标记仅在方法是通过将实例注入其他 bean 中或者通过 `ApplicationContext.getBean()` 获取实例调用才会生效，即通过容器创建的代理执行。从同一个对象内的另一个方法调用带注解的方法时，不会开启新的事务。
+
+如需为 xref:data-model:data-stores.adoc#additional[附加数据存储] 声明一个事务，需要在 `@Transactional` 注解中指定数据存储的事务管理（Transaction Manager）的名称。如果数据存储是通过 Studio 创建的，则事务管理 bean 的名称是 `<DATA-STORE-NAME>TransactionManager`。例如，如果数据存储名称为 `db1`，则定义为：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transactional-additional-ds]
+----
+
+[[programmatic-transactions]]
+== 编程式事务管理
+
+对于编程式事务管理，Spring 提供了 `org.springframework.transaction.support.TransactionTemplate` 类。
+
+[[creating-transaction-template]]
+=== 创建 TransactionTemplate
+
+如需创建 `TransactionTemplate` 的实例，可以在主应用程序类（带 `@SpringBootApplication` 注解的类）中声明一个 bean，用一个 `PlatformTransactionManager` 初始化：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=transaction-template]
+----
+
+现在可以在应用程序中的任何 bean 中注入 `TransactionTemplate`：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=transaction-template-inject]
+----
+
+如果有附加数据存储，那么也需要为其创建 `TransactionTemplate` 实例。如果是通过 Studio 创建的附加数据存储，则会自动创建该数据存储的 Spring 配置类，其中已经有一些 bean 了。添加一个新的 bean，使用 `Qualifier` 创建 `TransactionTemplate`：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/Db1StoreConfiguration.java[tags=transaction-template]
+----
+<1> `@Qualifier` 注解用于使用 bean 名称注入特殊的 bean：这里，我们注入为附加数据存储 `db1` 定义的 `PlatformTransactionManager`。
+
+然后，可以用 `Qualifier` 注解注入需要的 `TransactionTemplate` 来管理附加数据存储的事务：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/TransactionService.java[tags=transaction-template-inject]
+----
+<1> 这里，`@Qualifier` 注解支持 Spring 选取我们上面为 `db1` 数据存储定义的 bean。
+
+如果不希望 `TransactionTemplate` 在项目全局可用，也可以使用 `PlatformTransactionManager` 本地创建。下面示例展示创建两个不同传播行为的事务模板：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template]
+----
+
+[[using-transaction-template]]
+=== 使用 TransactionTemplate
+
+使用 `execute()` 方法在一个事务内运行代码块。这个方法能处理事务的生命周期和可能产生的异常，因此，无需手动处理：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template-execute]
+----
+
+如果不需要从事务代码块中返回任何结果，可以使用 `executeWithoutResult()` 方法，这个方法也是从 `execute()` 派生的，但使用 `TransactionCallbackWithoutResult` 回调接口：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/OrderService.java[tags=transaction-template-without-result]
+----
+
+默认的 https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#tx-prog-template-settings[事务配置^]，例如传播模式、隔离级别、超时等，可以用 `TransactionTemplate` 的 setters 自定义。
+

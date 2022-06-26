@@ -4,24 +4,6 @@
 
 本框架提供了一组对应于 xref:data-model:entities.adoc#attributes[实体属性] 标准数据类型的 `Datatype` 实现。
 
-借助 xref:ui:vcl/xml.adoc#datatype[数据类型] 属性，可以在界面描述文件中以声明的方式设置 UI 组件的数据类型。
-
-要通过 Java 代码获取数据类型，需要将 `DatatypeRegistry` bean 注入控制器，然后使用它来获取 `Datatype` 实例，例如：
-
-[source,java]
-----
-@Autowired
-private DatatypeRegistry datatypeRegistry;
-
-@Install(to = "customersGrid.discount", subject = "columnGenerator")
-private Component customersGridDiscountColumnGenerator(DataGrid.ColumnGeneratorEvent<Customer> columnGeneratorEvent) {
-    TextField discountField = uiComponents.create(TextField.NAME);
-    Datatype datatype = datatypeRegistry.get(BigDecimal.class);
-    discountField.setDatatype(datatype);
-    return discountField;
-}
-----
-
 [[localized-format-strings]]
 == 字符串格式本地化
 
@@ -139,4 +121,58 @@ include::example$/ex1/src/main/java/datamodel/ex1/datatype/GeoPointDatatype.java
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/datamodel/ex1/entity/Address.java[tags=datatype]
+----
+
+[[conversion-error]]
+== 转换错误信息
+
+当 UI 组件使用一个数据类型解析字符串输入时，有可能会产生解析异常。UI 组件会处理这个异常并展示 xref:ui:vcl/components/text-field.adoc#data-type-conversion[对用户友好的信息]。这些信息在框架的消息包中通过 `databinding.conversion.error.<datatype-id>` 键值定义。例如：
+
+[source,properties]
+----
+databinding.conversion.error.boolean=Must be Boolean
+----
+
+消息的完整列表，请参阅 https://github.com/jmix-framework/jmix/blob/master/jmix-ui/ui/src/main/resources/io/jmix/ui/messages.properties[messages.properties^] 文件，选择你项目使用的 Jmix 版本对应的分支查看。
+
+如果某个数据类型的消息不存在，则使用下面这个默认的通用消息：
+
+[source,properties]
+----
+databinding.conversion.error.defaultMessage=Wrong format
+----
+
+在项目中提供相同键值的消息可以覆盖默认的消息。此外，也可以为自定义数据类型提供错误消息，例如：
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/datamodel/ex1/messages.properties[tags=conversion-error]
+----
+
+[[using-datatype]]
+== 直接使用数据类型
+
+大多数时候，`Datatype` 的实现类仅在框架内部使用，提供对实体属性的解析和格式化功能。但有时候可能需要在代码中直接使用数据类型。
+
+假设你有一个 `TextField` 组件，并未绑定任何实体属性：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/datamodel/ex1/screen/order/order-browse.xml[tags=datatype]
+----
+
+如需在组件内部输入小数值，可以在界面控制器内通过 `DatatypeRegistry` bean 获取数据类型并分配给该组件：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/screen/order/OrderBrowse.java[tags=datatype]
+----
+
+TIP: 事实上，在 XML 中可以更容易为文本控件设置数据类型，参考组件的 xref:ui:vcl/components/text-field.adoc#data-type[datatype] 属性。
+
+如果需要获取实体属性的数据类型，可以通过 xref:metadata.adoc[metadata] 实现。下面是一个稍微复杂的示例，使用实体属性的对应数据类型解析小数值：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/datamodel/ex1/bean/CustomerService.java[tags=get-datatype]
 ----

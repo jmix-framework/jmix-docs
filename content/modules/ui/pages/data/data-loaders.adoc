@@ -27,36 +27,64 @@ include::example$/ex1/src/main/resources/ui/ex1/screen/data/customer-browse-data
 include::example$/ex1/src/main/resources/ui/ex1/screen/data/customer-edit-data2.xml[tags=loaders1]
 ----
 
-加载器可以将实际的加载动作代理到一个函数，这个函数可以通过 `setLoadDelegate()` 方法或者通过在界面控制器中使用 `@Install` 注解来声明式的提供。示例：
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=data-manager;delegate]
-----
-<1> `customersDl` 加载器会使用 `customersDlLoadDelegate()` 方法来加载 `Customer` 实体列表
-<2> 此方法接收 `LoadContext` 参数，加载器会按照它的参数（查询语句、过滤器等等）来创建这个参数。
-<3> 数据加载是通过 `DataManager` 来完成的，这个实现跟标准加载器的实现相同，但是这也可以用自定义的服务或者加载实体后做一些处理。
-
-[WARNING]
-====
-如果使用代理自定义数据加载过程，并在表格中使用分页器组件（xref:vcl/components/pagination.adoc[Pagination] 或 xref:vcl/components/simple-pagination.adoc[SimplePagination]）显示加载的数据，那么还需要自定义逻辑来统计数据的总行数。请参阅 `SimplePagination` 组件的 xref:vcl/components/simple-pagination.adoc#total-count-delegate[TotalCountDelegate] 处理器。
-====
-
-可以通过监听 `PreLoadEvent` 和 `PostLoadEvent` 事件，在加载之前或之后添加一些业务逻辑：
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=load]
-----
-
-一个加载器也可以通过编程的方式创建和配置，示例：
+加载器也可以编程式创建和配置，示例：
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerTable.java[tags=data-components;loader;create-loader]
 ----
-
 当加载器设置了 xref:ui:data/data-context.adoc[DataContext]（当使用 XML 描述定义加载器的时候是默认设置的），所有加载的实体都自动合并到数据上下文（data context）。
+
+[[data-context-events]]
+== 事件和处理器
+
+本节介绍可以在界面控制器中处理的数据加载器生命周期事件。
+
+[TIP]
+====
+如需使用 Jmix Studio 生成处理器的桩代码，在界面 XML 描述或者 *Component Hierarchy（组件层级结构）* 面板中选择数据容器元素，然后使用 *Component Inspector（组件探查器）* 面板的 *Handlers* 标签页。
+
+或者，可以使用界面控制器顶部面板的 *Generate Handler* 按钮。
+====
+
+[[load-delegate]]
+=== loadDelegate
+
+加载器可以将实际的加载动作代理给界面控制器的一个方法，方法中可以调用自定义服务，而不使用默认的 `DataManager`。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=delegate]
+----
+<1> `customersDl` 加载器会使用 `customersDlLoadDelegate()` 方法来加载 `Customer` 实体列表
+<2> 此方法接收 `LoadContext` 参数，加载器会按照其参数（查询语句、过滤器等等）来创建这个参数。
+<3> 数据加载是通过 `CustomerService.loadCustomers()` 来完成的，该方法接收界面可视化组件为加载器设置的过滤条件、排序和分页参数。
+
+除了调用自定义服务之外，加载代理方法还支持对加载的实体进行加载后处理。
+
+如果使用代理自定义数据加载过程，并在表格中使用分页器组件（xref:vcl/components/pagination.adoc[Pagination] 或 xref:vcl/components/simple-pagination.adoc[SimplePagination]）显示加载的数据，那么还需要自定义逻辑来统计数据的总行数。请参阅与表格关联分页器组件的 xref:vcl/components/pagination.adoc#total-count-delegate[TotalCountDelegate] 处理器。
+
+[[pre-load-event]]
+=== PreLoadEvent
+
+该事件在加载实体之前发送。
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=pre-load]
+----
+
+可以使用事件的 `preventLoad()` 方法阻止加载。
+
+[[post-load-event]]
+=== PostLoadEvent
+
+该事件在成功加载实体、将实体合并到 `DataContext` 并设置到容器之后发出。
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/data/CustomerBrowseData2.java[tags=post-load]
+----
 
 [[quiery-conditions]]
 == 查询条件

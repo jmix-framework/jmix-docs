@@ -17,9 +17,9 @@ public class MyCustomProcessFormScreenCreator implements ProcessFormScreenCreato
     private ScreenBuilders screenBuilders;
 
     @Override
-    public String isApplicableFor() { // <3>
+    public String isApplicableFor() { // <2>
         return "custom";
-    } // <2>
+    }
 
     @Override
     public Screen createStartProcessScreen(CreationContext creationContext) { // <3>

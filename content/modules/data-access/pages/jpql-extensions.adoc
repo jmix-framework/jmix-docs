@@ -1,9 +1,414 @@
-= JPQL Extensions
+= JPQL 扩展
 
-Coming soon
+本章节介绍 Jmix 应用程序中可以使用的 https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL（Java Persistence Query Language）^] 扩展。
 
-== JPQL Functions
+[[session-and-user-attributes]]
+== 会话和用户属性
 
-== Case-Insensitive Substring Search
+JPQL 查询中可以使用通过 `SessionData` 创建的 xref:security:authentication.adoc#session-attributes[会话属性]，通过 `session_` 前缀访问。例如，用 `SessionData` 设置一个属性：
 
-== Macros
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=session-data]
+----
+
+然后在一个查询语句中这样使用 `customerCode` 属性：
+
+[source,text]
+----
+select e from Customer e where e.code = :session_customerCode
+----
+
+与会话属性类似，可以用 `current_user_` 前缀的参数访问当前认证用户的属性。例如，如果 xref:security:users.adoc#entity[User 实体] 有 `email` 属性，在查询语句中可以这样使用（假设 `Customer.manager` 属性是用户实体的引用）：
+
+[source,text]
+----
+select e from Customer e where e.manager.email = :current_user_email
+----
+
+无需为 `session_customerCode` 或 `current_user_email` 参数设置值，框架会在执行查询前自动为其赋值。因此，在框架中某些无法完全控制查询语句执行的地方这种机制会很有用，例如，行级角色的 xref:security:row-level-roles.adoc#jpql-policy[JPQL 策略] 或通用过滤器的 xref:ui:vcl/components/filter.adoc#jpql-conditions[JPQL 条件]。
+
+[[case-insensitive-substring-search]]
+== 不区分大小写的子串搜索
+
+可以在查询参数的值中使用 `(?i)` 前缀，即可针对字符串使用大小写不敏感的搜索条件。例如，下列查询：
+
+[source, jpql]
+----
+select c from Customer c where c.name like :name
+----
+
+如果给 `name` 参数设定值为 `(?i)%doe%`，则如果数据库存在 `John Doe` 值，尽管大小写不一样也能匹配上。因为框架在运行查询语句时，会将参数条件改为 `lower(C.NAME) like ?`，并使用参数值 `%doe%` 进行查询。
+
+注意，这种类型的查询不会使用 `name` 字段上的索引，不论是否存在这样的索引。
+
+[[functions]]
+== 函数
+
+下面表格列举出 JPQL 函数以及在 Jmix 中的支持程度。
+
+[cols="1,1,5",width="100%"]
+|===
+|函数 |支持 |查询语句
+
+//Aggregate functions with scalar expression
+
+.2+|聚合函数
+
+|支持
+
+m|SELECT AVG(o.quantity) FROM Order o
+
+|_不支持：带纯数值计算的聚合函数（EclipseLink 功能）_
+
+m|_SELECT AVG(o.quantity)/2.0 FROM Order o_
+
+_SELECT AVG(o.quantity * o.price) FROM Order o_
+
+//ALL, ANY, SOME
+
+|ALL、ANY、SOME
+
+|支持
+
+m|SELECT emp FROM Employee emp WHERE emp.salary > ALL (SELECT m.salary FROM app_Manager m WHERE m.department = emp.department)
+
+//Arithmetic Functions (INDEX, SIZE, ABS, SQRT, MOD)
+
+|计算函数（INDEX、SIZE、ABS、SQRT、MOD）
+
+|支持
+
+m|SELECT w.name FROM Course c JOIN c.studentWaitlist w WHERE c.name = 'Calculus' AND INDEX(w) = 0
+
+  SELECT w.name FROM Course c WHERE c.name = 'Calculus' AND SIZE(c.studentWaitlist) = 1
+
+  SELECT w.name FROM Course c WHERE c.name = 'Calculus' AND ABS(c.time) = 10
+
+  SELECT w.name FROM Course c WHERE c.name = 'Calculus' AND SQRT(c.time) = 10.5
+
+  SELECT w.name FROM Course c WHERE c.name = 'Calculus' AND MOD(c.time, c.time1) = 2
+
+//CASE Expression
+
+.2+|CASE 表达式
+
+|支持
+
+m|SELECT e.name, f.name, CONCAT(CASE WHEN f.annualMiles > 50000 THEN 'Platinum ' WHEN f.annualMiles > 25000 THEN 'Gold ' ELSE '' END, 'Frequent Flyer')
+FROM Employee e JOIN e.frequentFlierPlan f
+
+|_不支持：UPDATE 语句中的 CASE_
+
+m|_UPDATE Employee e SET e.salary = CASE e.rating WHEN 1 THEN e.salary * 1.1 WHEN 2 THEN e.salary * 1.05 ELSE e.salary * 1.01 END_
+
+//Date Functions (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP)
+
+|日期函数（CURRENT_DATE、CURRENT_TIME、CURRENT_TIMESTAMP）
+
+|支持
+
+m|SELECT e FROM Order e WHERE e.date = CURRENT_DATE
+
+//EclipseLink Functions (CAST, REGEXP, EXTRACT)
+
+.2+|EclipseLink 函数（CAST、REGEXP、EXTRACT）
+
+|支持
+
+m|SELECT EXTRACT(YEAR FROM e.createTs) FROM MyEntity e WHERE EXTRACT(YEAR FROM e.createTs) > 2012
+
+  SELECT e FROM MyEntity e WHERE e.name REGEXP '.*'
+
+  SELECT CAST(e.number text) FROM MyEntity e WHERE e.path LIKE CAST(:ds$myEntityDs.id text)
+
+|_不支持：GROUP BY 语句中的 CAST_
+
+m|_SELECT e FROM Order e WHERE e.amount > 100 GROUP BY CAST(e.orderDate date)_
+
+//Entity Type Expression
+
+.2+|实体类型表达式
+
+|支持：实体类型作为参数传递
+
+m|SELECT e FROM Employee e WHERE TYPE(e) IN (:empType1, :empType2)
+
+|_不支持：实体类型的直接关联_
+
+m|_SELECT e FROM Employee e WHERE TYPE(e) IN (app_Exempt, app_Contractor)_
+
+//Function Invocation
+
+.2+|函数调用
+
+|支持：函数结果用于比较语句
+
+m|SELECT u FROM User u WHERE function('DAYOFMONTH', u.createTs) = 1
+
+|_不支持：直接使用函数结果_
+
+m|_SELECT u FROM User u WHERE function('hasRoles', u.createdBy, u.login)_
+
+//IN
+
+|IN
+
+|支持
+
+m|SELECT e FROM Employee e, IN(e.projects) p WHERE p.budget > 1000000
+
+//IS EMPTY collection
+
+|IS EMPTY 空集合
+
+|支持
+
+m|SELECT e FROM Employee e WHERE e.projects IS EMPTY
+
+//KEY/VALUE
+
+|KEY/VALUE
+
+|_不支持_
+
+m|_SELECT v.location.street, KEY(i).title, VALUE(i) FROM VideoStore v JOIN v.videoInventory i WHERE v.location.zipcode = '94301' AND VALUE(i) > 0_
+
+//Literals
+.2+|字面量
+
+|支持
+
+m|SELECT e FROM Employee e WHERE e.name = 'Bob'
+
+  SELECT e FROM Employee e WHERE e.id = 1234
+
+  SELECT e FROM Employee e WHERE e.id = 1234L
+
+  SELECT s FROM Stat s WHERE s.ratio > 3.14F
+
+  SELECT s FROM Stat s WHERE s.ratio > 3.14e32D
+
+  SELECT e FROM Employee e WHERE e.active = TRUE
+
+|_不支持：日期和时间字面量_
+
+m|_SELECT e FROM Employee e WHERE e.startDate = {d'2012-01-03'}_
+
+  _SELECT e FROM Employee e WHERE e.startTime = {t'09:00:00'}_
+
+  _SELECT e FROM Employee e WHERE e.version = {ts'2012-01-03 09:00:00.000000001'}_
+
+//MEMBER OF
+
+.2+|MEMBER OF
+
+|支持：字段或查询结果
+
+m|SELECT d FROM app_Department d WHERE (select e from Employee e where e.id = :eParam) MEMBER OF e.employees
+
+|_不支持：字面量_
+
+m|_SELECT e FROM Employee e WHERE 'write code' MEMBER OF e.codes_
+
+//NEW in SELECT
+
+|NEW in SELECT
+
+|支持
+
+m|_SELECT NEW com.company.example.CustomerDetails(c.id, c.status, o.count) FROM Customer c JOIN c.orders o WHERE o.count > 100_
+
+//NULLIF/COALESCE
+
+|NULLIF/COALESCE
+
+|支持
+
+m|SELECT NULLIF(emp.salary, 10) FROM Employee emp
+
+  SELECT COALESCE(emp.salary, emp.salaryOld, 10) FROM Employee emp
+
+//NULLS FIRST, NULLS LAST in order by
+
+|order by 中的 NULLS FIRST、NULLS LAST
+
+|支持
+
+m|SELECT h FROM GroupHierarchy h ORDER BY h.level DESC NULLS FIRST
+
+//String Functions (CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE)
+
+.2+|字符串函数（CONCAT、SUBSTRING、TRIM、LOWER、UPPER、LENGTH、LOCATE）
+
+|支持
+
+m|SELECT x FROM Magazine x WHERE CONCAT(x.title, 's') = 'JDJs'
+
+  SELECT x FROM Magazine x WHERE SUBSTRING(x.title, 1, 1) = 'J'
+
+  SELECT x FROM Magazine x WHERE LOWER(x.title) = 'd'
+
+  SELECT x FROM Magazine x WHERE UPPER(x.title) = 'D'
+
+  SELECT x FROM Magazine x WHERE LENGTH(x.title) = 10
+
+  SELECT x FROM Magazine x WHERE LOCATE('A', x.title, 4) = 6
+
+  SELECT x FROM Magazine x WHERE TRIM(TRAILING FROM x.title) = 'D'
+
+|_不支持：使用特定字符的 TRIM_
+
+m|_SELECT x FROM Magazine x WHERE TRIM(TRAILING 'J' FROM x.title) = 'D'_
+
+//Subquery
+.2+|子查询
+
+|支持
+
+m|SELECT goodCustomer FROM Customer goodCustomer WHERE goodCustomer.balanceOwed < (SELECT AVG(c.balanceOwed) FROM Customer c)
+
+|_不支持：子查询的 FROM 中使用路径表达式而非实体名_
+
+m|_SELECT c FROM Customer c WHERE (SELECT AVG(o.price) FROM c.orders o) > 100_
+
+//TREAT
+.2+|TREAT
+
+|支持
+
+m|SELECT e FROM Employee e JOIN TREAT(e.projects AS LargeProject) p WHERE p.budget > 1000000
+
+|_不支持：WHERE 语句中的 TREAT_
+
+m|_SELECT e FROM Employee e JOIN e.projects p WHERE TREAT(p as LargeProject).budget > 1000000_
+
+|===
+
+[[macros]]
+== 宏
+
+JPQL 查询语句文本可以包含宏，宏会在语句执行前进行处理，转换成可执行的 JPQL，可以对查询参数做额外修改。
+
+宏用于解决下列问题：
+
+* 当给定字段与当前时间有依赖时，JPQL 是无法表示的（即，不支持类似 "current_date - 1" 的表达式）。这里提供一种解决办法。
+
+* 支持 `Timestamp` 类型字段（date/time）与日期进行比较。
+
+[[macro-between]]
+=== @between
+
+格式为 `++@between(field_name, moment1, moment2, time_unit)++` 或 `++@between(field_name, moment1, moment2, time_unit, user_timezone)++`，其中：
+
+* `++field_name++` 是用于比较的属性名称。
+
+* `moment1`、`moment2` - 检查 `++field_name++` 所属时间段的开始和结束点。开始和结束时间点都需要使用包含 `now` 变量的表达式定义，表达式可以对当前时间加减特定的整数值。
+
+* `++time_unit++` - 定义表达式中从 `now` 加减整数值的时间单位和截取精度。可能值：`year`、`month`、`day`、`hour`、`minute`、`second`。
+
+* `++user_timezone++` - 可选参数，定义当前用户的时区。
+
+这个宏会转换成 JQPL 表达式：`++field_name >= :moment1 and field_name < :moment2++`
+
+示例 1：Customer 是今天创建的：
+
+[source, jpql]
+----
+select c from Customer where @between(c.createTs, now, now+1, day)
+----
+
+示例 2：Customer 是前 10 分钟内创建的：
+
+[source, jpql]
+----
+select c from Customer where @between(c.createTs, now-10, now, minute)
+----
+
+示例 3：过去 5 天内创建的文档，且考虑当前用户的时区：
+
+[source, jpql]
+----
+select d from Doc where @between(d.createTs, now-5, now, day, user_timezone)
+----
+
+[[macro-today]]
+=== @today
+
+格式为 `++@today(field_name)++` 或 `++@today(field_name, user_timezone)++`，用于定义检查属性值是今天内的条件。本质上，这是 `@between` 宏的特殊情况。
+
+示例：Customer 是今天创建的：
+
+[source, jpql]
+----
+select d from Doc where @today(d.createTs)
+----
+
+[[macro-date-equals]]
+=== @dateEquals
+
+格式为 `++@dateEquals(field_name, parameter)++` 或 `++@dateEquals(field_name, parameter, user_timezone)++`，用于定义检查 `++field_name++` 的值（`Timestamp` 格式）的日期与传入的参数 `parameter` 相等。
+
+示例：
+
+[source, jpql]
+----
+select d from Doc where @dateEquals(d.createTs, :param)
+----
+
+可以用 `now` 参数传入当前日期。如需设置日期偏移量，使用 `+` 或 `-` 运算符，示例：
+
+[source, jpql]
+----
+select d from sales_Doc where @dateEquals(d.createTs, now-1)
+----
+
+[[macro-date-before]]
+=== @dateBefore
+
+格式为 `++@dateBefore(field_name, parameter)++` 或 `++@dateBefore(field_name, parameter, user_timezone)++`，用于定义检查 `++field_name++` 的值（`Timestamp` 格式）比传入的参数 `parameter` 早。
+
+示例：
+
+[source, jpql]
+----
+select d from Doc where @dateBefore(d.createTs, :param, user_timezone)
+----
+
+可以用 `now` 参数传入当前日期。如需设置日期偏移量，使用 `+` 或 `-` 运算符，示例：
+
+[source, jpql]
+----
+select d from sales_Doc where @dateBefore(d.createTs, now+1)
+----
+
+[[macro-date-after]]
+=== @dateAfter
+
+格式为 `++@dateAfter(field_name, parameter)++` 或 `++@dateAfter(field_name, parameter, user_timezone)++`，用于定义检查 `++field_name++` 的值（`Timestamp` 格式）晚于或等于传入的参数 `parameter`。
+
+示例：
+
+[source, jpql]
+----
+select d from Doc where @dateAfter(d.createTs, :param)
+----
+
+可以用 `now` 参数传入当前日期。如需设置日期偏移量，使用 `+` 或 `-` 运算符，示例：
+
+[source, jpql]
+----
+select d from Doc where @dateAfter(d.createTs, now-1)
+----
+
+[[macro-enum]]
+=== @enum
+
+支持使用枚举的全限定名称，而非数据库的枚举标识符。可以简化应用程序中使用枚举值进行搜索。
+
+示例：
+
+[source, jpql]
+----
+select d from Doc where d.type = @enum(com.company.sample.entity.DocType.INVOICE)
+----

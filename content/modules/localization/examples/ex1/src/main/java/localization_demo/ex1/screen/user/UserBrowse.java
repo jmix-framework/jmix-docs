@@ -1,15 +1,46 @@
 package localization_demo.ex1.screen.user;
 
+import io.jmix.ui.Notifications;
+import io.jmix.ui.component.Table;
 import io.jmix.ui.navigation.Route;
-import io.jmix.ui.screen.LookupComponent;
-import io.jmix.ui.screen.StandardLookup;
-import io.jmix.ui.screen.UiController;
-import io.jmix.ui.screen.UiDescriptor;
+import io.jmix.ui.screen.*;
 import localization_demo.ex1.entity.User;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @UiController("User.browse")
 @UiDescriptor("user-browse.xml")
 @LookupComponent("usersTable")
 @Route("users")
 public class UserBrowse extends StandardLookup<User> {
+
+    //tag::inject-message-bundle[]
+    @Autowired
+    private MessageBundle messageBundle;
+    //end::inject-message-bundle[]
+    @Autowired
+    private Notifications notifications;
+
+    @Subscribe
+    public void onInit(InitEvent event) {
+
+        //tag::message-bundle-set-group[]
+        messageBundle.setMessageGroup("some.group");
+        //end::message-bundle-set-group[]
+
+        //tag::message-bundle[]
+        String someMessage = messageBundle.getMessage("someMessage");
+        //end::message-bundle[]
+    }
+
+    @Subscribe("usersTable.username")
+    public void onUsersTableUsernameClick(Table.Column.ClickEvent<User> event) {
+        User user = event.getItem();
+
+        //tag::format-message[]
+        String formattedMessage = messageBundle.formatMessage("userInfo", user.getUsername());
+        //end::format-message[]
+        notifications.create()
+                .withCaption(formattedMessage)
+                .show();
+    }
 }

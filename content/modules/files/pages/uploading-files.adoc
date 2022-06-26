@@ -1,0 +1,53 @@
+= 上传文件
+
+本章节介绍如何使用 UI 组件从用户的电脑上传文件。如需了解如何通过 REST API 上传文件，请参阅 xref:rest:files-api.adoc[文件 API] 部分。
+
+[[file-upload-components]]
+== 文件上传组件
+
+Jmix 提供一组 UI 组件用于上传文件。所有组件都包含一个按钮，当点击该按钮时，展示文件系统对话框用于选取文件。下面是关于这几个组件不同之处的介绍。关于组件的全部信息，请参阅相应的组件章节。
+
+* xref:ui:vcl/components/file-upload-field.adoc[] 支持选择单一文件，并保存为字节数组类型的实体属性。也可以直接从组件值获取文件内容，无需关联实体。
+
+* xref:ui:vcl/components/file-storage-upload-field.adoc[] 支持选择单一文件，并保存至 xref:file-storage.adoc[文件存储]。组件值为 `FileRef` 对象。可以将组件与 `FileRef` 类型的实体属性关联，将文件引用保存至数据库。
+
+* xref:ui:vcl/components/file-multi-upload-field.adoc[] 支持一次选择多个文件，并将这些文件上传至服务器的 <<using-temporary-storage,临时存储>>。然后可以对文件进行处理或转至永久存储。
+
+`FileUploadField` 和 `FileStorageUploadField` 可以在按钮旁边展示上传文件的名称，文件名同时还作为文件的下载链接使用。
+
+`FileUploadField` 和 `FileStorageUploadField` 可以支持 “拖放区域” 和 “粘贴区域”，通过拖放或粘贴文件的方式上传。
+
+[[using-temporary-storage]]
+== 使用临时存储
+
+`FileStorageUploadField` 组件的 xref:ui:vcl/components/file-storage-upload-field.adoc#file-storage-put-mode[fileStoragePutMode] 属性默认值为 `IMMEDIATE`。如果设置该属性为 `MANUAL`，则组件会将上传的文件保存在应用程序所在文件系统的临时存储区，并提供对上传文件的完全控制：可以直接转移至永久文件存储；对文件进行预处理或者其他方式处理，而无需将文件保存至文件存储。
+
+xref:ui:vcl/components/file-multi-upload-field.adoc[FileMultiUploadField] 组件也同样支持这个功能：将所有文件都上传至临时存储并通知你上传已经完成。
+
+`TemporaryStorage` 接口提供 API 用于创建临时文件、将临时文件保存至文件存储或删除临时文件。
+
+下面是 `FileStorageUploadField` 手动模式的示例，将上传至临时存储的文件转移至文件存储。
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/files/ex1/screen/files/files-screen.xml[tags=put-mode-manual]
+----
+<1> 为文件上传控件设置 `fileStoragePutMode="MANUAL"`。
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/files/ex1/screen/files/FilesScreen.java[tags=temporary-storage-1;temporary-storage-2]
+----
+<1> 通过由上传控件提供的文件 id 从临时存储获取文件。
+<2> 将文件保存至文件存储。
+
+`putFileIntoStorage()` 方法也会同时删除临时文件。
+
+如果仅需要处理临时文件，不需要保存至文件存储，可以在处理完后调用 `TemporaryStorage` 的 `deleteFile()` 方法，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/files/ex1/screen/files/FilesScreen.java[tags=get-and-delete]
+----
+
+临时文件存储会慢慢积累很多由于各种原因没有删掉的文件。因此，框架提供 JMX 接口用于删除这些没有用到的旧文件。可以在 *Administration（管理） -> JMX Console（JMX 控制台）* 界面通过 *jmix.ui:type=TemporaryStorage* 名称找到这个接口。MBean 的 `clearTempDirectory()` 方法会删除应用程序临时文件夹（默认 `.jmix/temp`）内所有超过 2 天的文件。可以手动调用这个方法或通过 xref:quartz:index.adoc[Quartz] 任务周期性调用，在任务中注入 `TemporaryStorageManagementFacade` bean，调用 `clearTempDirectory()` 方法。

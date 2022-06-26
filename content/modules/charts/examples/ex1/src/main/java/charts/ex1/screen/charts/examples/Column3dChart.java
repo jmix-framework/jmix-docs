@@ -64,11 +64,11 @@ public class Column3dChart extends Screen {
     // end::column3d-chart4[]
 
     // tag::country-growth[]
-    private CountryGrowth countryGrowth(String country, double year2014, double year2015) {
+    private CountryGrowth countryGrowth(String country, double year2020, double year2021) {
         CountryGrowth cg = new CountryGrowth();
         cg.setCountry(country);
-        cg.setYear2014(year2014);
-        cg.setYear2015(year2015);
+        cg.setYear2020(year2020);
+        cg.setYear2021(year2021);
         return cg;
     }
     // end::country-growth[]
@@ -79,7 +79,7 @@ public class Column3dChart extends Screen {
         return String.format("GDP grow in %s (%s): %.1f%%",
                 countryGrowth.getCountry(),
                 event.getGraphId().substring(5),
-                "graph2014".equals(event.getGraphId()) ? countryGrowth.getYear2014() : countryGrowth.getYear2015());
+                "graph2020".equals(event.getGraphId()) ? countryGrowth.getYear2020() : countryGrowth.getYear2021());
     }
     // end::event-info[]
 

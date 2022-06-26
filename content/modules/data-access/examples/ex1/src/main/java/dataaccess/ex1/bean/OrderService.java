@@ -1,18 +1,21 @@
 package dataaccess.ex1.bean;
 
-import dataaccess.ex1.entity.Customer;
-import dataaccess.ex1.entity.Order;
-import dataaccess.ex1.entity.Product;
+import dataaccess.ex1.entity.*;
 import io.jmix.core.*;
 import io.jmix.core.entity.KeyValueEntity;
 import io.jmix.core.querycondition.PropertyCondition;
 import io.jmix.data.PersistenceHints;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -20,8 +23,26 @@ public class OrderService {
 
     @Autowired
     private DataManager dataManager;
+
     @Autowired
-    private FetchPlans fetchPlans;
+    private TransactionTemplate transactionTemplate;
+
+    // tag::transaction-template[]
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    // joins existing transaction
+    public TransactionTemplate getTransactionTemplate() {
+        return new TransactionTemplate(transactionManager);
+    }
+
+    // always creates new transaction
+    public TransactionTemplate getRequiresNewTransactionTemplate() {
+        TransactionTemplate tt = new TransactionTemplate(transactionManager);
+        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return tt;
+    }
+    // end::transaction-template[]
 
     // tag::load-by-query[]
     List<Order> loadOrdersByProduct(String productName) {
@@ -33,20 +54,20 @@ public class OrderService {
     // end::load-by-query[]
 
     // tag::load-values[]
-    String getCustomerPurchases(LocalDate toDate) {
+    String getCustomerPurchases(LocalDate fromDate) {
         List<KeyValueEntity> kvEntities = dataManager.loadValues(
                 "select o.customer, sum(o.amount) from sample_Order o " +
                         "where o.date >= :date group by o.customer")
                 .store("main")                      // <1>
                 .properties("customer", "sum")      // <2>
-                .parameter("date", toDate)
+                .parameter("date", fromDate)
                 .list();
 
         StringBuilder sb = new StringBuilder();
         for (KeyValueEntity kvEntity : kvEntities) {
             Customer customer = kvEntity.getValue("customer");  // <3>
             BigDecimal sum = kvEntity.getValue("sum");          // <3>
-            sb.append(customer.getName()).append(" : ").append(sum);
+            sb.append(customer.getName()).append(" : ").append(sum).append("\n");
         }
         return sb.toString();
     }
@@ -144,4 +165,39 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
     // end::lazy-loading[]
+
+    // tag::transaction-template-execute[]
+    public UUID createOrderAndReturnId() {
+        return transactionTemplate.execute(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            customer = dataManager.save(customer);
+
+            Order order = dataManager.create(Order.class);
+            order.setCustomer(customer);
+
+            order = dataManager.save(order);
+            return order.getId();
+        });
+    }
+    // end::transaction-template-execute[]
+
+    // tag::transaction-template-without-result[]
+    public void createOrder() {
+        transactionTemplate.executeWithoutResult(status -> {
+            Customer customer = dataManager.create(Customer.class);
+            customer.setName("Alice");
+            customer = dataManager.save(customer);
+
+            Order order = dataManager.create(Order.class);
+            order.setCustomer(customer);
+
+            dataManager.save(order);
+        });
+    }
+    // end::transaction-template-without-result[]
+
+    public BigDecimal calculateDiscount(Order order) {
+        return order.getAmount().subtract(order.getAmount().multiply(BigDecimal.valueOf(0.2)));
+    }
 }
