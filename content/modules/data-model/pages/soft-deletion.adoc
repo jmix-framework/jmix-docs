@@ -12,6 +12,7 @@
 +
 Например, представим модель данных Customer - Order - OrderLine. Первоначально Customer ссылался на Order и пять экземпляров OrderLine. Вы мягко удалили экземпляр Customer и один из экземпляров OrderLine. Затем, если вы загрузите Order вместе с Customer и коллекцией OrderLine, он будет содержать ссылку на удаленного Customer и четыре экземпляра OrderLine в коллекции.
 
+[[references]]
 == Обработка связей
 
 Когда удаляется обычная (жестко удаляемая) сущность, внешние ключи в базе данных определяют обработку ссылок на эту сущность. По умолчанию вы не можете удалить сущность, если на нее есть ссылки от других сущностей. Чтобы удалить ссылающуюся сущность вместе с ней или установить для ссылки значение null, вы определяете правила `ON DELETE CASCADE` или `ON DELETE SET NULL` для внешнего ключа.
@@ -44,47 +45,139 @@ include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=class-d
 
 * `DeletePolicy.UNLINK` – чтобы разъединить связанные сущности, установив для ссылочного атрибута значение null. Используйте это значение только на стороне владельца ассоциации (той, что имеет аннотацию `@JoinColumn`).
 
+[[unique-constraints]]
 == Ограничения уникальности
 
 Мягкое удаление усложняет создание ограничений уникальности базы данных. Ограничение должно учитывать, что может быть несколько записей с одним и тем же значением уникального поля: одна не удаленная и любое количество мягко удаленных.
 
-Эта проблема решается по-разному для разных баз данных.
+Эта проблема решается по-разному для разных баз данных. Следуйте рекомендациям, приведенным ниже, и используйте вкладку `Indexes` xref:studio:entity-designer.adoc[дизайнера сущностей] для задания ограничений уникальности.
 
-TIP: Studio создает скрипты миграции базы данных для уникальных атрибутов мягко удаленных сущностей с учетом базы данных, используемой в вашем проекте.
+[[postgresql-uniqueness]]
+=== PostgreSQL
 
-Если вы определяете ограничения уникальности вручную без помощи Studio, следуйте приведенным ниже рекомендациям.
+Для PostgreSQL, мы рекомендуем использовать частичные индексы.
 
-* Если база данных поддерживает частичные индексы (PostgreSQL), ограничение уникальности может быть определено следующим образом:
-+
+Задайте ограничение уникальности для колонки. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo" dbms="postgresql">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+    </createIndex>
+
+    <modifySql>
+        <append value="where DELETED_DATE is null"/>
+    </modifySql>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает частичный индекс в базе данных:
+
 [source,sql]
 ----
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
 ----
 
-* Если база данных допускает только одно значение NULL в составном индексе (Oracle, SQL Server), определите составной индекс, включающий столбец `DELETED_DATE`:
-+
+[[oracle-mssql-uniqueness]]
+=== Oracle и Microsoft SQL Server
+
+Oracle и Microsoft SQL Server разрешают только одно значение null в композитном индексе. В этом случае мы рекомендуем использовать композитный индекс, включающий колонку `DELETED_DATE`.
+
+Задайте ограничение уникальности для колонки. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE"/>
+    </createIndex>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает композитный индекс в базе данных:
+
 [source,sql]
 ----
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
 ----
 
-* В противном случае следует использовать дополнительный столбец, триггер для его обновления и составной индекс для ограничения уникальности. Ниже приведен пример для MySQL:
-+
+[[mysql-mssql-uniqueness]]
+=== MySQL and HSQL
+
+Для MySQL и HSQL, мы рекомендуем создать дополнительную non-null колонку и использовать композитный индекс, включающий эту колонку.
+
+Создайте дополнительный атрибут и сделайте так, чтобы он обновлялся из сеттера `deletedDate`:
+
+[source,java,indent=0]
+----
+@SystemLevel
+@Column(name = "DELETED_DATE_NN")
+@Temporal(TemporalType.TIMESTAMP)
+private Date deletedDateNN = new Date(0); // add initializer manually
+
+public Date getDeletedDateNN() {
+    return deletedDateNN;
+}
+
+public void setDeletedDateNN(Date deletedDateNN) {
+    this.deletedDateNN = deletedDateNN;
+}
+
+public void setDeletedDate(Date deletedDate) {
+    this.deletedDate = deletedDate;
+    setDeletedDateNN(deletedDate == null ? new Date(0) : deletedDate); // add this manually
+}
+----
+
+Задайте ограничение уникальности, включающее колонку `DELETED_DATE_NN`. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL", "DELETED_DATE_NN"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE_NN"/>
+    </createIndex>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает композитный индекс в базе данных:
+
 [source,sql]
 ----
-alter table CUSTOMER add DELETED_DATE_NN datetime not null default '1000-01-01 00:00:00.000';
-
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN);
-
-create trigger CUSTOMER_DELETED_DATE_NN_UPDATE_TRIGGER before update on CUSTOMER
-for each row
-begin
-    if not(NEW.DELETED_DATE <=> OLD.DELETED_DATE) then
-        set NEW.DELETED_DATE_NN = if (NEW.DELETED_DATE is null, '1000-01-01 00:00:00.000', NEW.DELETED_DATE);
-    end if;
-end;
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN)
 ----
 
+[[turn-soft-deletion-off]]
 == Отключение мягкого удаления
 
 По умолчанию мягкое удаление включено для всех объектов, имеющих xref:entities.adoc#soft-delete-trait[черту Soft Delete]. Но вы можете отключить его для определенной операции, используя hint `PersistenceHints.SOFT_DELETION` со значением `false`.
