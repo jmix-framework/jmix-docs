@@ -14,6 +14,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
 import javax.sql.DataSource;
 import java.util.Properties;
@@ -59,4 +62,23 @@ public class RestEx1Application {
 				+ environment.getProperty("local.server.port")
 				+ Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
 	}
+
+	// tag::custom-cors[]
+	@Bean
+	public WebSecurityConfigurerAdapter securityConfigurerAdapter() {
+		return new WebSecurityConfigurerAdapter() {
+			@Override
+			protected void configure(HttpSecurity http) throws Exception {
+				http
+						.requestMatchers(requestMatchers -> {
+							requestMatchers.antMatchers("/myapi/hello");
+						})
+						.cors(Customizer.withDefaults())
+						.authorizeRequests(authorize -> authorize
+								.anyRequest().permitAll()
+						);
+			}
+		};
+	}
+	// end::custom-cors[]
 }
