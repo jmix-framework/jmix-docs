@@ -24,61 +24,61 @@ import java.util.Properties;
 @SpringBootApplication
 public class RestEx1Application {
 
-	@Autowired
-	private Environment environment;
+    @Autowired
+    private Environment environment;
 
-	public static void main(String[] args) {
-		SpringApplication.run(RestEx1Application.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(RestEx1Application.class, args);
+    }
 
-	@Bean
-	@Primary
-	BuildProperties buildProperties() {
-		Properties entries = new Properties();
-		entries.setProperty("version", "1.0");
-		entries.setProperty("name", "sample_rest");
-		return new BuildProperties(entries);
-	}
+    @Bean
+    @Primary
+    BuildProperties buildProperties() {
+        Properties entries = new Properties();
+        entries.setProperty("version", "1.0");
+        entries.setProperty("name", "sample_rest");
+        return new BuildProperties(entries);
+    }
 
-	@Bean
-	@Primary
-	@ConfigurationProperties("main.datasource")
-	DataSourceProperties dataSourceProperties() {
-		return new DataSourceProperties();
-	}
+    @Bean
+    @Primary
+    @ConfigurationProperties("main.datasource")
+    DataSourceProperties dataSourceProperties() {
+        return new DataSourceProperties();
+    }
 
 
-	@Bean
-	@Primary
-	@ConfigurationProperties("main.datasource.hikari")
-	DataSource dataSource(DataSourceProperties dataSourceProperties) {
-		return dataSourceProperties.initializeDataSourceBuilder().build();
-	}
+    @Bean
+    @Primary
+    @ConfigurationProperties("main.datasource.hikari")
+    DataSource dataSource(DataSourceProperties dataSourceProperties) {
+        return dataSourceProperties.initializeDataSourceBuilder().build();
+    }
 
-	@EventListener
-	public void printApplicationUrl(ApplicationStartedEvent event) {
-		LoggerFactory.getLogger(RestEx1Application.class).info("Application started at "
-				+ "http://localhost:"
-				+ environment.getProperty("local.server.port")
-				+ Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
-	}
+    @EventListener
+    public void printApplicationUrl(ApplicationStartedEvent event) {
+        LoggerFactory.getLogger(RestEx1Application.class).info("Application started at "
+                + "http://localhost:"
+                + environment.getProperty("local.server.port")
+                + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+    }
 
-	// tag::custom-cors[]
-	@Bean
-	public WebSecurityConfigurerAdapter securityConfigurerAdapter() {
-		return new WebSecurityConfigurerAdapter() {
-			@Override
-			protected void configure(HttpSecurity http) throws Exception {
-				http
-						.requestMatchers(requestMatchers -> {
-							requestMatchers.antMatchers("/myapi/hello");
-						})
-						.cors(Customizer.withDefaults())
-						.authorizeRequests(authorize -> authorize
-								.anyRequest().permitAll()
-						);
-			}
-		};
-	}
-	// end::custom-cors[]
+    // tag::custom-cors[]
+    @Bean
+    public WebSecurityConfigurerAdapter mySecurityConfigurerAdapter() {
+        return new WebSecurityConfigurerAdapter() {
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                http
+                        .requestMatchers(requestMatchers ->
+                                requestMatchers.antMatchers("/myapi/hello")
+                        )
+                        .cors(Customizer.withDefaults())
+                        .authorizeRequests(authorize ->
+                                authorize.anyRequest().permitAll()
+                        );
+            }
+        };
+    }
+    // end::custom-cors[]
 }
