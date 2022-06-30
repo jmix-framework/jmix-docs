@@ -1,65 +1,65 @@
-= JPQL Extensions
+= Расширения JPQL
 
-This section describes https://en.wikibooks.org/wiki/Java_Persistence/JPQL[Java Persistence Query Language^] extensions that can be used in Jmix applications.
+В этом разделе описываются расширения https://en.wikibooks.org/wiki/Java_Persistence/JPQL[Java Persistence Query Language^], которые можно использовать в приложениях Jmix.
 
 [[session-and-user-attributes]]
-== Session and User Attributes
+== Атрибуты сессии и пользователя
 
-xref:security:authentication.adoc#session-attributes[Session attributes] created using `SessionData` are available in any JPQL query with the `session_` prefix. For example, you can set an attribute using `SessionData`:
+xref:security:authentication.adoc#session-attributes[Атрибуты сессии], созданные с помощью `SessionData`, доступны в любом запросе JPQL с префиксом `session_`. Например, можно задать атрибут, используя `SessionData`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/CustomerService.java[tags=session-data]
 ----
 
-Then you can use the `customerCode` attribute value in a query as follows:
+А затем следующим образом использовать значение атрибута `customerCode` в запросе:
 
 [source,text]
 ----
 select e from Customer e where e.code = :session_customerCode
 ----
 
-Similarly to session attributes, you can access attributes of the currently authenticated user through parameters with the `current_user_` prefix. For example, if the xref:security:users.adoc#entity[user entity] has the `email` attribute, you can use it in a query as follows (provided that `Customer.manager` attribute is a reference to the user entity):
+Аналогично атрибутам сессии, можно получить доступ к атрибутам текущего аутентифицированного пользователя с помощью параметров с префиксом `current_user_`. Например, если xref:security:users.adoc#entity[сущность User] имеет атрибут `email`, его можно использовать в запросе следующим образом (при условии, что атрибут `Customer.manager` является ссылкой на сущность User):
 
 [source,text]
 ----
 select e from Customer e where e.manager.email = :current_user_email
 ----
 
-You don't have to set the value for the `session_customerCode` or `current_user_email` parameters, they will be assigned automatically before the query execution. This is especially useful in the framework features where you don't have full control over execution of the query, like xref:security:row-level-roles.adoc#jpql-policy[JPQL policies] of row-level roles, or xref:ui:vcl/components/filter.adoc#jpql-conditions[JPQL conditions] of generic filter.
+Вам не нужно задавать значение для параметров `session_customerCode` или `current_user_email`, так как они будут назначены автоматически перед выполнением запроса. Это особенно полезно при использовании тех функций фреймворка, где у вас нет полного контроля над выполнением запроса, например, xref:security:row-level-roles.adoc#jpql-policy[JPQL-политик] ролей уровня строк или xref:ui:vcl/components/filter.adoc#jpql-conditions[JPQL-условий] обычного фильтра.
 
 [[case-insensitive-substring-search]]
-== Case-Insensitive Substring Search
+== Поиск подстрок без учета регистра
 
-You can use the `(?i)` prefix in the value of a query parameter to easily specify conditions for case-insensitive search by any part of the string. For example, consider the query:
+Можно использовать префикс `(?i)` в значении параметра запроса, чтобы легко указать условия для поиска без учета регистра по любой части строки. Например, рассмотрим запрос:
 
 [source, jpql]
 ----
 select c from Customer c where c.name like :name
 ----
 
-If you pass the `(?i)%doe%` string as a value of the `name` parameter, the query will return `John Doe` if such a record exists in the database, even though the case of characters is different. It will happen because the framework will run the SQL query with the `lower(C.NAME) like ?` condition and `%doe%` parameter value.
+Если передать строку `(?i)%doe%` в качестве значения параметра `name`, запрос вернет `John Doe`, если такая запись существует в базе данных, даже если регистр символов отличается. Это произойдет потому, что фреймворк выполнит SQL-запрос с условием `lower(C.NAME) like ?` и значением `%doe%` параметра.
 
-Note that such search will not use index on the name field, even if such exists in the database.
+Обратите внимание, что такой поиск не будет использовать индекс для поля имени, даже если таковой существует в базе данных.
 
 [[functions]]
-== Functions
+== Функции
 
-The table below lists the JPQL functions and their level of support in Jmix.
+в таблице ниже перечислены функции JPQL и их уровень поддержки в Jmix.
 
 [cols="1,1,5",width="100%"]
 |===
-|Function |Support |Query
+|Функция |Поддержка |Запрос
 
 //Aggregate functions with scalar expression
 
-.2+|Aggregate Functions
+.2+|Агрегатные функции
 
-|Supported
+|ДА
 
 m|SELECT AVG(o.quantity) FROM Order o
 
-|_Not supported: aggregate functions with scalar expression (EclipseLink feature)_
+|_НЕТ: агрегатные функции со скалярным выражением (особенность EclipseLink)_
 
 m|_SELECT AVG(o.quantity)/2.0 FROM Order o_
 
@@ -69,15 +69,15 @@ _SELECT AVG(o.quantity * o.price) FROM Order o_
 
 |ALL, ANY, SOME
 
-|Supported
+|ДА
 
 m|SELECT emp FROM Employee emp WHERE emp.salary > ALL (SELECT m.salary FROM app_Manager m WHERE m.department = emp.department)
 
 //Arithmetic Functions (INDEX, SIZE, ABS, SQRT, MOD)
 
-|Arithmetic Functions (INDEX, SIZE, ABS, SQRT, MOD)
+|Арифметические функции (INDEX, SIZE, ABS, SQRT, MOD)
 
-|Supported
+|ДА
 
 m|SELECT w.name FROM Course c JOIN c.studentWaitlist w WHERE c.name = 'Calculus' AND INDEX(w) = 0
 
@@ -91,30 +91,30 @@ m|SELECT w.name FROM Course c JOIN c.studentWaitlist w WHERE c.name = 'Calculus'
 
 //CASE Expression
 
-.2+|CASE Expressions
+.2+|Выражения CASE
 
-|Supported
+|ДА
 
 m|SELECT e.name, f.name, CONCAT(CASE WHEN f.annualMiles > 50000 THEN 'Platinum ' WHEN f.annualMiles > 25000 THEN 'Gold ' ELSE '' END, 'Frequent Flyer')
 FROM Employee e JOIN e.frequentFlierPlan f
 
-|_Not supported: CASE in UPDATE query_
+|_НЕТ: CASE в UPDATE-запросе_
 
 m|_UPDATE Employee e SET e.salary = CASE e.rating WHEN 1 THEN e.salary * 1.1 WHEN 2 THEN e.salary * 1.05 ELSE e.salary * 1.01 END_
 
 //Date Functions (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP)
 
-|Date Functions (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP)
+|Функции даты (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP)
 
-|Supported
+|ДА
 
 m|SELECT e FROM Order e WHERE e.date = CURRENT_DATE
 
 //EclipseLink Functions (CAST, REGEXP, EXTRACT)
 
-.2+|EclipseLink Functions (CAST, REGEXP, EXTRACT)
+.2+|Функции EclipseLink (CAST, REGEXP, EXTRACT)
 
-|Supported
+|ДА
 
 m|SELECT EXTRACT(YEAR FROM e.createTs) FROM MyEntity e WHERE EXTRACT(YEAR FROM e.createTs) > 2012
 
@@ -122,31 +122,31 @@ m|SELECT EXTRACT(YEAR FROM e.createTs) FROM MyEntity e WHERE EXTRACT(YEAR FROM e
 
   SELECT CAST(e.number text) FROM MyEntity e WHERE e.path LIKE CAST(:ds$myEntityDs.id text)
 
-|_Not supported: CAST in GROUP BY clause_
+|_НЕТ: CAST в запросе GROUP BY_
 
 m|_SELECT e FROM Order e WHERE e.amount > 100 GROUP BY CAST(e.orderDate date)_
 
 //Entity Type Expression
 
-.2+|Entity Type Expression
+.2+|Операторы типов сущности
 
-|Supported: entity type passed as a parameter
+|ДА: тип сущности передается как параметр
 
 m|SELECT e FROM Employee e WHERE TYPE(e) IN (:empType1, :empType2)
 
-|_Not supported: direct link to an entity type_
+|_НЕТ: прямая ссылка на сущность_
 
 m|_SELECT e FROM Employee e WHERE TYPE(e) IN (app_Exempt, app_Contractor)_
 
 //Function Invocation
 
-.2+|Function Invocation
+.2+|Вызов функций
 
-|Supported: function result in comparison clauses
+|ДА: результат с операторами сравнения
 
 m|SELECT u FROM User u WHERE function('DAYOFMONTH', u.createTs) = 1
 
-|_Not supported: function result as is_
+|_НЕТ: прямое использование результата функции_
 
 m|_SELECT u FROM User u WHERE function('hasRoles', u.createdBy, u.login)_
 
@@ -154,15 +154,15 @@ m|_SELECT u FROM User u WHERE function('hasRoles', u.createdBy, u.login)_
 
 |IN
 
-|Supported
+|ДА
 
 m|SELECT e FROM Employee e, IN(e.projects) p WHERE p.budget > 1000000
 
 //IS EMPTY collection
 
-|IS EMPTY collection
+|IS EMPTY для коллекций
 
-|Supported
+|ДА
 
 m|SELECT e FROM Employee e WHERE e.projects IS EMPTY
 
@@ -170,14 +170,14 @@ m|SELECT e FROM Employee e WHERE e.projects IS EMPTY
 
 |KEY/VALUE
 
-|_Not supported_
+|НЕТ
 
 m|_SELECT v.location.street, KEY(i).title, VALUE(i) FROM VideoStore v JOIN v.videoInventory i WHERE v.location.zipcode = '94301' AND VALUE(i) > 0_
 
 //Literals
-.2+|Literals
+.2+|Литералы
 
-|Supported
+|ДА
 
 m|SELECT e FROM Employee e WHERE e.name = 'Bob'
 
@@ -191,7 +191,7 @@ m|SELECT e FROM Employee e WHERE e.name = 'Bob'
 
   SELECT e FROM Employee e WHERE e.active = TRUE
 
-|_Not supported: date and time literals_
+|_НЕТ: литералы даты и времени_
 
 m|_SELECT e FROM Employee e WHERE e.startDate = {d'2012-01-03'}_
 
@@ -203,19 +203,19 @@ m|_SELECT e FROM Employee e WHERE e.startDate = {d'2012-01-03'}_
 
 .2+|MEMBER OF
 
-|Supported: fields or query results
+|ДА: поля или результаты запроса
 
 m|SELECT d FROM app_Department d WHERE (select e from Employee e where e.id = :eParam) MEMBER OF e.employees
 
-|_Not supported: literals_
+|_НЕТ: литералы_
 
 m|_SELECT e FROM Employee e WHERE 'write code' MEMBER OF e.codes_
 
 //NEW in SELECT
 
-|NEW in SELECT
+|NEW в SELECT
 
-|Supported
+|ДА
 
 m|_SELECT NEW com.company.example.CustomerDetails(c.id, c.status, o.count) FROM Customer c JOIN c.orders o WHERE o.count > 100_
 
@@ -223,7 +223,7 @@ m|_SELECT NEW com.company.example.CustomerDetails(c.id, c.status, o.count) FROM 
 
 |NULLIF/COALESCE
 
-|Supported
+|ДА
 
 m|SELECT NULLIF(emp.salary, 10) FROM Employee emp
 
@@ -231,17 +231,17 @@ m|SELECT NULLIF(emp.salary, 10) FROM Employee emp
 
 //NULLS FIRST, NULLS LAST in order by
 
-|NULLS FIRST, NULLS LAST in order by
+|NULLS FIRST, NULLS LAST в order by
 
-|Supported
+|ДА
 
 m|SELECT h FROM GroupHierarchy h ORDER BY h.level DESC NULLS FIRST
 
 //String Functions (CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE)
 
-.2+|String Functions (CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE)
+.2+|Строковые функции (CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE)
 
-|Supported
+|ДА
 
 m|SELECT x FROM Magazine x WHERE CONCAT(x.title, 's') = 'JDJs'
 
@@ -257,75 +257,75 @@ m|SELECT x FROM Magazine x WHERE CONCAT(x.title, 's') = 'JDJs'
 
   SELECT x FROM Magazine x WHERE TRIM(TRAILING FROM x.title) = 'D'
 
-|_Not supported: TRIM with trim char_
+|_НЕТ: TRIM не поддерживается с trim char_
 
 m|_SELECT x FROM Magazine x WHERE TRIM(TRAILING 'J' FROM x.title) = 'D'_
 
 //Subquery
-.2+|Subquery
+.2+|Вложенные запросы
 
-|Supported
+|ДА
 
 m|SELECT goodCustomer FROM Customer goodCustomer WHERE goodCustomer.balanceOwed < (SELECT AVG(c.balanceOwed) FROM Customer c)
 
-|_Not supported: path expression instead of entity name in subquery's FROM_
+|_НЕТ: path-выражения вместо имени сущности в FROM подзапроса_
 
 m|_SELECT c FROM Customer c WHERE (SELECT AVG(o.price) FROM c.orders o) > 100_
 
 //TREAT
 .2+|TREAT
 
-|Supported
+|ДА
 
 m|SELECT e FROM Employee e JOIN TREAT(e.projects AS LargeProject) p WHERE p.budget > 1000000
 
-|_Not supported: TREAT in WHERE clauses_
+|_НЕТ: TREAT в WHERE-выражениях_
 
 m|_SELECT e FROM Employee e JOIN e.projects p WHERE TREAT(p as LargeProject).budget > 1000000_
 
 |===
 
 [[macros]]
-== Macros
+== Макросы
 
-JPQL query text can include macros, which are processed before the query is executed. They are converted into the executable JPQL and can additionally modify the set of query parameters.
+Текст запроса JPQL может содержать макросы, которые обрабатываются перед выполнением запроса. Они преобразуются в исполнимый JPQL и могут дополнительно изменять набор параметров запроса.
 
-The macros solve the following problems:
+Макросы решают следующие проблемы:
 
-* Provide a workaround for the limitation of JPQL which makes it impossible to express the condition of dependency of a given field on current time (i.e. expressions like "current_date - 1" do not work).
+* Обеспечивают обходной путь для ограничения JPQL, которое делает невозможным выражение условия зависимости данного поля от текущего времени (т.е. выражения типа "current_date - 1" не работают).
 
-* Enable comparing `Timestamp` type fields (the date/time fields) with a date.
+* Позволяют сравнивать поля типа `Timestamp` (поля даты/времени) с датой.
 
 [[macro-between]]
 === @between
 
-Has the format `++@between(field_name, moment1, moment2, time_unit)++` or `++@between(field_name, moment1, moment2, time_unit, user_timezone)++`, where
+Имеет формат `++@between(field_name, moment1, moment2, time_unit)++` или `++@between(field_name, moment1, moment2, time_unit, user_timezone)++`, где:
 
-* `++field_name++` is the name of the compared attribute.
+* `++field_name++` – это имя сравниваемого атрибута.
 
-* `moment1`, `moment2` – start and end points of the time interval where the value of `++field_name++` should fall into. Each of the points should be defined by an expression containing `now` variable with an addition or subtraction of an integer number.
+* `moment1`, `moment2` – начальная и конечная точки временного интервала, в который должно попадать значение `++field_name++`. Каждая из точек должна быть определена выражением, содержащим переменную `now` с добавлением или вычитанием целого числа.
 
-* `++time_unit++` – defines the unit for time interval added to or subtracted from `now` in the time point expressions and time points rounding precision. May be one of the following: `year`, `month`, `day`, `hour`, `minute`, `second`.
+* `++time_unit++` – определяет единицу измерения для временного интервала, добавляемого или вычитаемого из `now` в выражениях временных точек и точности округления временных точек. Может быть одним из следующих: `year`, `month`, `day`, `hour`, `minute`, `second`.
 
-* `++user_timezone++` - an optional argument that if set, defines that the current user's time zone must be considered in the query.
+* `++user_timezone++` - необязательный аргумент, который, если задан, определяет, что в запросе должен учитываться часовой пояс текущего пользователя.
 
-The macro gets converted to the following expression in JPQL: `++field_name >= :moment1 and field_name < :moment2++`
+Макрос преобразуется в следующее выражение в JPQL: `++field_name >= :moment1 and field_name < :moment2++`
 
-Example 1. Customer was created today:
+Пример 1. Customer был создан сегодня:
 
 [source, jpql]
 ----
 select c from Customer where @between(c.createTs, now, now+1, day)
 ----
 
-Example 2. Customer was created within the last 10 minutes:
+Пример 2. Customer был создан в течение последних 10 минут:
 
 [source, jpql]
 ----
 select c from Customer where @between(c.createTs, now-10, now, minute)
 ----
 
-Example 3. Documents dated within the last 5 days, considering current user time zone:
+Пример 3. Документы, датированные в течение последних 5 дней, с учетом текущего часового пояса пользователя:
 
 [source, jpql]
 ----
@@ -335,9 +335,9 @@ select d from Doc where @between(d.createTs, now-5, now, day, user_timezone)
 [[macro-today]]
 === @today
 
-Has the format `++@today(field_name)++` or `++@today(field_name, user_timezone)++` and helps to define a condition checking that the attribute value is within the current day. Essentially, this is a special case of the `@between` macro.
+Имеет формат `++@today(field_name)++` или `++@today(field_name, user_timezone)++` и помогает определить условие, проверяющее, что значение атрибута находится в пределах текущего дня. По сути, это частный случай макроса `@between`.
 
-Example. Customer was created today:
+Пример. Customer был создан сегодня:
 
 [source, jpql]
 ----
@@ -347,16 +347,16 @@ select d from Doc where @today(d.createTs)
 [[macro-date-equals]]
 === @dateEquals
 
-Has the format `++@dateEquals(field_name, parameter)++` or `++@dateEquals(field_name, parameter, user_timezone)++` and allows you to define a condition checking that `++field_name++` value (in `Timestamp` format) is within the day passed as `parameter`.
+Имеет формат `++@dateEquals(field_name, parameter)++` или `++@dateEquals(field_name, parameter, user_timezone)++` и позволяет определить условие, проверяющее, что значение `++field_name++` (в формате `Timestamp`) находится в пределах дня, переданного в качестве `parameter`.
 
-Example:
+Пример:
 
 [source, jpql]
 ----
 select d from Doc where @dateEquals(d.createTs, :param)
 ----
 
-You can pass the current date using the `now` parameter. To set an offset in days, use `now`  with `+` or `-`, for example:
+Можно передать текущую дату, используя параметр `now`. Чтобы задать смещение в днях, используйте `now` с `+` или `-`, например:
 
 [source, jpql]
 ----
@@ -366,16 +366,16 @@ select d from sales_Doc where @dateEquals(d.createTs, now-1)
 [[macro-date-before]]
 === @dateBefore
 
-Has the format `++@dateBefore(field_name, parameter)++` or `++@dateBefore(field_name, parameter, user_timezone)++` and allows you to define a condition checking that `++field_name++` value (in `Timestamp` format) is earlier than the date passed as `parameter`.
+Имеет формат `++@dateBefore(field_name, parameter)++` или `++@dateBefore(field_name, parameter, user_timezone)++` и позволяет определить условие, проверяющее, что значение `++field_name++` (в формате `Timestamp`) является более ранним, чем дата, переданная в качестве `parameter`.
 
-Example:
+Пример:
 
 [source, jpql]
 ----
 select d from Doc where @dateBefore(d.createTs, :param, user_timezone)
 ----
 
-You can pass the current date using the `now` attribute. To set an offset in days, use `now`  with `+` or `-`, for example:
+Можно передать текущую дату, используя параметр `now`. Чтобы задать смещение в днях, используйте `now` с `+` или `-`, например:
 
 [source, jpql]
 ----
@@ -385,16 +385,16 @@ select d from sales_Doc where @dateBefore(d.createTs, now+1)
 [[macro-date-after]]
 === @dateAfter
 
-Has the format `++@dateAfter(field_name, parameter)++` or `++@dateAfter(field_name, parameter, user_timezone)++` and allows you to define a condition that the date of the `++field_name++` value (in `Timestamp` format) is after or equal to the date passed as `parameter`.
+Имеет формат `++@dateAfter(field_name, parameter)++` или `++@dateAfter(field_name, parameter, user_timezone)++` и позволяет определить условие, при котором дата значения `++field_name++` (в формате `Timestamp`) позднее или равна дате, переданной в качестве `parameter`.
 
-Example:
+Пример:
 
 [source, jpql]
 ----
 select d from Doc where @dateAfter(d.createTs, :param)
 ----
 
-You can pass the current date using the `now` attribute. To set an offset in days, use `now`  with `+` or `-`, for example:
+Можно передать текущую дату, используя параметр `now`. Чтобы задать смещение в днях, используйте `now` с `+` или `-`, например:
 
 [source, jpql]
 ----
@@ -404,9 +404,9 @@ select d from Doc where @dateAfter(d.createTs, now-1)
 [[macro-enum]]
 === @enum
 
-Allows you to use a fully qualified enum constant name instead of its database identifier. This simplifies searching for enum usages throughout the application code.
+Позволяет использовать полное имя константы перечисления вместо ее идентификатора базы данных. Это упрощает поиск вариантов использования перечислений по всему коду приложения.
 
-Example:
+Пример:
 
 [source, jpql]
 ----
