@@ -40,6 +40,9 @@ public class OrderServiceTest {
     DataManager dataManager;
 
     @Autowired
+    EntityStates entityStates;
+
+    @Autowired
     DataSource dataSource;
 
     @Autowired
@@ -207,7 +210,14 @@ public class OrderServiceTest {
 
     @Test
     void testFetchPlan_FetchPlanBuilder() {
-        loadOrders();
+        List<Order> orders = loadOrders();
+        assertEquals(1, orders.size());
+        Order order = orders.get(0);
+        assertEquals(order1, order);
+        assertTrue(entityStates.isLoaded(order, "number"));
+        assertTrue(entityStates.isLoaded(order, "customer"));
+        Customer customer = order.getCustomer();
+        assertTrue(entityStates.isLoaded(customer, "name"));
     }
 
     // tag::fetch-plan-builder[]
