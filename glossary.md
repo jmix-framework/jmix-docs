@@ -29,6 +29,7 @@
 * __debugger__ – отладчик
 * __dependency__ – зависимость
 * __deployment__ – развертывание
+* __designer__ – дизайнер
 * __dialog__ – диалоговое окно
 * __directory__ – каталог
 * __drop-down list__ – выпадающий список
@@ -56,6 +57,7 @@
 * __intentions__ – контекстные действия
 * __internationalization__ – интернационализация
 * __invoke__ – вызывать
+* __layout__ – компоновка (часто)
 * __locale__ – локаль
 * __localization__ – локализация
 * __lookup__ – выбор
