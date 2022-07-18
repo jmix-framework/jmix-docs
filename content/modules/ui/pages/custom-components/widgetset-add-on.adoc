@@ -1,0 +1,95 @@
+= 创建并使用小部件扩展组件
+
+小部件扩展组件提供自定义的 UI 组件，可以在不同的应用程序中重复使用。
+
+必须满足下列条件：
+
+* JAR 文件必须包含 `DemoaddonWidgets.gwt.xml`。
+* JAR 的 manifest 清单必须指定 `*.gwt.xml` 的路径：
++
+[source,gradle,indent=0]
+----
+jar {
+    // pack client Java sources
+    with copySpec {
+        from sourceSets.main.allJava
+        include "com/company/demoaddon/**"
+        duplicatesStrategy = DuplicatesStrategy.WARN
+    }
+    // register exported widgetset
+    manifest {
+        attributes(['Vaadin-Widgetsets': 'com.company.demoaddon.DemoaddonWidgets',
+                    'Vaadin-Stylesheets': 'VAADIN/addons/demoaddon/demoaddon.scss'])
+    }
+}
+----
+
+小部件集将基于 manifest 清单中具有 *Vaadin-Widgetset* 键的所有 JAR 自动生成。支持方便地使用 Vaadin 附加组件。
+
+无需在扩展组件中编译小部件。
+
+[[creating-widgets-add-on]]
+== 使用 Studio 创建小部件扩展组件
+
+按照下面步骤使用 Jmix Studio 创建小部件扩展组件：
+
+. 新建项目，选择 *UI Widgets Add-On* 模板。输入项目名，例如，`"demoaddon"`。该项目为一个简单的 Java 项目，有如下结构：
++
+image::custom-components/widgets-add-on-prj-structure.png[align="center"]
++
+Jmix Studio 基于 `ColorButton` xref:ui:custom-components/custom-widget-sets.adoc[GWT 组件] 提供一个小部件扩展组件的示例。你可以创建自己的组件。
+. 打开 `demoaddon.scss` 文件，并定义自己的 xref:ui:themes/theme_addon.adoc[主题样式内容]。
+. 使用下列命令构建并发布扩展组件至本地 maven 仓库：
++
+[source, code,indent=0]
+----
+./gradlew clean publishToMavenLocal
+----
+
+[[using-widgets-add-on]]
+== 使用小部件扩展组件
+
+. 打开想要使用小部件扩展组件的项目。
+. 创建一个 xref:themes/custom_theme.adoc[自定义主题]，例如，使用 `helium-extended` 名称。
+. 打开 `build.gradle` 文件并做下列修改：
+* 添加 `mavenLocal()` 仓库。
+* 删除 `implementation 'io.jmix.ui:jmix-ui-widgets-compiled'` 依赖。
+* 将扩展组件的依赖添加至项目的 `implementation` 和 `widgets` 配置中，示例：
++
+[source,gradle,indent=0]
+----
+implementation 'com.company:demoaddon:0.0.1-SNAPSHOT'
+widgets 'com.company:demoaddon:0.0.1-SNAPSHOT'
+implementation 'io.jmix.ui:jmix-ui-widgets'
+widgets 'io.jmix.ui:jmix-ui-widgets'
+----
+* 添加 xref:ui:custom-components/custom-widget-sets.adoc#compile-widgets[compileWidgets] 任务（需根据你应用程序的包路径修改）：
++
+[source,gradle,indent=0]
+----
+compileWidgets {
+    generate "com.company.sample.widget.CustomWidgetSet"
+    includePaths('**/io/jmix/**/widget/**', '**/com/company/sample/widget/**')
+}
+----
+. 在 `application.properties` 文件添加 `jmix.ui.widget-set` 属性（根据上面的 `compileWidgets` 任务调整路径）：
++
+[source,properties,indent=0]
+----
+jmix.ui.widget-set=com.company.sample.widget.CustomWidgetSet
+----
+. 重新加载项目。
+. 创建一个 `color-button-screen` 界面用于演示组件的功能。
++
+打开 `ColorButtonScreen.java` 界面控制器并添加下列代码，在界面中放置组件：
++
+.ColorButtonScreen.java
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/components/colorbutton/ColorButtonScreen.java[tags=color-button-screen]
+----
+<1> 初始化一个 color button 的实例。
+<2> 使用 `unwrap()` 方法获取 Vaadin 容器，并在其内部添加新的组件。
+. 启动应用程序并查看结果：
++
+image::custom-components/color-button.png[align="center"]

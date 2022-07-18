@@ -26,3 +26,60 @@ Jmix 安全子系统为应用程序提供了一种易于配置的访问控制机
 ----
 include::example$/ex1/build.gradle[tags=dependencies]
 ----
+
+[[concepts]]
+== 概念
+
+下面我们展示几个图表，用于解释 Jmix 安全子系统的主要概念。
+
+[[containers]]
+=== 容器
+
+这里的容器是指一个独立的可运行/可部署的单元，用于执行代码或保存数据。
+
+image::jmix-security-containers.drawio.svg[]
+
+在简单的情况下，Jmix 为单个应用程序提供了所有必要的安全组件（身份验证、授权、用户和角色管理）。用户交由应用程序管理和进行身份验证。
+
+或者，您可以使用外部身份和访问管理 （IAM） 服务，如 OIDC 或 LDAP。在这种情况下，用户由外部服务进行身份验证，外部服务还可以将经过身份验证的用户的角色列表返回给应用程序以进行后续授权。
+
+[[users-and-roles-management]]
+=== 用户和角色管理
+
+角色和策略可以在设计时使用带注解的 Java 类在应用程序中定义，也可以在运行时通过存储在数据库中的配置来定义。
+
+当在应用程序中对用户进行管理时，管理员将使用应用程序 UI 创建用户并为其分配角色。默认情况下，将为新项目自动生成 xref:users.adoc#entity[User 实体]。
+
+image::jmix-security-admin-standard.drawio.svg[]
+
+如果使用外部 IAM 服务，则用户列表由该服务管理，并且通常也管理每个用户的一组角色。管理员需要在应用程序中配置角色和策略，并确保应用程序角色名称与 IAM 的角色匹配。因此，当用户登录到系统时，应用程序将获取 IAM 服务分配给用户的角色列表，并使用自己的角色和策略配置进行授权。
+
+image::jmix-security-admin-external-iam.drawio.svg[]
+
+也可能存在混合场景，同时在 IAM 服务和应用程序中创建用户（例如，在登录时自动创建用户）。
+
+[[user-authentication-and-authorization]]
+=== 用户认证和授权
+
+image::jmix-security-user.drawio.svg[]
+
+认证机制基于 Spring Security。Jmix 提供默认 Spring Security 配置，以及在项目中生成的登录界面和 xref:authentication.adoc#current[CurrentAuthentication] bean - 用于获取有关当前用户的信息。
+
+当用户使用应用程序时，会请求框架的访问控制组件对用户操作进行授权。首先从角色配置中获取有关当前用户权限的信息，然后做出授权决策。
+
+[[roles-and-policies]]
+=== 角色和策略
+
+下图展示用户、角色和策略之间的关系。
+
+image::jmix-security-user-roles-policies.drawio.svg[]
+
+用户可以有多个角色，角色分两种：资源角色和行级角色。
+
+xref:resource-roles.adoc[资源角色] 给用户特定对象和操作的权限，默认为拒绝。没有资源角色的用户无任何权限，不能访问系统。
+
+而 xref:row-level-roles.adoc[行级角色] 则相反，用于限制对特定实体实例的访问。但是没有行级角色的用户可以访问实体的所有实例（如果资源角色允许访问该实体的话）。
+
+每个角色可以定义不同类型的策略。策略指定一个目标对象（资源许可中的资源、行级策略中的实体实例或实例组）以及针对该对象的许可或限制。
+
+image::jmix-security-policy.drawio.svg[]

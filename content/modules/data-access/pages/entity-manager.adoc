@@ -1,3 +1,73 @@
-= Using EntityManager
+= 使用 EntityManager
 
-Coming soon
+`EntityManager` 是用于读写实体的标准 JPA 接口。也可用于运行原生 SQL 语句。
+
+TIP: 我们推荐使用 xref:data-manager.adoc[DataManager] 处理实体，仅在真正需要时使用 `EntityManager`。
+
+关于 `EntityManager` 的接口方法信息，请参阅 https://jakarta.ee/specifications/persistence/2.2/apidocs/javax/persistence/entitymanager[javax.persistence.EntityManager^] API 文档。
+
+在 Jmix 应用程序中可以与任何 Spring 应用程序几乎一样的方式使用 `EntityManager` 来处理 xref:data-model:entities.adoc#jpa[JPA 实体]。但是，Jmix 提供了标准接口的自定义实现，增加了一些特殊功能。
+
+[[obtaining-entity-manager]]
+== 获取 EntityManager
+
+可以通过 `@PersistenceContext` 注解在任何 Spring bean 中注入 `EntityManager` 的实例。使用 `EntityManager` 实例时，需要打开一个数据库 xref:transactions.adoc[事务]。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-inject;em-persist]
+----
+
+如需处理 xref:data-model:data-stores.adoc#additional[附加数据存储] 中的实体，可以通过在 `@PersistenceContext` 注解的 `unitName` 参数指定数据存储的名称获取 `EntityManager` 实例，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-db1-inject;em-db1-persist]
+----
+
+NOTE: `EntityManager` 不能在 UI 控制器中注入。
+
+[[fetch-plans]]
+== 使用 Fetch Plans
+
+默认情况下，当通过 `EntityManager` 使用 id 或 JPQL 查询加载实体时，会返回实体的所有本地（直接）属性并根据 JPQ 规范的规则预加载关联属性。其他引用属性则在同一个事务中进行懒加载。
+
+可以使用 xref:fetching.adoc#fetch-plan[fetch plans] 来优化对象关系图的加载过程，而不考虑实体属性注解中的  `FetchType.LAZY` 指令。Fetch plan 需要在属性属性映射（properties map）中指定。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-inject;em-find]
+----
+
+上面的示例中，会加载 `Order` 和关联 `Customer` 实体的所有的本地属性，尽管没有在 fetch plan 中显式地指定需要加载的属性。如果只需加载部分本地属性，可以构建一个 “partial” fetch plan。示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-load-partial]
+----
+
+[[soft-deletion]]
+== 软删除
+
+`EntityManager` 支持 xref:data-model:soft-deletion.adoc[软删除]。当对一个具有 xref:data-model:entities.adoc#soft-delete-trait[软删除特性] 的实体进行 `remove()` 操作时，会更新 `@DeletedDate` 和 `@DeletedBy` 属性，而不会直接从数据库删除实体。
+
+针对特定的事务，可以关闭软删除功能，这样可以硬删除带有软删除特性的实体，也可以加载已经标记删除的实体。通过指定 `PersistenceHints.SOFT_DELETION` 属性，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-hard-delete]
+----
+
+[[limitations]]
+== EntityManager 的局限
+
+. 用 `EntityManager` 保存和加载实体时，不会发送 xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent 和 EntityLoadingEvent]。
+
+. 在加载根实体的事务外部无法 xref:fetching.adoc#lazy-loading[懒加载] 引用属性。会在访问这种属性时抛出 “java.lang.IllegalStateException: Cannot get unfetched attribute ...” 异常。
+
+. 不会维护 xref:data-model:entities.adoc#cross-data-store-ref[跨数据存储引用]。
+
+. 会绕过 xref:security:authorization.adoc#data-access-checks[数据访问权限检查]。
+
+. 不支持下列 JPA 功能：命名查询、`CriteriaBuilder`、`EntityGraph`、`EntityTransaction`。
+

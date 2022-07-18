@@ -12,6 +12,7 @@ Jmix 中的软删除机制对应用程序开发人员是透明的。如果为实
 +
 例如，想象一个 Customer - Order - OrderLine 数据模型。最初，一个 Order 引用了一个 Customer 和 _五个_ OrderLine 实例。你软删除了 Customer 实例和一个 OrderLine 实例。然后，如果你将 Order、Customer 和 OrderLine 集合一起加载，将包含已删除的 Customer 和 _四个_ OrderLine 实例的引用。
 
+[[references]]
 == 对引用的处理
 
 当一个普通的（硬删除的）实体被删除时，由数据库中的外键定义对该实体引用的处理。默认情况下，如果一个实体被其他实体引用，则无法被删除。如需将引用的实体与要删除的实体一起删除，或将引用设置为 null，则需要为外键定义 `ON DELETE CASCADE` 或 `ON DELETE SET NULL` 规则。
@@ -44,47 +45,139 @@ include::example$/ex1/src/main/java/datamodel/ex1/entity/Order.java[tags=class-d
 
 * `DeletePolicy.UNLINK` - 通过将引用属性设置为空来断开关联。仅在关联的拥有方（带有 `@JoinColumn` 注解的一方）使用此值。
 
+[[unique-constraints]]
 == 唯一性约束
 
 软删除使创建数据库唯一约束更加复杂。约束必须考虑到可能有多个记录具有相同的唯一字段值：一个未删除和任意数量的软删除记录。
 
-对于不同的数据库，该问题的解决方式不同。
+对于不同的数据库，该问题的解决方式不同。按照下面的建议并使用 xref:studio:entity-designer.adoc[实体设计器] 的 `Indexes` 标签页定义唯一约束。
 
-TIP: Studio 基于项目中使用的数据库，为软删除实体的唯一性约束生成数据库变更脚本。
+[[postgresql-uniqueness]]
+=== PostgreSQL
 
-如果你在没有 Studio 帮助的情况下手动定义唯一约束，请遵循以下建议。
+对于 PostgreSQL，我们推荐使用部分索引（partial indexes）。
 
-* 如果数据库支持 partial indexes（局部索引）（PostgreSQL），可以这样定义唯一约束：
-+
+为需要的列定义唯一约束。实体中的索引定义示例：
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio 会生成下列 Liquibase 更改日志：
+
+[source,xml]
+----
+<changeSet id="1" author="demo" dbms="postgresql">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+    </createIndex>
+
+    <modifySql>
+        <append value="where DELETED_DATE is null"/>
+    </modifySql>
+</changeSet>
+----
+
+根据更改日志，Liquibase 会在数据库创建部分索引：
+
 [source,sql]
 ----
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
 ----
 
-* 如果数据库在复合索引（Oracle、SQL Server）中只允许一个可空值，则定义一个包含 `DELETED_DATE` 列的复合索引：
-+
+[[oracle-mssql-uniqueness]]
+=== Oracle 和 Microsoft SQL Server
+
+Oracle 和 Microsoft SQL Server 仅支持组合索引中有一个 null 值。因此，我们推荐使用包含 `DELETED_DATE` 列的组合索引。
+
+为需要的列定义唯一约束。实体中的索引定义示例：
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio 会生成下列 Liquibase 更改日志：
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE"/>
+    </createIndex>
+</changeSet>
+----
+
+根据更改日志，Liquibase 会在数据库创建组合索引：
+
 [source,sql]
 ----
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
 ----
 
-* 否则，应该使用一个附加列，一个更新该列的触发器和一个唯一约束的复合索引。以下是 MySQL 的例子：
-+
+[[mysql-mssql-uniqueness]]
+=== MySQL 和 HSQL
+
+对于 MySQL 和 HSQL，我们建议创建一个额外的非 null 列，并使用包含该列的组合索引。
+
+创建一个额外的属性，并确保通过 `deletedDate` setter 更新：
+
+[source,java,indent=0]
+----
+@SystemLevel
+@Column(name = "DELETED_DATE_NN")
+@Temporal(TemporalType.TIMESTAMP)
+private Date deletedDateNN = new Date(0); // 手动初始化
+
+public Date getDeletedDateNN() {
+    return deletedDateNN;
+}
+
+public void setDeletedDateNN(Date deletedDateNN) {
+    this.deletedDateNN = deletedDateNN;
+}
+
+public void setDeletedDate(Date deletedDate) {
+    this.deletedDate = deletedDate;
+    setDeletedDateNN(deletedDate == null ? new Date(0) : deletedDate); // 手动添加这些代码
+}
+----
+
+定义包含 `DELETED_DATE_NN` 列的唯一约束。实体中的索引定义示例：
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL", "DELETED_DATE_NN"})
+})
+----
+
+Studio 会生成下列 Liquibase 更改日志：
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE_NN"/>
+    </createIndex>
+</changeSet>
+----
+
+根据更改日志，Liquibase 会在数据库创建组合索引：
+
 [source,sql]
 ----
-alter table CUSTOMER add DELETED_DATE_NN datetime not null default '1000-01-01 00:00:00.000';
-
-create unique index IDX_CUSTOMER_UNIQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN);
-
-create trigger CUSTOMER_DELETED_DATE_NN_UPDATE_TRIGGER before update on CUSTOMER
-for each row
-begin
-    if not(NEW.DELETED_DATE <=> OLD.DELETED_DATE) then
-        set NEW.DELETED_DATE_NN = if (NEW.DELETED_DATE is null, '1000-01-01 00:00:00.000', NEW.DELETED_DATE);
-    end if;
-end;
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN)
 ----
 
+[[turn-soft-deletion-off]]
 == 关闭软删除
 
 默认情况下，对所有具有 xref:entities.adoc#soft-delete-trait[软删除特性] 的实体启用软删除。但是你可以使用带有 `false` 值的 `PersistenceHints.SOFT_DELETION` hint 为特定的操作关闭它。

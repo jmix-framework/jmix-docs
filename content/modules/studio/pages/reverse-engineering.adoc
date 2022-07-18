@@ -1,0 +1,87 @@
+= 数据库反向工程
+
+Studio 支持为已有的数据库创建 xref:data-model:index.adoc[数据模型] 和标准 UI 界面。
+
+首先，需要创建一个 xref:studio:data-stores.adoc#additional-data-store[附加数据存储] 或将主数据存储切换至已有数据库。
+
+在 xref:studio:tool-window.adoc[Jmix 工具窗口] 右键点击数据存储，并选择 *Generate Data Model*。
+
+image::generate-data-model-item.png[align="center"]
+
+然后 Studio 会打开  *Generate Model from Database* 向导。
+
+第一步::
++
+--
+在模型生成向导的第一步中，点击 *Refresh List*。
+
+向导会展示数据库中那些没有对应项目数据模型的表。可以利用上方的过滤器控件按表名查找表。
+
+image::generate-data-model-step1.png[align="center"]
+
+选择需要映射至数据模型的表。某些表通过外键依赖其他表，因此，当选择一个表时，其依赖的所有其他表也都会被选中。如果取消选择，则其依赖的所有表也变成非选中状态。
+
+可以点击 image:selectall.png[Select All] 和 image:unselectall.png[Deselect All] 复选框选中或取消选中全部表。
+
+另外，还可以点击 image:gear_button.png[Settings] 配置创建实体的 Java 包路径以及系统属性的默认映射。
+
+例如，如果数据库中的所有或大多数表都包含 `Modified` 和 `ModifiedBy` 列，则可以将它们映射到所创建实体的 `lastModifiedDate` 和 `lastModifiedBy` 属性。在这种情况下，无需为每个表单独配置映射。使用 *Exclude columns from mapping* 列表排除不需要不自动映射的某些列。
+
+点击 *Next*。
+--
+
+第二步::
++
+--
+这一步中，你可以查看并编辑为数据库表自动生成的映射。
+
+image::generate-data-model-step2.png[align="center"]
+
+*Status* 列描述自动映射的结果：
+
+* *OK* - 自动映射成功，所有的数据库列都对应到新的实体了。
+* *Join table* - 识别出实体建的关系并映射至一个多对多的 join 表。
+* *Composite key* - Jmix Studio 创建了一个组合键值的实体。
+* *Composite PK will be replaced* - 数据库表具有组合主键，但是没有其他表关联。组合主键将使用 UUID 类型的主键替换。
+* *New PK will be created* - 数据库表没有主键。会创建一个新的 UUID 类型主键。
+* *PK is an identity field* - 数据库表有使用标识符字段的主键。其主键值由服务端管理，无法修改。
+* *There are unmapped columns* - 某些列无法映射至新实体。
+* *Composite PK referenced by other tables* - 数据库表具有组合主键，并且有关联表。Studio 无法映射这样的表。
+* *Choose primary key for DB view* - 这是一个数据库视图（view），需要选择一列或者多列作为实体标识符。此时，可以点击 *Choose PK* 按钮并选择主键列。
+* *Unsupported PK type* - 数据库表的主键是一个不支持的类型。Studio 无法映射这样的表。
+
+image:refresh_button.png[Refresh mapping button] 按钮支持对选择的表进行重新自动映射。例如，可以使用数据库 SQL 工具对数据库结构做一些调整，然后返回该向导重新尝试自动映射。
+
+image:edit_button.png[Edit mapping] 按钮打开展示映射详情的窗口。可以在这里修改实体名称和实体类实现的一组系统接口。修改完会影响为了与 Jmix 实体兼容而创建的系统列数量。
+
+image::table-mapping-editor.png[align="center"]
+
+当选择一个数据库视图时，会显示 *Choose PK* 按钮而非 *Edit mapping*，这里需要选择实体的标识符列。
+
+通过点击 *Back*，可以返回上一步重新选择数据库表。
+
+点击 *Next* 至下一步。
+--
+
+第三步::
++
+--
+这一步可以指定要为新实体创建什么 UI 界面。
+
+image::generate-data-model-step3.png[align="center"]
+
+如果未选中 *Create standard screen* 复选框，Studio 不会为新实体生成 UI 界面。
+
+使用 *In module*、*Package* 和 *Menu* 字段指定界面源码放置的位置和界面的主菜单项。
+
+使用 *Standard screens* 列的下拉列表选择需要生成的界面类型。
+
+这一步也可以暂时跳过，在数据模型完成后，可以再未实体生成 UI 界面。
+
+点击 *Create*。Studio 会自动生成实体和界面。
+
+[NOTE]
+当 Studio 基于表定义创建实体时，会使用 `@DdlGeneration(value = DdlGeneration.DbScriptGenerationMode.DISABLED)` 注解标记实体。
+意思是，不会为此类实体生成 xref:data-model:db-migration.adoc#configuration[Liquibase 更改日志]。
+如需对导入的实体启用 Liquibase 脚本功能，可以直接删除该注解（或者在实体设计器中修改设置）。
+--
