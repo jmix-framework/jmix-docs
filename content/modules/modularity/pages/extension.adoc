@@ -1,7 +1,110 @@
 = Extending Functionality
 
+Functionality of framework subsystems and add-ons can be extended and modified by the application or by other add-ons located lower in the xref:creating-add-ons.adoc#hierarchy[hierarchy].
+
+For declaratively created elements, such as data model entities and XML layout of UI screens, Jmix offers its own extension mechanism. Business logic defined by Spring beans can be extended using standard Java and Spring features.
+
+[[data-model]]
 == Extending Data Model
 
+Let's consider an example of extending the data model of an add-on.
+
+Suppose we have the following entities defined in the `base` add-on:
+
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Employee {
+    id
+    firstName
+    lastName
+    department: Department
+}
+
+class Department {
+    id
+    name
+}
+
+Employee }-- Department
+
+@enduml
+....
+
+Their source code:
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/entity/Department.java[tags=entity]
+----
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/entity/Employee.java[tags=entity]
+----
+
+In the `ext` application which uses the `base` add-on, we need to add the `description` attribute to the `Department` entity. Obviously, we cannot modify the source code of the add-on, so we need to define another entity in the application and make other entities reference it instead of `Department`:
+
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Employee {
+    id
+    firstName
+    lastName
+    department: ExtDepartment
+}
+
+class ExtDepartment {
+    id
+    name
+    description
+}
+
+Employee }-- ExtDepartment
+
+@enduml
+....
+
+The extended entity source code:
+
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/entity/ExtDepartment.java[tags=entity]
+----
+<1> The `@ReplaceEntity` annotation indicates that this entity must completely replace the parent entity, specified in the annotation value. This annotation is added by Studio if you select the *Replace parent* checkbox in the entity designer.
+<2> A standard inheritance of JPA entities. In this case, the base class doesn't specify the JPA inheritance strategy, so the extension attributes will be stored in the same `BASE_DEPARTMENT` table.
+<3> The attribute added in the extension.
+
+After introducing the `ExtDepartment` entity annotated with `@ReplaceEntity` in the application project, it will be returned everywhere in data access code instead of the `Department` entity. For example, you can safely cast references to the `ExtDepartment` class:
+
+[source,java,indent=0]
+----
+include::example$/ext/src/test/java/modularity/sample/ext/ExtApplicationTests.java[tags=ext-ref]
+----
+
+Also, the `ExtDepartment` entity meta-class will be returned by the xref:data-model:metadata.adoc[metadata API] for both `ExtDepartment` and `Department` Java classes. The original entity meta-class can be obtained using the `ExtendedEntities` bean.
+
+[[ui]]
 == Extending UI
 
+[[beans]]
 == Overriding Spring Beans
+
+[[modules-api]]
+== Modules API
+
+The  `JmixModules` bean allows you to get information about modules used in your application: the list of all modules, the last module in the list (which is normally the application), a module descriptor by module id. The `getPropertyValues()` method returns the list of values defined for a property by each module.
+
+The `JmixModulesAwareBeanSelector` bean is designed for selecting an effective implementation of some interface from a given list. It returns a bean belonging to the lowest module in the hierarchy. For example, if you know that multiple add-ons define their own implementations of the `AmountCalculator` interface, and you want to use the one defined in the lowest module of the hierarchy, you can do it as follows:
+
+[source,java,indent=0]
+----
+include::example$/ext/src/test/java/modularity/sample/ext/ExtApplicationTests.java[tags=bean-selector]
+----

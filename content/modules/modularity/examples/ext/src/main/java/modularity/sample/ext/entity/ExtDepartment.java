@@ -7,13 +7,18 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 
 import javax.persistence.*;
 
+// tag::entity[]
 @JmixEntity
 @Entity
-@ReplaceEntity(Department.class)
-public class ExtDepartment extends Department {
+@ReplaceEntity(Department.class) // <1>
+public class ExtDepartment extends Department { // <2>
+
     @InstanceName
     @Column(name = "DESCRIPTION")
-    private String description;
+    private String description; // <3>
+
+    // getters and setters
+    // end::entity[]
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MANAGER_ID")

@@ -1,4 +1,7 @@
+// tag::package[]
 package modularity.sample.base;
+// ...
+// end::package[]
 
 import io.jmix.core.annotation.JmixModule;
 import modularity.sample.base.BaseConfiguration;
@@ -15,8 +18,11 @@ import javax.sql.DataSource;
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @Import(BaseConfiguration.class)
-@JmixModule(id = "modularity.sample.base.test", dependsOn = BaseConfiguration.class)
+// tag::class[]
+@JmixModule(id = "modularity.sample.base.test",
+        dependsOn = BaseConfiguration.class)
 public class BaseTestConfiguration {
+// end::class[]
 
     @Bean
     @Primary

@@ -1,4 +1,7 @@
+// tag::package[]
 package modularity.sample.base;
+// ...
+// end::package[]
 
 import io.jmix.core.annotation.JmixModule;
 import io.jmix.core.impl.scanning.AnnotationScanMetadataReaderFactory;
@@ -17,9 +20,16 @@ import java.util.Collections;
 @Configuration
 @ComponentScan
 @ConfigurationPropertiesScan
+// tag::jmix-module[]
 @JmixModule(dependsOn = {EclipselinkConfiguration.class, UiConfiguration.class})
-@PropertySource(name = "modularity.sample.base", value = "classpath:/modularity/sample/base/module.properties")
+// end::jmix-module[]
+// tag::property-source[]
+@PropertySource(name = "modularity.sample.base",
+        value = "classpath:/modularity/sample/base/module.properties")
+// end::property-source[]
+// tag::class[]
 public class BaseConfiguration {
+// end::class[]
 
     @Bean("base_BaseUiControllers")
     public UiControllersConfiguration screens(ApplicationContext applicationContext,
