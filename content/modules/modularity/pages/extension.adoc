@@ -29,7 +29,7 @@ class Department {
     name
 }
 
-Employee }-- Department
+Employee -- Department
 
 @enduml
 ....
@@ -46,7 +46,7 @@ include::example$/base/base/src/main/java/modularity/sample/base/entity/Departme
 include::example$/base/base/src/main/java/modularity/sample/base/entity/Employee.java[tags=entity]
 ----
 
-In the `ext` application which uses the `base` add-on, we need to add the `description` attribute to the `Department` entity. Obviously, we cannot modify the source code of the add-on, so we need to define another entity in the application and make other entities reference it instead of `Department`:
+In the `ext` application which uses the `base` add-on, we need to add the `description` and `manager` attributes to the `Department` entity. Obviously, we cannot modify the source code of the add-on, so we need to define another entity in the application and make other entities reference it instead of `Department`:
 
 [plantuml]
 ....
@@ -62,12 +62,17 @@ class Employee {
 }
 
 class ExtDepartment {
-    id
-    name
     description
+    manager: User
 }
 
-Employee }-- ExtDepartment
+class Department {
+    id
+    name
+}
+
+Employee -- ExtDepartment
+ExtDepartment --|> Department
 
 @enduml
 ....
@@ -94,8 +99,100 @@ Also, the `ExtDepartment` entity meta-class will be returned by the xref:data-mo
 [[ui]]
 == Extending UI
 
+If you replace an entity of an add-on by an extended version, most probably you will also need to override UI screens of this entity to display the extended attributes. Below we consider an example of overriding the browse screen of the `Department` entity replaced by `ExtDepartment` as described in the <<data-model,previous section>>.
+
+To extend and override a screen provided by an add-on, select *Override an existing screen* template in the Studio screen creation wizard. Studio will create new XML descriptor and controller files. The XML descriptor will contain the `extends` attribute referring the base screen descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends]
+----
+
+After that, you can add components to display the extended attributes:
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends;extends1]
+----
+
+You don't have to repeat all elements and attributes of the base screen, only the changed part is required. The resulting XML will be merged from the base and extended descriptors - see more about it <<descriptor-extension,below>>.
+
+In our case, one of extended attributes (`manager`) is a reference to another entity. This reference will be loaded on demand due to the automatic xref:data-access:fetching.adoc#lazy-loading[lazy loading], but you may want to include the reference to the xref:data-access:fetching.adoc#fetch-plan[fetch plan] of the screen to avoid the possible "N+1 queries" problem:
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends;extends1;extends2]
+----
+
+The controller of the extended screen will be inherited from the base controller class:
+
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/screen/department/ExtDepartmentBrowse.java[tags=extend]
+----
+
+Note that the `@UiController` annotation has the same value as in the base screen. This is important because we actually need to _override_ the base screen, meaning that everywhere in the system the extended screen will be used instead of the base one, as is done for replaced entities.
+
+You can override public and protected methods of the base controller to extend the screen logic if needed.
+
+[[descriptor-extension]]
+=== Rules of XML Descriptor Extension
+
+Extension of XML descriptors doesn't take into account the semantics of the screen and works purely on the XML level. It merges two XML files according to the following rules:
+
+. If the extending descriptor has a certain element, the corresponding element will be searched for in the parent descriptor using the following algorithm:
+
+.. If the overriding element has the `id` attribute, the corresponding element with the same `id` will be searched for.
+
+.. If the search is successful, the found element is overridden.
+
+.. Otherwise, the framework determines how many elements with the provided path and name are contained in the parent descriptor. If there is only one element, it is overridden.
+
+.. If the search yields no result and there is either zero or more than one element with the given path and name in the parent descriptor, a new element is added.
+
+. The text for the overridden or added element is copied from the extending element.
+
+. All attributes from the extending element are copied to the overridden or added element. If attribute names match, the value is taken from the extending element.
+
+. By default, the new element is added to the end of the list of adjacent elements. In order to add a new element to the beginning or with an arbitrary index, do the following:
+
+.. Define an additional namespace in the extending descriptor: `xmlns:ext="http://jmix.io/schema/ui/window-ext"`.
+
+.. Add the `ext:index` attribute with a desired index, for example: `ext:index="0"` to the extending element.
+
 [[beans]]
 == Overriding Spring Beans
+
+All Jmix subsystems use Spring beans by their type and never by bean name. Therefore, beans can be overridden just by providing alternative implementations with the same or extended type. We recommend following this convention in your own add-ons and applications.
+
+To override a Spring bean defined in an add-on, create its subclass (or implement the same interface) and declare a bean of this new type in a Java configuration, adding the `@Primary` annotation to the new bean.
+
+For example, suppose you have the following bean in the `base` add-on:
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/app/DepartmentService.java[tags=class]
+----
+
+You can override it in an application as follows:
+
+. Create its subclass in the application project:
++
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/app/ExtDepartmentService.java[tags=class]
+----
+
+. Define a bean with the `@Primary` annotation in the main application class or in any `@Configuration` class:
++
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/ExtApplication.java[tags=extension]
+----
+
+After that, Spring container will always return `ExtDepartmentService` instead of `DepartmentService`, so any call to `sayHello()` method even from the `base` add-on will print both "Hello from base" and "Hello from ext" messages. Of course, you are free not to call `super()` in your overriding methods and hence completely replace the inherited behavior.
+
+In a rare situation when you need to override a bean which already has a subclass marked as `@Primary`, you can use the xref:ROOT:app-properties.adoc#jmix.core.exclude-beans[jmix.core.exclude-beans] application property to remove other primary beans from the container.
 
 [[modules-api]]
 == Modules API

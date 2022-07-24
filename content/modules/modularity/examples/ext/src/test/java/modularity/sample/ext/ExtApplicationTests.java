@@ -3,8 +3,10 @@ package modularity.sample.ext;
 import io.jmix.core.*;
 import io.jmix.core.metamodel.model.MetaClass;
 import io.jmix.core.security.SystemAuthenticator;
+import modularity.sample.base.app.DepartmentService;
 import modularity.sample.base.entity.Department;
 import modularity.sample.base.entity.Employee;
+import modularity.sample.ext.app.ExtDepartmentService;
 import modularity.sample.ext.entity.ExtDepartment;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 class ExtApplicationTests {
@@ -102,8 +105,18 @@ class ExtApplicationTests {
             // end::ext-ref[]
 
             assertEquals(department1, department);
+
+            dataManager.remove(employee, department);
         });
 
+    }
+
+    @Autowired
+    DepartmentService departmentService;
+
+    @Test
+    void testServiceExtension() {
+        assertTrue(departmentService instanceof ExtDepartmentService);
     }
 
     @Test

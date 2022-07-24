@@ -17,12 +17,12 @@ public class ExtDepartment extends Department { // <2>
     @Column(name = "DESCRIPTION")
     private String description; // <3>
 
-    // getters and setters
-    // end::entity[]
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MANAGER_ID")
     private User manager;
+
+    // getters and setters
+    // end::entity[]
 
     public String getDescription() {
         return description;
