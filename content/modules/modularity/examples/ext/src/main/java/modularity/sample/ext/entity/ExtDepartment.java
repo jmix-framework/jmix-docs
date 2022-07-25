@@ -19,7 +19,7 @@ public class ExtDepartment extends Department { // <2>
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MANAGER_ID")
-    private User manager;
+    private User manager; // <3>
 
     // getters and setters
     // end::entity[]
