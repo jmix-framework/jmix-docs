@@ -1,0 +1,105 @@
+= 创建扩展组件
+
+在本节中，我们将介绍如何创建自定义扩展组件并管理组件之间的依赖。
+
+通过 Studio 的项目创建向导，可以使用 *Single Module Add-on* 模板轻松创建一个扩展组件。生成的项目会包含两个代码模块：功能模块和 starter 模块。
+
+默认情况下，功能模块包含对 Jmix 数据访问和 UI 子系统的依赖。所有的功能都需要在这里创建。
+
+Starter 模块包含对于扩展组件的 Spring Boot 自动配置。如需在应用程序或其他扩展组件中使用该组件，需要在目标项目的 `build.gradle` 文件中添加对 starter 模块制件的依赖，示例：
+
+[source,gradle]
+----
+dependencies {
+    implementation 'com.company.sample:sample-starter:0.0.1'
+----
+
+功能模块会通过 starter 传递引入。
+
+[[hierarchy]]
+== 扩展组件层级关系
+
+在任何 Jmix 应用程序中，所有引入的 xref:modularity:index.adoc#subsystems[核心子系统和扩展组件] 形成了一个依赖层级关系。对于某些框架功能来说，这个层级结构非常重要。
+
+例如，当应用程序启动时，会自动执行创建和更新数据库的 Liquibase 更改日志。不同子系统中的更改日志必须以一定的顺序执行，比如扩展组件 B 中引用了扩展组件 A 中的实体，那么扩展组件 A 中的数据库表必须在扩展组件 B 中的表格之前创建。
+
+如果某些基本功能支持覆盖，则该层级结构保证了覆盖逻辑的可预测性。例如，如果扩展组件 A、B、C 都定义了相同的应用程序属性，并且 C 依赖 B，B 依赖 A，那么可以确定，同时引入这三个扩展组件的应用程序将使用从组件 C 中获取的属性值。
+
+应用程序本身总是依赖所有引入的子系统。因此，应用程序项目本身的 Liquibase 更改日志总是最后执行，并且应用程序中定义的属性值覆盖所有任何扩展组件中定义的值。
+
+应用程序会被自动放置在层级结构的最底层，因为可以通过是否存在带 `@SpringBootApplication` 注解的类识别应用程序和扩展组件。但扩展组件之间的依赖需要一个显式的声明，下面会说明。
+
+[[jmix-module]]
+== @JmixModule
+
+在一个扩展组件项目中，功能模块包含主配置类，该类使用了 `@Configuration`、`@ComponentScan` 和 `@JmixModule` 注解。最后一个注解表示这个模块需要包含在 Jmix 模块的层级结构中。
+
+`@JmixModule` 注解的属性：
+
+* `id` - 模块的一个可选 ID。层级结构中的每个模块都需要有一个唯一 ID。如果该属性未设置，则使用配置类的包名作为模块 ID。
++
+通常，扩展组件的基础包名是唯一的，因此不需要设置 `id` 属性。但是如果你的扩展组件包含测试，则测试配置类与主配置类位于同一个包内。因此，需要为测试模块提供一个唯一 ID，例如，在包名中加入 `.test` 后缀：
++
+[source,java,indent=0]
+----
+include::example$/base/base/src/test/java/modularity/sample/base/BaseTestConfiguration.java[tags=package;class]
+----
+
+* `dependsOn` - 声明该模块依赖的模块，设置为依赖模块的配置类数组。
++
+例如，如果一个扩展组件依赖 Core、数据访问和 UI 子系统，即在 `build.gradle` 中包含如下依赖：
++
+[source,groovy,indent=0]
+----
+include::example$/base/base/base.gradle[tags=dependencies]
+----
++
+那么 `@JmixModule` 需要声明对 `EclipselinkConfiguration` 和 `UiConfiguration` 的依赖：
++
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/BaseConfiguration.java[tags=jmix-module;class]
+----
++
+对 Core 子系统的依赖是传递过来的，可以查看 `EclipselinkConfiguration` 或 `UiConfiguration` 类的定义。
+
+当 Jmix 应用程序启动时，会在日志输出一个 `io.jmix.core.JmixModulesProcessor` logger 的 INFO 消息，显示模块层级结构的拓扑排序。示例：
+
+----
+Using Jmix modules: [io.jmix.core, io.jmix.security, io.jmix.ui,
+    io.jmix.securityui, io.jmix.data, io.jmix.eclipselink,
+    io.jmix.securitydata, com.company.users, com.company.customers,
+    com.company.products, io.jmix.localfs, io.jmix.uidata,
+    com.company.sales]
+----
+
+TIP: 请确保应用程序的模块位于列表中所有扩展组件的后面，是最后一个。如果不是，则很可能扩展组件的依赖定义有误，请检查组件的 `@JmixModule(dependsOn)` 注解内容。
+
+[[properties]]
+== 模块属性
+
+一个扩展组件可以在属性文件中提供应用程序属性的配置。例如，可以在模块的基础包内的文件定义属性值：
+
+.src/main/resources/modularity/sample/base/module.properties
+[source,properties,indent=0]
+----
+include::example$/base/base/src/main/resources/modularity/sample/base/module.properties[]
+----
+
+然后在主配置类的 `@PropertySource` 注解中指定该文件的路径：
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/BaseConfiguration.java[tags=package;property-source;class]
+----
+
+IMPORTANT: `@PropertySource` 注解必须有 `name` 属性设置为模块的 ID（一般与基础包名一致）。
+
+你可能会注意到，上面示例的扩展组件中定义了 `jmix.ui.menu-config`，而这个属性通常也在应用程序中定义。那为什么应用程序定义的值没有覆盖组件中定义的值呢？实际上是已经覆盖了，如果在应用程序中通过 Spring 的 `Environment` 读取这个值，只能获取到应用程序定义的内容。但是如果使用 xref:extension.adoc#modules-api[JmixModules] bean，则可以获取应用程序使用全部模块的特定属性值。示例：
+
+[source,java,indent=0]
+----
+include::example$/ext/src/test/java/modularity/sample/ext/ExtApplicationTests.java[tags=module-prop]
+----
+
+框架中很多地方都用这种方式获取扩展组件中定义的聚合配置，例如，xref:ui:menu-config.adoc[UI 菜单]、共享的 xref:data-access:fetching.adoc#fetch-plan[fetch plans]、REST xref:rest:app-properties.adoc#jmix.rest.authenticated-url-patterns[认证]/xref:rest:app-properties.adoc#jmix.rest.anonymous-url-patterns[匿名] URLs 等。

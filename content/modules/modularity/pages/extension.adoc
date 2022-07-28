@@ -1,0 +1,207 @@
+= 功能扩展
+
+框架子系统和扩展组件的功能可以由位于 xref:creating-add-ons.adoc#hierarchy[模块层级结构] 更底层的应用程序或者其他扩展组件进行扩展并修改。
+
+对于声明式创建的元素，例如数据模型实体和 UI 界面的 XML 布局，Jmix 提供其自有的扩展机制。而对于由 Spring bean 定义的业务逻辑，则可以使用标准的 Java 和 Spring 机制扩展。
+
+[[data-model]]
+== 数据模型扩展
+
+下面我们考虑一个对组件中数据模型进行扩展的示例。
+
+假设在 `base` 扩展组件中，我们定义了下列实体：
+
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Employee {
+    id
+    firstName
+    lastName
+    department: Department
+}
+
+class Department {
+    id
+    name
+}
+
+Employee -- Department
+
+@enduml
+....
+
+源码：
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/entity/Department.java[tags=entity]
+----
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/entity/Employee.java[tags=entity]
+----
+
+在使用 `base` 扩展组件的 `ext` 应用程序中，我们需要为 `Department` 实体添加 `description` 和 `manager` 属性。显然，我们无法修改组件的源码，因此，我们需要在应用程序中定义另一个实体，并使其他实体引用新创建的这个实体而非 `Department`：
+
+[plantuml]
+....
+@startuml
+
+left to right direction
+
+class Employee {
+    id
+    firstName
+    lastName
+    department: ExtDepartment
+}
+
+class ExtDepartment {
+    description
+    manager: User
+}
+
+class Department {
+    id
+    name
+}
+
+Employee -- ExtDepartment
+ExtDepartment --|> Department
+
+@enduml
+....
+
+扩展实体的源码：
+
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/entity/ExtDepartment.java[tags=entity]
+----
+<1> `@ReplaceEntity` 注解表示这个实体会完全替代父类实体，通过注解值指定。如果在 Studio 的实体设计器中选择 *Replace parent*，则会自动添加该注解。
+<2> 标准的 JPA 实体继承。这里，基类并没有指定 JPA 继承策略，因此扩展属性也会保存在 `BASE_DEPARTMENT` 数据库表中。
+<3> 扩展的属性。
+
+在应用程序项目中引入了带 `@ReplaceEntity` 注解的 `ExtDepartment` 实体后，数据访问层代码的任何地方都会返回这个实体，而非 `Department` 实体。例如，可以安全地将引用属性转换成 `ExtDepartment` 类：
+
+[source,java,indent=0]
+----
+include::example$/ext/src/test/java/modularity/sample/ext/ExtApplicationTests.java[tags=ext-ref]
+----
+
+此外，xref:data-model:metadata.adoc[metadata API] 会对 `ExtDepartment` 和 `Department` Java 类都返回 `ExtDepartment` 实体。原始实体的 meta-class 只能通过 `ExtendedEntities` bean 获取。
+
+[[ui]]
+== UI 扩展
+
+如果通过扩展版本替换了某个组件中的实体，那么很可能也需要对展示该实体的 UI 界面进行扩展，以便能展示新增的属性。下面的示例中，我们考虑 <<data-model,前一章>> 中使用 `ExtDepartment` 替换 `Department` 实体后，如何扩展实体的浏览界面。
+
+如需扩展并覆盖由组件提供的界面，在 Studio 创建界面向导中选择 *Override an existing screen* 模板。然后 Studio 会创建新的 XML 描述和 Java 控制器文件。XML 描述中会包含 `extends` 属性，指向父界面的 XML：
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends]
+----
+
+然后，可以添加组件展示扩展的属性：
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends;extends1]
+----
+
+不需要重复编写父界面中的所有元素和属性，只需要编写修改的部分即可。最后生成的 XML 会合并父模板和扩展的子模板内容，<<descriptor-extension,下面>> 会详细说明。
+
+我们的情景中，一个扩展的属性（`manager`）引用了其他实体。由于自动 xref:data-access:fetching.adoc#lazy-loading[懒加载] 机制，该实体引用会按需加载，但是建议最好在界面的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中包含该引用属性，避免可能引起的 "N+1 查询" 性能问题：
+
+[source,xml,indent=0]
+----
+include::example$/ext/src/main/resources/modularity/sample/ext/screen/department/ext-department-browse.xml[tags=extends;extends1;extends2]
+----
+
+扩展界面的控制器也从基类控制器继承：
+
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/screen/department/ExtDepartmentBrowse.java[tags=extend]
+----
+
+请注意，`@UiController` 注解的值与基类界面控制器的一样。这一点非常重要，因为我们需要 _覆盖_ 父界面，也就是说，在系统中的任何地方，都会使用我们扩展的界面而非原始父界面，与实体替换一样。
+
+如需扩展界面逻辑，则可以重写控制器的 public 和 protected 方法。
+
+[[descriptor-extension]]
+=== XML 描述扩展规则
+
+XML 描述的扩展中，不会考虑界面的语义，仅仅只是在纯 XML 级别的处理。按照下面的规则合并两个 XML 文件：
+
+. 如果扩展描述中有某个元素，则会用下面的算法在父描述中搜索对应的元素：
+
+.. 如果覆盖的元素具有 `id` 属性，则会搜索具有相同 `id` 的元素。
+
+.. 如果找到相同 `id` 的元素，则覆盖该元素。
+
+.. 否则，框架会检查父描述中同样结构和名称的元素有多少个。如果只有一个，则覆盖该元素。
+
+.. 如果在父描述中没有找到或者有多个同样结构和名称的元素，则会添加一个新元素。
+
+. 覆盖或添加元素本身的文本内容会从扩展元素复制。
+
+. 扩展元素的所有属性都复制到覆盖元素或者新元素内。覆盖时，如果属性名称相同，则使用扩展元素的属性值。
+
+. 默认情况下，新元素会添加至相邻元素列表的末尾。如需将新元素添加至开头或任一索引位置，按照下面的方法：
+
+.. 在扩展描述中定义一个附加命名空间： `xmlns:ext="http://jmix.io/schema/ui/window-ext"`。
+
+.. 在扩展元素中添加 `ext:index` 属性，设置为需要的位置索引，例如：`ext:index="0"`。
+
+[[beans]]
+== 覆盖 Spring Beans
+
+Jmix 的所有子系统都是按照 Spring bean 的类型使用 bean，而非通过 bean 名称使用。因此，提供同一类型 bean 或子类的另一种实现即可覆盖 bean。我们建议你在自己的扩展组件和应用程序中都遵循此约定。
+
+如需覆盖扩展组件中的 Spring bean，创建一个子类（或实现同一个接口），并在 Java 配置类中声明这个新类型的 bean，需要添加 `@Primary` 注解。
+
+例如，假设在 `base` 扩展组件中有如下 bean：
+
+[source,java,indent=0]
+----
+include::example$/base/base/src/main/java/modularity/sample/base/app/DepartmentService.java[tags=class]
+----
+
+则可以在应用程序中按照下列方法进行覆盖：
+
+. 在应用程序项目中创建子类：
++
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/app/ExtDepartmentService.java[tags=class]
+----
+
+. 在主应用程序类或任何 `@Configuration` 类中，使用 `@Primary` 注解定义一个 bean：
++
+[source,java,indent=0]
+----
+include::example$/ext/src/main/java/modularity/sample/ext/ExtApplication.java[tags=extension]
+----
+
+然后，Spring 容器会返回 `ExtDepartmentService` 而非 `DepartmentService`，任何对于 `sayHello()` 方法的调用（即使在 `base` 扩展组件内）都会打印 "Hello from base" 和  "Hello from ext" 信息。当然，在重写方法中，可以不调用父类的方法并重新定义继承后的行为。
+
+在极少情况下，你可能需要重写一个已经标记为 `@Primary` 的 bean，此时，可以使用 xref:ROOT:app-properties.adoc#jmix.core.exclude-beans[jmix.core.exclude-beans] 应用程序属性从容器中删除其他 Primary bean。
+
+[[modules-api]]
+== 模块 API
+
+`JmixModules` 支持获取应用程序中使用的模块的信息：模块列表、列表中最后一个模块（通常是应用程序模块）、通过模块 ID 获取模块描述等。`getPropertyValues()` 方法返回通过每个模块定义的属性值列表。
+
+`JmixModulesAwareBeanSelector` bean 用于从列表中选择某个接口的有效实现。它返回层级结构中最底层模块的 bean。例如，如果你知道有多个扩展组件定义了对 `AmountCalculator` 接口的实现，并且需要使用层级结构中最底层模块中的实现，则可以按如下方式：
+
+[source,java,indent=0]
+----
+include::example$/ext/src/test/java/modularity/sample/ext/ExtApplicationTests.java[tags=bean-selector]
+----
