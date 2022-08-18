@@ -45,6 +45,8 @@ public class UserEdit extends StandardEditor<User> {
     @Autowired
     private ComboBox<String> timeZoneField;
 
+    private User user;
+
     @Subscribe
     public void onInitEntity(InitEntityEvent<User> event) {
         usernameField.setEditable(true);
@@ -75,5 +77,12 @@ public class UserEdit extends StandardEditor<User> {
     @Subscribe
     public void onInit(InitEvent event) {
         timeZoneField.setOptionsList(Arrays.asList(TimeZone.getAvailableIDs()));
+    }
+
+    public void setUser(User user){
+        this.user = user;
+        notifications.create(Notifications.NotificationType.WARNING)
+                .withCaption("User " + user.getUsername())
+                .show();
     }
 }
