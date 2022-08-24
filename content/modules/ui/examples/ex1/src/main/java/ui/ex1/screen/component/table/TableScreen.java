@@ -262,11 +262,11 @@ public class TableScreen extends Screen {
 
     // end::column-generator-text[]
     // tag::column-generator[]
-    @Install(to = "tableGeneratedColumn.isEmail", subject = "columnGenerator")
+    @Install(to = "tableGeneratedColumn.hasEmail", subject = "columnGenerator")
     private Component tableGeneratedColumnIsEmailColumnGenerator(Customer customer) {
-        CheckBox isEmail = uiComponents.create(CheckBox.class);
-        isEmail.setValue(customer.getEmail() != null);
-        return isEmail;
+        CheckBox hasEmail = uiComponents.create(CheckBox.class);
+        hasEmail.setValue(customer.getEmail() != null);
+        return hasEmail;
     }
 
     // end::column-generator[]

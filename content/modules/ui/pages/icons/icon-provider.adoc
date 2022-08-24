@@ -1,0 +1,123 @@
+= 使用字体库的图标
+
+为了对主题进行更深度的定制化，可能需要创建一些图标并将图标嵌入字体库，或者使用外部的图标字体库。作为示例，我们使用 *Brands* 样式的 *Font Awesome 5* 库。
+
+. 为新的图标创建枚举类，实现 `com.vaadin.server.FontIcon` 接口：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/icon/FontAwesome5Brands.java[tags=new-font-icon]
+----
+
+. 将新样式添加至 xref:ui:themes/custom_theme.adoc[自定义主题]。我们建议在自定义主题的主目录创建一个子目录 `fonts`，例如，`themes/helium-extended/fonts`。然后将样式和字体文件放在各自的子目录中，例如，`fonts/fontawesome`。
++
+字体文件支持下列扩展名：
+
+* `.eot`，
+* `.svg`，
+* `.ttf`，
+* `.woff`，
+* `.woff2`。
+
++
+--
+*Brands* 样式的 `fontawesome` 字体由 5 个文件组成：`fa-brands-400.eot`、`fa-brands-400.svg`、`fa-brands-400.ttf`、`fa-brands-400.woff`、`fa-brands-400.woff2`。
+
+如需使用其他样式（*Solid*、*Regular* 等），则需要为每一种样式定义唯一的类名。同时，也需要分别实现 `IconSets` 和 `Providers`。
+--
+. 创建一个包含 `@font-face` 样式的文件和具有图标样式的 CSS 类。下面是 `fontawesome5.scss` 文件的示例，其中 `FontAwesome5Brands` CSS 类名对应于 `FontIcon.getFontFamily()` 方法返回的值：
++
+[source,css,indent=0]
+----
+include::example$/ex1/src/main/themes/helium-extended/fonts/fontawesome5/fontawesome5.scss[]
+----
+
+. 在自定义主题的 `helium-extended.scss` 或其他文件中，引入该字体样式文件：
++
+[source,css,indent=0]
+----
+include::example$/ex1/src/main/themes/helium-extended/helium-extended.scss[tags=import-fontawesome5]
+----
+
+. 然后，创建一个新的 xref:ui:icons/icon-sets.adoc[图标集]，这是一个实现了 `Icons.Icon` 接口的枚举：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/icon/FontAwesome5Icon.java[tags=new-font-icon-set]
+----
+
+. 创建新的 `IconProvider`。
++
+为了管理自定义的图标集，Jmix 框架提供了 `IconProvider` 和 `IconResolver`。
++
+`IconProvider` 是一个标记接口，可以用图标路径提供资源（`com.vaadin.server.Resource`）。
++
+`IconResolver` bean 会获取所有实现了 `IconProvider` 接口的 bean，并与之交互找到可以提供对应图标资源的类。
++
+因此，需要自己实现 `IconProvider`：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/icon/FontAwesome5BrandsIconProvider.java[tags=icon-provider]
+----
++
+这里，我们使用 `@Order` 注解显式地为这个 bean 指定了顺序。
+
+. 在 `application.properties` 文件注册图标集：
++
+[source,properties,indent=0]
+----
+jmix.ui.icons-config = ui.ex1.icon.FontAwesome5Icon
+----
+
+现在可以直接在界面 XML 描述中通过类和枚举值元素的方式使用新图标：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/button/button-screen.xml[tags=custom-icon]
+----
+或者在 Java 控制器内：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/button/ButtonScreen.java[tags=set-custom-icon]
+----
+
+[[overriding-icons]]
+== 图标覆盖
+
+图标集的机制使得我们可以用其他集合中的图标覆盖某些图标。需要使用相同的图标（选项）创建并注册一个新的图标集（枚举），但是使用不同的图标路径（`source`）。下面的示例中，用新创建的 `MyIcon` 枚举覆盖了标准 `JmixIcon`  图标集中的图标。
+
+. 创建新的图标集
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/icon/NewIcon.java[tags=override-icon]
+----
+. 在 `application.properties` 注册新图标集：
++
+[source,properties,indent=0]
+----
+jmix.ui.icons-config = ui.ex1.icon.NewIcon
+----
+
+然后，*OK* 会使用新的图标而非默认自带的：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/button/ButtonScreen.java[tags=inject-icons;init-start;set-icon;init-end]
+----
+
+如果不需要使用重新定义，仍然可以通过使用图标源而不是选项名称来使用标准图标：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/ui/ex1/screen/component/button/button-screen.xml[tags=custom-ok-icon]
+----
+
+或者
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ui/ex1/screen/component/button/ButtonScreen.java[tags=set-icon-source]
+----

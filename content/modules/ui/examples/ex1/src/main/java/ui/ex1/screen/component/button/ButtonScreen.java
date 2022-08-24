@@ -2,11 +2,15 @@ package ui.ex1.screen.component.button;
 
 import io.jmix.ui.Notifications;
 import io.jmix.ui.component.Button;
+import io.jmix.ui.icon.Icons;
+import io.jmix.ui.icon.JmixIcon;
 import io.jmix.ui.navigation.Route;
 import io.jmix.ui.navigation.UrlParamsChangedEvent;
 import io.jmix.ui.screen.*;
 import io.jmix.ui.theme.ThemeClassNames;
 import org.springframework.beans.factory.annotation.Autowired;
+import ui.ex1.icon.FontAwesome5Icon;
+import ui.ex1.icon.MyIcon;
 
 @UiController("button-screen")
 @UiDescriptor("button-screen.xml")
@@ -20,7 +24,20 @@ public class ButtonScreen extends Screen {
     protected Notifications notifications;
 
     @Autowired
+    private Button iconButton;
+    @Autowired
     private Button dependentBtn;
+    @Autowired
+    private Button cIconBtn;
+    @Autowired
+    private Button oIconBtn;
+    @Autowired
+    private Button okIconBtn;
+    // tag::inject-icons[]
+    @Autowired
+    private Icons icons;
+
+    // end::inject-icons[]
 
     // tag::click-handler[]
     @Subscribe("helloButton") // <1>
@@ -67,12 +84,28 @@ public class ButtonScreen extends Screen {
     }
     // end::url-params-changed-event[]
 
+    // tag::init-start[]
     @Subscribe
     protected void onInit(InitEvent event) {
+        // end::init-start[]
         // tag::set-style-name[]
         styledBtn1.setStyleName(ThemeClassNames.BUTTON_BORDERLESS);
         // end::set-style-name[]
+        // tag::set-icon-from-set[]
+        iconButton.setIconFromSet(MyIcon.PENGUIN);
+        // end::set-icon-from-set[]
+        // tag::set-custom-icon[]
+        cIconBtn.setIconFromSet(FontAwesome5Icon.JAVA);
+        // end::set-custom-icon[]
+        // tag::set-icon-source[]
+        oIconBtn.setIcon(JmixIcon.OK.source());
+        // end::set-icon-source[]
+        // tag::set-icon[]
+        okIconBtn.setIcon(icons.get(JmixIcon.OK));
+        // end::set-icon[]
+        // tag::init-end[]
     }
+    // end::init-end[]
 
     // tag::button-screen-end[]
 }
