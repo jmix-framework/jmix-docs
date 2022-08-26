@@ -1,13 +1,16 @@
 package ui.ex1.components.stepper;
 
+import io.jmix.core.MessageTools;
 import io.jmix.core.common.event.Subscription;
 import io.jmix.ui.component.*;
 import io.jmix.ui.component.data.ValueSource;
 import io.jmix.ui.component.validation.Validator;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.function.Consumer;
-
+// tag::component-start[]
 @CompositeDescriptor("stepper-component.xml") // <1>
 public class StepperField
         extends CompositeComponent<CssLayout> // <2>
@@ -23,9 +26,24 @@ public class StepperField
     private TextField<Integer> valueField; // <6>
     private Button upBtn;
     private Button downBtn;
-
     private int step = 1; // <7>
 
+    // end::component-start[]
+
+    // tag::set-message-tools[]
+    protected MessageTools messageTools;
+
+    @Autowired
+    public void setMessageTools(MessageTools messageTools) {
+        this.messageTools = messageTools;
+    }
+    // end::set-message-tools[]
+    @Override
+    public void setCaption(@Nullable String caption) {
+        Component.HasCaption hasCaption = (Component.HasCaption) ((CompositeComponent) this).getComposition();
+        hasCaption.setCaption(messageTools.loadString(caption));
+    }
+    // tag::component-end[]
     public StepperField() {
         addCreateListener(this::onCreate); // <8>
     }
@@ -136,3 +154,4 @@ public class StepperField
         return valueField.getValidators();
     }
 }
+// end::component-end[]
