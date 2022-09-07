@@ -320,6 +320,21 @@ When the migration is finished, Studio creates the `MigrationResult.md` file and
 
 . Add required dependencies to the `build.gradle` file. The migration procedure adds only the known Jmix counterparts of the CUBA add-ons.
 
+. Configure the user xref:data-model:entities.adoc#traits[traits]. CUBA users always contain the `Audit of creation`, `Audit of modification`,and `Soft Delete` traits. For Jmix users these traits are optional and disabled by default.
++
+* If it's required to support traits for Jmix users, follow the steps below:
+
+** Enable traits in the Studio’s xref:studio:entity-designer.adoc[Entity Designer].
+** Update column names of corresponding properties:
+
+*** `createdDate`: `CREATED_DATE` -> `CREATE_TS`
+*** `lastModifiedBy`: `LAST_MODIFIED_BY` -> `UPDATED_BY`
+*** `lastModifiedDate`: `LAST_MODIFIED_DATE` -> `UPDATE_TS`
+*** `deletedDate`: `DELETED_DATE` -> `DELETE_TS`
+
+* If the `Audit of creation` or `Audit of modification` trait is no longer needed, just don't enable the trait, and related columns will be removed in the further changelog.
+* If you don't use the `Soft Delete` trait, it may cause restoration of all previously deleted users. So you need to remove all records with a not null value of the `DELETE_TS` column from the `SEC_USER` table. After that, with the disabled `Soft Delete` trait, related columns will be removed in the further changelog.
+
 . Your next goal is to compile the project. Click *Build -> Build Project* in the IDE main menu.
 +
 See compilation errors in the build output panel and fix your code to comply with the new API. Use the information from the <<changed-api,Changed API>> section above.
@@ -341,7 +356,15 @@ jmix.liquibase.contexts = cuba
 
 . Now you can run the application using the *Jmix Application* run/debug configuration.
 +
-By default, it first checks the database schema and generates a Liquibase changelog if it differs from the application data model. Review the generated changelog carefully and remove from it all potentially dangerous instructions like `drop` and `alter`. You can use *Remove and Ignore* command in the *Changelog Preview* window to remove a selected instruction. Then your choice will be remembered in the `jmix-studio.xml` file of your project, and when you run the application next time, the ignored instructions will not be generated.
+By default, it first checks the database schema and generates a Liquibase changelog if it differs from the application data model. Review the generated changelog carefully and remove from it all potentially dangerous instructions like `drop` and `alter`.
++
+[NOTE]
+====
+* Changes related to the `SEC_REMEMBER_ME`, `SEC_SCREEN_HISTORY`, and `SEC_SEARCH_FOLDER` tables are safe (but still can be ignored).
+* It's recommended not to drop columns of the `SEC_USER` table till the very end of migration.
+====
++
+You can use *Remove and Ignore* command in the *Changelog Preview* window to remove a selected instruction. Then your choice will be remembered in the `jmix-studio.xml` file of your project, and when you run the application next time, the ignored instructions will not be generated.
 
 . To create a new empty database for your application, do the following:
 
