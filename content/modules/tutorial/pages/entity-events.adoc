@@ -1,0 +1,110 @@
+= 8. Using Entity Events
+
+At this stage, you have completed the data model and UI of the application. But there is a flaw in the application logic: employees can see and complete their onboarding steps in `My onboarding` screen, but the `Onboarding status` attribute of the `User` entity is not updated accordingly.
+
+In this chapter, you will implement the missing part: the `Onboarding status` attribute of the `User` entity will be updated whenever the state of the corresponding `UserStep` instances changes.
+
+[[create-entity-changed-event-listener]]
+== Creating EntityChangedEvent Listener
+
+If your application is running, stop it using the *Stop* button (image:common/suspend.svg[]) in the main toolbar.
+
+In the *Jmix* tool window, click *New* (image:common/add.svg[]) -> *Event Listener*:
+
+image::entity-events/listener-1.png[align="center", width="345"]
+
+On the first step of the *Subscribe to Event* wizard, select *Entity Event*:
+
+image::entity-events/listener-2.png[align="center", width="432"]
+
+Click *Next*.
+
+On the next step of the wizard, select `UserStep` in the *Entity* field and select the *Entity Changed (before commit)* checkbox:
+
+image::entity-events/listener-3.png[align="center", width="487"]
+
+Click *Create*.
+
+Studio will create a Spring bean with a method annotated with `@EventListener`:
+
+[source,java]
+----
+@Component
+public class UserStepEventListener {
+
+    @EventListener
+    public void onUserStepChangedBeforeCommit(EntityChangedEvent<UserStep> event) {
+
+    }
+}
+----
+
+The framework will invoke this method each time after saving a changed `UserStep` instance to the database, but before committing the database transaction. If the method throws an exception, the transaction will be rolled back.
+
+The method accepts the `EntityChangedEvent` object which contains the changed entity id, type of the change (create/update/delete) and information about changed attributes.
+
+Implement the listener as below:
+
+[source,java]
+----
+package com.company.onboarding.listener;
+
+import com.company.onboarding.entity.OnboardingStatus;
+import com.company.onboarding.entity.User;
+import com.company.onboarding.entity.UserStep;
+import io.jmix.core.DataManager;
+import io.jmix.core.Id;
+import io.jmix.core.event.EntityChangedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Component
+public class UserStepEventListener {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @EventListener
+    public void onUserStepChangedBeforeCommit(EntityChangedEvent<UserStep> event) {
+        User user;
+        if (event.getType() != EntityChangedEvent.Type.DELETED) {
+            Id<UserStep> userStepId = event.getEntityId(); // <1>
+            UserStep userStep = dataManager.load(userStepId).one();
+            user = userStep.getUser();
+        } else {
+            Id<User> userId = event.getChanges().getOldReferenceId("user"); // <2>
+            if (userId == null) {
+                throw new IllegalStateException("Cannot get User from deleted UserStep");
+            }
+            user = dataManager.load(userId).one();
+        }
+
+        long completedCount = user.getSteps().stream()
+                .filter(us -> us.getCompletedDate() != null)
+                .count();
+        if (completedCount == 0) {
+            user.setOnboardingStatus(OnboardingStatus.NOT_STARTED); // <3>
+        } else if (completedCount == user.getSteps().size()) {
+            user.setOnboardingStatus(OnboardingStatus.COMPLETED);
+        } else {
+            user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
+        }
+
+        dataManager.save(user); // <4>
+    }
+}
+----
+<1> If the `UserStep` instance has been created or updated, get its id from using the `getEntityId()` method of the event. Then load the instance and get the related `User` instance.
+<2> If `UserStep` has been deleted, it cannot be loaded from the database anymore. But in this case `event.getChanges()` provides values of all attributes of the deleted entity.
+<3> Set `onboardingStatus` attribute of the related `User` to a value depending on the state of all its `UserStep` items.
+<4> Save the updated `User` instance to the database.
+
+With this listener in place, the consistency between the collection of `UserStep` instances and the `onboardingStatus` attribute of the `User` entity will be maintained regardless of what process modifies `UserStep` instances. For example, you can change a `UserStep` directly through *Administration* -> *Entity Inspector*, and still see the corresponding change of `User.onboardingStatus`.
+
+NOTE: You can rely on `EntityChangedEvent` listeners while you work with data through `DataManager`. If you save changes using `EntityManager` or JDBC statements, the listeners are not invoked.
+
+[[summary]]
+== Summary
+
+xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] listeners can be used to maintain data consistency and execute business logic in the current xref:data-access:transactions.adoc[transaction] or after its completion.
