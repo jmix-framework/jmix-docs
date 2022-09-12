@@ -1,0 +1,149 @@
+= 4. Using Enumerations
+
+In the previous chapters, you implemented management of Steps and Departments. Your application also has the default User management which came from the project template.
+
+In this chapter, you will add the `onboardingStatus` attribute to the `User` entity and show it in UI. This attribute can have one of three values: `Not started`, `In progress`, `Completed`.
+
+[[create-enum]]
+== Creating Enumeration
+
+An enumeration is a set of constants that is defined at design time and is not changed by users at runtime.
+
+Let's create an enumeration to use in the `onboardingStatus` attribute.
+
+If your application is running, stop it using the *Stop* button (image:common/suspend.svg[]) in the main toolbar.
+
+In the *Jmix* tool window, click *New* (image:common/add.svg[]) -> *Enumeration*:
+
+image::enumerations/enum-1.png[align="center",width=349]
+
+In the *New Jmix Enumeration* window, enter `OnboardingStatus` in the *Class* field and select `Integer` in the *Id type* radio buttons:
+
+image::enumerations/enum-2.png[align="center",width=503]
+
+Click *OK*.
+
+Studio will show the enumeration designer:
+
+image::enumerations/enum-3.png[align="center"]
+
+Add the required constants (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`) by clicking to the *Add Value* (image:common/add.svg[]) button in the toolbar of the *Values* table:
+
+image::enumerations/enum-4.png[align="center"]
+
+The *Value* here is the value of Java enum, *Id* is the corresponding value stored in the database. For example, instead of `IN_PROGRESS` value or its ordinal position (`1`), the database will contain the number `20`.
+
+TIP: We recommend using `String` enum identifiers unless the enum constants should be sorted in a particular order. The `OnboardingStatus` enum is a good example of the need for sorting: you will want to show the constants in this exact order.
+
+You can see the enumeration source code if you switch to the *Text* tab:
+
+image::enumerations/enum-5.png[align="center", width="588"]
+
+[[add-attr]]
+== Adding Attribute to Entity and UI
+
+Let's add the `onboardingStatus` attribute to the `User` entity:
+
+Double-click on the `User` entity in *Jmix* tool window and select its last attribute (to add the new attribute to the end):
+
+image::enumerations/attribute-1.png[align="center"]
+
+Click *Add* (image:common/add.svg[]) in the *Attributes* toolbar. In the *New Attribute* dialog, enter `onboardingStatus` into the *Name* field, select `ENUM` in the *Attribute type* dropdown and `OnboardingStatus` in the *Type* dropdown:
+
+image::enumerations/attribute-2.png[align="center"]
+
+Click *OK*.
+
+Select the `onboardingStatus` attribute and click the *Add to Screens* (image:common/add-attribute-to-screens.svg[]) button in the *Attributes* toolbar:
+
+image::enumerations/attribute-3.png[align="center", width="493"]
+
+The appeared dialog window will show all screens that display the `User` entity. Select both `User.edit` and `User.browse` screens:
+
+image::enumerations/attribute-4.png[align="center", width="805"]
+
+Click *OK*.
+
+Studio will add the `onboardingStatus` attribute to the table component of the `User.browse` screen and to the form component of the `User.edit` screen.
+
+[[run-app]]
+== Running the Application
+
+Click the *Debug* button (image:common/start-debugger.svg[]) in the main toolbar.
+
+Before running the application, Studio will generate a Liquibase changelog:
+
+image::enumerations/run-app-1.png[align="center"]
+
+As you can see, the changelog contains a command for adding the `ONBOARDING_STATUS` column to the `USER_` table. The column is of type `INT`, which corresponds to the `Integer` type of the enumeration id.
+
+Click *OK*.
+
+Studio will execute the changelog, then build and run the application.
+
+Open `++http://localhost:8080++` in your web browser and log in to the application with `admin` / `admin` credentials.
+
+Click on the `Users` item in the `Application` menu. You will see the `Onboarding status` column in the `User.browse` screen:
+
+image::enumerations/run-app-2.png[align="center"]
+
+You can hide unneeded columns to free space for the new attributes. Hover over the right corner of the table header to reveal the control button (image:common/table-column-control-button.png[]), click it and unselect unused columns in the popup:
+
+image::enumerations/run-app-3.png[align="center", width="851"]
+
+Click *Create*. The UI control for selecting a status is shown at the bottom of the form:
+
+image::enumerations/run-app-4.png[align="center", width="505"]
+
+[[init-value]]
+== Setting Initial Value for Attribute
+
+For a newly created user, the `onboardingStatus` attribute should be automatically set to `Not started`. In this section, you will learn how to configure the `User.edit` screen to initialize this attribute.
+
+Open the `UserEdit.java` class and find its `onInitEntity()` method:
+
+image::enumerations/init-attr-1.png[align="center", width="833"]
+
+This method is an event handler invoked by the framework when the edit screen is opened for a new entity instance. The `event` object passed to the method contains the new entity.
+
+Add the following lines to the end of the method body:
+
+[source,java]
+----
+@Subscribe
+public void onInitEntity(InitEntityEvent<User> event) {
+    usernameField.setEditable(true);
+    passwordField.setVisible(true);
+    confirmPasswordField.setVisible(true);
+    isNewEntity = true;
+
+    User user = event.getEntity();
+    user.setOnboardingStatus(OnboardingStatus.NOT_STARTED);
+}
+----
+
+If you switch to the running application, close the editor screen and click *Create* again, you will see the `Onboarding status` initialized automatically:
+
+image::enumerations/init-attr-2.png[align="center", width="509"]
+
+[TIP]
+====
+To generate the handler method from scratch, click *Generate Handler* in the actions panel on top of the code editor and select `InitEntityEvent` in the *Controller handlers* section of the tree:
+
+image::enumerations/init-attr-3.gif[align="center"]
+====
+
+[[summary]]
+== Summary
+
+In this section, you have added the `Onboarding status` attribute to the `User` entity. This attribute is an enumeration with three possible values: `Not started`, `In progress`, `Completed`.
+
+You have learned that:
+
+* xref:data-model:enumerations.adoc[Enumerations] represent sets of constants that are defined at design time.
+
+* In Jmix, an enumeration constant has a value and an id. The id is stored in the database instead of the constant or its ordinal value.
+
+* A newly created entity attribute can be easily added to existing screens using the *Add to Screens* (image:common/add-attribute-to-screens.svg[]) button in the *Attributes* toolbar of the entity designer.
+
+* The xref:ui:screens/screen-events.adoc#init-entity-event[InitEntityEvent] handler can be used to initialize attributes of a new entity instance in an edit screen. The handler stub can be generated by Studio if you click *Generate Handler* in the actions panel of the code editor.
