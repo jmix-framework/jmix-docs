@@ -1,0 +1,174 @@
+= 6. 处理图片
+
+本节中，我们将为 `User` 实体添加 `picture` 属性并学习如何上传并在 UI 展示图片。
+
+[[file-ref-attr]]
+== 添加文件属性
+
+Jmix 支持将上传的文件存储在数据库之外的所谓 _文件存储（File Storage）_ 中。文件存储最简单的情况就是文件系统的一个带有特殊结构的文件夹。将文件存储中的文件与实体关联，需要为实体创建一个 `FileRef` 类型的属性。
+
+我们创建一个属性用于管理用户的照片。
+
+如果你的应用程序正在运行，先通过主工具栏的 *Stop*（image:common/suspend.svg[]）按钮停止运行。
+
+在 *Jmix* 工具窗口双击 `User` 实体并选择其最后一个属性（我们要在最后添加新属性）：
+
+在 *Attributes* 工具栏中，点击 *Add*（image:common/add.svg[]）。弹出的 *New Attribute* 对话框中，*Name* 字段填写 `picture`，然后在 *Type* 下拉框中选择 `FileRef`：
+
+image::images/attribute-2.png[align="center", width="862"]
+
+*Length* 字段使用默认值（1024）即可。对于 `FileRef` 属性来说，列长度是用来保存文件引用而非文件本身，因此并不是限定文件的大小。
+
+点击 *OK*。
+
+然后选中 `picture` 属性，在 *Attributes* 工具栏中点击 *Add to Screens*（image:common/add-attribute-to-screens.svg[]）按钮：
+
+出现的对话框中会显示所有用于展示 `User` 实体的界面。我们选择 `User.edit` 和 `User.browse` 界面并点击 *OK*。
+
+Studio 会在 `User.browse` 界面的 `usersTable` 组件中添加 `picture` 列。
+
+[source,xml]
+----
+<groupTable id="usersTable" dataContainer="usersDc" ...>
+    ...
+    <columns>
+        ...
+        <column id="picture"/>
+    </columns>
+----
+
+并在 `User.edit` 界面的表单组件中添加 `pictureField` 组件：
+
+[source,xml]
+----
+<form id="form" dataContainer="userDc">
+    <column ...>
+        ...
+        <fileStorageUpload id="pictureField" property="picture"/>
+    </column>
+----
+
+点击主工具栏中的 *Debug*（image:common/start-debugger.svg[]）按钮启动应用程序。
+
+在运行应用程序之前，Studio 会生成 Liquibase 更改日志：
+
+image::images/run-app-1.png[align="center"]
+
+可以看到，更改日志包含了一条增加 `USER_` 表 `PICTURE` 列的语句。列类型为 `VARCHAR(1024)`，因为文件引用实际上是一个字符串。
+
+点击 *OK*。
+
+Studio 会先执行更改日志，再构建和运行应用程序。
+
+应用程序准备好后，在浏览器打开 `++http://localhost:8080++` 并使用 `admin` / `admin` 凭证登录。
+
+点击主菜单的 *Application* -> *Users*，打开 `User.browse` 界面，可以看到 `Picture` 列（可能需要向右滚动表格）：
+
+image::images/run-app-2.png[align="center"]
+
+选择一个用户并点击 *Edit*。表单底部会显示一个用于上传图片的 UI 控件：
+
+image::images/run-app-3.png[align="center"]
+
+[[image-in-form]]
+== 表单内展示图片
+
+本小节内，我们将改进编辑界面，在表单内展示上传的图片。
+
+首先，为 `form` 组件添加第二列，并将 `fileStorageUpload` 移至第二列：
+
+image::images/form-1.gif[]
+
+然后在 `fileStorageUpload` 组件下方添加 `image` 组件，并设置如下属性：
+
+[source,xml]
+----
+<form id="form" dataContainer="userDc">
+    ...
+    <column>
+        <fileStorageUpload id="pictureField" property="picture"/>
+        <image id="image" property="picture"
+               scaleMode="CONTAIN"
+               rowspan="10" caption=""
+               height="200" width="200"/>
+    </column>
+</form>
+----
+
+* `property="picture"` 将 `image` 组件与 `User` 实体的 `picture` 属性进行绑定。
+* `scaleMode="CONTAIN"` 确保图片文件能填满全部的分配空间并保持长宽比。
+* `rowspan="10"` 允许组件填充表单中的 10 行高度（默认 1 行），这样图片能占满右边列的所有空间。
+* `caption=""` 删除从实体属性获取的默认标题。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面：
+
+image::images/form-2.png[align="center"]
+
+如果你上传一个图片文件，文件名会由 `fileStorageUpload` 展示，图片则由 `image` 组件展示：
+
+image::images/form-3.png[align="center"]
+
+[[image-in-table]]
+== 在表格中展示图片
+
+如果上传图片后关闭编辑界面，可以看到表格列仅能展示文件名：
+
+image::images/table-1.png[align="center"]
+
+我们将 `picture` 列移到最前面，并为之创建一个 `columnGenerator`：
+
+image::images/table-2.gif[]
+
+在控制器内注入 `UiComponents` 对象：
+
+[source,java]
+----
+@Autowired
+private UiComponents uiComponents;
+----
+
+TIP: 可以使用编辑器顶部操作面板内的 *Inject* 按钮为界面控制器注入依赖和 Spring bean。
+
+实现处理器方法：
+
+[source,java]
+----
+@Install(to = "usersTable.picture", subject = "columnGenerator") // <1>
+private Component usersTablePictureColumnGenerator(User user) { // <2>
+    if (user.getPicture() != null) {
+        Image image = uiComponents.create(Image.class); // <3>
+        image.setScaleMode(Image.ScaleMode.CONTAIN);
+        image.setSource(FileStorageResource.class)
+                .setFileReference(user.getPicture()); // <4>
+        image.setWidth("30px");
+        image.setHeight("30px");
+        return image; // <5>
+    } else {
+        return null;
+    }
+}
+----
+<1> `@Install` 注解表示该方法是一个 _代理（delegate）_：一个 UI 组件（这个 case 中是表格）会在生命周期的某个阶段调用该方法。
+<2> 这个特殊的代理（列生成器）接收一个实体实例作为参数，该实例在表格中的一行显示。
+<3> `Image` 组件实例通过 `UiComponents` 工厂生成。
+<4> 图片组件通过保存在 `User` 实体 `picture` 属性中的文件引用从文件存储获取要显示的内容。
+<5> 列生成器代理返回列单元格需要展示的可视化组件。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户浏览界面。可以在第一列看到用户的图片：
+
+image::images/table-3.png[]
+
+[[summary]]
+== 小结
+
+本节中，我们增加了上传和显示用户图片的功能。
+
+学习内容：
+
+* xref:files:uploading-files.adoc[上传后的文件] 可以保存在一个 xref:files:file-storage.adoc[文件存储] 中，并通过 `FileRef` 类型的属性与实体相关联。
+
+* xref:ui:vcl/components/file-storage-upload-field.adoc[] 组件支持上传文件、将文件保存到文件存储并与实体属性关联。
+
+* xref:ui:vcl/components/image.adoc[] 组件可以展示保存在文件存储内的图片。
+
+* xref:ui:vcl/components/table.adoc#table-column-generation[生成列] 可以用来在表格的单元格中展示图片。

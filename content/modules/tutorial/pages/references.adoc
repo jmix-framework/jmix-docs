@@ -1,0 +1,364 @@
+= 3. 关联和唯一属性
+
+我们的入职应用程序的下一个需要完成的功能是部门的管理。
+
+入职的新员工要分配给某个部门。每个部门有唯一的名称并关联一位 HR 经理。
+
+在本节中，我们将完成：
+
+* 关联至 `User` 的 `Department` 实体。
+* 带有外键和唯一约束的数据库表。
+* 包含选择关联实体 UI 组件的 CRUD 界面。
+
+[[create-entity]]
+== 创建 Department 实体
+
+`Department` 实体具有 `name`（唯一）属性和关联至 `User` 实体的 `hrManager` 属性：
+
+[plantuml]
+....
+@startuml
+
+entity Department {
+    id
+    name
+    hrManager: User
+}
+
+entity User {
+}
+
+Department }- User
+
+@enduml
+....
+
+如果你的应用程序正在运行，先通过主工具栏的 *Stop*（image:common/suspend.svg[]）按钮停止运行。
+
+与 xref:simple-crud.adoc#create-entity[前一节] 一样，在 *Jmix* 工具窗口中，点击 *New*（image:common/add.svg[]）-> *JPA Entity*。然后在 *New JPA Entity* 对话框中，*Class* 字段输入 `Department` 并选中 *Traits* -> *Versioned* 复选框：
+
+image::references/create-entity-1.png[align="center",width=492]
+
+点击 *OK*。
+
+Studio 将创建实体类并打开实体设计器：
+
+image::references/create-entity-2.png[align="center"]
+
+[[create-unique-attr]]
+=== 创建唯一属性
+
+我们为实体添加 `name` 属性。
+
+在 *Attributes* 工具栏中点击 *Add*（image:common/add.svg[]）。然后在 *Name* 字段输入 `name`，并选中 *Mandatory* 复选框：
+
+image::references/create-entity-3.png[align="center"]
+
+现在我们为数据库的 `NAME` 列定义唯一约束。目的是保证部门不会重名。
+
+从底部切换至 *Indexes* 标签页，在 *Database Indexes* 工具栏中点击 *New Index*（image:common/add.svg[]）。Studio 会在索引列表中新加一行：
+
+image::references/create-entity-4.png[align="center"]
+
+在 *Available attributes* 列表中选择 `NAME` 并点击工具栏中的 image:common/arrow-right.svg[] 按钮将其移至 *Selected attributes* 列表。
+
+在索引行勾选 *Unique* 和 *Constraint* 复选框，并修改索引名称为 `IDX_DEPARTMENT_UNQ_NAME`：
+
+image::references/create-entity-5.png[align="center"]
+
+如果切换回实体设计器的 *Text* 标签页，可以看到唯一约束已经添加至 `@Table` 注解中了：
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEPARTMENT", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_DEPARTMENT_UNQ_NAME", columnNames = {"NAME"})
+})
+@Entity
+public class Department {
+    // ...
+}
+----
+
+使用这个注解，Studio 会在 Liquibase 更改日志中为该表添加一个唯一约束。
+
+[[create-reference-attr]]
+=== 创建关联属性
+
+现在我们创建部门实体中关联至 `User` 实体的 HR 经理属性。
+
+在 *New Attribute* 对话框中，*Name* 字段输入 `hrManager`，然后选择：
+
+* *Attribute type*：`ASSOCIATION`
+* *Type*：`User`
+* *Cardinality*：*Many to One*
+
+image::references/create-entity-6.png[align="center"]
+
+点击 *OK*。
+
+可以在 *Text* 标签页查看该新建属性的源码：
+
+[source,java,indent=0]
+----
+@JoinColumn(name = "HR_MANAGER_ID")
+@ManyToOne(fetch = FetchType.LAZY)
+private User hrManager;
+----
+
+同时，类的 `@Table` 注解中也定义了这个外键的索引：
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEPARTMENT", indexes = {
+        @Index(name = "IDX_DEPARTMENT_HR_MANAGER", columnList = "HR_MANAGER_ID")
+    },
+    // ...
+)
+----
+
+*Indexes* 标签页也能看到这个索引。
+
+[[create-screens]]
+== 创建 CRUD 界面
+
+现在我们为 `Department` 实体生成 CRUD 界面。
+
+在实体设计器顶部的操作面板中，点击 *Screens* -> *Create screen*：
+
+image::references/create-screens-1.png[align="center", width="475"]
+
+界面创建向导的第一步中，我们选择 `Entity browser and editor screen`（实体浏览和编辑界面）模板：
+
+image::common/screen-wizard-1.png[align="center"]
+
+点击 *Next*。
+
+向导的后两步中，我们都使用默认推荐的设置。
+
+在 *Entity browser fetch plan* 步骤中，选择添加 `hrManager` 属性：
+
+image::references/create-screens-2.png[align="center"]
+
+这样能确保关联的 `User` 实体会与 `Department` 实体一起加载，并在浏览界面展示。
+
+点击 *Next*。
+
+在 *Entity editor fetch plan* 步骤中，会自动选择该属性：
+
+image::references/create-screens-3.png[align="center"]
+
+点击 *Next*。
+
+*Localizable messages* 步骤使用默认的配置，点击 *Create*。
+
+Studio 会生成两个界面：`Department.browse` 和 `Department.edit`，并打开其源码。可以暂时关闭所有的代码编辑器，本节后面部分会对生成的界面做一些修改。
+
+[[run-app]]
+== 运行应用程序
+
+点击主工具栏中的 *Debug*（image:common/start-debugger.svg[]）按钮启动应用程序。
+
+在运行应用程序之前，Studio 会生成 Liquibase 更改日志：
+
+image::references/run-app-1.png[align="center"]
+
+可以看到，更改日志中的语句创建了 `DEPARTMENT` 表、`NAME` 列的唯一约束和外键，以及 `HR_MANAGER_ID` 列的索引。
+
+点击 *OK*。
+
+Studio 会执行更改日志，然后构建并运行应用程序。
+
+应用程序准备好后，在浏览器打开 `++http://localhost:8080++` 并使用 `admin` / `admin` 凭证登录。
+
+点击主菜单的 *Application* -> *Departments*，打开 `Department.browse` 界面：
+
+image::references/run-app-2.png[align="center"]
+
+点击 *Create*，打开 `Department.edit` 界面：
+
+image::references/run-app-3.png[align="center"]
+
+可以点击选择控件中的省略号按钮为部门选择一个 HR 经理。点击后会在当前部门编辑界面之上打开用户浏览界面，界面的面包屑会显示当前界面的结构。当在用户表中选定一行后，*Select* 按钮会变成激活状态：
+
+image::references/run-app-4.png[align="center"]
+
+选择一个用户并点击 *Select*，选中的用户会显示在选择控件中：
+
+image::references/run-app-5.png[align="center"]
+
+点击 *OK*。关联的用户实体也会在表格中展示：
+
+image::references/run-app-6.png[align="center"]
+
+[[instance-name]]
+=== 实例名称
+
+你可能会好奇为什么选择控件和表格会显示 `[admin]` 呢？
+
+Jmix 有一个概念叫做 _实例名称（instance name）_，以一种易读的方式表示一个实体实例。可以通过在实体属性或方法上添加 `@InstanceName` 注解进行定义。
+
+项目模板生成的 `User` 实体有下面的方法定义实例名称：
+
+[source,java,indent=0]
+----
+public class User implements JmixUserDetails, HasTimeZone {
+    // ...
+
+    @InstanceName
+    @DependsOnProperties({"firstName", "lastName", "username"})
+    public String getDisplayName() {
+        return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
+                (lastName != null ? lastName : ""), username).trim();
+    }
+}
+----
+
+因此，当 `firstName` 和 `lastName` 都为空时，`User` 的实例名称显示为方括号中的 `username`，也就是上面我们看到的。
+
+如果实体中有合适的属性时，比如 `name`、`description` 等，Studio 的实体设计器会自动生成 `@InstanceName` 注解。在我们的例子中，`Department` 实体的 `@InstanceName` 注解就放在了 `name` 属性上：
+
+[source,java,indent=0]
+----
+public class Department {
+    // ...
+
+    @InstanceName
+    @Column(name = "NAME", nullable = false)
+    @NotNull
+    private String name;
+}
+----
+
+这样一来，如果其他实体中有关联 `Department` 实体的话，UI 中就会显示部门的名称。本教程后面会有这种情况。
+
+实体设计器也支持手动定义实例名称。支持通过 *Instance name* 字段选择某个属性或点击按钮生成返回实例名的方法：
+
+image::references/instance-name-1.png[align="center", width="475"]
+
+[[customize-ui]]
+== 简单的 UI 定制
+
+自动生成的部门 CRUD UI 看上去还可以接收，但是有些细节还是需要调整一下。
+
+[[change-attr-caption]]
+=== 更改属性名称
+
+也许你已经注意到，为 `hrManager` 属性自动生成的名称不是很对，生成的是 `Hr manager`，我们希望改成 `HR Manager`。
+
+在实体设计器中选中 `hrManager` 属性，然后点击属性名称旁边的地球仪（image:common/globe.svg[]）按钮：
+
+image::references/change-caption-1.png[align="center"]
+
+会显示 *Localized Message* 弹窗，如果是多语言环境，比如添加了中文支持，那么这里还会显示一格中文的文本框：
+
+image::references/change-caption-2.png[align="center", width="616"]
+
+这里我们先修改内容为 `HR Manager`，并点击 *OK*。
+
+如果在 *Jmix* 工具窗口中双击 *User Interface* -> *Message Bundle* 节点，可以修改整个项目的本地化消息。我们刚才修改的内容如下：
+
+image::references/change-caption-3.png[align="center"]
+
+切换回浏览器中运行的应用程序。关闭部门的 CRUD 界面并再次打开。可以看到 `hrManager` 属性的新名称。
+
+[TIP]
+====
+由于 Studio 带有 _热部署_ 功能，无需重启应用程序即可看到 UI 的改动。
+
+只需要在 IDE 中保存修改（按下 `Ctrl/Cmd+S`）并重新打开界面，就可以查看新的改动。
+====
+
+[[customize-entity-picker-actions]]
+=== 自定义实体选择器的操作
+
+默认情况下，当点击 HR 经理选择控件的省略号按钮时，新弹出的用户选择界面会完全覆盖部门的编辑界面。这里我们改成通过弹出对话框窗口的形式展示用户选择界面。
+
+在 *Jmix* 工具窗口找到 `department-edit.xml` 文件并双击打开。然后会显示界面设计器：
+
+image::references/customize-ui-1.png[align="center"]
+
+根据显示器的分辨率不同，你可能只想看源码或者只想看界面预览，这可以通过编辑器顶部的按钮切换：
+
+image::references/customize-ui-2.png[align="center", width="642"]
+
+在右上方的 *Component Hierarchy* 面板中，找到 `hrManagerField`。选择后，在预览图、XML 编辑器和左下方的 *Component Inspector* 面板中，都会同时展示该组件：
+
+image::references/customize-ui-3.png[align="center"]
+
+可以看到 `entityPicker` 元素有一个内部的 `actions` 元素，带有两个操作。每个操作分别对应于选择控件上的两个按钮：`entityLookup` 操作展示用于选择关联实体的界面，`entityClear` 操作清除当前控件选择的值。
+
+通过设置不同的属性参数可以对操作进行定制化修改。
+
+在 *Component Hierarchy* 中选择 `entityLookup` 操作，然后在 *Component Inspector* 中 `openMode` 属性的下拉列表中选择 `DIALOG` 值：
+
+image::references/customize-ui-4.png[align="center"]
+
+修改也同样会反映在 XML 中。
+
+TIP: 这种同步修改的机制反过来也可以。直接编辑 XML 后，改动会同步至设计器面板和预览界面中。
+
+切换至运行中的程序并重新打开部门编辑界面。在 HR 经理选择控件中点击省略号按钮。现在选择用户的界面是以可移动的弹窗方式展示了：
+
+image::references/customize-ui-5.png[align="center"]
+
+[[hide-buttons-panel]]
+=== 隐藏按钮面板
+
+还有一个小问题，在上面的用户选择界面中，显示了一组按钮（*Create*、*Edit* 等），看上去有些多余。如果只是打开用户浏览界面用于选择用户，可以不显示这些按钮。
+
+在 *Jmix* 工具窗口找到 `user-browse.xml` 文件并双击打开。
+
+在 *Component Hierarchy* 面板中找到 `buttonsPanel`，然后在 *Component Inspector* 中取消对 `alwaysVisible` 属性的选择：
+
+image::references/customize-ui-6.png[align="center"]
+
+切换至运行中的程序并通过选择 HR 经理重新打开用户选择界面。现在看上去简洁一些了：
+
+image::references/customize-ui-7.png[align="center"]
+
+[[change-unique-constraint-message]]
+=== 更改违反唯一约束通知消息
+
+如果尝试创建另一个同名的部门，则可以看到违反唯一约束的错误消息：
+
+image::references/customize-ui-8.png[align="center"]
+
+默认的消息不是特别友好，可以进行定制化修改。
+
+在 *Jmix* 工具窗口双击 *User Interface* -> *Message Bundle* 节点，并添加下面这一行内容：
+
+[source,properties]
+----
+databaseUniqueConstraintViolation.IDX_DEPARTMENT_UNQ_NAME=A department with the same name already exists
+----
+
+消息的键值需要以 `databaseUniqueConstraintViolation.` 开头，并带上数据库唯一约束的名称。你也许注意到，在该文件内已经存在类似的消息，是配置给 `User` 实体的 `username` 属性的。
+
+切换至应用程序并测试我们的改动。现在错误消息显示好一些了：
+
+image::references/customize-ui-9.png[align="center"]
+
+[[summary]]
+== 小结
+
+本节中，我们构建了第二个功能：部门的管理。
+
+学习内容：
+
+* Studio 帮助创建关联属性并生成带有外键和索引的 xref:data-model:db-migration.adoc[Liquibase 变更日志]。
+
+* 为了在浏览或编辑界面展示关联属性，需要将属性包含在界面的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中。
+
+* xref:data-model:entities.adoc#instance-name[实例名称] 用来在 UI 中展示关联实体。
+
+* 在自动生成的编辑界面中，默认使用 xref:ui:vcl/components/entity-picker.adoc[] 组件选择关联实体。组件的 xref:ui:actions/standard-actions.adoc#picker-actions[操作] 支持定制化修改，比如在对话框中展示选择界面。
+
+* xref:data-model:entities.adoc#uniqueness[实体属性的唯一性] 是在数据库级别通过定义唯一约束进行维护的。
+
+* 违反唯一约束的错误消息可以轻松实现 xref:ui:exception-handlers/unique-constraint-violation-exception.adoc[自定义]。
+
+* Studio 生成的标题和消息都保存在应用程序的 xref:localization:message-bundles.adoc[消息包] 中。
+
+* Studio 可以 xref:studio:hot-deploy.adoc[热部署] 对界面和消息的改动，在开发 UI 时可以节省重启应用的时间。但是对实体的修改是不支持热部署的。

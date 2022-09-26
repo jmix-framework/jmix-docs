@@ -320,6 +320,21 @@ TIP: 迁移过程不会修改当前的 CUBA 项目，因此在项目的任何拷
 
 . 手动在 `build.gradle` 文件中添加项目需要的其他依赖。迁移程序只添加与 CUBA 扩展组件对等的 Jmix 扩展组件。
 
+. 配置 User 的 xref:data-model:entities.adoc#traits[特性]。CUBA user 包含创建/更新审查特性和软删除特性。但是 Jmix 的 User 中，这些特性都是可选的，且默认不具备。
++
+* 如果需要为 Jmix User 添加审查和软删除特性，按照下列步骤：
+
+** 在 Studio 的 xref:studio:entity-designer.adoc[实体设计器] 中启用实体特性。
+** 修改对应属性的列名：
+
+*** `createdDate`：`CREATED_DATE` -> `CREATE_TS`
+*** `lastModifiedBy`：`LAST_MODIFIED_BY` -> `UPDATED_BY`
+*** `lastModifiedDate`：`LAST_MODIFIED_DATE` -> `UPDATE_TS`
+*** `deletedDate`：`DELETED_DATE` -> `DELETE_TS`
+
+* 任何时候，如果不再需要审查特性，只需要在实体设计器中禁用特性，相关列会在自动生成的更改日志中删除。
+* 如果不再需要软删除特性，则会将以前软删除的用户自动恢复。此时需要手动删除 `SEC_USER` 表中 `DELETE_TS` 字段非空的所有记录。然后才能禁用软删除特性。相关列会在自动生成的更改日志中删除。
+
 . 下一个目标是编译项目。点击 IDE 主菜单的 *Build -> Build Project*。
 +
 分析构建输出中的编译错误并按照新的 API 修复代码。使用上面 <<changed-api>> 提供的信息。
@@ -341,7 +356,15 @@ jmix.liquibase.contexts = cuba
 
 . 然后可以用 *Jmix Application* 运行/调试配置启动应用程序。
 +
-默认情况下，启动时首先检查数据库结构，如果数据库结构与应用程序数据模型不同时，生成 Liquibase 变更日志。需要仔细检查生成的变更日志，并从中删除有潜在危险的命令，例如，`drop` 和 `alter`。可以在 *Changelog Preview* 窗口中使用 *Remove and Ignore* 命令来删除选定的命令。你的选择会记录在项目的 `jmix-studio.xml` 文件中，下次运行应用程序时，将不会再次生成忽略的命令。
+默认情况下，启动时首先检查数据库结构，如果数据库结构与应用程序数据模型不同时，生成 Liquibase 变更日志。需要仔细检查生成的变更日志，并从中删除有潜在危险的命令，例如，`drop` 和 `alter`。
++
+[NOTE]
+====
+* 针对 `SEC_REMEMBER_ME`、`SEC_SCREEN_HISTORY` 和 `SEC_SEARCH_FOLDER` 表的改动可以直接应用（也可以忽略）。
+* 不到迁移过程的最后一刻，我们推荐不要 drop `SEC_USER` 表的任何列。
+====
++
+可以在 *Changelog Preview* 窗口中使用 *Remove and Ignore* 命令来删除选定的命令。你的选择会记录在项目的 `jmix-studio.xml` 文件中，下次运行应用程序时，将不会再次生成忽略的命令。
 
 . 如需为应用程序创建一个新的空数据库，按照下列步骤：
 

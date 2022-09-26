@@ -1,0 +1,110 @@
+= 8. 使用实体事件
+
+到这个阶段，我们已经完成了应用程序的数据模型和 UI。但是应用程序的逻辑还有一个瑕疵：新员工可以通过 `My onboarding` 界面查看并完成入职步骤，但是 `User` 实体的 `Onboarding status` 属性并没有依据入职步骤的完成情况进行更新。
+
+本节中，我们将实现该部分逻辑：不论何时，只要 `UserStep` 实例的状态发生了变化，我们就尝试更新 `User` 实体的 `Onboarding status` 属性。
+
+[[create-entity-changed-event-listener]]
+== 创建 EntityChangedEvent 监听器
+
+如果你的应用程序正在运行，先通过主工具栏的 *Stop*（image:common/suspend.svg[]）按钮停止运行。
+
+在 *Jmix* 工具窗口中，点击 *New*（image:common/add.svg[]）-> *Event Listener*：
+
+image::entity-events/listener-1.png[align="center", width="345"]
+
+*Subscribe to Event* 向导的第一步中，选择 *Entity Event*：
+
+image::entity-events/listener-2.png[align="center", width="432"]
+
+点击 *Next*。
+
+下一步，在 *Entity* 字段选择 `UserStep`，并勾选 *Entity Changed (before commit)*：
+
+image::entity-events/listener-3.png[align="center", width="487"]
+
+点击 *Create*。
+
+Studio 会创建一个 Spring bean，包含一个带有 `@EventListener` 注解的方法：
+
+[source,java]
+----
+@Component
+public class UserStepEventListener {
+
+    @EventListener
+    public void onUserStepChangedBeforeCommit(EntityChangedEvent<UserStep> event) {
+
+    }
+}
+----
+
+框架会在每次保存修改的 `UserStep` 至数据库，但是还没有提交数据库事务的时候调用该方法。如果方法抛出异常，则回滚事务。
+
+方法接收一个 `EntityChangedEvent` 对象作为参数，其中包含更改实体的 id、更改类型（create/update/delete）以及更改的属性。
+
+按下面代码实现监听器：
+
+[source,java]
+----
+package com.company.onboarding.listener;
+
+import com.company.onboarding.entity.OnboardingStatus;
+import com.company.onboarding.entity.User;
+import com.company.onboarding.entity.UserStep;
+import io.jmix.core.DataManager;
+import io.jmix.core.Id;
+import io.jmix.core.event.EntityChangedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Component
+public class UserStepEventListener {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @EventListener
+    public void onUserStepChangedBeforeCommit(EntityChangedEvent<UserStep> event) {
+        User user;
+        if (event.getType() != EntityChangedEvent.Type.DELETED) {
+            Id<UserStep> userStepId = event.getEntityId(); // <1>
+            UserStep userStep = dataManager.load(userStepId).one();
+            user = userStep.getUser();
+        } else {
+            Id<User> userId = event.getChanges().getOldReferenceId("user"); // <2>
+            if (userId == null) {
+                throw new IllegalStateException("Cannot get User from deleted UserStep");
+            }
+            user = dataManager.load(userId).one();
+        }
+
+        long completedCount = user.getSteps().stream()
+                .filter(us -> us.getCompletedDate() != null)
+                .count();
+        if (completedCount == 0) {
+            user.setOnboardingStatus(OnboardingStatus.NOT_STARTED); // <3>
+        } else if (completedCount == user.getSteps().size()) {
+            user.setOnboardingStatus(OnboardingStatus.COMPLETED);
+        } else {
+            user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
+        }
+
+        dataManager.save(user); // <4>
+    }
+}
+----
+<1> 如果是新建或者更新 `UserStep` 实例，从事件的 `getEntityId()` 方法获取步骤 id。然后加载步骤实例并获取关联的 `User` 实例。
+<2> 如果 `UserStep` 被删除了，则无法从数据库加载。但此时，`event.getChanges()` 方法能提供删除实体的所有属性。
+<3> 根据用户所有 `UserStep` 的状态设置关联 `User` 实体的 `onboardingStatus` 属性值。
+<4> 将更新的 `User` 实例保存至数据库。
+
+有了这个监听器后，无论哪个流程修改了 `UserStep` 实例，`UserStep` 实例集合与 `User` 实体的 `onboardingStatus` 属性的一致性将通过该监听器维护。例如，可以直接通过 *Administration* -> *Entity Inspector* 修改 `UserStep`，这样也能触发相应的 `User.onboardingStatus` 属性更新。
+
+NOTE: 只有当使用 `DataManager` 处理数据时，才能触发 `EntityChangedEvent` 监听器。如果通过 `EntityManager` 或 JDBC 语句保存修改，则不会触发监听器。
+
+[[summary]]
+== 小结
+
+xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] 监听器可以用来维护数据的一致性并在当前 xref:data-access:transactions.adoc[事务] 中或者事务完成后执行业务逻辑。

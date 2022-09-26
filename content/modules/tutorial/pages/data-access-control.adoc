@@ -1,0 +1,289 @@
+= 9. 数据访问控制
+
+到目前为止，我们都是用 admin 用户登录应用程序，对 UI 和数据具有完全的访问权限。这最后一节中，我们将为 HR 经理和员工设置不同访问应用程序的权限。
+
+[[employees-resource-role]]
+== 员工的资源角色
+
+[[create-resource-role]]
+=== 创建资源角色
+
+在 *Jmix* 工具窗口中，点击 *New*（image:common/add.svg[]）-> *Role*：
+
+image::security/employee-role-1.png[align="center", width="359"]
+
+*New Role* 弹窗中，*Role name* 字段输入 `Employee` 并在 *Security scope* 下拉框选择 `UI`：
+
+image::security/employee-role-2.png[align="center", width="359"]
+
+点击 *OK*。
+
+Studio 会创建并打开一个带注解的接口：
+
+[source,java]
+----
+package com.company.onboarding.security;
+
+import io.jmix.security.role.annotation.ResourceRole;
+
+@ResourceRole(name = "Employee", code = "employee", scope = "UI")
+public interface EmployeeRole {
+}
+----
+
+TIP: `UI` 权限范围（scope）仅在用户通过 UI 登录系统后应用。如果同一个用户是通过 REST API 登录，则不会使用这个角色。建议为 API 创建一组不同的角色，许可范围相对少一些。
+
+切换至 *User Interface* 标签页定义界面许可。在菜单树中，选中 `MyOnboardingScreen`，然后在右侧勾选 *Allow* 复选框：
+
+image::security/employee-role-3.png[align="center"]
+
+然后切换至 *Entities* 标签页并选择下列权限：
+
+image::security/employee-role-4.png[align="center"]
+
+员工需要读取 `Step`、`User` 和 `UserStep` 实体以便在 UI 进行查看，还需要能更新 `User` 和 `UserStep`，标记步骤完成。
+
+切回 *Text* 标签页。可以看到 Studio 在接口内生成了几个带注解的方法，分别对应于刚才我们设置的权限：
+
+[source,java]
+----
+@ResourceRole(name = "Employee", code = "employee", scope = "UI")
+public interface EmployeeRole {
+    @MenuPolicy(menuIds = "MyOnboardingScreen")
+    @ScreenPolicy(screenIds = "MyOnboardingScreen")
+    void screens();
+
+    @EntityAttributePolicy(entityClass = Step.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Step.class,
+            actions = EntityPolicyAction.READ)
+    void step();
+
+    @EntityAttributePolicy(entityClass = User.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = User.class,
+            actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void user();
+
+    @EntityAttributePolicy(entityClass = UserStep.class,
+            attributes = "*", action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = UserStep.class,
+            actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void userStep();
+}
+----
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。打开 *Administration* -> *Resource roles* 界面，可以在列表中看到新角色：
+
+image::security/employee-role-5.png[align="center"]
+
+[[assign-role]]
+=== 分配角色
+
+现在我们可以将角色分配给用户。打开 *Users* 浏览界面并创建一个新用户 `bob`。选择该用户并点击 *Role assignments* 按钮：
+
+image::security/assign-role-1.png[align="center"]
+
+在 *Role assignments* 界面中，点击 *Resource permissions* 中的 *Add* 按钮。
+
+弹出的 *Select resource roles* 对话框中，选择 `Employee` 和 `UI: minimal access` 角色（使用 `Ctrl/Cmd+单击`）：
+
+image::security/assign-role-2.png[align="center"]
+
+点击 *Select*。会在 *Resource permissions* 面板展示选择的角色：
+
+image::security/assign-role-3.png[align="center"]
+
+点击 *OK* 保存分配的角色。
+
+TIP: 用户需要 `UI: minimal access` 角色用来登录应用程序 UI。可以通过 *Resource roles* 界面打开该角色或者在 IDE 中搜索 `UiMinimalRole` 类查看角色内容。
+
+使用左下角用户名右边的按钮登出系统：
+
+image::security/assign-role-4.png[align="center", width="568"]
+
+用 `bob` 登录。则在主菜单中仅能看到 `My onboarding` 界面：
+
+image::security/assign-role-5.png[align="center"]
+
+[[managers-resource-role]]
+== HR 经理的资源角色
+
+在 *Jmix* 工具窗口中，点击 *New*（image:common/add.svg[]）-> *Role*。
+
+*New Role* 弹窗中，*Role name* 字段输入 `HR Manager`，设置 *Role code* 为 `hr-manager`，并在 *Security scope* 下拉框选择 `UI`：
+
+image::security/manager-role-1.png[align="center", width="667"]
+
+点击 *OK*。
+
+Studio 会创建并打开一个带注解的接口：
+
+[source,java]
+----
+package com.company.onboarding.security;
+
+import io.jmix.security.role.annotation.ResourceRole;
+
+@ResourceRole(name = "HR Manager", code = "hr-manager", scope = "UI")
+public interface HRManagerRole {
+}
+----
+
+切换至 *User Interface* 标签页并允许 `User.browse` 和 `User.edit` 界面（可以用顶部的搜索栏进行查找）：
+
+image::security/manager-role-2.png[align="center"]
+
+切换至 *Entities* 标签页，赋予对 `Department` 和 `Step` 的只读权限，`User` 和 `UserStep` 的所有权限：
+
+image::security/manager-role-3.png[align="center"]
+
+切回 *Text* 标签页，查看 Studio 生成的带注解方法：
+
+[source,java]
+----
+@ResourceRole(name = "HR Manager", code = "hr-manager", scope = "UI")
+public interface HRManagerRole {
+    @MenuPolicy(menuIds = "User.browse")
+    @ScreenPolicy(screenIds = {"User.browse", "User.edit"})
+    void screens();
+
+    @EntityAttributePolicy(entityClass = Department.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Department.class,
+            actions = EntityPolicyAction.READ)
+    void department();
+
+    @EntityAttributePolicy(entityClass = Step.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Step.class,
+            actions = EntityPolicyAction.READ)
+    void step();
+
+    @EntityAttributePolicy(entityClass = User.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = User.class,
+            actions = EntityPolicyAction.ALL)
+    void user();
+
+    @EntityAttributePolicy(entityClass = UserStep.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = UserStep.class,
+            actions = EntityPolicyAction.ALL)
+    void userStep();
+}
+----
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。以 `admin` 登录。打开 *Administration* -> *Resource roles* 界面，确保列表中存在新创建的 `HR Manager` 角色。
+
+创建一个新用户，比如 `alice`。
+
+通过与 <<assign-role,前一小节>> 一样的方法，给 `alice` 分配 `HR Mnager` 和 `UI: minimal access` 角色。
+
+然后以 `alice` 的账号登录。将可以打开 `Users` 界面并能管理用户和入职步骤：
+
+image::security/manager-role-4.png[align="center"]
+
+[[managers-row-level-role]]
+== HR 经理的行级角色
+
+此时，HR 经理可以创建用户、为用户分配任意部门并能查看所有部门的用户。
+
+本小节中，我们将引入一个 _行级角色（row-level role）_，用于限制 HR 经理对部门和其他用户的访问权限。他们将只能看到并分配他们自己的部门（也就是部门中他们作为 `hrManager` 的那些）。
+
+在 *Jmix* 工具窗口中，双击或选中 *Sources* 后按下回车：
+
+image::security/sources-1.png[align="center", width="382"]
+
+会打开 *Project* 工具窗口并选中 `java` 源码根目录：
+
+image::security/sources-2.png[align="center", width="411"]
+
+右键点击 `security` 包，菜单中选择 *New* -> *Java Class*：
+
+image::security/rl-role-1.png[align="center", width="809"]
+
+在 *New Java Class* 弹窗中，输入 `HrManagerRlRole` 类名，并选择 *Interface*：
+
+image::security/rl-role-2.png[align="center", width="376"]
+
+按下 `Enter`。
+
+IDE 会创建一个新的接口：
+
+image::security/rl-role-3.png[align="center", width="756"]
+
+用下列内容替换生成的接口：
+
+[source,java]
+----
+package com.company.onboarding.security;
+
+import com.company.onboarding.entity.Department;
+import com.company.onboarding.entity.User;
+import io.jmix.security.role.annotation.JpqlRowLevelPolicy;
+import io.jmix.security.role.annotation.RowLevelRole;
+
+@RowLevelRole( // <1>
+        name = "HR manager's departments and users",
+        code = "hr-manager-rl")
+public interface HrManagerRlRole {
+
+    @JpqlRowLevelPolicy( // <2>
+            entityClass = Department.class, // <3>
+            where = "{E}.hrManager.id = :current_user_id") // <4>
+    void department();
+
+    @JpqlRowLevelPolicy(
+            entityClass = User.class,
+            where = "{E}.department.hrManager.id = :current_user_id")
+    void user();
+}
+----
+<1> `@RowLevelRole` 注解表示这个接口定义的是一个行级角色。
+<2> `@JpqlRowLevelPolicy` 定义当读取实体时，在数据库层面将使用的一个策略。
+<3> 策略应用的实体类。
+<4> 执行实体的每个 JPQL 查询语句时，都需要添加的 `where` 子句。语句中使用 `\{E}` 而非实体的别名。`:current_user_id` 是预定义的参数，由框架设置为当前登录用户的 id。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。用 `admin` 登录。打开 *Administration* -> *Row-level roles* 界面，确保列表存在新添加的 `HR manager's departments and users` 角色。
+
+为用户 `alice` 打开 *Role assignments* 界面并在 *Row-level constraints* 表格中添加刚才创建的角色：
+
+image::security/rl-role-4.png[align="center"]
+
+点击 *OK* 保存角色修改。
+
+将 `alice` 设置为一个部门的 HR 经理：
+
+image::security/rl-role-5.png[align="center"]
+
+以 `alice` 用户登录。
+
+在 *Users* 浏览界面，只能看到同一部门的用户了：
+
+image::security/rl-role-6.png[align="center"]
+
+并且 `alice` 只能将本部门分配给其他用户：
+
+image::security/rl-role-7.png[align="center", width="554"]
+
+[[summary]]
+== 小结
+
+本节中，我们创建了针对 HR 经理和普通员工的角色，用于对不同分组的用户限制应用程序的访问。
+
+学习内容：
+
+* 一个 xref:security:resource-roles.adoc[资源角色] 控制用户对界面和特定实体访问的权限。
+
+* 一个 xref:security:row-level-roles.adoc[行级角色]，限制用户对资源角色中许可的实体的某些实例的访问权限。
+
+* 运行时通过 `User.browse` 界面的 *Role assignment* 界面可以为用户分配角色。
+
+* 用户需要有预定义的 `UI: minimal access` 角色才能登录应用程序 UI。

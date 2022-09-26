@@ -1,0 +1,89 @@
+= 快速入门
+
+本教程通过构建一个简单的全栈 Web 应用程序介绍 Jmix 的基础知识。教程涵盖了完整的开发过程，从数据建模到创建 UI 以及管理访问权限。
+
+熟悉 Java 和关系数据库是能完成本教程的必要条件。
+
+[[about-app]]
+== 示例应用程序
+
+我们将构建一个应用程序，用于对新员工入职（onboarding）流程进行自动化。公司内部分为不同部门（departments）。每个部门有人力资源（HR）经理，负责监督入职培训、新员工注册以及设置入职步骤。新员工获得所需的步骤列表，并需要标记完成。
+
+完整的应用程序代码在 GitHub 仓库： https://github.com/jmix-framework/jmix-onboarding[jmix-framework/jmix-onboarding^]。我们建议按照本教程的说明一步一步地创建应用程序，但是如果只想研究已经完成的应用程序，可以克隆仓库并按照 xref:studio:project.adoc#opening-existing-project[打开已有项目] 的介绍打开并运行。
+
+下面我们详细了解数据模型、用户角色并熟悉一下将构建的用户界面。
+
+[[data-model]]
+=== 数据模型
+
+创建 Jmix 应用程序一般从设计数据模型开始。下面是入职示例应用的模型。
+
+[plantuml]
+....
+@startuml
+
+entity Step {
+    id
+    name
+    duration
+    sortValue
+}
+
+entity Department {
+    id
+    name
+    hrManager: User
+}
+
+entity User {
+    id
+    username
+    firstName
+    lastName
+    department: Department
+    picture
+    joiningDate
+    onboardingStatus
+}
+
+entity UserStep {
+    id
+    user: User
+    step: Step
+    dueDate
+    completedDate
+    sortValue
+}
+
+User -{ UserStep
+UserStep }- Step
+Department -{ User
+Department }- User
+
+@enduml
+....
+
+应用程序中，核心的实体是 `User`。其中包含用户的登录名和其他属性，还有入职时间和入职流程状态。用户属于某个部门，通过关联的 `Department` 实体实现。
+
+`Deparment` 实体定义公司的一个部门。包含部门名称和 HR 经理，经理负责注册部门新员工的用户。
+
+`Step` 实体定义某一个入职的步骤，比如 "Safety briefing - 安全简介"，"Fill in profile - 填写个人资料" 等。一个步骤具有名称和时长，时长表示员工入职后需要在多少天内完成该步骤。`sortValue` 属性设置步骤在列表中的顺序。
+
+`UserStep` 实体表示特定用户的某一入职步骤。将 `User` 和 `Step` 实体进行关联，并添加了 `dueDate - 到期时间` 和 `completedDate - 完成时间` 属性。到期时间是用户入职的时间加上步骤的时长计算得出。完成时间是当用户标记该步骤完成时的当前时间。
+
+[[user-roles]]
+=== 用户角色
+
+示例应用程序支持下列用户角色：
+
+* _Administrators_ 具有系统的完全控制权限。能看到所有用户、设置入职步骤、部门并能分配 HR 经理。
++
+image::app-overview/admin-ui-1.png[align="center"]
+
+* _HR Managers_ 能在部门内部注册新员工并为其指定入职流程步骤，启动流程。还能跟踪部门内员工入职流程的进度。
++
+image::app-overview/hr-manager-ui-1.png[align="center"]
+
+* _Employees_ 能看到自己的入职流程步骤，并标记完成。
++
+image::app-overview/employee-ui-1.png[align="center"]
