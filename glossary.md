@@ -5,6 +5,7 @@
 * __Java Virtual Machine (JVM)__ – Java Virtual Machine (JVM) (ж.р.)
 * __Jmix Framework__ – Jmix Framework (м.р.)
 * __Jmix Studio__ – Jmix Studio (ж.р.)
+* __Liquibase changelogs__ – файлы Liquibase changelog / файл changelog
 * __Nightly Builds__ – ночные сборки
 * __Spring beans__ – бины Spring
 * __UI screen__ – экран UI
@@ -61,9 +62,11 @@
 * __locale__ – локаль
 * __localization__ – локализация
 * __lookup__ – выбор
+* __merge__ – поместить в контекст (иногда!)
 * __message bundle__ – пакет сообщений
 * __open-source__ – с открытым исходным кодом
 * __optimistic blocking__ – оптимистическая блокировка
+* __override__ – переопределить
 * __plugin__ – плагин
 * __property file__ – файл свойств
 * __property__ – свойство
