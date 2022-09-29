@@ -1,45 +1,45 @@
-= Using EntityManager
+= Работа с EntityManager
 
-`EntityManager` is the standard JPA interface for loading and saving entities. It can also run native SQL queries.
+`EntityManager` – это стандартный интерфейс JPA для загрузки и сохранения сущностей. Он также может выполнять собственные SQL-запросы.
 
-TIP: We recommend using xref:data-manager.adoc[DataManager] for working with entities and fall back to `EntityManager` only if you really need it.
+TIP: Мы рекомендуем использовать xref:data-manager.adoc[DataManager] для работы с сущностями и обращаться к `EntityManager` только если он вам действительно нужен.
 
-For information on the `EntityManager` methods refer to the https://jakarta.ee/specifications/persistence/2.2/apidocs/javax/persistence/entitymanager[javax.persistence.EntityManager^] API documentation.
+Для получения информации о методах `EntityManager` обратитесь к документации API https://jakarta.ee/specifications/persistence/2.2/apidocs/javax/persistence/entitymanager[javax.persistence.EntityManager^].
 
-You can use `EntityManager` in Jmix applications for working with xref:data-model:entities.adoc#jpa[JPA entities] mostly in the same way as in any Spring application. However, Jmix provides its own implementation of the standard interface, which has some specific features.
+`EntityManager` можно использовать в приложениях Jmix для работы с xref:data-model:entities.adoc#jpa[сущностями JPA] в основном таким же образом, как и в любом приложении Spring. Однако Jmix предоставляет собственную реализацию стандартного интерфейса, которая имеет некоторые особенности.
 
 [[obtaining-entity-manager]]
-== Obtaining EntityManager
+== Получение EntityManager
 
-You can inject an instance of `EntityManager` in any Spring bean with the help of the `@PersistenceContext` annotation. To use the `EntityManager` instance, you should have an open xref:transactions.adoc[transaction]. For example:
+Экземпляр `EntityManager` можно инжектировать в любой бин Spring с помощью аннотации `@PersistenceContext`. Для использования экземпляра `EntityManager` у вас должна быть открытая xref:transactions.adoc[транзакция]. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-inject;em-persist]
 ----
 
-If you need to work with entities from an xref:data-model:data-stores.adoc#additional[additional data store], obtain the `EntityManager` instance for this data store by specifying the data store name in the `unitName` parameter of the `@PersistenceContext` annotation, for example:
+Если вам нужно работать с сущностями из xref:data-model:data-stores.adoc#additional[дополнительного хранилища данных], получите экземпляр `EntityManager` для этого хранилища, указав имя хранилища данных в параметре `unitName` аннотации `@PersistenceContext`, например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-db1-inject;em-db1-persist]
 ----
 
-NOTE: `EntityManager` cannot be injected in UI controllers.
+NOTE: `EntityManager` нельзя инжектировать в контроллеры UI.
 
 [[fetch-plans]]
-== Using Fetch Plans
+== Использование фетч-планов
 
-By default, when you use `EntityManager` for loading entities by id or by JPQL query, it returns all local (immediate) attributes and eagerly fetched references by the rules of the JPA specification. Other references are loaded lazily while in the same transaction.
+По умолчанию при использовании `EntityManager` для загрузки сущностей по id или запросу JPQL, он возвращает все локальные (непосредственные) атрибуты и жадно извлеченные ссылки по правилам спецификации JPA. Другие ссылки загружаются лениво в той же транзакции.
 
-You can use xref:fetching.adoc#fetch-plan[fetch plans] to optimize loading of the needed object graph regardless of `FetchType.LAZY` fetch instructions in your entity attribute annotations. The fetch plan should be specified in the properties map. For example:
+Вы можете использовать xref:fetching.adoc#fetch-plan[фетч-планы] для оптимизации загрузки необходимого графа объектов независимо от инструкции извлечения `FetchType.LAZY` в аннотациях атрибутов сущности. Фетч-план должен быть указан в свойствах. Например:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleService.java[tags=em-inject;em-find]
 ----
 
-In the above example, all local attributes of the `Order` and the related `Customer` entity will be loaded, even though they are not included in the fetch plan explicitly. If you want to load only a subset of local attributes, build a "partial" fetch plan. For example:
+В приведенном выше примере будут загружены все локальные атрибуты сущности `Order` и связанной с ней `Customer`, даже если они не включены в план выборки явно. Если вы хотите загрузить только часть локальных атрибутов, создайте «частичный» фетч-план. Например:
 
 [source,java,indent=0]
 ----
@@ -47,11 +47,11 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleServi
 ----
 
 [[soft-deletion]]
-== Soft Deletion
+== Мягкое удаление
 
-`EntityManager` supports xref:data-model:soft-deletion.adoc[soft deletion]. When you invoke the `remove()` method for an entity with the xref:data-model:entities.adoc#soft-delete-trait[Soft Delete trait], it updates the `@DeletedDate` and `@DeletedBy` attributes instead of removing the record from the database.
+`EntityManager` поддерживает xref:data-model:soft-deletion.adoc[мягкое удаление]. Когда вы вызываете метод `remove()` для сущности с xref:data-model:entities.adoc#soft-delete-trait[чертой Soft Delete], он обновляет атрибуты `@DeletedDate` и `@DeletedBy` вместо удаления записи из базы данных.
 
-You can turn soft deletion off for a particular transaction to hard delete entities with Soft Delete trait and be able to load instances marked as deleted, by specifying the `PersistenceHints.SOFT_DELETION` property. For example:
+Вы можете отключить мягкое удаление для конкретной транзакции, чтобы полностью удалить объекты с чертой Soft Delete и иметь возможность загружать экземпляры, помеченные как удаленные, указав свойство `PersistenceHints.`SOFT_DELETION`. Например:
 
 [source,java,indent=0]
 ----
@@ -59,14 +59,14 @@ include::example$/ex1/src/main/java/dataaccess/ex1/bean/EntityManagerSampleServi
 ----
 
 [[limitations]]
-== Limitations of EntityManager
+== Ограничения EntityManager
 
-. xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent and EntityLoadingEvent] are not sent when saving and loading entities with `EntityManager`.
+. События xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent и EntityLoadingEvent] не отправляются при сохранении и загрузке сущностей с `EntityManager`.
 
-. xref:fetching.adoc#lazy-loading[Lazy loading] of references outside of the transaction loaded the root entity doesn't work. You will get a "java.lang.IllegalStateException: Cannot get unfetched attribute ...'`' exception if you access such a reference.
+. xref:fetching.adoc#lazy-loading[Ленивая загрузка] ссылок вне транзакции, загружающей корневую сущность, не работает. Вы получите исключение "java.lang.IllegalStateException: Cannot get unfetched attribute ...'`', если получите доступ к такой ссылке.
 
-. xref:data-model:entities.adoc#cross-data-store-ref[Cross-datastore references] are not maintained.
+. xref:data-model:entities.adoc#cross-data-store-ref[Ссылки между хранилищами данных] не поддерживаются.
 
-. xref:security:authorization.adoc#data-access-checks[Data access checks] are bypassed.
+. xref:security:authorization.adoc#data-access-checks[Проверки доступа к данным] пропускаются.
 
-. The following JPA features are not supported: named queries, `CriteriaBuilder`, `EntityGraph`, `EntityTransaction`.
+. Не поддерживаются следующие функции JPA: именованные запросы, `CriteriaBuilder`, `EntityGraph`, `EntityTransaction`.
