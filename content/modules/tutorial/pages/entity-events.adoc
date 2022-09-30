@@ -1,31 +1,31 @@
-= 8. Using Entity Events
+= 8. Использование событий сущности
 
-At this stage, you have completed the data model and UI of the application. But there is a flaw in the application logic: employees can see and complete their onboarding steps in `My onboarding` screen, but the `Onboarding status` attribute of the `User` entity is not updated accordingly.
+На этом этапе вы завершили разработку модели данных и пользовательского интерфейса приложения. Но в логике приложения есть недостаток: сотрудники могут видеть и выполнять свои шаги по онбордингу на экране `My onboarding`, но атрибут `Onboarding status` сущности `User` не обновляется соответствующим образом.
 
-In this chapter, you will implement the missing part: the `Onboarding status` attribute of the `User` entity will be updated whenever the state of the corresponding `UserStep` instances changes.
+В этой главе вы реализуете недостающую часть: атрибут `Onboarding status` сущности `User` будет обновляться всякий раз, когда изменяется состояние соответствующих экземпляров `UserStep`.
 
 [[create-entity-changed-event-listener]]
-== Creating EntityChangedEvent Listener
+== Создание слушателя EntityChangedEvent
 
-If your application is running, stop it using the *Stop* button (image:common/suspend.svg[]) in the main toolbar.
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
 
-In the *Jmix* tool window, click *New* (image:common/add.svg[]) -> *Event Listener*:
+В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *Event Listener*:
 
 image::entity-events/listener-1.png[align="center", width="345"]
 
-On the first step of the *Subscribe to Event* wizard, select *Entity Event*:
+На первом шаге мастера *Subscribe to Event* выберите *Entity Event*:
 
 image::entity-events/listener-2.png[align="center", width="432"]
 
-Click *Next*.
+Нажмите кнопку *Next*.
 
-On the next step of the wizard, select `UserStep` in the *Entity* field and select the *Entity Changed (before commit)* checkbox:
+На следующем шаге мастера выберите `UserStep` в поле *Entity* и установите флажок *Entity Changed (before commit)*:
 
 image::entity-events/listener-3.png[align="center", width="487"]
 
-Click *Create*.
+Нажмите на кнопку *Create*.
 
-Studio will create a Spring bean with a method annotated with `@EventListener`:
+Studio создаст Spring бин с помощью метода, аннотированного `@EventListener`:
 
 [source,java]
 ----
@@ -39,11 +39,11 @@ public class UserStepEventListener {
 }
 ----
 
-The framework will invoke this method each time after saving a changed `UserStep` instance to the database, but before committing the database transaction. If the method throws an exception, the transaction will be rolled back.
+Фреймворк будет вызывать этот метод каждый раз после сохранения измененного экземпляра `UserStep` в базе данных, но перед фиксацией транзакции базы данных. Если метод выдает исключение, произойдет откат транзакции.
 
-The method accepts the `EntityChangedEvent` object which contains the changed entity id, type of the change (create/update/delete) and information about changed attributes.
+Метод принимает объект `EntityChangedEvent`, который содержит идентификатор измененной сущности, тип изменения (создание/обновление/удаление) и информацию об измененных атрибутах.
 
-Implement the listener as below:
+Реализуйте слушатель, как показано ниже:
 
 [source,java]
 ----
@@ -95,16 +95,17 @@ public class UserStepEventListener {
     }
 }
 ----
-<1> If the `UserStep` instance has been created or updated, get its id from using the `getEntityId()` method of the event. Then load the instance and get the related `User` instance.
-<2> If `UserStep` has been deleted, it cannot be loaded from the database anymore. But in this case `event.getChanges()` provides values of all attributes of the deleted entity.
-<3> Set `onboardingStatus` attribute of the related `User` to a value depending on the state of all its `UserStep` items.
-<4> Save the updated `User` instance to the database.
+<1> Если экземпляр `UserStep` был создан или обновлен, получить его идентификатор с помощью метода `getEntityId()` события. Затем загрузить экземпляр и получить связанный экземпляр `User`.
+<2> Если `UserStep` был удален, он больше не может быть загружен из базы данных. Но в этом случае `event.getChanges()` предоставляет значения всех атрибутов удаленного объекта.
+<3> Установить для атрибута `onboardingStatus` связанного пользователя значение, зависящее от состояния всех его элементов `UserStep`.
+<4> Сохранить обновленный экземпляр `User` в базе данных.
 
-With this listener in place, the consistency between the collection of `UserStep` instances and the `onboardingStatus` attribute of the `User` entity will be maintained regardless of what process modifies `UserStep` instances. For example, you can change a `UserStep` directly through *Administration* -> *Entity Inspector*, and still see the corresponding change of `User.onboardingStatus`.
+При наличии этого слушателя согласованность между коллекцией экземпляров `UserStep` и атрибутом `onboardingStatus` сущности `User` будет поддерживаться независимо от того, какой процесс изменяет экземпляры `UserStep`. Например, вы можете изменить `UserStep` непосредственно через *Administration* -> *Entity Inspector* и по-прежнему видеть соответствующее изменение `User.onboardingStatus`.
 
-NOTE: You can rely on `EntityChangedEvent` listeners while you work with data through `DataManager`. If you save changes using `EntityManager` or JDBC statements, the listeners are not invoked.
+NOTE: Вы можете полагаться на слушателей событий `EntityChangedEvent` при работе с данными через `DataManager`. Если вы сохраняете изменения с помощью `EntityManager` или JDBC, слушатели не вызываются.
 
 [[summary]]
-== Summary
+== Резюме
 
-xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] listeners can be used to maintain data consistency and execute business logic in the current xref:data-access:transactions.adoc[transaction] or after its completion.
+Слушатели xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] могут использоваться для поддержания согласованности данных и выполнения бизнес-логики в текущей xref:data-access:transactions.adoc[транзакции] или после ее завершения.
+Слушатели xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] могут использоваться для поддержания согласованности данных и выполнения бизнес-логики в текущей xref:data-access:transactions.adoc[транзакции] или после ее завершения.
