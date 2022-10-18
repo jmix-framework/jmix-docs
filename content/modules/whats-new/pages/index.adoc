@@ -16,19 +16,269 @@ See xref:studio:project.adoc#upgrading-project[Upgrading Project] section for ho
 [[new-features]]
 == New Features and Improvements
 
+[[flow-ui]]
+=== Flow UI
+
+The new Flow UI module based on Vaadin 23 is now available as a solid foundation for creating new projects. Its API is stable enough and will be evolved further by the standard rules: backward compatible patches, possible minor incompatibilities in minor feature releases.
+
+To use Flow UI in a new project, create it with the `Full-Stack Application with Incubating FlowUI` template.
+
+NOTE: We consider Flow UI as incubating module because it's not yet comparable in features with the classic UI.
+
+There are a few add-ons ready to be used in a Flow UI project: Data Tools, Audit, as well as all add-ons without UI, like REST or file storage implementations.
+
+Studio comes with the new visual designer for Flow UI views. It has a significant difference from the classic UI designer: there is no *Palette* tool window. Instead, use the *Add Component* action available through the top actions panel, *Component Hierarchy* context menu and *Generate* menu (*Alt+Ins / Cmd+N*).
+
+If you have any trouble with the designer preview window, click *Restart* button on its top panel. The *Console* button opens or closes the console showing the frontend build output, which can be helpful in diagnosing problems.
+
+image::flowui-designer-1.png[align="center", width="790"]
+
+[[jtw]]
+=== Jmix Tool Window
+
+The *Configuration* section of the Jmix tool window now displays all classes annotated with `@Configuration` and its derived annotations (e.g. `@SpringBootApplication`), `@ConfigurationProperties` classes, as well as REST xref:rest:entities-api/load-entities.adoc#jpql-query-config[queries] and xref:rest:business-logic.adoc#exposing-a-service[services] configuration files:
+
+image::config-section.png[align="center", width="370"]
+
+Spring beans having methods with an entity in the arguments or the result are shown in the *Beans* section of the entity:
+
+image::data-model-beans.png[align="center", width="899"]
+
+TIP: You can see items grouped by packages if you select *Show Options Menu* (image:gear.svg[]) -> *Group by Packages*.
+
+[[constructor-injection]]
+=== Constructor Injection
+
+Studio now supports constructor injection into Spring beans. In the *Choose Objects to Inject* dialog, select the *Use constructor injection* checkbox:
+
+image::constructor-injection-1.png[align="center", width="856"]
+
+Then Studio will create a final field and a constructor argument:
+
+[source,java,indent=0]
+----
+@Component
+public class CustomerService {
+
+    private final DataManager dataManager;
+
+    public CustomerService(DataManager dataManager) {
+        this.dataManager = dataManager;
+    }
+----
+
+Your choice will be remembered, and you can change it also in the Jmix plugin settings.
+
+[[row-level-role-wizard]]
+=== Row-level Role Wizard
+
+Now you can create xref:security:row-level-roles.adoc[row-level roles] and policies using a wizard.
+
+To create a role, click *New* -> *Row-level Role* in the Jmix tool window and enter role parameters in the dialog:
+
+image::rl-role-1.png[align="center", width="635"]
+
+Studio will create the annotated role class. You can add policies using the *Add Policy* actions:
+
+image::rl-role-2.png[align="center", width="741"]
+
+[[custom-project-templates]]
+=== Custom Project Templates
+
+Studio now supports custom artifacts containing project templates, so you can provide your own templates for new projects, UI screens and FlowUI views.
+
+To set the artifact coordinates, click *Settings* -> *Jmix Plugin Settings* and enter the group and artifact name in the *Additional templates artifact* field. The artifact version must be the same as the Jmix BOM version used in the project templates of this artifact.
+
+Studio looks for the standard templates artifact (`io.jmix.templates.studio:jmix-studio-templates`) and the custom one in the repository selected in the *New Project* wizard. If both are found, it merges the templates giving the priority to the custom templates. It allows you to override a standard template by providing your own template in the same directory, for example `content/project/application`.
+
+To build an artifact with custom templates, follow the steps below.
+
+. Clone https://github.com/jmix-framework/jmix repository and copy its `jmix-templates` subdirectory to a different location on your computer.
+
+. Change `group` property in `build.gradle`, for example:
++
+[source,groovy]
+----
+group = 'com.company.templates'
+----
+
+. Change `version` in `gradle.properties` to the value of the desired Jmix BOM, for example:
++
+[source,properties]
+----
+version = 1.4.0
+----
+
+. Modify existing templates or add your. For example, copy the `content/project/application` folder to `my-application` and change the `name` and `order` properties in its `template.json` file:
++
+[source,json]
+----
+{
+  "version": 1,
+  "name": "My Full-Stack Application",
+  "order": 50,
+  "addon": false,
+----
+
+. Build the artifact and publish it to the local Maven repository:
++
+[source,shell]
+----
+./gradlew publishToMavenLocal
+----
+
+. Click *Settings* -> *Jmix Plugin Settings* and enter `com.company.templates:jmix-studio-templates` in the *Additional templates artifact* field.
+
+. Remove the templates cache from the IDE system directory:
+* Find your IDE system directory as explained in the https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#system-directory[IntelliJ IDEA docs^].
+* Remove everything from its `jmix/templates` subdirectory.
+
+. Create a new project and select *Use local Maven repository* checkbox. In the *Jmix version* dropdown, select the version of your custom artifact.
+
+. On the next step of the wizard, you should see the combined list of templates including your custom template.
+
+[[security-configuration-extension-points]]
+=== Security Configuration Extension Points
+
+Now you can extend security configurations provided by the framework and add-ons instead of replacing them completely.
+
+To adjust a security configuration, define a Spring bean extending the `AbstractHttpConfigurer` class and annotate it with an appropriate `@Qualifier`.
+
+Example of extending `StandardSecurityConfiguration`:
+
+[source,java]
+----
+@Component
+@Qualifier(StandardSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
+public class MySecurityConfigurer extends AbstractHttpConfigurer<MySecurityConfigurer, HttpSecurity> {
+
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        MyFilter myFilter = new MyFilter();
+        http.addFilterBefore(myFilter, UsernamePasswordAuthenticationFilter.class);
+    }
+}
+----
+
+Example of extending security configuration of OIDC add-on:
+
+[source,java]
+----
+@Component
+@Qualifier(OidcAutoConfiguration.OAuth2LoginSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
+public class MyOidcSecurityConfigurer extends AbstractHttpConfigurer<MyOidcSecurityConfigurer, HttpSecurity> {
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+	// any method that adds another configurer must be invoked in the init method
+        http.headers(headers -> {
+            headers.frameOptions().deny();
+        });
+    }
+}
+----
+
+[[custom-password-validation]]
+=== Custom Password Validation
+
+To implement a custom password validation in the application, create a bean (or multiple beans) implementing the `PasswordValidator` interface, for example:
+
+[source,java]
+----
+@Component
+public class MyPasswordValidator implements PasswordValidator<User> {
+
+    @Override
+    public void validate(PasswordValidationContext<User> context) throws PasswordValidationException {
+         if (context.getPassword().length() < 3)
+            throw new PasswordValidationException("Password is too short, must be >= 3 characters");
+    }
+}
+----
+
+All password validators will be automatically used in the ChangePassword action dialog.
+
+To add the validation to the User edit screen or detail view, use `PasswordValidation` helper bean:
+
+[source,java]
+----
+@Autowired
+private PasswordValidation passwordValidation;
+
+@Subscribe
+protected void onBeforeCommit(BeforeCommitChangesEvent event) {
+  if (entityStates.isNew(getEditedEntity())) {
+      // ...
+      List<String> validationErrors = passwordValidation.validate(getEditedEntity(), passwordField.getValue());
+      if (!validationErrors.isEmpty()) {
+          notifications.create(Notifications.NotificationType.WARNING)
+                  .withCaption(String.join("\n", validationErrors))
+                  .show();
+          event.preventCommit();
+      }
+      getEditedEntity().setPassword(passwordEncoder.encode(passwordField.getValue()));
+  }
+}
+----
+
+[[pessimistic-lock-by-datamanager]]
+=== Pessimistic Lock by DataManager
+
+The `DataManager` fluent loader interface now accepts the `javax.persistence.LockModeType` enum values in the `lockMode()` method. When working with JPA entities, it leads to the corresponding pessimistic lock on the database level using the `select ... for update` statement.
+
+For example:
+
+[source,java]
+----
+dataManager.load(Customer)
+        .id(customerId)
+        .lockMode(LockModeType.PESSIMISTIC_WRITE)
+        .one()
+----
 
 [[preview]]
 == Preview Features
 
+[[authorization-server]]
+=== Authorization Server
+
+The Jmix Authorization Server add-on allows you to issue access and refresh tokens and protect API resources (REST API, custom controllers) with these tokens. It supports authorization code grant for web clients and mobile devices and client credentials grant for server-to-server interaction.
+
+The add-on is built on top of https://spring.io/projects/spring-authorization-server[Spring Authorization Server^]. Jmix Authorization Server is a replacement for Jmix Security OAuth2 module which depends on outdated Spring Security OAuth project.
+
+See more details in the project's https://github.com/jmix-framework/jmix/blob/master/jmix-authorization-server/README.md[README^].
+
 [[breaking-changes]]
 == Breaking Changes
+
+[[migration-to-securityfilterchain]]
+=== Migration to SecurityFilterChain
+
+The framework security configurations have been migrated from the deprecated `WebSecurityConfigurerAdapter` to `SecurityFilterChain`.
+
+If you have security configurations that extend `WebSecurityConfigurerAdapter`, rewrite them by following recommendations of https://spring.io/blog/2022/02/21/spring-security-without-the-websecurityconfigureradapter[this article^] from the Spring blog.
+
+[[user-reloading-in-currentauthentication]]
+=== User Reloading in CurrentAuthentication
+
+To fix https://github.com/jmix-framework/jmix/issues/948[this issue^] and avoid other possible inconsistencies, `CurrentAuthentication.getUser()` and `CurrentUserSubstitution.getEffectiveUser()` methods now reload the user entity from the database on each invocation.
+
+To eliminate possible performance impact, you can set up the entity cache for the user entity, for example:
+[source,properties]
+----
+eclipselink.cache.shared.User = true
+eclipselink.cache.size.User = 500
+----
+
+The cache is automatically configured for new projects.
+
+If you have any problems with the new behavior, set the `jmix.core.current-authentication-user-reload-enabled` to `false`.
 
 [[changelog]]
 == Changelog
 
 * Resolved issues in Jmix Framework:
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.0[1.4.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+project%3Ajmix-framework%2Fjmix%2F4[1.4.0^]
 
 * Resolved issues in Jmix Studio:
 
