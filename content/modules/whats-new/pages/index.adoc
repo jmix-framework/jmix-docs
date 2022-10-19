@@ -11,271 +11,278 @@ IMPORTANT: 如需新建 Jmix {page-component-display-version} 项目或者升级
 
 * 升级 Jmix BOM 的版本，BOM 又定义了所有依赖的版本。
 * 升级 Jmix Gradle 插件的版本。
-* 升级 Gradle wrapper 的版本至 7.4.2，修改 `gradle/wrapper/gradle-wrapper.properties` 文件。
-* 将 `jmix.rest.allowed-origins` 应用程序属性重命名为 `jmix.cors.allowed-origins`（参阅 <<cors,下面内容>>）。
+* 升级 Gradle wrapper 的版本至 7.5.1，修改 `gradle/wrapper/gradle-wrapper.properties` 文件。
 
 [[new-features]]
 == 新功能和改进
 
-[[jpql-designer]]
-=== JPQL 设计器
+[[flow-ui]]
+=== Flow UI
 
-image::jpql-designer.png[width=1132]
+基于 Vaadin 23 的新 Flow UI 模块现在可以用来做为新建项目的坚实基础。其 API 已经足够稳定，并在后续的开发计划中按照标准规则进一步升级：提供向后兼容的补丁、主发布版本中可能引入小的不兼容等。
 
-Studio 中的 JPQL 设计器现在可以用来编辑已有的查询语句。当在 _Component Inspector_ 工具窗口点击数据容器的 _query_ 属性时会自动打开：
+如需在新项目使用 Flow UI，请选择 `Full-Stack Application with Incubating FlowUI` 项目模板。
 
-image::jpql-from-comp-insp.png[width=341]
+NOTE: 我们认为 Flow UI 模块现在仍处于孵化阶段，因为其功能与经典 UI 还有一定差距。
 
-也可以通过装订线栏的图标为代码中的语句打开设计器：
+Flow UI 项目已经有少数可以使用的扩展组件：数据工具、审计，以及那些不带 UI 的扩展组件，例如 REST 或文件存储的实现。
 
-image::jpql-from-code.png[width=610]
+Studio 为展示 Flow UI 提供了新的可视化设计器。与经典 UI 的设计器有很大区别，不再有 *Palette* 工具窗口。而是通过顶部的操作面板的 *Add Component*、*Component Hierarchy* 的右键菜单以及 *Generate* 菜单（*Alt+Ins / Cmd+N*）提供。
 
-include::studio:page$subscription-note.adoc[]
+如果设计器的预览窗口显示不出来，点击顶部面板的 *Restart* 按钮。*Console* 按钮可以打开或关闭前端构建的输出控制台，可用于诊断问题。
 
-[[liquibase-changelogs]]
-=== Liquibase 更改日志
+image::flowui-designer-1.png[align="center", width="790"]
 
-* Studio 能在 Jmix 工具窗口的数据存储节点展示已有的 Liquibase 更改日志文件：
-+
-image::lbcl-jtw.png[width=353]
+[[jtw]]
+=== Jmix 工具窗口
 
-* 可以使用 Jmix 工具窗口的 _New -> Advanced -> Liquibase Changelog..._ 操作创建新的空更改日志文件。Studio 将推荐一个文件名，并创建一个带 XML 根节点的文件。可以打开该文件，并通过代码自动完成的帮助手动添加变更集。
+Jmix 工具窗口的 *Configuration* 部分现在能展示所有带 `@Configuration` 注解及其派生注解（例如，`@SpringBootApplication`）的类、`@ConfigurationProperties` 类，还有 REST xref:rest:entities-api/load-entities.adoc#jpql-query-config[查询语句] 和 xref:rest:business-logic.adoc#exposing-a-service[服务] 的配置文件：
 
-* 自动和手动创建的新更改日志的文件名现在包含 `HHmmss` 格式的时间戳（而不是以前添加的序号 010、020...）。能避免切换 VCS 分支时的重复更改日志。
-+
-如果要恢复为连续数字编号，打开 _Navigate -> Search Everywhere_（或按 Shift 两次），然后输入“jmix features”。在 _Jmix Features_ 对话框中，禁用 _Use timestamp in changelog names_ 选项。
+image::config-section.png[align="center", width="370"]
 
-* 对于自动生成的更改日志，Studio 支持在保存和执行更改日志之前，在 _Changelog Preview_ 窗口中更改文件名和路径。
+在实体的 *Beans* 部分展示其关联的 Spring beans，只要这些 beans 中的方法参数或者返回值是相应实体即可。
 
-* Studio 现在可以防止意外删除重要的更改日志。如果在已删除的文件中找到 `++<!-- DO NOT REMOVE. some explanation -->++` 注释，则会显示一个对话框，建议恢复该文件。主更改日志和初始化 `User` 表和数据的更改日志受此类注释的保护。
+image::data-model-beans.png[align="center", width="899"]
 
-[[hot-deploy]]
-=== 热部署
+TIP: 可以按包对展示的内容进行分组，选择 *Show Options Menu*（image:gear.svg[]） -> *Group by Packages*。
 
-* 现在可以在 Studio 调试控制台看到关于热部署的信息，例如：
-+
-[source,text]
+[[constructor-injection]]
+=== 构造函数注入
+
+Studio 现在支持以在 Spring beans 中使用构造函数注入的方式。在 *Choose Objects to Inject* 对话框中，选中 *Use constructor injection* 复选框：
+
+image::constructor-injection-1.png[align="center", width="856"]
+
+Studio 会创建一个 final 字段以及构造函数参数：
+
+[source,java,indent=0]
 ----
-Hot deploy: CustomerBrowse.java [618 ms]
-Compiled files:
-    com/company/demo/screen/customer/CustomerBrowse.java
-----
+@Component
+public class CustomerService {
 
-* 如果你使用了其他重加载代码的技术，例如 JRebel，可以在 IDE 的设置中关掉热部署：_Languages & Frameworks -> Jmix -> Project Settings -> Enable hot deploy_。
+    private final DataManager dataManager;
 
-[[bpm]]
-=== BPM 改进
-
-* Studio 中的 xref:studio:bpmn-designer.adoc[BPMN 设计器] 有了很大的提升，现在其功能与运行时的设计器差不多了。
-// TODO add more details
-
-* xref:multitenancy:index.adoc[多租户] 功能支持用户组、流程定义、流程实例以及 DMN 相关的表。
-
-* 用户任务表单的标题现在不包含任何 “领取 % 任务” 或 “完成 % 任务” 的内容。如果用户任务有名称，则直接在表单中使用该名称。如果没名称，则使用任务标识符。
-
-* 支持 `BigDecimal` 类型的流程变量。
-
-* 如果项目包含了 xref:dyn-attr:index.adoc[] 扩展组件，则 xref:bpm:data-task.adoc[实体数据] 任务可以支持设置和更新动态属性值。
-
-* 任务的本地变量在流程实例编辑器中展示。
-
-[[elasticsearch-8.1]]
-=== 兼容 Elasticsearch 8.1
-
-搜索扩展组件现在使用 Elasticsearch 8.1。
-
-默认情况下该扩展组件配置使用 Elasticsearch 7.11 及以上版本。如果你需要使用 7.11 以下版本，请设置 xref:search:search-properties.adoc#jmix.search.rest-high-level-client-api-compatibility-mode-enabled[jmix.search.rest-high-level-client-api-compatibility-mode-enabled] 应用程序属性的值为 `false`。
-
-[[jpa-cascade]]
-=== 支持 JPA Cascade
-
-完全支持 JPA 级联（cascade）操作。下面用示例解释此改进。
-
-假设有两个关联实体：
-
-[source,java]
-----
-@Entity
-public class Bar {
-    // ...
+    public CustomerService(DataManager dataManager) {
+        this.dataManager = dataManager;
+    }
 }
 ----
 
-[source,java]
-----
-@Entity
-public class Foo {
+Studio 会记住你的选择，可以在 Jmix 插件的配置中修改。
 
-    @JoinColumn(name = "BAR_ID")
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Bar bar;
-    // ...
+[[row-level-role-wizard]]
+=== 行级角色向导
+
+现在可以通过向导创建 xref:security:row-level-roles.adoc[行级角色] 和策略。
+
+在 Jmix 工具窗口点击 *New* -> *Row-level Role*，然后在弹窗内输入角色参数：
+
+image::rl-role-1.png[align="center", width="635"]
+
+Studio 会创建一个带注解的角色接口。可以使用 *Add Policy* 操作添加策略：
+
+image::rl-role-2.png[align="center", width="741"]
+
+[[custom-project-templates]]
+=== 自定义项目模板
+
+Studio 现在支持包含项目模板的自定义制件，因此，可以提供自定义的模板用于新建项目、UI 界面以及 Flow UI 视图。
+
+需要设置制件的坐标，点击 *Settings* -> *Jmix Plugin Settings* 然后在 *Additional templates artifact* 字段输入分组和制件名。制件的版本必须与制件模板中使用的 Jmix BOM 版本一致。
+
+Studio 会从新建项目向导中选择的仓库中查找标准的模板制件（`io.jmix.templates.studio:jmix-studio-templates`）和自定义制件。如果都找到了，则会将模板合并，且自定义模板的优先级更高。也支持覆盖标准模板，只需要在同一个目录下提供自定义的模板，例如 `content/project/application`。
+
+按照下面的步骤可以构建一个包含自定义模板的制件。
+
+. 克隆 https://github.com/jmix-framework/jmix 仓库，将 `jmix-templates` 子目录复制到点到的其他文件夹。
+
+. 修改 `build.gradle` 文件的 `group` 属性，示例：
++
+[source,groovy]
+----
+group = 'com.company.templates'
+----
+
+. 修改 `gradle.properties` 里面的 `version` 为需要的 Jmix BOM 版本，示例：
++
+[source,properties]
+----
+version = 1.4.0
+----
+
+. 修改已有的模板或添加自己的模板。例如，将 `content/project/application` 复制为 `my-application` 并修改 `template.json` 文件的 `name` 和 `order` 设置：
++
+[source,json]
+----
+{
+  "version": 1,
+  "name": "My Full-Stack Application",
+  "order": 50,
+  "addon": false,
+  ...
 }
 ----
 
-然后可以创建两个实体的实例但仅保存 `Foo` 实例。由于使用了 `cascade = CascadeType.ALL` 注解参数，JPA 会自动保存 `Bar` 实例：
+. 构建并发布至本地 Maven 仓库：
++
+[source,shell]
+----
+./gradlew publishToMavenLocal
+----
+
+. 点击 *Settings* -> *Jmix Plugin Settings* 然后在 *Additional templates artifact* 字段输入 `com.company.templates:jmix-studio-templates`。
+
+. 从 IDE 系统文件夹删除模板缓存：
+* 按照 https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#system-directory[IntelliJ IDEA 文档^] 的说明找到 IDE 的缓存文件夹。
+* 删除 `jmix/templates` 子目录内的所有内容。
+
+. 新建一个项目，选中 *Use local Maven repository* 复选框。在 *Jmix version* 下拉框，选择自定义制件的版本。
+
+. 在向导的下一步，可以看到模板列表中包含了自定义的模板。
+
+[[security-configuration-extension-points]]
+=== 安全配置扩展点
+
+现在可以对框架和扩展组件提供的安全配置进行扩展，而不像之前，只能完全替换。
+
+如需调整安全配置，定义一个继承 `AbstractHttpConfigurer` 的 Spring bean，使用合适的 `@Qualifier` 注解。
+
+扩展 `StandardSecurityConfiguration` 的示例：
 
 [source,java]
 ----
-Foo foo = dataManager.create(Foo.class);
-Bar bar = dataManager.create(Bar.class);
-foo.setBar(bar);
+@Component
+@Qualifier(StandardSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
+public class MySecurityConfigurer extends AbstractHttpConfigurer<MySecurityConfigurer, HttpSecurity> {
 
-dataManager.save(foo);
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        MyFilter myFilter = new MyFilter();
+        http.addFilterBefore(myFilter, UsernamePasswordAuthenticationFilter.class);
+    }
+}
 ----
 
-在之前的版本中，虽然也隐式支持级联保存关联实例，但是并非支持框架的完整处理机制。现在下列功能在级联保存时提供完整支持：
+扩展 OIDC 组件中安全配置的示例：
 
-* 发布 xref:data-access:entity-events.adoc[实体事件]
-* 保存 xref:dyn-attr:index.adoc[动态属性]
-* 创建 xref:audit:entity-log.adoc[实体日志]
-* 检查 xref:security:authorization.adoc[数据访问权限]
-* 处理 xref:data-model:entities.adoc#cross-data-store-ref[跨数据存储引用]。
-
-[[dto-screen-templates]]
-=== DTO 界面模板改进
-
-DTO 实体的界面模板 XML 描述中现在包含了加载器，并在控制器模板中加入了加载和提交的代理方法。这样与外部数据源交互更加容易了。
-
-[[role-management]]
-=== 角色管理改进
-
-资源和行级角色的界面有了新的改进：
-
-* 管理和为用户分配角色时，支持通过名称、编码、源（注解类/数据库）对角色过滤。
-* 导入导出操作，支持在不同的应用程序之间共享角色配置。
-* 行级策略编辑器现在提供对 JPQL 的代码自动完成功能，以及语法检查和文档链接。
-
-[[uniqueness]]
-=== 处理唯一性
-
-在这个发行版中，我们调整了 Studio 中对实体唯一性属性的支持。之前，Studio 使用 `@Column` 注解的 `unique = true` 属性作为在数据库创建唯一约束的提示信号。而这个约束并不会出现在 `@Table(uniqueConstraints)` 注解中，因此可能会与实体设计器 *Indexes* 标签页定义的信息冲突。并且会给人印象是框架能以某种形式自己处理唯一性约束，但实际上 Jmix 一直以来数据库的唯一性约束。
-
-于是我们决定只能有一个清晰的方法用于定义数据的唯一性 - 使用实体设计器的 *Indexes* 标签设计数据约束。
-
-因此，我们删除了 Studio 的隐藏功能：实体设计器的 *Unique* 复选框以及在 MySQL 数据库为软删除实体创建的额外非 null 属性和数据库触发器。文档现在包含了关于实现软删除实体唯一约束的详细解释和 xref:data-model:soft-deletion.adoc#unique-constraints[建议]。
-
-[[miscellaneous]]
-=== 其他
-
-[[dyn-attr-export]]
-==== 导入导出动态属性配置
-
-现在可以导出 xref:dyn-attr:index.adoc[动态属性] 分类，与其他项目实例共享配置。
-
-[[pessimistic-lock-expiration]]
-==== 悲观锁时限
-
-如果项目包含了 xref:quartz:index.adoc[] 扩展组件，则使用 `@PessimisticLock` 注解定义实体的悲观锁现在会自动过期。可以使用下面的属性自定义锁过期的调度任务：
-
-[source,properties]
+[source,java]
 ----
-jmix.core.pessimistic-lock.expiration-cron=0 * * * * ?
+@Component
+@Qualifier(OidcAutoConfiguration.OAuth2LoginSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
+public class MyOidcSecurityConfigurer extends AbstractHttpConfigurer<MyOidcSecurityConfigurer, HttpSecurity> {
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+	// any method that adds another configurer must be invoked in the init method
+        http.headers(headers -> {
+            headers.frameOptions().deny();
+        });
+    }
+}
 ----
 
-如果需要关闭内置的过期调度，设置下列属性值为 `false`：
+[[custom-password-validation]]
+=== 自定义密码验证
 
-[source,properties]
+如需实现应用程序中的自定义密码验证逻辑，可以创建一个 bean（或多个 bean）实现 `PasswordValidator` 接口，示例：
+
+[source,java]
 ----
-jmix.core.pessimistic-lock.use-default-quartz-configuration=false
+@Component
+public class MyPasswordValidator implements PasswordValidator<User> {
+
+    @Override
+    public void validate(PasswordValidationContext<User> context) throws PasswordValidationException {
+         if (context.getPassword().length() < 3)
+            throw new PasswordValidationException("Password is too short, must be >= 3 characters");
+    }
+}
 ----
 
-[[lazy-loading-kotlin]]
-==== Kotlin 实体中的懒加载
+所有的密码验证器都会自动用在 `ChangePassword` 操作对话框中。
 
-当创建 Kotlin 实体中的集合属性时，Studio 现在会生成使用 `io.jmix.data.impl.lazyloading.NotInstantiatedList` 和 `io.jmix.data.impl.lazyloading.NotInstantiatedSet` 集合初始化的字段，而非 `mutableListOf()`、`mutableSetOf()` 或其他标准集合。示例：
+如需在用户编辑或详情界面添加验证器，使用 `PasswordValidation` 助手类：
 
-[source,kotlin]
+[source,java]
 ----
-@Composition
-@OneToMany(mappedBy = "foo")
-var bars: List<Bar> = NotInstantiatedList()
+@Autowired
+private PasswordValidation passwordValidation;
+
+@Subscribe
+protected void onBeforeCommit(BeforeCommitChangesEvent event) {
+  if (entityStates.isNew(getEditedEntity())) {
+      // ...
+      List<String> validationErrors = passwordValidation.validate(getEditedEntity(), passwordField.getValue());
+      if (!validationErrors.isEmpty()) {
+          notifications.create(Notifications.NotificationType.WARNING)
+                  .withCaption(String.join("\n", validationErrors))
+                  .show();
+          event.preventCommit();
+      }
+      getEditedEntity().setPassword(passwordEncoder.encode(passwordField.getValue()));
+  }
+}
 ----
 
-使用这些特殊的集合能保证正确地对属性进行懒加载。
+[[pessimistic-lock-by-datamanager]]
+=== DataManager 使用悲观锁
 
-[[picker-input-prompt]]
-==== 选择器组件中的输入提示
+`DataManager` 流式加载接口现在可以在 `lockMode()` 方法使用 `javax.persistence.LockModeType` 枚举值。当处理 JPA 实体时，会在数据库级别使用 `select ... for update` 语句形成相应的悲观锁。
 
-xref:ui:vcl/components/value-picker.adoc[]、xref:ui:vcl/components/values-picker.adoc[] 和 xref:ui:vcl/components/entity-picker.adoc[] 组件现在添加了 `inputPrompt` 属性。
+示例：
 
-[[filter-date-interval]]
-==== 过滤器时间条件
-
-xref:ui:vcl/components/property-filter.adoc#date-conditions[过滤器日期条件] 现在增加了 _Year_ 选项。
-
-[[bulk-edit-entity-inspector]]
-==== 实体探查中批量编辑
-
-xref:data-tools:entity-inspector.adoc[] 增加了 xref:ui:actions/standard-actions/bulk-edit-action.adoc[]。
-
-[[rest-error-response]]
-==== REST 错误响应
-
-如果 `DeletePolicy.DENY` 权限拒绝删除已经软删除的实体，则返回 HTTP 409 （冲突）状态码而非 500。
-
-[[updated-dependencies]]
-=== 依赖升级
-
-* Spring Boot 2.7.0
-* Liquibase 4.11
-* Flowable 6.7.2
+[source,java]
+----
+dataManager.load(Customer)
+        .id(customerId)
+        .lockMode(LockModeType.PESSIMISTIC_WRITE)
+        .one()
+----
 
 [[preview]]
-== 预览功能
+== 功能预览
 
-[[one-click-cloud-deployment]]
-=== 一键云部署预览
+[[authorization-server]]
+=== 认证服务
 
-Studio 现在可以将你的应用程序快速部署至 AWS EC2。
+Jmix 认证服务扩展组件提供分发 access 和 refresh token，并使用这些 token 保护 API 资源（REST API，自定义控制器）的功能。支持为客户端和移动端授予认证码，以及为服务端的端到端交互授予秘钥。
 
-该功能目前处于预览阶段，并且默认不开放。如需尝试，打开 _Navigate -> Search Everywhere_（或按下 Shift 两次），并输入 "jmix features"。在 _Jmix Features_ 对话框中启用 _One-click cloud deployment_ 选项。
+该扩展组件基于 https://spring.io/projects/spring-authorization-server[Spring Authorization Server^] 构建。Jmix 认证服务是 Jmix 安全机制 OAuth2 模块的升级版，OAuth2 模块依赖的 Spring Security OAuth 项目已经过时。
 
-// TODO more details
-
-[[flow-ui]]
-=== Flow UI 预览
-
-包含了基于 Vaadin 23 的 UI 模块预览版。如果使用 "Full-Stack Application with Experimental FlowUI" 模板创建新项目可以查看新的界面风格。
-
-// TODO more details
-
-CAUTION: FlowUI 模块正在积极开发中，会在 {page-component-display-version} 版本的后续补丁中做出重大改动。在我们声明终版出来之前请不要对兼容性有过多期待。
+查看项目的 https://github.com/jmix-framework/jmix/blob/master/jmix-authorization-server/README.md[README 文档^] 了解更多内容。
 
 [[breaking-changes]]
 == 破坏性改动
 
-[[java-11]]
-=== 必须使用 Java 11 以上
+[[migration-to-securityfilterchain]]
+=== 迁移至 SecurityFilterChain
 
-Jmix 1.3 项目必须使用 JDK 11 或 17。
+框架的安全配置部分已经从废弃的 `WebSecurityConfigurerAdapter` 迁移至 `SecurityFilterChain`。
 
-不再支持 Java 8。
+如果项目有扩展 `WebSecurityConfigurerAdapter` 的安全配置，请按照 Spring 博客的 https://spring.io/blog/2022/02/21/spring-security-without-the-websecurityconfigureradapter[这篇文章^] 的建议重写。
 
-[[cors]]
-=== CORS 配置
+[[user-reloading-in-currentauthentication]]
+=== CurrentAuthentication 中重加载用户
 
-请使用新的 xref:ROOT:app-properties.adoc#jmix.cors.allowed-origins[jmix.cors.allowed-origins] 属性替换 `jmix.rest.allowed-origins`。如果之前你配置过该属性，只需要重名民即可。Studio 的自动迁移程序也会帮你修改。
+为了修复 https://github.com/jmix-framework/jmix/issues/948[当前用户属性加载的问题^]，同时避免出现其他的不一致性，`CurrentAuthentication.getUser()` 和 `CurrentUserSubstitution.getEffectiveUser()` 方法会在每次调用时重新加载 user 实体。
 
-另外，也可以使用该版本中引入的其他 xref:ROOT:app-properties.adoc#cors[CORS 属性] 调整 CORS 设置。
+如果要避免由于此改动造成的性能影响，可以配置 user 实体的缓存，示例：
+[source,properties]
+----
+eclipselink.cache.shared.User = true
+eclipselink.cache.size.User = 500
+----
+
+新建项目会自动配置这个缓存。
+
+如果新的加载行为引起了其他的问题，可以设置 `jmix.core.current-authentication-user-reload-enabled` 为 `false` 关闭。
 
 [[changelog]]
 == 变更日志
 
 * Jmix 框架修复的问题：
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.3.3[1.3.3^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.3.2[1.3.2^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.3.1[1.3.1^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.3.0[1.3.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+project%3Ajmix-framework%2Fjmix%2F4[1.4.0^]
 
 * Jmix Studio 修复的问题：
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.7[1.3.7^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.6[1.3.6^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.5[1.3.5^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.4[1.3.4^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.3[1.3.3^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.2[1.3.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.1[1.3.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.3.0,-1.2.*[1.3.0^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.4.0,-1.3.*[1.4.0^]
