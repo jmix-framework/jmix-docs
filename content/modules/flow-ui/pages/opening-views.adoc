@@ -1,0 +1,148 @@
+= Opening Views
+
+A regular (non-main) view can be opened either by navigating to its URL (specified in the `@Route` annotation) or on the current page by opening a dialog window.
+
+When using navigation, the web browser URL reflects the state of the application UI, which allows for _deep linking_. A user of the application can copy and share the URL to provide the link to a specific view and its current state, for example, to the details of a particular entity instance.
+
+The downside of the navigation is the relative complexity of passing parameters to the opened view. They can be passed only in the URL as the {vaadin-docs}/routing/route-parameters[route^] or {vaadin-docs}/routing/additional-guides/query-parameters[query^] parameters. Also, it is impossible to return any values from the view, after it is closed, to the calling code.
+
+When opening a view in a dialog window, the browser URL is not changed, but the opened view instance is available to the calling code. It enables passing any values directly to the view instance and returning results after the view is closed. This approach is used when opening list views for selecting and returning entity instances in lookup fields.
+
+The main menu opens views by navigation. Standard `create` and `edit` actions also open detail views by navigation, but can be configured to use dialogs. The `entity_lookup` standard action always opens a list view in a dialog to be able to get back selected entities.
+
+Below we describe how to open views programmatically in your application code.
+
+[[view-navigators]]
+== ViewNavigators
+
+To open a view by navigating to its URL, inject the `ViewNavigators` bean and use its fluent interface to specify the view class:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToView]
+----
+
+`navigate()` is the terminal method that performs the navigation.
+
+If you want to return to the calling view after the opened view is closed, invoke the `withBackwardNavigation(true)` method:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToViewThenBack]
+----
+
+To navigate to a list view, use the `listView()` method accepting the entity class. The list view class will be chosen by <<view-inference-conventions,convention>>. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToListView]
+----
+
+You can specify the list view id or class explicitly, for example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToListViewWithClass]
+----
+
+To navigate to a detail view, use the `detailView()` method, accepting the entity class or a visual component bound to the entity. The list view class will be chosen by <<view-inference-conventions,convention>>.
+
+To create a new entity instance, invoke `newEntity()`. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToCreateEntity]
+----
+
+To edit an entity instance, invoke `editEntity()`. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToEditEntity]
+----
+
+You can specify the detail view id or class explicitly using `withViewId()` and `withViewClass()` methods.
+
+TIP: Use `withRouteParameters()` and `withQueryParameters()` methods of the fluent interface to pass parameters to the view opened by navigation.
+
+[[dialog-windows]]
+== DialogWindows
+
+The `DialogWindows` bean provides a fluent interface for opening views in dialog windows. Its terminal methods give access to the opened view instance. It allows you to pass input parameters directly to the view instance and add listeners for getting results back from the opened view after it is closed.
+
+To open a view as a dialog, inject the `DialogWindows` bean and invoke the `view()` method passing the current view and the opened view class to it. Then invoke the `open()` terminal method:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openView]
+----
+
+If you need to pass parameters to the opened view, invoke the `build()` terminal method, set parameters to the view, then open the window:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithParams]
+----
+
+To get a result from the opened view after it is closed, add `AfterCloseEvent` listener to the dialog window:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithParamsAndResults]
+----
+
+The `AfterCloseEvent` object contains `CloseAction` passed to the view's `close()` method. For example, when a standard entity detail view is closed with *OK* button, the close action is `save`. You can analyze the close action using the `getCloseAction()` or `closedWith()` methods of the event object.
+
+You can also add `AfterCloseEvent` listener using the fluent interface:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithResults]
+----
+
+To select entities from a list view, open the view using the `lookup()` method:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openLookupView]
+----
+
+Use the `withSelectHandler()` method to provide a lambda which accepts the collection of entity instances selected in the opened view.
+
+To create a new entity instance in a detail view, specify the view class and invoke `newEntity()`. Use `AfterCloseEvent` listener to get the created entity. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openDetailViewToCreateEntity]
+----
+
+To edit an existing entity in a detail view, provide the instance to edit using the `editEntity()` method:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openDetailViewToEditEntity]
+----
+
+You can provide input parameters to list and detail views in the same way as described for the simple view in the beginning of this section: invoke the `build()` terminal method, set parameters to the view, then open the window.
+
+[[view-inference-conventions]]
+== View Inference Conventions
+
+A list or detail view can be inferred from the entity class.
+
+When navigating to a list view using `viewNavigators.listView(SomeEntity.class).navigate()`, the framework selects a view in the following order:
+
+. A view with `SomeEntity.list` id.
+. A view annotated with `@PrimaryLookupView(SomeEntity.class)`.
+. A view with `SomeEntity.lookup` id.
+
+When opening a list view for lookup using `dialogWindows.lookup(this, SomeEntity.class).open()`, the framework selects a view in the following order:
+
+. A view annotated with `@PrimaryLookupView(SomeEntity.class)`.
+. A view with `SomeEntity.lookup` id.
+. A view with `SomeEntity.list` id.
+
+When navigating to a detail view or opening it in a dialog window, the framework selects a view in the following order:
+
+. A view annotated with `@PrimaryDetailView(SomeEntity.class)`.
+. A view with `SomeEntity.detail` id.
