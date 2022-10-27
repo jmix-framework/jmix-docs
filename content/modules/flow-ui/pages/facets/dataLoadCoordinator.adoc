@@ -1,0 +1,150 @@
+= dataLoadCoordinator
+
+`dataLoadCoordinator` facet is designed for triggering data loaders and for declarative linking of data loaders to data containers, visual components, and view lifecycle events.
+
+[[basics]]
+== Basic Usage
+
+To trigger all data loaders on the view's `BeforeShowEvent`, just add `dataLoadCoordinator` with `auto="true"` to the view XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=dataLoadCoordinator]
+----
+
+[[working-modes]]
+== Working Modes
+
+You can configure `dataLoadCoordinator` to work in the automatic, manual or semi-automatic mode.
+
+[[automatic-mode]]
+=== Automatic Mode
+
+In this mode, `dataLoadCoordinator` relies on parameter names with particular prefixes. The prefix denotes a component that produces the parameter value and changes events. If the loader has no parameters in its query text, although it can have parameters in query conditions, it is refreshed on `BeforeShowEvent`.
+
+By default, the parameter prefix is `container_` for data containers and `component_` for visual components. The <<componentPrefix,componentPrefix>> and <<containerPrefix,containerPrefix>> attributes allow you to use different prefixes.
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/automaticmode/automatic-mode-screen.xml[tags=automatic-mode]
+//----
+//
+//<1> Add XML schema for JPQL conditions.
+//<2> There are no parameters in the query, so the `citiesDl` loader will be triggered on `BeforeShowEvent`.
+//<3> The `citiesDl` loader will also be triggered on `nameField` component value change.
+//As the condition uses the "like" clause, the value will be automatically wrapped in `'(?i)% %'` to provide the case-insensitive search.
+//<4> The `customersDl` is triggered on the `citiesDc` data container item change.
+
+[[manual-mode]]
+=== Manual Mode
+
+In this mode, the nested <<refresh,refresh>> elements define when the data loaders must be triggered.
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=manual-mode]
+//----
+//
+//<1> Add XML schema for JPQL conditions.
+//<2> The `citiesDl` loader will be triggered on `InitEvent`.
+//<3> The `citiesDl` loader will also be triggered on the `nameField` component value change.
+//The `likeClause` attribute causes the value to be wrapped in `'(?i)% %'` to provide the case-insensitive search.
+//<4> The `customersDl` will be triggered on the `citiesDc` data container item change.
+
+[[semi-automatic-mode]]
+=== Semi-automatic Mode
+
+When the `auto` attribute is set to `true`, and there are some manually configured triggers, `DataLoadCoordinator` will automatically configure all loaders having no manual configuration.
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/semiautomaticmode/semi-automatic-mode-screen.xml[tags=semi-automatic-mode]
+//----
+//
+//<1> The `customersDl` is configured automatically and triggered on the `brandsDc` data container item change.
+//<2> The `brandsDl` loader is configured manually and will be triggered on `AfterShowEvent`.
+
+[[attributes]]
+== Attributes
+
+include::facet-tip.adoc[]
+
+[[auto]]
+* `auto` - defines `DataLoadCoordinator` working mode.
+The default value is `false`.
+
+[[componentPrefix]]
+* `componentPrefix` - defines a prefix for parameters which refer to xref:vc/components.adoc[visual components] from which `DataLoadCoordinator` will take parameter values in automatic mode. The default value is `component_`.
+
+[[containerPrefix]]
+* `containerPrefix` - defines a prefix for parameters which refer to xref:data-components.adoc[data containers] from which `DataLoadCoordinator` will take parameter values in automatic mode. The default value is `container_`.
+
+[[refresh]]
+== Refresh Element
+
+The `refresh` element allows you to define conditions for when a data loader must be refreshed.
+
+[[loader]]
+The only attribute of this element is `loader` that defines the loader's `id`.
+
+The `refresh` element can have the following nested elements defining the triggering conditions:
+
+[[onComponentValueChanged]]
+. `onComponentValueChanged` - to trigger the loader when the value of a visual component is changed. It has the following attributes:
++
+--
+[[component]]
+* `component` - specifies the `id` of the visual component.
+
+[[likeClause]]
+* `likeClause` - if you use the `like` expression in query condition, you can define one of three possible search modes:
+** `NONE` - the default value.
+** `CASE_SENSITIVE` - uppercase and lowercase letters are treated as *distinct*.
+** `CASE_INSENSITIVE` - uppercase and lowercase letters are treated as *equivalent*.
+
+[[component-param]]
+* `param` - specifies the query parameter name.
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-component-value-changed]
+//----
+--
+
+[[onContainerItemChanged]]
+. `onContainerItemChanged` - to trigger the loader when the current item in a data container is changed. It has the following attributes:
++
+--
+[[container]]
+* `container` - specifies the `id` of the data container.
+
+[[container-param]]
+* `param` - specifies the query parameter name.
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-container-value-changed]
+//----
+--
+
+[[onViewEvent]]
+. `onViewEvent` - to trigger the loader on a view lifecycle event. It has the following attribute:
++
+--
+[[onViewEvent-type]]
+* `type` - defines the type of the view event. Possible values:
+** `Init` - to trigger on `InitEvent`.
+** `BeforeShow` - to trigger on `BeforeShowEvent`.
+** `Ready` - to trigger on `ReadyEvent`.
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-screen-event]
+//----
+--
