@@ -1,0 +1,148 @@
+= 打开视图
+
+一个常规视图（非主视图）可以通过两种方式打开：通过 URL（在 `@Route` 注解指定）导航打开；在当前页面通过对话框形式打开。
+
+使用导航方式时，浏览器的 URL 会根据应用程序 UI 的状态展示不同的 URL，并支持 _深度链接_。应用程序的用户可以复制特定视图和内容的 URL 并分享，例如，展示某个实体详情的 URL。
+
+导航方式的缺点就是打开指定视图的传参相对复杂。只能以 {vaadin-docs}/routing/route-parameters[路由^] 或 {vaadin-docs}/routing/additional-guides/query-parameters[查询^] 参数的形式在 URL 中拼接。此外，关闭视图时，也没有办法给调用端返回任何信息。
+
+当通过对话框窗口的形式打开视图时，浏览器 URL 不会有变化，但是调用方代码可以访问打开的视图实例。因此，可以支持给视图实例传递参数或者在关闭视图时返回一些结果值。例如，在选择控件中打开列表视图选择并返回实体实例时就使用了这种方式。
+
+主菜单通过导航的方式打开视图。标准操作 `create` 和 `edit` 也是通过导航方式打开详情视图，但是可以配置使用对话框方式。`entity_lookup` 标准操作始终使用对话框的方式打开列表视图，以便能返回选中的实体。
+
+下面我们介绍如何在应用程序代码中以编程的方式打开视图。
+
+[[view-navigators]]
+== ViewNavigators
+
+如需通过 URL 打开视图，可以注入 `ViewNavigators` bean，然后使用流式接口指定视图类：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToView]
+----
+
+`navigate()` 是最终实现导航跳转的方法。
+
+如果希望在打开的视图关闭后返回调用的视图，则使用 `withBackwardNavigation(true)` 方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToViewThenBack]
+----
+
+如需导航至一个列表视图，使用 `listView()` 方法并传递实体类。会根据 <<view-inference-conventions,视图推断约定>> 选择列表视图的类。示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToListView]
+----
+
+也可以显式指定列表视图类或 id，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToListViewWithClass]
+----
+
+如需导航至详情视图，使用 `detailView()` 方法并传递实体类或一个绑定至该实体的可视化组件。会根据 <<view-inference-conventions,视图推断约定>> 选择详情视图的类。
+
+如需新建一个实体，调用 `newEntity()`，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToCreateEntity]
+----
+
+编辑实体实例，调用 `editEntity()`，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToEditEntity]
+----
+
+也可以显式指定详情视图类或 id，使用 `withViewId()` 和 `withViewClass()` 方法。
+
+TIP: 以导航方式打开视图时，使用流式接口的 `withRouteParameters()` 和 `withQueryParameters()` 方法为打开的视图传递参数。 
+
+[[dialog-windows]]
+== DialogWindows
+
+`DialogWindows` bean 提供流式接口用于以对话框窗口的形式打开视图。流式接口的结束方法提供对打开视图实例的访问。支持直接向视图实例传递参数，并可以添加监听器，在打开的视图关闭后获取结果。
+
+如需以对话框的形式打开一个视图，可以注入 `DialogWindows` bean，调用 `view()` 方法，传递当前视图和需要打开的视图类。然后调用 `open()` 方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openView]
+----
+
+如果希望为打开的视图传递参数，调用 `build()`，然后设置参数，再打开窗口：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithParams]
+----
+
+如需获取视图关闭后的结果，可以添加对话框的 `AfterCloseEvent` 监听器：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithParamsAndResults]
+----
+
+`AfterCloseEvent` 对象包含传递给视图 `close()` 方法的 `CloseAction`（关闭操作）参数值。例如，当使用 *OK* 按钮关闭标准实体详情视图时，关闭操作为 `save`。可以使用事件对象的 `getCloseAction()` 或 `closedWith()` 方法分析关闭操作。
+
+使用流式接口也可以添加 `AfterCloseEvent` 监听器：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithResults]
+----
+
+如需使用列表视图选择实体，请使用 `lookup()` 方法打开视图：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openLookupView]
+----
+
+使用 `withSelectHandler()` 方法提供一个 lambda，用于接收打开视图中选择的实体实例集合。
+
+如需在详情视图中新建一个实体，先指定视图类，然后调用 `newEntity()`。使用 `AfterCloseEvent` 监听器获取创建的实体。实例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openDetailViewToCreateEntity]
+----
+
+如需在详情视图编辑已有实体，使用 `editEntity()` 方法提供需要编辑的实体实例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openDetailViewToEditEntity]
+----
+
+可以用本章开始时介绍的方法为列表和详情视图提供输入参数：先调用 `build()`，然后给视图设置参数，最后再打开窗口。
+
+[[view-inference-conventions]]
+== 视图推断约定
+
+框架支持从实体类推断列表或详情视图。
+
+当使用 `viewNavigators.listView(SomeEntity.class).navigate()` 方法导航至列表视图时，框架会按照下列顺序选择视图类：
+
+. 视图的 id 为 `SomeEntity.list`。
+. 视图使用了注解 `@PrimaryLookupView(SomeEntity.class)`。
+. 视图的 id 为 `SomeEntity.lookup`。
+
+当使用 `dialogWindows.lookup(this, SomeEntity.class).open()` 方法打开一个列表视图用于查找时，框架会按照下列顺序选择视图类：
+
+. 视图使用了注解 `@PrimaryLookupView(SomeEntity.class)`。
+. 视图的 id 为 `SomeEntity.lookup`。
+. 视图的 id 为 `SomeEntity.list`。
+
+当导航至一个详情视图，或者在对话框打开详情视图时，框架会按照下列顺序选择视图类：
+
+. 视图使用了注解 `@PrimaryDetailView(SomeEntity.class)`。
+. 视图的 id 为 `SomeEntity.detail`。

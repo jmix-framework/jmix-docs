@@ -1,0 +1,147 @@
+= dataLoadCoordinator
+
+`dataLoadCoordinator` facet 支持触发数据加载，以及声明式的将数据加载器和数据容器、可视化组件、视图生命周期事件进行连接。
+
+[[basics]]
+== 基本用法
+
+如需在视图的 `BeforeShowEvent` 事件触发所有的数据加载器，只需在视图的 XML 描述中添加 `dataLoadCoordinator`，其属性 `auto="true"`：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=dataLoadCoordinator]
+----
+
+[[working-modes]]
+== 工作模式
+
+可以配置 `dataLoadCoordinator` 在自动、手动或半自动模式下工作。
+
+[[automatic-mode]]
+=== 自动模式
+
+此模式中，`dataLoadCoordinator` 依赖使用特定前缀的参数名称。前缀表示产生参数值和变更事件的组件。如果加载器的查询语句中没有参数（尽管在查询条件中可能有参数），则该加载器会在 `BeforeShowEvent` 中自动刷新。
+
+默认情况下，数据容器的参数前缀是 `container_`，可视化组件的参数前缀是 `component_`。通过 <<componentPrefix,componentPrefix>> 和 <<containerPrefix,containerPrefix>> 属性可以使用不同的前缀。
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/automaticmode/automatic-mode-screen.xml[tags=automatic-mode]
+//----
+//
+//<1> Add XML schema for JPQL conditions.
+//<2> There are no parameters in the query, so the `citiesDl` loader will be triggered on `BeforeShowEvent`.
+//<3> The `citiesDl` loader will also be triggered on `nameField` component value change.
+//As the condition uses the "like" clause, the value will be automatically wrapped in `'(?i)% %'` to provide the case-insensitive search.
+//<4> The `customersDl` is triggered on the `citiesDc` data container item change.
+
+[[manual-mode]]
+=== 手动模式
+
+此模式中，使用内部的 <<refresh,refresh>> 元素定义数据加载器何时触发刷新。
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=manual-mode]
+//----
+//
+//<1> Add XML schema for JPQL conditions.
+//<2> The `citiesDl` loader will be triggered on `InitEvent`.
+//<3> The `citiesDl` loader will also be triggered on the `nameField` component value change.
+//The `likeClause` attribute causes the value to be wrapped in `'(?i)% %'` to provide the case-insensitive search.
+//<4> The `customersDl` will be triggered on the `citiesDc` data container item change.
+
+[[semi-automatic-mode]]
+=== 半自动模式
+
+当 `auto` 属性设置为 `true` 并且也有一些手动配置的触发器，`dataLoadCoordinator` 会为所有没有手动配置的加载器做自动配置。
+
+//Usage example:
+//
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/semiautomaticmode/semi-automatic-mode-screen.xml[tags=semi-automatic-mode]
+//----
+//
+//<1> The `customersDl` is configured automatically and triggered on the `brandsDc` data container item change.
+//<2> The `brandsDl` loader is configured manually and will be triggered on `AfterShowEvent`.
+
+[[attributes]]
+== 属性
+
+[[auto]]
+* `auto` - 定义 `dataLoadCoordinator` 的工作模式。默认为 `false`。
+
+[[componentPrefix]]
+* `componentPrefix` - 定义 xref:vc/components.adoc[可视化组件] 引用参数的前缀，自动模式下，`dataLoadCoordinator` 从参数定义的组件中获取参数值。默认值为 `component_`。
+
+[[containerPrefix]]
+* `containerPrefix` - 定义 xref:data-components.adoc[数据容器] 引用参数的前缀，自动模式下，`dataLoadCoordinator` 从参数定义的容器中获取参数值。默认值为 `container_`。
+
+[[refresh]]
+== refresh 元素
+
+`refresh` 元素支持为数据加载器定义刷新的条件。
+
+[[loader]]
+该元素的唯一属性是 `loader`，定义加载器的 `id`。
+
+`refresh` 元素可以有下列内部的元素，用于定义触发条件：
+
+[[onComponentValueChanged]]
+. `onComponentValueChanged` - 当可视化组件的值改变时触发加载器。有下列属性：
++
+--
+[[component]]
+* `component` - 指定可视化组件的 `id`。
+
+[[likeClause]]
+* `likeClause` - 如果在查询条件中使用 `like` 表达式，可以定义下面三种搜索模式之一：
+** `NONE` - 默认值。
+** `CASE_SENSITIVE` - 大小写敏感。
+** `CASE_INSENSITIVE` - 大小写不敏感。
+
+[[component-param]]
+* `param` - 指定查询参数名称。
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-component-value-changed]
+//----
+--
+
+[[onContainerItemChanged]]
+. `onContainerItemChanged` - 当数据容器中的内容改变时触发加载器。有下列属性：
++
+--
+[[container]]
+* `container` - 指定数据容器的 `id`。
+
+[[container-param]]
+* `param` - 指定查询参数名称。
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-container-value-changed]
+//----
+--
+
+[[onViewEvent]]
+. `onViewEvent` - 在视图生命周期事件中触发加载器。有下列属性：
++
+--
+[[onViewEvent-type]]
+* `type` - 定义视图事件的类型，可能值：
+** `Init` - 在 `InitEvent` 事件中触发。
+** `BeforeShow` - 在 `BeforeShowEvent` 事件中触发。
+** `Ready` - 在 `ReadyEvent` 事件中触发。
+
+//[source,xml,indent=0]
+//----
+//include::example$/ex1/src/main/resources/ui/ex1/screen/facets/dataloadcoordinator/manualmode/manual-mode-screen.xml[tags=on-screen-event]
+//----
+--

@@ -53,6 +53,12 @@ public class MyOnboardingView extends StandardView {
     @ViewComponent
     private Div completedStepsLabel;
 
+    private String username;
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     @Subscribe
     public void onInit(InitEvent event) {
         Grid.Column<UserStep> checkboxColumn = stepsDataGrid.addColumn(new ComponentRenderer<>(userStep -> {
