@@ -1,0 +1,199 @@
+= 简单部署
+
+[[bootJar]]
+== 创建可执行 JAR
+
+在 Jmix Studio 中，打开 *Gradle* 工具窗口并双击 *Tasks -> build -> bootJar*。
+
+或者在命令行，执行以下命令：
+
+[source,shell script]
+----
+./gradlew bootJar
+----
+
+可执行 JAR 的名称由项目名和版本号组成。例如，如果在 `settings.gradle` 中设置以下内容：
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+然后在 `build.gradle` 中：
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+JAR 名称将会是 `myapp-0.0.1-SNAPSHOT.jar`。
+
+可执行 JAR 文件创建在 `/build/libs` 文件夹中。可以将其复制到任何地方并按如下方式运行：
+
+[source,shell script]
+----
+java -jar myapp-0.0.1-SNAPSHOT.jar
+----
+
+如需自定义打包过程或创建可部署的 WAR 文件，请参阅 https://docs.spring.io/spring-boot/docs/{spring-boot-version}/gradle-plugin/reference/htmlsingle/#packaging-executable[Spring Boot 文档^]。
+
+[[bootBuildImage]]
+== 创建 Docker 镜像
+
+在 Jmix Studio 中，打开 *Gradle* 工具窗口并双击 *Tasks -> build -> bootBuildImage* 任务。
+
+或者在命令行中，执行以下命令：
+
+[source,shell script]
+----
+./gradlew bootBuildImage
+----
+
+默认情况下，镜像的名称为项目名，镜像的标签为项目版本。
+
+例如，如果在 `settings.gradle` 中设置以下内容：
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+然后在 `build.gradle` 中：
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+创建的镜像为：`myapp:0.0.1-SNAPSHOT`。
+
+更多关于生成镜像和自定义的内容请参阅 link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/gradle-plugin/reference/htmlsingle/#build-image[Spring Boot 文档^]。
+
+[[bootWar]]
+== 部署 WAR
+
+如果要构建 WAR 文件部署至应用程序服务，请执行以下步骤：
+
+. 确保主应用程序类继承 `SpringBootServletInitializer`，示例：
++
+[source,java]
+----
+@SpringBootApplication
+public class MyApplication extends SpringBootServletInitializer {
+    // ...
+}
+----
+
+. `build.gradle` 文件中的 `plugins` 添加 `war` 插件：
++
+[source]
+----
+plugins {
+    // ...
+    id 'war'
+}
+----
+
+. 刷新 Gradle 项目：通过单击编辑器窗口右侧弹出窗口中的 *Load Gradle Changes* 按钮或单击 *Gradle* 工具窗口中的 *Reload All Gradle Projects*。
+
+. 打开 *Gradle* 工具窗口，双击 *Tasks -> build -> bootWar*，或使用以下命令：
++
+[source,shell script]
+----
+./gradlew bootWar
+----
+
+WAR 文件创建在 `/build/libs` 文件夹中。文件名按照 <<bootJar,前一节>> 中的描述生成。
+
+IMPORTANT: Jmix 应用程序无法在 Tomcat 10 中运行，因为它不支持 Java EE 8（`javax.\*` 命名空间），而是需要 Jakarta EE 9（`jakarta.*`），详情参阅 https://tomcat.apache.org/migration-10.html#Specification_APIs[Tomcat 文档^]。因此，请使用最新的 Tomcat 9 部署 Jmix WAR。
+
+[[jndi-data-source]]
+=== 使用 JNDI 数据源
+
+将应用程序部署为 WAR 时，可以使用应用程序服务提供的 JNDI 数据源将连接设置交于外部管理。
+
+下面示例展示如何使用 Spring 的 https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[profiles^] 功能配置应用程序的开发环境和生产环境的主 `DataSource`。
+
+. 在你的主应用程序类中，将 `@Profile("!prod")` 注解添加到 `dataSourceProperties` 和 `dataSource` 方法上，以确保这些 bean 仅在开发环境中创建：
++
+[source,java,indent=0]
+----
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource")
+DataSourceProperties dataSourceProperties() {
+    return new DataSourceProperties();
+}
+
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource.hikari")
+DataSource dataSource(DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().build();
+}
+----
+
+. 添加创建生产环境 `DataSource` bean 的方法：
++
+[source,java,indent=0]
+----
+@Profile("prod")
+@Bean(name = "dataSource")
+@Primary
+DataSource prodDataSource(ApplicationContext context) {
+    JndiDataSourceLookup lookup = new JndiDataSourceLookup();
+    DataSource dataSource = lookup.getDataSource("java:comp/env/jdbc/demo"); // <1>
+
+    // to avoid org.springframework.jmx.export.UnableToRegisterMBeanException:
+    for (MBeanExporter mbeanExporter : context.getBeansOfType(MBeanExporter.class).values()) {
+        if (JmxUtils.isMBean(((Object) dataSource).getClass())) {
+            mbeanExporter.addExcludedBean("dataSource");
+        }
+    }
+
+    return dataSource;
+}
+----
+<1> 数据源的 JNDI 名称，由应用程序服务提供。
+
+. 当运行应用程序服务器时，在 `spring.profiles.active` 应用程序属性中将启用的配置文件设置为 `prod`。
+
+下面是在 Tomcat 9 中部署 `demo.war` 应用程序并做配置的示例。
+
+. 复制 `demo.war` 至 `tomcat/webapps` 文件夹。
+
+. 创建 `tomcat/bin/setenv.sh` 文件，包含以下内容：
++
+[source,shell script]
+----
+CATALINA_OPTS="-Dspring.profiles.active=prod"
+----
+
+. 创建 `tomcat/conf/Catalina/localhost/demo.xml` 文件，定义数据源并设置数据库连接参数：
++
+[source,xml]
+----
+<Context>
+    <Resource type="javax.sql.DataSource"
+              name="jdbc/demo"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost/demo"
+              username="root"
+              password="root"
+              maxIdle="2"
+              maxTotal="20"
+              maxWaitMillis="5000"
+    />
+</Context>
+----
++
+注意，`Resource` 元素的 `name` 属性定义 JNDI 名称，在创建 `DataSource` bean 时，由 `JndiDataSourceLookup.getDataSource()` 方法使用。
+
+
+. 将合适的 JDBC 驱动程序文件（例如，`postgresql-42.2.9.jar`）复制到 `tomcat/lib`。
+
+启动 Tomcat 时，应用程序将使用 `tomcat/conf/Catalina/localhost/demo.xml` 文件中定义的数据源。
