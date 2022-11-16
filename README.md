@@ -1,15 +1,15 @@
-# Jmix Documentation
+# Jmix 文档
 
-This repository contains documentation for all [Jmix](https://jmix.io) framework modules. The documentation is published at https://docs.jmix.io.
+本仓库包含 [Jmix](https://jmix.cn) 框架所有模块的文档。文档的发布地址：https://docs.jmix.cn
 
-## Building
+## 构建方法
 
-* Install Node LTS release from https://nodejs.org
+* 从 https://nodejs.org 下载并安装最新的 Node LTS 版本
 
-* Open terminal in `jmix-docs` root folder and run:
+* 在 `jmix-docs` 根目录打开控制台并执行下列命令：
   ```
   npm i
   npx antora antora-playbook.yml
   ```
 
-* Open `jmix-docs/build/site/index.html` in a web browser.
+* 在浏览器打开 `jmix-docs/build/site/index.html` 。
