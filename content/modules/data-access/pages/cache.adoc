@@ -1,0 +1,60 @@
+= Entity and Query Cache
+
+[[entity-cache]]
+== Entity Cache
+
+Entity cache is provided by EclipseLink ORM framework. It stores recently read or written entity instances in memory, which minimizes database access and improves the application performance.
+
+Entity cache is used only when you retrieve entities by id, so queries by other attributes still run against the database. However, these queries can be simpler and faster if related entities are cached. For example, if you query for Orders together with related Customers and do not use cache, the SQL query will contain a JOIN for Customers table. If the Customer entities are cached, the SQL query will select only Orders, and related Customers will be retrieved from the cache.
+
+To turn on the entity cache for an entity, set the `eclipselink.cache.shared.<entity_name>` and `eclipselink.cache.size.<entity_name>` application properties. In the example below, the entity cache is set for the `User` entity to the maximum size of 500 instances:
+
+[source,properties]
+----
+eclipselink.cache.shared.User = true
+eclipselink.cache.size.User = 500
+----
+
+[TIP]
+====
+The entity name is the simple class name by default.
+
+But it can also be set explicitly in the `@Entity(name = "<entity_name>")` annotation.
+====
+
+The default cache size for an entity is 100 instances.
+
+When using xref:fetching.adoc#fetch-plan[fetch plans], the fact of whether an entity is cached affects the fetch mode chosen by the framework for loading references. If a reference attribute is a cacheable entity, the fetch mode is always `UNDEFINED`, which allows ORM to retrieve the reference from the cache instead of executing queries with JOINs or separate batch queries.
+
+When working in a xref:deployment:k8s.adoc[distributed configuration], Jmix provides synchronization of the entity cache between cluster nodes.
+
+[[query-cache]]
+== Query Cache
+
+Query cache stores identifiers of entity instances returned by JPQL queries, so it naturally complements the entity cache.
+
+For example, if entity cache is enabled for an entity (say, `Customer`), and you execute the query `select c from Customer c where c.grade = :grade` for the first time, the following happens:
+
+* ORM runs the query on the database.
+
+* Loaded `Customer` instances are placed to the entity cache.
+
+* A mapping of the query text and parameters to the list of identifiers of the returned instances is placed to the query cache.
+
+When you execute the same query with the same parameters the second time, the framework finds the query in the query cache and loads entity instances from the entity cache by identifiers. No database operations are performed.
+
+Queries are not cached by default. You can specify that a query should be cached on different layers of the application:
+
+* Using `cacheable = "true"` XML attribute or `setCacheable(true)` method of the `CollectionLoader` interface when working with xref:ui:data/data-loaders.adoc[data loaders].
+
+* Using `cacheable(true)` method of the fluent loader interface when working with xref:data-manager.adoc[DataManager].
+
+* Using `setCacheable(true)` method of the `Query` interface when working with xref:entity-manager.adoc[EntityManager].
+
+TIP: Use cacheable queries only if entity cache is enabled for the returned entity. Otherwise, on every query entity instances will be fetched from the database by their identifiers one by one.
+
+Query cache is invalidated automatically when the ORM creates, updates or deletes instances of the corresponding entities. The invalidation works across the cluster.
+
+The `jmix.eclipselink:type=QueryCache` JMX bean can be used to monitor the cache state and to evict cached queries manually. For example, if you have modified an instance of the `Customer` entity directly in the database, you should evict all cached queries for this entity using the `evict()` operation providing `Customer` as an argument.
+
+If you want to disable the query cache for all entities regardless of the API calls described above, set the `jmix.eclipselink.query-cache-enabled` application property to `false`. The value of this property is `true` by default.
