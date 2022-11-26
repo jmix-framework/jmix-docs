@@ -4,6 +4,7 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.core.metamodel.annotation.Store;
+import io.jmix.core.pessimisticlocking.PessimisticLock;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -12,10 +13,14 @@ import javax.persistence.Table;
 import java.util.UUID;
 
 @Store(name = "additional")
+// tag::pessimistic-lock[]
+@PessimisticLock(timeoutSec = 120)
 @JmixEntity
 @Table(name = "DOCUMENT")
 @Entity
 public class Document {
+// ...
+    // end::pessimistic-lock[]
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
