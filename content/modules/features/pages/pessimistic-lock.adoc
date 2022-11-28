@@ -1,0 +1,24 @@
+= 悲观锁
+
+对于一个实体实例，当有极大的可能会出现并行编辑时，我们可以使用悲观锁机制。因为在这种情况下，基于实体版本的 xref:data-model:entities.adoc#versioned-trait[乐观锁] 机制会经常发生编辑冲突。
+
+当实体实例在 UI 编辑界面或 Flow UI 的详情视图打开时，悲观锁会显式锁定该实例。于是，在特定的时间段内，只有一个用户可以编辑这个实例。
+
+Jmix 悲观锁机制还可以用来管理并行执行的任意流程。关键的优势是，锁是分布式的，会在集群中进行复制。更多详细内容，请参考 `LockManager` 接口的 Javadocs。
+
+如需启用某个实体的悲观锁，可以在实体类添加 `@PessimisticLock` 注解。
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/features/ex1/entity/Document.java[tags=pessimistic-lock]
+----
+
+注解的 `timeoutSec` 属性用于配置锁的超时时限，单位为秒。默认值为 300 秒。
+
+锁的自动过期机制依赖 Quartz 定时任务。需要在项目中包含 xref:quartz:index.adoc[Quartz] 扩展组件。
+
+下列应用程序属性可以控制锁过期机制：
+
+* 如需禁用默认的过期机制，可以设置 `jmix.core.pessimistic-lock.use-default-quartz-configuration` 为 `false`。该属性默认为 `true`。
+
+* 使用 `jmix.core.pessimistic-lock.expiration-cron` 属性设置过期计划的 Cron 表达式。默认为 `0 * * * * ?` - 每分钟。

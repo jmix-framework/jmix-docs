@@ -1,0 +1,60 @@
+= 实体和查询的缓存
+
+[[entity-cache]]
+== 实体缓存
+
+EclipseLink ORM 框架提供实体缓存，近期读写的实体会被缓存在内存中，这样能最大可能地减少对数据库的访问并提高应用程序的性能。
+
+仅在通过 ID 获取实体时才使用实体缓存，因此，通过实体的其他属性查询的语句还是在数据库层面执行。但是，如果缓存中保存了关联实体，这些查询也可以更加简单快速。例如，如果在查询 Orders 的同时，也查询关联的 Customers，在不使用缓存的情况下，SQL 语句会包含 Customer 表的 JOIN 语句；而在使用缓存的情况下，SQL 语句仅查询 Orders，相关的 Customers 会从缓存读取。
+
+如需启用某个实体的缓存，设置 `eclipselink.cache.shared.<entity_name>` 和 `eclipselink.cache.size.<entity_name>` 应用程序属性即可。下面的示例中，为 `User` 实体配置了实体缓存，且最大保存 500 个实例：
+
+[source,properties]
+----
+eclipselink.cache.shared.User = true
+eclipselink.cache.size.User = 500
+----
+
+[TIP]
+====
+实体名称默认使用简单类名。
+
+但是也可以在 `@Entity(name = "<entity_name>")` 注解中显式指定不同的名称。
+====
+
+实体的默认缓存大小是 100 个实例。
+
+当使用 xref:fetching.adoc#fetch-plan[fetch plans] 时，实体是否使用了缓存会影响框架在加载关联实体时选择的加载模式。如果一个引用属性是带缓存的实体，则加载模式使用 `UNDEFINED`，这样可以支持 ORM 从缓存获取实体而无需通过 JOIN 执行查询或者执行单独的批量查询。
+
+在 xref:deployment:k8s.adoc[分布式的环境] 中，Jmix 会提供在不同集群节点同步实体缓存的机制。
+
+[[query-cache]]
+== 查询缓存
+
+查询缓存是保存 JPQL 查询语句返回的实体实例标识符，所以本质上是对实体缓存的一种完善。
+
+例如，如果某个实体开启了实体缓存（比如，`Customer`），然后我们第一次执行 `select c from Customer c where c.grade = :grade` 时，会有以下步骤：
+
+* ORM 在数据库执行该查询语句。
+
+* 加载出来的 `Customer` 实体保存至实体缓存。
+
+* 最后，查询缓存中会保存一个映射，这个映射是查询语句和参数与返回的实体实例列表的映射。
+
+当再一次使用相同参数执行同一个查询时，框架会尝试在查询缓存中找到这个查询语句，然后通过实体标识符从缓存中加载实体实例。此时，不会进行数据库操作。
+
+查询语句默认是不会缓存的。应用程序中有不同的方式可以为查询语句指定缓存：
+
+* 使用 xref:ui:data/data-loaders.adoc[数据加载器] 时，可以用 XML 属性 `cacheable = "true"` 或 `CollectionLoader` 接口的 `setCacheable(true)` 方法启用。
+
+* 使用 xref:data-manager.adoc[DataManager] 时，可以用流式加载器接口的 `cacheable(true)` 方法。
+
+* 使用 xref:entity-manager.adoc[EntityManager] 时，可以用 `Query` 接口的 `setCacheable(true)` 方法。
+
+TIP: 建议仅在开启返回实体的缓存时使用查询缓存。否则，每次查询时，会通过实体 ID 从数据库一个一个加载实体实例。
+
+查询缓存会在 ORM 创建、更新或删除对应实体的实例时失效。失效机制支持跨集群节点。
+
+`jmix.eclipselink:type=QueryCache` JMX bean 可以用来监控缓存的状态，手动清除缓存的查询。例如，如果直接在数据库修改了 `Customer` 实体的一个实例，应当清除所有该实体的缓存，可以通过调用 `evict()` 操作，提供 `Customer` 作为参数。
+
+如果需要强制禁用所有实体的查询缓存，可以设置 `jmix.eclipselink.query-cache-enabled` 应用程序属性为 `false`。这个属性默认为 `true`。
