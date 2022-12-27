@@ -7,10 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
-import java.time.DayOfWeek;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 @UiController("sample_CalendarScreen")
 @UiDescriptor("calendar-screen.xml")
@@ -20,12 +17,6 @@ public class CalendarScreen extends Screen {
     private Calendar<Date> calendar;
 
     // end::calendar[]
-
-    // tag::customized-calendar[]
-    @Autowired
-    private Calendar<Date> customizedCalendar;
-
-    // end::customized-calendar[]
 
     // tag::init-start[]
     @Subscribe
@@ -49,19 +40,6 @@ public class CalendarScreen extends Screen {
         // tag::style-red[]
         simpleCalendarEvent.setStyleName("event-red");
         // end::style-red[]
-
-
-        // tag::customized-calendar-1[]
-        Map<DayOfWeek, String> days = new HashMap<>(7);
-        days.put(DayOfWeek.MONDAY,"Moon");
-        days.put(DayOfWeek.TUESDAY,"Mars");
-        days.put(DayOfWeek.WEDNESDAY,"Mercury");
-        days.put(DayOfWeek.THURSDAY,"Jupiter");
-        days.put(DayOfWeek.FRIDAY,"Venus");
-        days.put(DayOfWeek.SATURDAY,"Saturn");
-        days.put(DayOfWeek.SUNDAY,"Sun");
-        customizedCalendar.setDayNames(days);
-        // end::customized-calendar-1[]
 
         // tag::init-end[]
     }
