@@ -2,6 +2,9 @@ package com.company.onboarding.view.component.textfield;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.router.Route;
+import io.jmix.flowui.view.StandardView;
+import io.jmix.flowui.view.ViewController;
+import io.jmix.flowui.view.ViewDescriptor;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.component.SupportsTypedValue;
 import io.jmix.flowui.component.textfield.TypedTextField;
