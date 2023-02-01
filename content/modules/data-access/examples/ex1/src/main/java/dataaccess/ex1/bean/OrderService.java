@@ -128,6 +128,7 @@ public class OrderService {
 
     // tag::save-discard[]
     void saveAndReturnNothing(List<Customer> entities) {
+        // create SaveContext and set its 'discardSaved' property
         SaveContext saveContext = new SaveContext().setDiscardSaved(true);
         for (Customer entity : entities) {
             saveContext.saving(entity);
@@ -135,6 +136,31 @@ public class OrderService {
         dataManager.save(saveContext);
     }
     // end::save-discard[]
+
+    // tag::save-unconstrained[]
+    void saveByUnconstrainedDataManager(List<Customer> entities) {
+        SaveContext saveContext = new SaveContext().setDiscardSaved(true);
+        for (Customer entity : entities) {
+            saveContext.saving(entity);
+        }
+        // use 'UnconstrainedDataManager' which bypasses security
+        dataManager.unconstrained().save(saveContext);
+    }
+    // end::save-unconstrained[]
+
+    // tag::save-batches[]
+    void saveInBatches(List<Customer> entities) {
+        SaveContext saveContext = new SaveContext().setDiscardSaved(true);
+        for (int i = 0; i < entities.size(); i++) {
+            saveContext.saving(entities.get(i));
+            // save by 100 instances
+            if (i > 0 && (i % 100 == 0 || i == entities.size() - 1)) {
+                dataManager.save(saveContext);
+                saveContext = new SaveContext().setDiscardSaved(true);
+            }
+        }
+    }
+    // end::save-batches[]
 
     // tag::remove-multiple[]
     void removeOrderWithCustomer(Order order) {
