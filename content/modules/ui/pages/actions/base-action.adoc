@@ -1,60 +1,60 @@
 = BaseAction
 
-`BaseAction` is a base class for action implementation. It is recommended to derive custom actions from it when xref:actions/declarative-actions.adoc[declarative action creation] functionality is insufficient.
+`BaseAction` – это базовый класс реализации действий. От него рекомендуется наследовать собственные нестандартные действия, если возможностей xref:actions/declarative-actions.adoc[декларативного создания действий] не хватает.
 
-When creating a custom action class, you should implement the `actionPerform()` method and pass the action identifier to the `BaseAction` constructor. You can override any property getters: `getCaption()`, `getDescription()`, `getIcon()`, `getShortcut()`, `isEnabled()`, `isVisible()`, `isPrimary()`. Standard implementations of these methods return values set by setter methods, except the `getCaption()` method. If the action name is not explicitly set by `setCaption()` method, it retrieves a message using action identifier as key from the localized message pack corresponding to the action class package. If there is no message with such key, then the key itself, that is, the action identifier is returned.
+При создании конкретного класса действия необходимо определить метод `actionPerform()` и передать в конструктор `BaseAction` идентификатор действия. Можно также переопределить любые методы получения свойств действия: `getCaption()`, `getDescription()`, `getIcon()`, `getShortcut()`, `isEnabled()`, `isVisible()`, `isPrimary()`. Стандартные реализации этих методов возвращают значения, установленные соответствующими setter-методами. Исключение составляет метод `getCaption()`: если название действия явно не установлено методом `setCaption()`, то он обращается в пакет локализованных сообщений с именем, соответствующим пакету класса действия, и возвращает сообщение с ключом, равным идентификатору действия. Если сообщения с таким ключом нет, то возвращается сам ключ, то есть идентификатор действия.
 
-Alternatively, you can use the fluent API for setting properties and providing a lambda expression for handling the action: see `withXYZ()` methods.
+В качестве альтернативы переопределению методов можно использовать fluent API для установки свойств и lambda-выражений для предоставления кода обработки действия: см. методы `withXYZ()`.
 
-`BaseAction` can change its enabled and visible properties depending on user xref:security:index.adoc[permissions] and current context.
+BaseAction может изменять свои свойства enabled и visible в соответствии с разрешениями xref:security:index.adoc[пользователя] и текущим контекстом.
 
-`BaseAction` is visible if the following conditions are met:
+`BaseAction` видим (visible), если:
 
-* `setVisible(false)` method was not called;
-* there is no "hide" UI permission for this action.
+* метод `setVisible(false)` не вызывался;
+* для действия не установлено UI разрешение hide.
 
-The action is enabled if the following conditions are met:
+Действие разрешено (enabled), если:
 
-* `setEnabled(false)` method was not called;
-* there are no "hide" or "read-only" UI permissions for this action;
-* `isPermitted()` method returns `true`;
-* `isApplicable()` method returns `true`;
-* all `EnabledRules` (if any) return `true`.
+* метод `setEnabled(false)` не вызывался;
+* для действия не установлено UI разрешений hide или read-only;
+* метод `isPermitted()` возвращает `true`;
+* метод `isApplicable()` возвращает `true`;
+* все `EnabledRules` (если таковые есть) возвращают `true`.
 
-Usage examples:
+Примеры использования:
 
-== Button action
+== Действие Button
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/actions/ActionScreen.java[tags=inject-sayHelloBtn;notifications;on-init-start;base-action-button;on-init-end]
 ----
 
-In this example, the `sayHelloBtn` button caption will be set to the string located in the message pack with the `hello` key. You can override the `getCaption()` action method to initialize the button name differently.
+В данном случае кнопка `sayHelloBtn` получит в качестве заголовка строку, находящуюся в пакете сообщений с ключом `hello`. Для того, чтобы получить название кнопки каким-либо иным способом, можно переопределить метод `getCaption()` действия.
 
-== ValuePicker action
+== Действие ValuePicker
 
-Action of a programmatically created `ValuePicker`:
+Действие программно создаваемого `ValuePicker`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/component/valuepicker/ValuePickerScreen.java[tags=inject-notifications;inject-messageBundle;inject-uiComponents;inject-vBox;onInit-start;base-action-value-picker;onInit-end]
 ----
 
-In this example, an anonymous `BaseAction` derived class is used to set the actions of the value picker buttons. The button's caption is not displayed, as an icon with a description, which pops up when hovering mouse cursor, is used instead.
+Здесь анонимный класс-наследник `BaseAction` используется для задания действия кнопки поля выбора. Заголовок кнопки не отображается, вместо него используется значок и описание, всплывающее при наведении курсора мыши.
 
-== Table action
+== Действие Table
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/component/table/TableScreen.java[tags=inject-customersTable;inject-notifications;onInit-start;add-base-action;onInit-end;base-action-table]
 ----
 
-In this example, the `AboutSingleAction` class is declared, and its instance is added to the table’s actions list. The action is enabled when a single table row is selected. The latter is possible because BaseAction’s `target` property is automatically assigned to the action when it is added to a `ListComponent` descendant (`Table` or `Tree`).
+Здесь объявлен класс `AboutSingleAction`, экземпляр которого добавляется в список действий таблицы. Действие разрешено когда выбрана одна строка таблицы. Последнее условие реализуется с помощью свойства `target` действия, которое автоматически устанавливается, когда действие добавляется в `ListComponent` (`Table` или `Tree`).
 
-== Using ItemTrackingAction
+== Использование ItemTrackingAction
 
-If you need an action, which becomes enabled when one or more table rows are selected, use BaseAction’s descendant - `ItemTrackingAction`, which adds default implementation of `isApplicable()` method:
+Если необходимо действие, которое доступно, когда выделены одна или более строк таблицы, удобно воспользоваться наследником `BaseAction` – классом `ItemTrackingAction`, который добавляет стандартную реализацию метода `isApplicable()`:
 
 [source,java,indent=0]
 ----
