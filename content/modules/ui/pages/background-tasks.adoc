@@ -1,111 +1,111 @@
-= Background Tasks
+= Фоновые задачи
 
-Background tasks mechanism is designed for performing tasks asynchronously without blocking the user interface.
+Механизм фоновых задач предназначен для асинхронного выполнения длительных операций на клиентском уровне без заморозки пользовательского интерфейса.
 
 [[basics]]
-== Basics
-To use background tasks, do the following:
+== Основы
+Выполните следующие действия для использования фоновых задач:
 
-. Define a task as a subclass of the `BackgroundTask` abstract class. Pass the reference to a screen controller associated with the task and the task timeout to the task constructor.
+. Опишите задачу как наследника абстрактного класса `BackgroundTask`. В конструктор задачи необходимо передать ссылку на контроллер экрана, с которым будет связана задача, и значение таймаута ее выполнения.
 +
-Closing the screen will interrupt the tasks associated with it. Additionally, the task will be interrupted automatically after the specified timeout.
+Если экран указан, то при его закрытии пользователем активная задача будет прервана. Кроме того, задача будет автоматически прервана по истечении указанного таймаута.
 
-. Implement the task in the `BackgroundTask.run()` method.
+. Реализуйте задачу в методе `BackgroundTask.run()`.
 
-. Create an object of `BackgroundTaskHandler` class controlling the task by passing the task instance to the `handle()` method of the `BackgroundWorker` bean. You can obtain a reference to `BackgroundWorker` by injection in the screen controller or via `ApplicationContext`.
+. Создайте объект управления задачей − `BackgroundTaskHandler`. Для этого экземпляр задачи необходимо передать методу `handle()` бина `BackgroundWorker`. Ссылку на `BackgroundWorker` можно получить инжекцией в контроллер экрана, с помощью `ApplicationContext`.
 
-. Run the task by invoking the `execute()` method of `BackgroundTaskHandler`.
+. Запустите задачу, вызвав метод `execute()` объекта `BackgroundTaskHandler`.
 
 [WARNING]
-Do not read or update the state of UI components and data containers in `BackgroundTask.run()` method; use `done()`, `progress()`, and `canceled()` callback methods instead. If you try to set a value to a UI component from a background thread, `IllegalConcurrentAccessException` is thrown.
+Метод `BackgroundTask.run()` нельзя использовать для чтения/изменения состояния компонентов UI или контейнеров данных: вместо этого используйте методы `done()`, `progress()`, и `canceled()`. При попытке установить значение для компонента UI из фонового потока будет выброшено исключение `IllegalConcurrentAccessException`.
 
-Below is an example of running a background task and tracking its progress using the `ProgressBar` component:
+Ниже приведен пример запуска фоновой задачи и отслеживания ее выполнения с помощью компонента `ProgressBar`:
 
 [source,java,indent=0]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/component/progressbar/ProgressBarScreen.java[tags=background-tasks]
 ----
 
-<1> A task that takes time to complete. The `run()` method is executed in a separate thread.
-<2> The `progress()` method is executed in the UI thread, so we can update visual components here.
+<1> Задача, для выполнения которой требуется время. Метод `run()` выполняется в отдельном потоке.
+<2> Метод `progress()` выполняется в потоке пользовательского интерфейса, поэтому здесь мы можем обновить визуальные компоненты.
 
 [[background-task]]
-== BackgroundTask Class
+== Класс BackgroundTask
 
-`BackgroundTask<T, V>` is a parameterized class:
+`BackgroundTask<T, V>` – это параметризованный класс:
 
-1. `T` − the type of objects displaying task progress. Objects of this type are passed to the task’s `progress()` method during an invocation of `TaskLifeCycle.publish()` in the working thread.
+1. `T` − тип объектов, показывающих прогресс задачи. Объекты этого типа передаются в метод `progress()` задачи при вызове `TaskLifeCycle.publish()` в рабочем потоке.
 
-2. `V` − task result type passed to the `done()` method. You can also obtain the result by invoking `BackgroundTaskHandler.getResult()` method, which will wait for a task to complete.
+2. `V` − тип результата задачи, передаваеый в метод `done()`. Его также можно получить вызовом метода `BackgroundTaskHandler.getResult()`, что приведет к ожиданию завершения задачи.
 
-`BackgroundTask` objects are stateless. If you don't create fields for temporary data when implementing task class, you can start several parallel processes using a single task instance.
+Объекты `BackgroundTask` не имеют состояния. Если при реализации конкретного класса задачи не заводить полей для хранения промежуточных данных, то можно запускать несколько параллельно работающих процессов, используя единственный экземпляр задачи.
 
 [[background-task-methods]]
-== BackgroundTask Methods
+== Методы BackgroundTask
 
-Detailed information about methods is provided in Javadocs for `BackgroundTask`, `TaskLifeCycle`, `BackgroundTaskHandler` classes.
+Подробная информация о методах для классов `BackgroundTask`, `TaskLifeCycle`, `BackgroundTaskHandler` предоставлена в Javadocs.
 
 [[run]]
 === run()
 
-This method is invoked in a separate working thread to perform a task.
+Этот метод вызывается в отдельном рабочем потоке для выполнения задачи.
 
-The method should support external interruptions. To ensure this, check the `TaskLifeCycle.isInterrupted()` flag periodically during long processes and stop execution when needed. Additionally, you should not silently discard `InterruptedException` (or any other exception) - instead, you should either exit the method correctly or not handle the exception at all.
+Метод `run()` задачи должен поддерживать возможность прерывания извне. Для этого в долгих процессах желательно периодически проверять флаг `TaskLifeCycle.isInterrupted()`, и соответственно завершать выполнение. Кроме того, нельзя тихо проглатывать исключение `InterruptedException` (или вообще все исключения). Вместо этого нужно либо вообще не перехватывать его, либо выполнять корректный выход из метода.
 
-You can also check whether the task was interrupted by the `cancel()` method or not, using the `isCancelled()` method.
+Метод `isCancelled()` возвращает `true`, если задача была прервана вызовом метода `cancel()`.
 
 [[canceled]]
 === canceled()
 
-This method is invoked in UI thread only during a controlled cancellation of a task, for example, when the `cancel()` method is invoked in the `TaskHandler`.
+Этот метод вызывается только в случае управляемой отмены задачи, то есть при вызове `cancel()` у `TaskHandler`.
 
 [[progress]]
 === progress()
 
-This method is invoked in UI thread when the progress value change. For example, after calling the `taskLifeCycle.publish()` method.
+Этот метод вызывается в потоке UI при изменении значения прогресса, например, после вызова метода `taskLifeCycle.publish()`.
 
 [[done]]
 === done()
 
-This method is invoked in UI thread when the task is completed.
+Этот метод вызывается в потоке UI, когда задача завершена.
 
 [[handle-timeout-exception]]
 === handleTimeoutException()
 
-This method is invoked in UI thread when the task timeout expires. If the window where the task is running closes, the task is stopped without notification.
+Этот метод вызывается в потоке UI, когда истекает время ожидания задачи. Задача останавливается без уведомления при закрытии окна, в котором она выполняется.
 
 [[handle-exception]]
 === handleException()
 
-This method is invoked in UI thread when any exceptions occur.
+Этот метод вызывается в потоке UI при возникновении каких-либо исключений.
 
 [[notes-and-tips]]
-== Notes & Tips
+== Примечания и советы
 
-1. Use `dialogs.createBackgroundWorkDialog()` method to show a modal window with a progress indicator and *Cancel* button. You can define progress indication type and allow or prohibit the cancellation of the background task for the window.
+1. Для показа пользователю модального окна с прогрессом и кнопкой *Cancel* используйте метод `dialogs.createBackgroundWorkDialog()`. Для окна можно задать режим отображения прогресса и разрешить или запретить отмену фоновой задачи.
 +
 //todo BackgroundTaskWrapper
 // Ни Глеб, ни Роман не знают каким классом был заменен BackgroundTaskWrapper. Сказали уточнить у Влада, но он пока что в отпуске. Как выйдет надо будет поправить и сделать usage example.
-// 2. `BackgroundHandler` object `execute()` method can only be started once. If you need to restart a task frequently, use `BackgroundTaskWrapper` class.
+// 2. Объект `BackgroundHandler` можно запускать (т.е. вызывать его метод `execute()`) только один раз. Если требуется частый перезапуск задачи, то используйте класс `BackgroundTaskWrapper`.
 +
-2. If you need to use certain values of visual components in the task thread, you should implement their acquisition in the `getParams()` method, which runs in the UI thread once a task starts. In the `run()` method, these parameters will be accessible via the `getParams()` method of the `TaskLifeCycle` object.
-3. Background tasks are affected by xref:app-properties.adoc#jmix.ui.background-task-timeout-check-interval[jmix.ui.background-task-timeout-check-interval] and xref:app-properties.adoc#jmix.ui.background-task.threads-count[jmix.ui.background-task.threads-count] application properties.
+2. Если внутри потока задачи необходимо использовать некоторые значения визуальных компонентов, то нужно реализовать их получение в методе `getParams()`, который выполняется в потоке UI один раз при запуске задачи. В методе `run()` эти параметры будут доступны через метод `getParams()` объекта `TaskLifeCycle`.
+3. На выполнение фоновых задач влияют свойства приложения xref:app-properties.adoc#jmix.ui.background-task-timeout-check-interval[jmix.ui.background-task-timeout-check-interval] и xref:app-properties.adoc#jmix.ui.background-task.threads-count[jmix.ui.background-task.threads-count].
 
 [[usage-example]]
-== Usage Example
+== Пример использования
 
-Often, when launching a background task, you need to display a simple user interface:
+Часто при запуске фоновых задач появляется необходимость отображения простого UI:
 
-1. To show to the user that the requested action is in the process of execution.
-2. To allow the user to abort the requested long operation.
-3. To show operation progress if progress percent can be determined.
+1. Показать пользователю, что запрошенное действие находится в процессе выполнения.
+2. Дать пользователю возможность прервать запрошенное долгое действие.
+3. Показать процент выполнения, если его можно определить.
 
-You can do it using the `createBackgroundWorkDialog()` method of the xref:dialogs.adoc[Dialogs] interface.
+Вы можете сделать это с помощью метода `createBackgroundWorkDialog()` интерфейса xref:dialogs.adoc[Dialogs].
 
-Consider the following development task as an example:
+В качестве примера рассмотрим следующую задачу по разработке:
 
-1. A given screen contains a table displaying a list of customers, with multi-selection enabled.
-2. When the user presses a button, the system should send reminder emails to selected customers, without blocking UI and with the ability to cancel the operation.
+1. Некоторый экран содержит таблицу, отображающую список клиентов, с включенным множественным выделением.
+2. По нажатию кнопки система должна послать письма-напоминания выбранным клиентам, без блокировки UI и с возможностью прервать действие.
 
 image:background-tasks/emails.GIF[]
 
@@ -113,15 +113,15 @@ image:background-tasks/emails.GIF[]
 ----
 include::example$/ex1/src/main/java/ui/ex1/screen/backgroundtasks/BackgroundTasksScreen.java[tags=background-tasks-email]
 ----
-<1> Launch the task, show progress dialog, and set its options:
-- dialog caption;
-- dialog message;
-- total number of elements for progress bar;
-- show progress in percent or not;
-- show *Cancel* button or not.
-<2> Task progress unit is `Integer` - the number of processed table items, and result type is `Void` because this task doesn't return a result.
-<3> Selected table items are saved into a variable that is initialized in the task constructor. This is necessary because the `run()` method is executed in a background thread and cannot access UI components.
-<4> Set timeout to 10 minutes.
-<5> Periodically check `isCancelled()` to stop the task immediately after pressing the *Cancel* dialog button.
-<6> Send email. See more about email sending xref:email:index.adoc[here].
-<7> Update progress bar position after every email sent.
+<1> Запустить задачу, показать модальное окно с прогрессом и установить опции диалога:
+- заголовок диалога;
+- сообщение диалога;
+- общее количество элементов для индикатора выполнения;
+- показывать прогресс в процентах или нет;
+- показывать кнопку *Cancel* или нет.
+<2> Прогресс задачи измеряется в `Integer` (число обработанных элементов таблицы), а тип результата – `Void`, потому что эта задача не производит результата.
+<3> Выбранные элементы таблицы сохраняются в переменную, которая инициализируется в конструкторе задачи. Это необходимо, потому что метод `run()` исполняется в фоновом потоке и не может обращаться к UI компонентам.
+<4> Установить таймаут равный 10 минутам.
+<5> Периодически проверяется `isCancelled()`, чтобы задача завершилась сразу после того, как пользователь нажмет кнопку *Cancel*.
+<6> Отправить письмо. Подробнее об отправке email читайте xref:email:index.adoc[здесь].
+<7> Обновить индикатор прогресса после каждого посланного письма.
