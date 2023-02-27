@@ -81,13 +81,17 @@ public class FilterScreen extends Screen {
         return !metaPropertyPath.getMetaProperty().getName().equals("hobby");
     }
 
+
     // end::properties-filter-predicate[]
     // tag::on-after-init-start[]
+    @Autowired
+    private VBoxLayout programmaticFilterContainer;
+
     @Subscribe
     protected void onAfterInit(AfterInitEvent event) {
         // end::on-after-init-start[]
         // tag::filter-creating[]
-        Filter filter = uiComponents.create(Filter.NAME); // <1>
+        Filter filter = uiComponents.create(Filter.class); // <1>
         filter.setId("programmaticFilter");
         filter.setDataLoader(customersDl);
         filter.loadConfigurationsAndApplyDefault();
@@ -97,7 +101,7 @@ public class FilterScreen extends Screen {
                         "Default configuration"); // <2>
 
         PropertyFilter<Integer> agePropertyFilter =
-                uiComponents.create(PropertyFilter.NAME); // <3>
+                uiComponents.create(PropertyFilter.class); // <3>
 
         agePropertyFilter.setConditionModificationDelegated(true);
         agePropertyFilter.setDataLoader(customersDl);
@@ -114,9 +118,7 @@ public class FilterScreen extends Screen {
         javaDefaultConfiguration.getRootLogicalFilterComponent().add(agePropertyFilter); // <5>
         filter.setCurrentConfiguration(javaDefaultConfiguration); // <6>
 
-        VBoxLayout tab = (VBoxLayout) getWindow()
-                .getComponentNN("programmaticFilterTab"); // <7>
-        tab.add(filter); // <8>
+        programmaticFilterContainer.add(filter); // <7>
         // end::filter-creating[]
         // tag::on-after-init-end[]
     }
