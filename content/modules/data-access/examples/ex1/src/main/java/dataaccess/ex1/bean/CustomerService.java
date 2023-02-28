@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -119,6 +120,26 @@ public class CustomerService {
                 .list();
     }
     // end::load-by-condition[]
+
+    void emptyConditions() {
+        // tag::empty-conditions[]
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.contains("email", null))
+                .list();
+
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.contains("email", ""))
+                .list();
+
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.inList("email", Collections.emptyList()))
+                .list();
+
+        dataManager.load(Customer.class)
+                .all()
+                .list();
+        // end::empty-conditions[]
+    }
 
     // tag::load-and-sort[]
     List<Customer> loadSorted() {
