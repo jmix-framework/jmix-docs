@@ -21,14 +21,14 @@ public class DepartmentEditData extends StandardEditor<Department> {
     private CollectionPropertyContainer<Employee> employeesDc;
 
     private void filterByPosition(Position position) {
-        List<Employee> filtered = getEditedEntity().getEmployee().stream()
+        List<Employee> filtered = getEditedEntity().getEmployees().stream()
                 .filter(employee -> employee.getPosition().equals(position))
                 .collect(Collectors.toList());
         employeesDc.setDisconnectedItems(filtered);
     }
 
     private void resetFilter() {
-        employeesDc.setDisconnectedItems(getEditedEntity().getEmployee());
+        employeesDc.setDisconnectedItems(getEditedEntity().getEmployees());
     }
     // end::filter[]
 
