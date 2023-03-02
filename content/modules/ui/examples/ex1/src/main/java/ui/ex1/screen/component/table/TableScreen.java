@@ -14,7 +14,7 @@ import io.jmix.ui.icon.JmixIcon;
 import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.screen.*;
 import io.jmix.ui.theme.ThemeClassNames;
-import io.jmix.uiexport.action.ExcelExportAction;
+import io.jmix.gridexportui.action.ExcelExportAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.BudgetItem;
 import ui.ex1.entity.City;
