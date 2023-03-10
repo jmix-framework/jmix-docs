@@ -23,6 +23,7 @@ IntelliJ IDEA 的最低版本要求是 2022.3。
 * 将所有的 `++jmix.liquibase.*++` 应用程序属性都重命名为 `++main.liquibase.*++`。
 * 更新附件数据存储的 Liquibase 配置（如果有的话）。
 * 在 Flow UI 的项目中创建 `UiMinimalRole` 角色。
+* 如果项目中使用了表格导出操作 / GrapesJS 扩展组件，则会修改这两个制件的名称。
 
 请参考破坏性改动的 <<breaking-changes,完整列表>>，并在升级后做相应修复。
 
@@ -55,12 +56,75 @@ Flow UI 模块更新至 Vaadin 23.3。
 在 Flow UI 中集成了下列 Vaadin 组件：
 
 * https://vaadin.com/docs/latest/components/tabs/#tab-sheet[TabSheet^] -> `JmixTabSheet`（XML 元素：`tabSheet`）
++
+[source,xml]
+----
+<tabSheet width="100%">
+    <tab id="mainTab" label="Main">
+        <formLayout id="form" dataContainer="userDc">...</formLayout>
+    </tab>
+    <tab id="additionalTab" label="Onboarding steps">
+        <vbox>
+            <hbox>...</hbox>
+            <dataGrid width="100%" dataContainer="stepsDc">...</dataGrid>
+        </vbox>
+    </tab>
+</tabSheet>
+----
 
 * https://vaadin.com/docs/latest/components/multi-select-combo-box[MultiSelectComboBox^] -> `JmixMultiSelectComboBox`（XML 元素：`multiSelectComboBox`）
++
+[source,xml]
+----
+<instance id="productDc"
+          class="com.company.demo.entity.Product">
+    <fetchPlan extends="_base">
+        <property name="tags" fetchPlan="_base"/>
+    </fetchPlan>
+    <loader/>
+</instance>
+<collection class="com.company.demo.entity.Tag" id="allTagsDc">
+    <fetchPlan extends="_base"/>
+    <loader id="allTagsDl">
+        <query>
+            <![CDATA[select e from Tag e]]>
+        </query>
+    </loader>
+</collection>
+<!-- ... -->
+<formLayout id="form" dataContainer="productDc">
+    <textField id="nameField" property="name"/>
+    <multiSelectComboBox property="tags" itemsContainer="allTagsDc"/>
+</formLayout>
+----
 
 * https://vaadin.com/docs/latest/components/upload[Upload^] -> `FileStorageUploadField`（XML 元素：`fileStorageUploadField`）和 `FileUploadField`（XML 元素：`fileUploadField`）
++
+[source,xml]
+----
+<fileStorageUploadField id="uploadField"
+        dataContainer="userDc" property="picture"/>
+----
 
 * https://vaadin.com/docs/latest/create-ui/standard-html[Image^] -> `JmixImage`（XML 元素：`image`）
++
+[source,xml]
+----
+<image id="image"
+        dataContainer="userDc" property="picture"
+        height="280px" width="200px" classNames="user-picture"/>
+----
+
+* 很多组件现在支持 https://vaadin.com/docs/latest/components/tooltip[Tooltip^]，示例：
++
+[source,xml]
+----
+<textField id="nameField" property="name">
+    <tooltip text="Product name" position="BOTTOM_START"/>
+</textField>
+----
++
+在 Studio 中，通过 *Jmix UI* 组件面板中的 *Add* 按钮添加 tooltips。
 
 [[input-dialog]]
 ==== 输入对话框
@@ -211,9 +275,32 @@ UI 核心模块添加了悲观锁管理界面。界面位于经典 UI 的 *Admin
 [[flow-ui-generic-filter]]
 === Flow UI 通用过滤器
 
-`GenericFilter` 组件（XML 元素：`genericFilter`）支持用户通过运行时创建的任意条件对数据进行过滤。当前版本仅支持属性条件。
+`GenericFilter` 组件（XML 元素：`genericFilter`）支持用户通过运行时创建的任意条件对数据进行过滤。
 
-经典 UI 过滤器的其他功能（JPQL、自定义条件、分组、保存过滤器配置等）将在下一版本提供。
+示例：
+
+[source,xml]
+----
+<facets>
+    <dataLoadCoordinator auto="true"/>
+    <queryParameters>
+        <genericFilter component="filter"/>
+    </queryParameters>
+</facets>
+<layout>
+        <genericFilter id="filter" dataLoader="usersDl"
+                       summaryText="My filter">
+            <responsiveSteps>
+                <responsiveStep minWidth="0" columns="1"/>
+                <responsiveStep minWidth="800px" columns="2"/>
+                <responsiveStep minWidth="1200px" columns="3"/>
+            </responsiveSteps>
+        </genericFilter>
+----
+
+`queryParameters` facet 中需要有 `genericFilter` 元素，用来将过滤器的状态反映至 URL 参数中。这样一来，当用户从详情视图返回列表视图或者刷新浏览器网页时，能使用与之前一样的过滤器条件。
+
+现在通用过滤器仅支持属性条件。经典 UI 过滤器的其他功能（JPQL、自定义条件、分组、保存过滤器配置等）将在下一版本提供。
 
 [[breaking-changes]]
 == 破坏性改动
@@ -238,6 +325,12 @@ UI 核心模块添加了悲观锁管理界面。界面位于经典 UI 的 *Admin
 以及主题制件名：
 
 - `io.jmix.grapesjs:jmix-grapesjs` -> `io.jmix.grapesjs:jmix-grapesjs-ui`
+
+还有基础包名：
+
+- `io.jmix.uiexport` -> `io.jmix.gridexportui`
+
+Studio 的迁移过程会自动修改 `build.gradle` 中的制件名，但是对于代码中的包名，需要手动修改。
 
 [[quartz-artefact]]
 ==== Quartz
