@@ -1,5 +1,6 @@
 package security.ex1.screen.user;
 
+import io.jmix.securityui.password.PasswordValidation;
 import io.jmix.ui.component.TextField;
 import security.ex1.entity.User;
 import io.jmix.core.EntityStates;
@@ -10,6 +11,7 @@ import io.jmix.ui.screen.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Objects;
 
 @UiController("sample_User.edit")
@@ -46,16 +48,23 @@ public class UserEdit extends StandardEditor<User> {
         confirmPasswordField.setVisible(true);
     }
 
+    // tag::password-validation[]
+    @Autowired
+    private PasswordValidation passwordValidation;
+
     @Subscribe
     protected void onBeforeCommit(BeforeCommitChangesEvent event) {
         if (entityStates.isNew(getEditedEntity())) {
-            if (!Objects.equals(passwordField.getValue(), confirmPasswordField.getValue())) {
+            // ...
+            List<String> validationErrors = passwordValidation.validate(getEditedEntity(), passwordField.getValue());
+            if (!validationErrors.isEmpty()) {
                 notifications.create(Notifications.NotificationType.WARNING)
-                        .withCaption(messageBundle.getMessage("passwordsDoNotMatch"))
+                        .withCaption(String.join("\n", validationErrors))
                         .show();
                 event.preventCommit();
             }
             getEditedEntity().setPassword(passwordEncoder.encode(passwordField.getValue()));
         }
     }
+    // end::password-validation[]
 }
