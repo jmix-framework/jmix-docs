@@ -5,7 +5,6 @@ import io.jmix.core.JmixModules;
 import io.jmix.core.Resources;
 import io.jmix.data.impl.JmixEntityManagerFactoryBean;
 import io.jmix.data.impl.JmixTransactionManager;
-import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import io.jmix.data.persistence.DbmsSpecifics;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -52,9 +51,16 @@ public class LocationsStoreConfiguration {
         return new JmixTransactionManager("locations", entityManagerFactory);
     }
 
-    @Bean
-    public SpringLiquibase locationsLiquibase(LiquibaseChangeLogProcessor processor, @Qualifier("locationsDataSource") DataSource dataSource) {
-        return JmixLiquibaseCreator.create(dataSource, new LiquibaseProperties(), processor, "locations");
+    @Bean("locationsLiquibaseProperties")
+    @ConfigurationProperties(prefix = "locations.liquibase")
+    public LiquibaseProperties locationsLiquibaseProperties() {
+        return new LiquibaseProperties();
+    }
+
+    @Bean("locationsLiquibase")
+    public SpringLiquibase locationsLiquibase(@Qualifier("locationsDataSource") DataSource dataSource,
+                                              @Qualifier("locationsLiquibaseProperties") LiquibaseProperties liquibaseProperties) {
+        return JmixLiquibaseCreator.create(dataSource, liquibaseProperties);
     }
 }
 // end::add-data-source[]
