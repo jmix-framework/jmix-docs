@@ -103,7 +103,7 @@ include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[t
 [[access-constraints]]
 == Ограничения доступа
 
-В этом разделе кратко объясняется, как работает авторизация Jmix. Эта информация будет полезна, если вы хотите расширить или заменить стандартную систему разрешений на основе ролей и политик.
+В этом разделе кратко объясняется, как работает авторизация Jmix. Эта информация будет полезна, если вам нужно <<checking-permissions,проверить разрешения пользователя>> в вашем коде, или вы хотите расширить или заменить стандартную систему разрешений на основе ролей и политик.
 
 Механизмы фреймворка содержат точки авторизации, где проверяются разрешения на операцию или данные. Для каждой точки авторизации существует контекст доступа, который представляет собой класс, реализующий интерфейс `AccessContext` и имеющий атрибуты, описывающие объект авторизации.
 
@@ -124,3 +124,37 @@ include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[t
 * Когда `DataManager` загружает сущность, он создает экземпляр `CrudEntityContext`, устанавливает атрибут `entityClass` и вызывает `AccessManager.applyConstraints()`. После этого он анализирует значение атрибута `CrudEntityContext.readPermitted` и либо продолжает загрузку сущности, либо прерывает операцию.
 
 При таком подходе точки авторизации полностью отделены от информации, необходимой для принятия решений об авторизации. В приведенном выше примере точка авторизации находится в ядре фреймворка, в то время как код, определяющий результат авторизации, находится в дополнительном модуле безопасности. Подобным образом вы можете определить дополнительное ограничение для того же `CrudEntityContext` в вашем приложении, чтобы повлиять на стандартный процесс авторизации `DataManager`.
+
+[[checking-permissions]]
+== Проверка разрешений в коде приложения
+
+В предыдущем разделе объясняется, как авторизация работает в коде фреймворка. Вам может потребоваться воспроизвести в своем коде решения фреймворка об авторизации для того, чтобы проверить, какие объекты доступны текущему пользователю. Для этого необходимо создать экземпляр соответствующего `AccessContext`, передать его в метод `AccessManager.applyRegisteredConstraints()`, а затем проанализировать состояние контекста. Данная техника продемонстрирована на примерах ниже.
+
+Пример проверки, имеет ли текущий пользователь право читать сущность `Customer`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;metadata;crud-permission]
+----
+
+Пример получения всех доступных пользователю экранов:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;window-config;all-permitted-screens]
+----
+
+См. также пример проверки xref:security:resource-roles.adoc#specific-policy[специальной политики].
+
+Некоторые общие классы контекстов, которые могут потребоваться для проверки разрешений пользователя:
+
+- `CrudEntityContext` - контекст проверки xref:security:resource-roles.adoc#entity-policy[политики операций сущностей].
+- `EntityAttributeContext` - контекст проверки xref:security:resource-roles.adoc#entity-attribute-policy[политики атрибутов сущностей].
+- `UiShowScreenContext` - контекст проверки xref:security:resource-roles.adoc#screen-policy[политики экранов].
+- `FlowuiShowViewContext` - контекст проверки политики экранов Flow UI.
+- `UiMenuContext` - контекст проверки xref:security:resource-roles.adoc#menu-policy[политики меню].
+- `FlowuiMenuContext` - контекст проверки политики меню Flow UI.
+- `InMemoryCrudEntityContext` - контекст проверки xref:security:row-level-roles.adoc#predicate-policy[предикатной политики].
+
+
+
