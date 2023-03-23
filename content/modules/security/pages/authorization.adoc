@@ -103,7 +103,7 @@ include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[t
 [[access-constraints]]
 == Access Constraints
 
-In this part, we briefly explain how Jmix authorization works. This information will be helpful if you want to extend or replace the standard system of permissions based on roles and policies.
+In this part, we briefly explain how Jmix authorization works. This information will be helpful if you need to <<checking-permissions,check user permissions>> in your code or if you want to extend or replace the standard system of permissions based on roles and policies.
 
 Framework mechanisms contain authorization points, where they check whether an operation or data is permitted. For each authorization point, there is an _access context_, which is a class implementing the `AccessContext` interface and having attributes that describe the authorization subject.
 
@@ -124,3 +124,34 @@ Let's illustrate this process with an example of checking rights to load an enti
 * When `DataManager` loads an entity, it creates an instance of `CrudEntityContext`, sets the `entityClass` attribute, and invokes `AccessManager.applyConstraints()`. After that, it analyzes the value of `CrudEntityContext.readPermitted` attribute and either continues loading the entity or aborts the operation.
 
 With this approach, authorization points are completely decoupled from the information required to make authorization decisions. In the example above, the authorization point is in the framework core, while the code that determines the authorization outcome is in the optional security module. Likewise, you can define an additional constraint for the same `CrudEntityContext` in your application to affect the standard `DataManager` authorization process.
+
+[[checking-permissions]]
+== Checking Permissions in Application Code
+
+The above section describes how authorization works in the framework code. You may need to reproduce the framework's authorization decisions in the application code to check what objects are available to the current user. To do this, you need to create an instance of the appropriate `AccessContext`, pass it to the `AccessManager.applyRegisteredConstraints()` method, and then analyze the context state. This technique is demonstrated in the examples below.
+
+Example of checking if the current user is able to read `Customer` entity:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;metadata;crud-permission]
+----
+
+Example of getting all permitted screens:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;window-config;all-permitted-screens]
+----
+
+See also an example of checking a xref:security:resource-roles.adoc#specific-policy[specific policy].
+
+Below are some common context classes for checking user permissions:
+
+- `CrudEntityContext` - the context to check xref:security:resource-roles.adoc#entity-policy[entity operations policy].
+- `EntityAttributeContext` - the context to check xref:security:resource-roles.adoc#entity-attribute-policy[entity attributes policy].
+- `UiShowScreenContext` - the context to check xref:security:resource-roles.adoc#screen-policy[screens policy].
+- `FlowuiShowViewContext` - the context to check Flow UI views policy.
+- `UiMenuContext` - the context to check xref:security:resource-roles.adoc#menu-policy[menu policy].
+- `FlowuiMenuContext` - the context to check Flow UI menu policy.
+- `InMemoryCrudEntityContext` - the context to check xref:security:row-level-roles.adoc#predicate-policy[predicate policy].
