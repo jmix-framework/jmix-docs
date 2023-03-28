@@ -1,8 +1,10 @@
 package com.company.onboarding.view.component.textfield;
 
 import com.company.onboarding.view.main.MainView;
+import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Notifications;
+import io.jmix.flowui.component.SupportsStatusChangeHandler;
 import io.jmix.flowui.component.SupportsTypedValue;
 import io.jmix.flowui.component.textfield.TypedTextField;
 import io.jmix.flowui.exception.ValidationException;
@@ -18,9 +20,15 @@ public class TextFieldView extends StandardView {
     protected Notifications notifications;
 
     // end::autowired-notifications[]
+    // tag::infoLabel[]
+    @ViewComponent
+    private Label infoLabel;
+
+    // end::infoLabel[]
     // tag::typedValueChangeEvent[]
     @Subscribe("nameField")
-    protected void onNameFieldTypedValueChange(SupportsTypedValue.TypedValueChangeEvent<TypedTextField<String>, String> event) {
+    protected void onNameFieldTypedValueChange(
+            SupportsTypedValue.TypedValueChangeEvent<TypedTextField<String>, String> event) {
         notifications
                 .show("Before: " + event.getOldValue() +
                         ". After: " + event.getValue());
@@ -33,4 +41,13 @@ public class TextFieldView extends StandardView {
             throw new ValidationException("Zip must be of 6 digits length");
     }
     // end::validator[]
+    // tag::statusChangeHandler[]
+    @Install(to = "negativeField", subject = "statusChangeHandler")
+    private void negativeFieldStatusChangeHandler(
+            SupportsStatusChangeHandler.StatusContext<TypedTextField<String>>
+                                                              statusContext) {
+        infoLabel.setVisible(true); // <1>
+        infoLabel.setText(statusContext.getDescription()); // <2>
+    }
+    // end::statusChangeHandler[]
 }
