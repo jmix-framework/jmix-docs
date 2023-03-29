@@ -103,7 +103,7 @@ include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[t
 [[access-constraints]]
 == 访问约束
 
-在本节中，我们将简要解释 Jmix 授权的原理。此信息有助于扩展或替换 Jmix 中基于角色和策略的标准权限系统。
+在本节中，我们将简要解释 Jmix 授权的原理。此信息有助于在自定义代码中 <<checking-permissions,检查用户权限>> 或者对 Jmix 中基于角色和策略的标准权限系统进行扩展或替换。
 
 框架机制中包含授权点，在授权点检查是否有权进行操作或访问数据。在每个授权点，都有一个 _访问上下文_，这是一个实现了 `AccessContext` 接口的类，包含关于授权主体信息的属性。
 
@@ -124,3 +124,34 @@ include::example$/ex1/src/test/java/security/ex1/RelatedEntityLoadingTest.java[t
 * 当 `DataManager` 加载实体时，会创建 `CrudEntityContext` 的实例，设置 `entityClass` 属性，并调用 `AccessManager.applyConstraints()`。之后，会分析 `CrudEntityContext.readPermitted` 属性的值，决定继续加载实体或中止操作。
 
 使用这种方法，将授权点与做出授权决策所需的信息完全解耦。在上面的示例中，授权点位于核心框架，而确定授权结果的代码位于安全模块（可选模块）。同样，你可以在应用程序中为 `CrudEntityContext` 定义一个额外的约束，以干预 `DataManager` 的标准授权过程。
+
+[[checking-permissions]]
+== 检查用户权限
+
+上面的章节介绍了框架代码中授权的机制。在实际应用中，很多时候我们也需要检查当前用户是否具有某种权限，此时，我们可以重用框架的相应代码。如需实现该功能，首先需要创建相应 `AccessContext` 的实例，然后将该实例传给 `AccessManager.applyRegisteredConstraints()` 方法，最后，分析 context 的状态得出结论。下面的示例展示了这一过程：
+
+检查用户是否能读取 `Customer` 实体：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;metadata;crud-permission]
+----
+
+获取用户能访问的所有界面：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/security/ex1/service/NotificationService.java[tags=access-manager;window-config;all-permitted-screens]
+----
+
+参考 xref:security:resource-roles.adoc#specific-policy[特定权限策略]，这里有检查特定权限的示例。
+
+下面是检查用户权限的一些通用 context 类：
+
+- `CrudEntityContext` - 用于检查 xref:security:resource-roles.adoc#entity-policy[实体操作权限] 的 context。
+- `EntityAttributeContext` - 用于检查 xref:security:resource-roles.adoc#entity-attribute-policy[实体属性权限] 的 context。
+- `UiShowScreenContext` - 用于检查 xref:security:resource-roles.adoc#screen-policy[界面策略] 的 context。
+- `FlowuiShowViewContext` - 用于检查 Flow UI 视图策略的 context。
+- `UiMenuContext` - 用于检查 xref:security:resource-roles.adoc#menu-policy[菜单策略] 的 context。
+- `FlowuiMenuContext` - 用于检查 Flow UI 菜单策略的 context。
+- `InMemoryCrudEntityContext` - 用于检查 xref:security:row-level-roles.adoc#predicate-policy[断言策略] 的 context。

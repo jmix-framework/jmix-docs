@@ -7,22 +7,20 @@ Jmix 使用 https://www.liquibase.org[Liquibase^] 作为数据库变更工具。
 [[workflow]]
 == 工作流程
 
-Jmix Studio 将 JPA xref:entities.adoc[实体] 的当前状态和相应 xref:data-stores.adoc[数据存储] 的数据库 schema 进行比较，然后以 Liquibase 更改日志的格式创建变更脚本。当你使用 *Run/Debug Configuration* 启动应用程序时，会自动执行这个过程。更改日志保存在应用程序的源代码中，并构建到二进制制品中。
+Jmix Studio 将 JPA xref:entities.adoc[实体] 的当前状态和相应 xref:data-stores.adoc[数据存储] 的数据库 schema 进行比较，然后以 Liquibase changelog 的格式创建变更脚本。当你使用 *Run/Debug Configuration* 启动应用程序时，会自动执行这个过程。changelog 保存在应用程序的源代码中，并构建到二进制制品中。
 
 TIP: 还可以通过修改 xref:studio:project.adoc#run-debug-configuration-settings[Run/Debug configuration] 设置禁用自动创建变更脚本的功能。
 
-当应用程序启动时，会使用 Liquibase 运行生成的更改日志以更新连接的数据库。
+当应用程序启动时，会使用 Liquibase 运行生成的 changelog 以更新连接的数据库。
 
-TIP: 你还可以随时使用 *Generate Diff Changelog* 操作创建更改日志，并在 Studio 的 Jmix tool 窗口中对数据存储执行 *Update* 操作。
+TIP: 你还可以随时使用 *Generate Diff Changelog* 操作创建 changelog ，并在 Studio 的 Jmix tool 窗口中对数据存储执行 *Update* 操作。
 
-应用程序所依赖的模块也可以包含 Liquibase 更改日志文件。依赖项的更改日志在应用程序的更改日志之前运行到你的数据库上。
+主程序所依赖的扩展组件也可以包含 Liquibase changelog 文件。组件的 changelog 会在主程序的 changelog 之前运行。
 
 [[changelogs]]
-== 变更日志文件结构
+== changelog 文件结构
 
-Studio 在应用程序项目的 `src/main/resources/<base_package>/liquibase` 目录下生成变更日志文件。在此目录中，Studio 为主数据存储创建 `changelog` 目录，并为附加数据存储创建 `<store>-changelog` 目录。更改日志文件创建在以与当前日期的年月命名的子目录下。文件名包括日期、当天的序列号和一个随机字符序列，以避免多个开发人员在同一个项目上工作时发生冲突。
-
-对于每个数据存储，在 `src/main/resources/<base_package>/liquibase` 目录中都有一个主变更日志文件。其中包含一个指令，用于包含在 `changelog` 子目录下所有生成的变更日志文件。当应用程序或 Studio 执行数据库变更时，主变更日志文件将传递给 Liquibase。
+Studio 在应用程序项目的 `src/main/resources/<base_package>/liquibase` 目录下生成 changelog 文件。在此目录中，Studio 为主数据存储创建 `changelog` 目录，并为附加数据存储创建 `<store>-changelog` 目录。Changelog 文件创建在以与当前日期的年月命名的子目录下。文件名包括日期、当天的序列号和一个随机字符序列，以避免多个开发人员在同一个项目上工作时发生冲突。
 
 .src/main/resources/datamodel/ex1/
 [source,text]
@@ -45,17 +43,35 @@ Studio 在应用程序项目的 `src/main/resources/<base_package>/liquibase` �
 │   └── locations-changelog.xml <7>
 ----
 
-<1> Liquibase 变更日志文件结构的根目录。
-<2> 主数据存储的变更日志目录。
-<3> 为新项目提供的变更日志文件。为 `User` 实体创建一个表。
-<4> Studio 生成的变更日志文件。
-<5> 主数据存储的主变更日志文件。
-<6> `locations` 数据存储的变更日志目录。
-<7> `locations` 数据存储的主变更日志文件。
+<1> Liquibase changelog 文件结构的根目录。
+<2> 主数据存储的 changelog 目录。
+<3> 为新项目提供的 changelog 文件。为 `User` 实体创建一个表。
+<4> Studio 生成的 changelog 文件。
+<5> 主数据存储的 root changelog 文件。
+<6> `locations` 数据存储的 changelog 目录。
+<7> `locations` 数据存储的 root changelog 文件。
 
-可以手动编写 Liquibase 更改日志文件并将它们放入上述结构中。Liquibase 按带有整个路径的字母顺序执行包含的变更日志，因此，需要为自定义文件设置合适的文件名。
+对于每个数据存储，在 `src/main/resources/<base_package>/liquibase` 目录中都有一个 root changelog 文件。其中有一个指令用来包含在 `changelog` 子目录下所有的 changelog 文件。
 
-WARNING: 切勿删除主 `changelog.xml` 文件，这是启动变更过程必需的文件。此外，除非你想以非标准方式实现安全性，否则不要删除 `changelog/010-init-user.xml`。
+主数据存储的 root Liquibase changelog 中有 `include` 指令，用于包含项目中所有扩展组件的 changelog。因此，这样的 changelog 能兼容 https://github.com/liquibase/liquibase-gradle-plugin[Liquibase Gradle 插件^] 和 Liquibase CLI，并支持在没有 Studio 或者应用程序的环境中运行 Liquibase，例如，在 CI 服务器上。
+
+[WARNING]
+====
+项目中必须带有 `main.liquibase.change-log` 配置，其值为 root changlog 的路径，示例：
+
+[source,text]
+----
+main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
+----
+====
+
+在添加或删除扩展组件时，Studio 能自动维护 changelog 中的引用关系。还有，当启动应用程序时，Studio 还会检查 root changelog 中的引用是否与项目使用的组件匹配。如果发现不匹配，Studio 会显示通知弹窗，建议添加或删除一些引用。这里可以忽略某些路径，之后的通知中就不会再次显示已经忽略的条目。
+
+当应用程序或 Studio 运行数据库脚本时，是以 root changelog 为入口的。
+
+可以手动编写 Liquibase changelog 文件并将它们放入上述结构中。Liquibase 按带有整个路径的字母顺序执行包含的 changelog ，因此，需要为自定义文件设置合适的文件名。
+
+WARNING: 切勿删除 root `changelog.xml` 文件，这是启动变更过程必需的文件。此外，除非你想以非标准方式实现安全性，否则不要删除 `changelog/010-init-user.xml`。
 
 [[configuration]]
 == 配置 Liquibase
