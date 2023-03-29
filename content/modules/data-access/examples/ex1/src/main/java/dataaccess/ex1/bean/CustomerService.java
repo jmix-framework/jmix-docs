@@ -160,7 +160,7 @@ public class CustomerService {
     // end::load-by-query-sorted[]
 
     // tag::using-locks[]
-    List<Customer> usingLocks() {
+    List<Customer> loadAndLock() {
         return dataManager.load(Customer.class)
                 .query("e.email like ?1", "%@company.com")
                 .lockMode(LockModeType.PESSIMISTIC_WRITE)
