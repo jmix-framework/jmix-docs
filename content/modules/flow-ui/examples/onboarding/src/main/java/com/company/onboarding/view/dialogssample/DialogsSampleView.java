@@ -6,11 +6,14 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Dialogs;
 import io.jmix.flowui.action.DialogAction;
+import io.jmix.flowui.app.inputdialog.DialogOutcome;
 import io.jmix.flowui.view.StandardView;
 import io.jmix.flowui.view.Subscribe;
 import io.jmix.flowui.view.ViewController;
 import io.jmix.flowui.view.ViewDescriptor;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import static io.jmix.flowui.app.inputdialog.InputParameter.*;
 
 @Route(value = "DialogsSampleView", layout = MainView.class)
 @ViewController("DialogsSampleView")
@@ -50,4 +53,22 @@ public class DialogsSampleView extends StandardView {
     private void addCustomer() {
 
     }
+
+    // tag::inputDialog[]
+    @Subscribe("addInfoButton")
+    public void onSomethingButtonClick(ClickEvent<Button> event) {
+        dialogs.createInputDialog(this)
+                .withHeader("Registration form")
+                .withParameters(
+                        stringParameter("name").withLabel("Name"),
+                        intParameter("age").withLabel("Age"))
+                .withCloseListener(dialogCloseEvent -> {
+                    if (dialogCloseEvent.closedWith(DialogOutcome.OK)) {
+                        System.out.println("Name: " + dialogCloseEvent.getValue("name"));
+                        System.out.println("Age: " + dialogCloseEvent.getValue("age"));
+                    }
+                })
+                .open();
+    }
+    // end::inputDialog[]
 }
