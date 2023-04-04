@@ -1,4 +1,4 @@
-package com.company.onboarding.view.passwordfield;
+package com.company.onboarding.view.component.passwordfield;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
