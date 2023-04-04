@@ -1,4 +1,4 @@
-package com.company.onboarding.view.dialogssample;
+package com.company.onboarding.view.dialogsandnotifications.dialogs;
 
 import com.company.onboarding.entity.OnboardingStatus;
 import com.company.onboarding.view.main.MainView;
@@ -131,7 +131,7 @@ public class DialogsSampleView extends StandardView {
                 .withHeader("Enter at least one value")
                 .withParameters(
                         stringParameter("name").withLabel("Name").withRequired(true),
-                        entityParameter("User", User.class).withLabel("Employee")
+                        entityParameter("User", User.class).withLabel("User")
                 )
                 .withValidator(context -> { // <1>
                     String name = context.getValue("name"); // <2>
