@@ -33,14 +33,27 @@ public class DialogsSampleView extends StandardView {
     // end::inject-dialogs[]
 
     // tag::messageDialog-1[]
-    @Subscribe("helloButton")
+    @Subscribe("messageDialogButton")
     public void onHelloButtonClick(ClickEvent<Button> event) {
         dialogs.createMessageDialog()
-                .withHeader("Information")
-                .withText("Hello")
+                .withHeader("Success") // <1>
+                .withText("Invitation sent successfully") // <2>
                 .open();
     }
     // end::messageDialog-1[]
+
+    // tag::messageDialog-custom[]
+    @Subscribe("customDialogButton")
+    public void onSanitizeButtonClick(ClickEvent<Button> event) {
+        dialogs.createMessageDialog()
+                .withHeader("Information")
+                .withText("This is a custom dialog")
+                .withCloseOnOutsideClick(true)
+                .withWidth("600px")
+                .withHeight("200px")
+                .open();
+    }
+    // end::messageDialog-custom[]
 
     // tag::optionsDialog-1[]
     @Subscribe("selectOptionButton")
@@ -50,7 +63,7 @@ public class DialogsSampleView extends StandardView {
                 .withText("Do you really want to add a customer?")
                 .withActions(
                         new DialogAction(DialogAction.Type.YES)
-                                .withHandler(e -> addCustomer()),
+                                .withHandler(e -> addCustomer()), // <1>
                         new DialogAction(DialogAction.Type.NO)
                 )
                 .open();
@@ -152,5 +165,4 @@ public class DialogsSampleView extends StandardView {
                 .open();
     }
     // end::inputDialog-custom-validator[]
-
 }
