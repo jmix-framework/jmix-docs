@@ -1,4 +1,4 @@
-package com.company.onboarding.view.passwordfield;
+package com.company.onboarding.view.component.passwordfield;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
@@ -6,6 +6,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.component.textfield.JmixPasswordField;
+import io.jmix.flowui.exception.ValidationException;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -26,4 +27,12 @@ public class PasswordFieldView extends StandardView {
                     .show();
         }
     // end::basics[]
+
+    // tag::validator[]
+    @Install(to = "passwordField", subject = "validator")
+    private void passwordFieldValidator(String value) {
+        if (value != null && String.valueOf(value).length() < 8)
+            throw new ValidationException("Password must be at least 8 characters long");
+    }
+    // end::validator[]
 }

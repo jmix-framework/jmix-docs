@@ -1,4 +1,4 @@
-package com.company.onboarding.view.notificationsample;
+package com.company.onboarding.view.dialogsandnotifications.notifications;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
