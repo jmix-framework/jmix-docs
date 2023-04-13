@@ -5,7 +5,6 @@ import io.jmix.core.JmixModules;
 import io.jmix.core.Resources;
 import io.jmix.data.impl.JmixEntityManagerFactoryBean;
 import io.jmix.data.impl.JmixTransactionManager;
-import io.jmix.data.impl.liquibase.LiquibaseChangeLogProcessor;
 import io.jmix.data.persistence.DbmsSpecifics;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -56,10 +55,16 @@ public class Db1StoreConfiguration {
     }
     // end::transaction-template[]
 
+    @Bean("db1LiquibaseProperties")
+    @ConfigurationProperties(prefix = "db1.liquibase")
+    public LiquibaseProperties db1LiquibaseProperties() {
+        return new LiquibaseProperties();
+    }
+
     @Bean
     public SpringLiquibase db1Liquibase(
-            LiquibaseChangeLogProcessor processor,
-            @Qualifier("db1DataSource") DataSource dataSource) {
-        return JmixLiquibaseCreator.create(dataSource, new LiquibaseProperties(), processor, "db1");
+            @Qualifier("db1DataSource") DataSource dataSource,
+            @Qualifier("db1LiquibaseProperties") LiquibaseProperties liquibaseProperties) {
+        return JmixLiquibaseCreator.create(dataSource, liquibaseProperties);
     }
 }

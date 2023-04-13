@@ -1,0 +1,90 @@
+= Репозитории данных
+
+Репозитории данных https://docs.spring.io/spring-data/commons/docs/current/reference/html/#repositories.core-concepts[Spring Data] предоставляют полезную абстракцию для работы с сущностями, особенно для реализации бизнес-логики.
+
+Репозитории данных Jmix построены на базе Spring Data, но внутри используют xref:data-access:data-manager.adoc[DataManager]. Это позволяет использовать удобный интерфейс репозиториев и при этом иметь полную поддержку продвинутых возможностей доступа к данным Jmix, таких как xref:data-access:entity-events.adoc[события сущностей], xref:data-model:entities.adoc#cross-data-store-ref[ссылки между сущностями из разных хранилищ], xref:security:authorization.adoc#data-access-checks[проверки доступа к данным] и т.п.
+
+[TIP]
+====
+В текущей версии {page-component-display-version} API репозиториев данных Jmix помечен как экспериментальный. В следующем функциональном релизе в него могут быть внесены незначительные изменения и API станет стабильным.
+====
+
+[[working-with-data-repositories]]
+== Работа с репозиториями данных
+
+. Создайте интерфейс, унаследованный от `JmixDataRepository`. Используйте класс сущности и класс идентификатора сущности в качестве параметров типа `JmixDataRepository`. Например:
++
+--
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=data-repository;data-repository-end]
+----
+--
+
+. Добавьте аннотацию `@EnableJmixDataRepositories` главному классу приложения или классу конфигурации дополнения:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=data-repositories]
+----
++
+Jmix проинициализирует все репозитории данных, расположенные внутри и ниже базового пакета приложения или дополнения. Если требуется более тонкая настройка поиска репозиториев, используйте атрибуты аннотации `basePackages`, `excludeFilters` и `includeFilters`.
+
+. Инжектируйте репозиторий в бины Spring или UI-контроллеры с помощью аннотации `@Autowired`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/repository/CustomerRepositoryTest.java[tags=inject]
+----
+
+[[jmix-data-repository-features]]
+== Особенности JmixDataRepository
+
+Интерфейс `JmixDataRepository` расширяет стандартный интейфейс https://docs.spring.io/spring-data/commons/docs/{spring-boot-version}/api/org/springframework/data/repository/PagingAndSortingRepository.html[PagingAndSortingRepository^] из Spring Data. Он предоставляет несколько собственных методов, учитывающих специфику Jmix:
+
+* Методы загрузки, такие как `findById()` или `findAll()`, могут принимать xref:data-access:fetching.adoc#fetch-plan[фетч-план].
+* Метод `create()` xref:data-model:entities.adoc#instantiation[создает] новый экземпляр сущности.
+* Метод `getById()` с обязательным результатом загружает сущность по идентификатору и выбрасывает исключение, если сущность не найдена.
+
+Следующие аннотации можно использовать на кастомных методах запросов:
+
+* `@io.jmix.core.repository.Query` задает строку JPQL аналогично аннотации `@Query` в Spring Data JPA.
+* `@io.jmix.core.repository.FetchPlan` задает фетч-план для загрузки данных.
+
+[[query-method-examples]]
+== Примеры методов запросов
+
+Репозитории данных Jmix поддерживают стандартную возможность Spring Data выводить запрос из имени метода, например:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=name-based-method]
+----
+
+Аналогично Spring Data JPA, JPQL-запрос можно явно задать с помощью аннотации `@io.jmix.core.repository.Query`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=query]
+----
+
+Методы запросов могут принимать объект `Pageable` для постраничной загрузки и сортировки:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=paging]
+----
+
+Другой специально обрабатываемый параметр, который можно использовать в методах запросов - xref:data-access:fetching.adoc#fetch-plan[фетч-план]:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=fetch-plan]
+----
+
+Разделяемый фетч-план можно задавать по имени в аннотации `@io.jmix.core.repository.FetchPlan`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository2.java[tags=fetch-plan]
+----
