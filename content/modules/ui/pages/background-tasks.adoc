@@ -9,16 +9,16 @@
 
 . 定义一个继承自 `BackgroundTask` 抽象类的任务。任务类的构造函数接收两个参数，一个是任务关联的界面控制器，另一个是用于任务构造函数的超时时限。
 +
-关闭界面将中断与其相关的任务。此外，任务将在指定的时限超时后自动中断。
+关闭界面将中断与其相关的后台任务。此外，任务将在指定的时限超时后自动中断。
 
 . 在 `BackgroundTask.run()` 方法中实现任务逻辑。
 
 . 通过将任务实例传递给 `BackgroundWorker` bean 的 `handle()` 方法，可以创建一个 `BackgroundTaskHandler` 类对象用于对任务进行控制。在界面控制器中注入或通过 `ApplicationContext` 类来获得对 `BackgroundWorker` 的引用。
 
-. 调用 `BackgroundTaskHandler` 的 `execute()` 方法来运行任务。
+. 调用 `BackgroundTaskHandler` 的 `execute()` 方法启动任务。
 
 [WARNING]
-不要在 `BackgroundTask.run()` 方法中读取或更新 UI 组件的状态和数据容器，可以使用 `done()`、`progress()` 和 `canceled()` 回调方法替代。如果尝试从后台线程设置 UI 组件的值，则会抛出 `IllegalConcurrentAccessException`。
+不要在 `BackgroundTask.run()` 方法中读取或更新 UI 组件的状态和数据容器，而使用 `done()`、`progress()` 和 `canceled()` 回调方法替代。如果尝试从后台线程设置 UI 组件的状态，则会抛出 `IllegalConcurrentAccessException`。
 
 下面示例中，运行一个后台任务并通过 `ProgressBar` 组件跟踪任务进度：
 
@@ -35,11 +35,11 @@ include::example$/ex1/src/main/java/ui/ex1/screen/component/progressbar/Progress
 
 `BackgroundTask<T, V>` 是一个参数类：
 
-1. `T` - 显示任务进度的对象类型。在工作线程中调用 `TaskLifeCycle.publish()` 期间，将此类型对象传递给任务的 `progress()` 方法。
+1. `T` - 显示任务进度的对象类型。在工作线程调用 `TaskLifeCycle.publish()` 时，将此类型对象传递给任务的 `progress()` 方法。
 
 2. `V` - 传递给 `done()` 方法的任务结果类型。结果也可以调用 `BackgroundTaskHandler.getResult()` 方法获得，该方法将等待至任务完成。
 
-`BackgroundTask` 对象是无状态的。如果在实现任务类时没有为临时数据创建字段，则可以使用单个任务实例启动多个并行进程。
+`BackgroundTask` 对象是无状态的。如果在实现任务类时没有为临时数据创建类变量，则可以使用单个任务实例启动多个并行进程。
 
 [[background-task-methods]]
 == BackgroundTask 类方法
@@ -51,7 +51,7 @@ JavaDocs 中提供了 `BackgroundTask`、`TaskLifeCycle`、`BackgroundTaskHandle
 
 该方法在单独的工作线程中调用，用于执行一个任务。
 
-该方法应该支持外部中断。如需提供该功能，建议在长时间运行时定期检查 `TaskLifeCycle.isInterrupted()` 标识，并在需要时停止执行。另外，不应该忽略掉 `InterruptedException`（或任何其他异常）- 而应该正确退出方法或根本不处理异常（将异常暴露给调用方）
+该方法支持从外部中断。如需提供该功能，建议在长时间运行时定期检查 `TaskLifeCycle.isInterrupted()` 标识，并在需要时停止执行。另外，不要忽略掉 `InterruptedException`（或任何其他异常）- 而应该正确退出方法或根本不处理异常（将异常暴露给调用方）。
 
 还可以用 `isCancelled()` 方法检查任务是否是通过 `cancel()` 方法中断。
 
@@ -78,12 +78,12 @@ JavaDocs 中提供了 `BackgroundTask`、`TaskLifeCycle`、`BackgroundTaskHandle
 [[handle-exception]]
 === handleException()
 
-当发生任何异常时在 UI 线程中调用该方法。
+当有任何异常抛出时在 UI 线程中调用该方法。
 
 [[notes-and-tips]]
 == 注意事项
 
-1. 用 `dialogs.createBackgroundWorkDialog()` 方法展示模态窗，包含一个进度条和 *Cancel* 按钮。该模态窗可以定义进度条的不同类型，以及允许或禁止取消后台任务。
+1. 用 `dialogs.createBackgroundWorkDialog()` 方法展示包含进度条和 *Cancel* 按钮的模态窗。该模态窗可以定义进度条的不同类型，以及允许或禁止取消后台任务。
 +
 //todo BackgroundTaskWrapper
 // Ни Глеб, ни Роман не знают каким классом был заменен BackgroundTaskWrapper. Сказали уточнить у Влада, но он пока что в отпуске. Как выйдет надо будет поправить и сделать usage example.
@@ -96,7 +96,7 @@ JavaDocs 中提供了 `BackgroundTask`、`TaskLifeCycle`、`BackgroundTaskHandle
 [[usage-example]]
 == 用例
 
-通常，在启动后台任务时，你需要展示一个简单的用户界面：
+通常，在启动后台任务时，需要展示一个简单的用户界面：
 
 1. 为用户展示请求的操作正在执行中。
 2. 允许用户中止长时间的操作。

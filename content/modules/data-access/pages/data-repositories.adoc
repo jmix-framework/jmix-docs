@@ -1,0 +1,90 @@
+= 使用 Data Repositories
+
+https://docs.spring.io/spring-data/commons/docs/current/reference/html/#repositories.core-concepts[Spring Data] repositories 为实体操作提供了非常有用的抽象，特别是实现业务逻辑的时候。
+
+Jmix data repositories 基于 Spring Data 构建，但是在底层使用的是 xref:data-access:data-manager.adoc[DataManager]。这样既可以使用方便的 repository 接口，又能支持 Jmix 中的高级数据访问功能，比如 xref:data-access:entity-events.adoc[实体事件]，xref:data-model:entities.adoc#cross-data-store-ref[跨数据存储实体引用]，xref:security:authorization.adoc#data-access-checks[数据访问权限检查] 等。
+
+[TIP]
+====
+目前在 {page-component-display-version} 版本中，Jmix data repositories API 仍然是实验性的。在下一个功能版本中有一些小的改动，进一步完善并稳定。
+====
+
+[[working-with-data-repositories]]
+== 使用 Data Repositories
+
+. 创建一个接口，继承自 `JmixDataRepository`。使用实体类和实体 ID 类作为 `JmixDataRepository` 的参数。示例：
++
+--
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=data-repository;data-repository-end]
+----
+--
+
+. 在 Jmix 主程序类或者扩展组件的配置类上添加 `@EnableJmixDataRepositories` 注解：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=data-repositories]
+----
++
+Jmix 会初始化应用程序和扩展组件基础包内的所有 data repositories。如果需要对搜索和初始化 repositories 做进一步自定义，可以使用注解的 `basePackages`、`excludeFilters` 和 `includeFilters` 属性配置。
+
+. 在 Spring bean 或 UI 控制器内使用 `@Autowired` 注解注入 repository：
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/repository/CustomerRepositoryTest.java[tags=inject]
+----
+
+[[jmix-data-repository-features]]
+== JmixDataRepository 的功能
+
+`JmixDataRepository` 接口派生自标准的 Spring Data https://docs.spring.io/spring-data/commons/docs/{spring-boot-version}/api/org/springframework/data/repository/PagingAndSortingRepository.html[PagingAndSortingRepository^]。此外，提供了一些 Jmix 特有的方法：
+
+* 数据加载方法支持 xref:data-access:fetching.adoc#fetch-plan[fetch plan]，比如 `findById()` 或 `findAll()`。
+* `create()` 方法 xref:data-model:entities.adoc#instantiation[初始化] 一个新实体。
+* 返回非 Optional 对象的 `getById()` 方法会在找不到实体时抛出异常。
+
+可以使用下列注解自定义查询方法：
+
+* `@io.jmix.core.repository.Query` 定义 JPQL 查询语句，与 Spring Data JPA 的 `@Query` 注解类似。
+* `@io.jmix.core.repository.FetchPlan` 定义加载数据时使用的 fetch plan。
+
+[[query-method-examples]]
+== 方法示例
+
+Jmix data repositories 支持从方法名生成查询语句的 Spring Data 标准功能，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=name-based-method]
+----
+
+与 Spring Data JPA 类似，可以使用 `@io.jmix.core.repository.Query` 注解显式定义 JPQL 语句：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=query]
+----
+
+查询方法可以使用 `Pageable` 进行分页和排序：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=paging]
+----
+
+查询方法还支持一个特殊的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 参数：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=fetch-plan]
+----
+
+共享的 fetch plan 可以在查询方法的 `@io.jmix.core.repository.FetchPlan` 注解中定义：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository2.java[tags=fetch-plan]
+----

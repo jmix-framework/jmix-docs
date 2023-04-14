@@ -4,6 +4,7 @@ import com.company.onboarding.entity.OnboardingStatus;
 import com.company.onboarding.view.main.MainView;
 import com.google.common.base.Strings;
 import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.Html;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.DataManager;
@@ -54,6 +55,19 @@ public class DialogsSampleView extends StandardView {
                 .open();
     }
     // end::messageDialog-custom[]
+
+    // tag::messageDialog-html[]
+    Html htmlContent = new Html("<p>Here starts a paragraph. A new line starts after this.<br />" +
+            "<b>This text is bold.</b> <i>This text is italic.</i></p>");
+
+    @Subscribe("htmlContentButton")
+    public void onHtmlContentButtonClick(ClickEvent<Button> event) {
+        dialogs.createMessageDialog()
+                .withHeader("HTML Formatting")
+                .withContent(htmlContent)
+                .open();
+    }
+    // end::messageDialog-html[]
 
     // tag::optionsDialog-1[]
     @Subscribe("selectOptionButton")
