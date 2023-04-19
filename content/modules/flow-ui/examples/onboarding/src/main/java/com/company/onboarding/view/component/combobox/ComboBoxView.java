@@ -33,10 +33,11 @@ public class ComboBoxView extends StandardView {
     public void onInit(InitEvent event) {
         // end::onInit[]
         // tag::setItems[]
-        durationComboBox.setItems(new ArrayList<>(Arrays.asList(1,2,3,4,5,6,7)));
+        durationComboBox.setItems(new ArrayList<>(Arrays.asList(1,2,3,4,5)));
         // end::setItems[]
         // tag::setColorItems[]
-        colorComboBox.setItems(new ArrayList<>(Arrays.asList("White", "Red", "Blue", "Grey")));
+        colorComboBox.setItems(new ArrayList<>
+                (Arrays.asList("White", "Red", "Blue", "Grey")));
         // end::setColorItems[]
         // tag::onInit[]
     }
