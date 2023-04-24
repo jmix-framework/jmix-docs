@@ -47,6 +47,5 @@ public class ProgressBarView extends StandardView {
         BackgroundTaskHandler taskHandler = backgroundWorker.handle(task);
         taskHandler.execute();
     }
-
+    // end::background-tasks[]
 }
-// end::background-tasks[]
