@@ -28,7 +28,7 @@ class RecentOrdersCounterTest {
     LocalDateTime MAR_01_2020 = LocalDate.of(2020, 3, 1).atStartOfDay();
 
     @Test
-    void given_itIs2023_and_customerWithOneOrderIn2023_when_countFromThisYear_then_resultIs1() {
+    void given_itIs2020_and_customerWithOneOrderIn2020_when_countFromThisYear_then_resultIs1() {
 
         // given:
         when(timeSourceMock.now())
