@@ -1,21 +1,21 @@
-= Load Entities
+= Загрузка сущностей
 
-The Entities API allows you to load entities through the API in various ways:
+Entities API позволяет различными способами загружать сущности через API:
 
-* <<Load Entity by ID,Load Entity by ID>> loads a single entity by its unique identifier (ID).
+* <<load-by-id>> загружает одну сущность по ее уникальному идентификатору (ID).
 
-* <<Load List of Entities,Load List of Entities>> load all entities with pagination and sorting.
+* <<load-list>> загружает все сущности с разбивкой на страницы и сортировкой.
 
-* <<Load Entities via Search Filter,Load Entities via Search Filter>> allows you to filter for entities by filter criteria in the Request.
+* <<load-list-search-filter>> позволяет фильтровать сущности по критериям фильтрации в запросе.
 
-* <<Load Entities via JPQL,Load Entities via JPQL>> loads entities via pre-configuring named JPQL queries.
+* <<load-list-jpql>> загружает сущности с помощью предварительной настройки именованных запросов JPQL.
 
 [[load-by-id]]
-== Load Entity by ID
+== Загрузка сущности по ID
 
-The first way of loading an entity via the Entities API is by loading it via its ID. The corresponding endpoint for this is the Load Entity endpoint `/entities/:entityName/:entityId`.
+Первый способ загрузки объекта через Entities API – это загрузка по идентификатору. Соответствующей для этого операцией является конечная точка Load Entity `/entities/:entityName/:entityId`.
 
-The `:entityName` path parameter defines which entity type it is. The value is defined in the entity definition:
+Параметр пути `:entityName` определяет тип сущности. Значение задается в определении сущности:
 
 [source,java]
 .Order.java
@@ -28,9 +28,9 @@ public class Order {
     // ...
 }
 ----
-<1> The name attribute value `sample_Order` of the `@Entity` JPA annotation indicates the `entityName` parameter in the Entities API.
+<1> Значение атрибута имени `sample_Order` аннотации JPA `@Entity` указывает параметр `entityName` в Entities API.
 
-The Load Entity endpoint returns a single instance in case it is found by its identifier. Otherwise, HTTP status code `404 - Not Found` is returned.
+Операция Load Entity возвращает один экземпляр, если он найден по своему идентификатору. В противном случае возвращается код состояния HTTP `404 - Not Found`.
 
 
 [source, http request]
@@ -57,14 +57,14 @@ GET http://localhost:8080/rest
   "version": 1
 }
 ----
-<1> Some metadata about the entity instance is returned as JSON keys (`entityName`, `_instanceName` and `id`).
-<2> The JSON Object contains each business attribute as a key.
+<1> Некоторые метаданные об экземпляре сущности возвращаются в виде ключей JSON (`entityName`, `_instanceName` и `id`).
+<2> Объект JSON содержит каждый бизнес-атрибут в качестве ключа.
 
 [TIP]
 ====
-Some attributes of the `Order` entity are missing in the JSON, as by default only local and persistent attributes of the entity are loaded. In case of reference attributes should also be included in the response you need to use <<Using Fetch Plans,Fetch Plans>> as described below.
+Некоторые атрибуты сущности `Order` отсутствуют в JSON, так как по умолчанию загружаются только локальные и постоянные атрибуты. В случае, если ссылочные атрибуты также должны быть включены в ответ, используйте <<Using Fetch Plans,фетч-планы>>, как описано ниже.
 
-In case you want to include xref:dyn-attr:index.adoc[dynamic attributes] in the response, use the `dynamicAttributes` parameter to add a special hint to the query:
+Если вы хотите включить в ответ xref:dyn-attr:index.adoc[динамические атрибуты], используйте параметр `dynamicAttributes`, чтобы добавить в запрос специальную подсказку:
 
 [source, http request]
 ----
@@ -76,17 +76,17 @@ GET http://localhost:8080/rest
 ----
 ====
 
-=== Using Fetch Plans
+=== Использование фетч-планов
 
-Which attributes are needed normally varies based on the clients' use-case, UIs, or integration scenario. Loading only the direct attributes of an entity is oftentimes not enough.
+Необходимые атрибуты обычно зависят от варианта использования клиента, пользовательского интерфейса или сценария интеграции. Часто загрузки только прямых атрибутов сущности недостаточно.
 
-With only the ability to load each entity type in a dedicated request, it would require loading referenced entity information in subsequent requests. This would lead to N+1 query problems in the overall application. In particular, when interacting through HTTP, the corresponding overhead can be tremendous.
+Если каждый тип сущности возможно загружать только в отдельном запросе, в последующих запросах потребовалось бы загружать информацию о сущности, на которую дана ссылка. Это привело бы к проблемам с запросами N+1 во всем приложении. В частности, при взаимодействии через HTTP такая нагрузка может стать огромной.
 
-Therefore, the concept of xref:data-access:fetching.adoc[Fetch Plans] is also supported in the Load Entities API. With Fetch Plans you can configure a tree of attributes that should be loaded all in one batch from the database and transferred through the Load Entities API to the client.
+Поэтому Load Entities API также поддерживает использование xref:data-access:fetching.adoc[фетч-планов]. С помощью них можно настроить дерево атрибутов, которые должны загружаться из базы данных вместе, одним пакетом, и передаваться клиенту через Load Entities API.
 
-The following example demonstrates how to load a list of Orders with additional information about the corresponding customer, the linked order lines, and even information about the product of that product line.
+В следующем примере рассмотрим, как загрузить список заказов (Order) с дополнительной информацией о соответствующих клиентах (Customer), связанных строках заказа и даже информацией о продукте соответствующей линейки.
 
-First, you need to register the fetch plan `order-with-details` in the `fetch-plans.xml` configuration file:
+Во-первых, необходимо зарегистрировать фетч-план `order-with-details` в файле конфигурации `fetch-plans.xml`:
 
 [source,xml]
 .fetch-plans.xml
@@ -103,9 +103,9 @@ First, you need to register the fetch plan `order-with-details` in the `fetch-pl
 </fetchPlans>
 ----
 
-With that fetch plan configuration in place, you can perform the request and reference the fetch plan through the `fetchPlan` URL parameter.
+Имея эту конфигурацию, вы можете выполнить запрос и сослаться на фетч-план через параметр URL `fetchPlan`.
 
-In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded with the fetch plan `order-with-details` in order to additionally load `customer` and `lines` data:
+В приведенном ниже примере Order с идентификатором `21021f78-edac-224b-e6f8-6e71e02a0f0d` загружается с планом выборки `order-with-details`, чтобы дополнительно загрузить данные `customer` и `lines`:
 
 [source, http request]
 .Load Order with Fetch Plan Request
@@ -141,12 +141,12 @@ GET http://localhost:8080/rest
   }
 }
 ----
-<1> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
+<1> Фетч-план `order-with-details` гарантирует, что включены дополнительные атрибуты, такие как `lines` и `customer`.
 
 [[load-list]]
-== Load List of Entities
+== Загрузка списка сущностей
 
-You can load a list of entities of any type using the Load Entity List API endpoint: `/entities/:entityName`. This API includes pagination, sorting, and fetch plans.
+Вы можете загрузить список сущностей любого типа, используя операцию Load Entity List API: `/entities/:entityName`. Этот API включает в себя разбивку на страницы, сортировку и фетч-планы.
 
 [source, http request]
 .Request
@@ -173,29 +173,29 @@ GET http://localhost:8080/rest/entities/sample_Customer
 ]
 ----
 
-NOTE: Every entity in the response has a `_entityName` attribute with the name of the entity, and an `_instanceName` attribute with the xref:data-model:entities.adoc#instance-name[Instance Name] of the entity.
+NOTE: Каждая сущность в ответе имеет атрибут `_entityName` с именем сущности и атрибут `_instanceName` с xref:data-model:entities.adoc#instance-name[именем экземпляра] сущности.
 
-It is also possible to further control the behavior of the API by using the following URL query parameters:
+Также можно дополнительно проконтролировать поведение API, используя следующие параметры URL-запроса:
 
-dynamicAttributes:: whether xref:dyn-attr:index.adoc[dynamic attributes] should be loaded for an entity `(Boolean)`.
-fetchPlan:: name of an entity's xref:data-access:fetching.adoc[fetch plan] `(String)`.
-limit:: the number of entities to be returned by the API `(int)`.
-offset:: the position of the first returned entity `(int)`.
-sort:: an entity attribute that will be used for sorting `(String)`.
+dynamicAttributes:: следует ли загружать xref:dyn-attr:index.adoc[динамические атрибуты] для сущности `(Boolean)`.
+fetchPlan:: имя xref:data-access:fetching.adoc[фетч-плана] `(String)`.
+limit:: количество сущностей, которое должен вернуть API `(int)`.
+offset:: позиция первой возвращенной сущности `(int)`.
+sort:: атрибут сущности, которая будет использоваться для сортировки `(String)`.
 +
-* `+attribute` or simply `attribute` for ascending order
-* `-attribute` for descending order.
+* `+attribute` или просто `attribute` для порядка по возрастанию.
+* `-attribute` для порядка по убыванию.
 
 [[load-list-sorting]]
-=== Using Sorting
+=== Использование сортировки
 
-The Load Entities API supports the sorting of the result by entity attributes. You can use the `sort` URL parameter for controlling the order of entities.
+Load Entities API поддерживает сортировку результата по атрибутам сущности. Для управления порядком сущностей используется параметр URL `sort`.
 
-NOTE: When the `sort` parameter is not specified, the default sort order depends on the database implementation. Normally databases sort by the timestamp of record creation, but this behavior is not guaranteed and can vary in different situations.
+NOTE: Если параметр `sort` не указан, порядок сортировки по умолчанию зависит от реализации базы данных. Обычно базы данных сортируют по времени создания записи, но это поведение не гарантировано и может отличаться в разных ситуациях.
 
-Jmix has a special syntax to define the sort order. Ascending order is expressed through a `+` before the attribute name. This is optional though, as it is the default behavior sorting order. For descending order, you need to prefix the entity attribute with a `-` character.
+Jmix имеет специальный синтаксис для определения порядка сортировки. Порядок по возрастанию выражается через `+` перед именем атрибута, что необязательно, так как это поведение по умолчанию. Для порядка по убыванию необходимо поставить перед атрибутом сущности символ `-`.
 
-The following example shows how you can sort Customers by their `name` attribute ascending.
+В следующем примере показано, как можно отсортировать клиентов (Customer) по возрастанию их атрибутов `name`.
 
 [source, http request]
 .Request
@@ -221,7 +221,7 @@ GET http://localhost:8080/rest
 ]
 ----
 
-You can also sort by multiple attributes. In this case, the sort order takes a comma-separated list of attributes to sort by.
+Можно также сортировать по нескольким атрибутам. В этом случае порядок сортировки принимает список атрибутов, разделенных запятыми.
 
 
 [source, http request]
@@ -254,23 +254,23 @@ GET http://localhost:8080/rest
   }
 ]
 ----
-<1> The result with the oldest date is returned first.
-<2> When the `date` attribute is the same, the `amount` is used to sort the results.
+<1> Первым возвращается результат с самой старой датой.
+<2> Когда атрибут `date` одинаков, для сортировки результатов используется `amount`.
 
 
 [[load-list-pagination]]
-=== Using Pagination
+=== Использование разбивки на страницы
 
-The Entities API supports Pagination to respect the data processing limitation that might be present on the server or client-side. In case you want to load only a particular subset of the entities, you can provide the `offset` and `limit` URL parameters.
+Entities API поддерживает разбивку на страницы для соблюдения ограничений обработки данных, которые могут присутствовать на стороне сервера или клиента. Если вы хотите загрузить только определенное подмножество сущностей, можно указать параметры URL `offset` и `limit` .
 
 [NOTE]
 ====
-Pagination is active by default, even if it is not explicitly requested by the client. In case no `limit` value is present in the request, the Load APIs will return only the first `10,000` entities.
+Разбивка на страницы активна по умолчанию, даже если она не запрошена клиентом явно. Если в запросе не указано значение `limit`, Load API вернут только первые `10,000` сущностей.
 
-This default value is configurable globally via xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] or on an entity-by-entity basis via xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize].
+Это значение по умолчанию настраивается глобально в xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] или для каждого сущности отдельно в xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize].
 ====
 
-The following example demonstrates how to load the third Page containing two `Customer` entities (5. & 6. entity):
+В следующем примере показано, как загрузить третью страницу, содержащую две сущности `Customer` (5. и 6.):
 
 [source, http request]
 .Load Customer Request with Pagination
@@ -300,27 +300,27 @@ GET http://localhost:8080/rest
 
 
 [[load-list-search-filter]]
-== Load Entities via Search Filter
+== Загрузка сущностей через фильтр поиска
 
-You can specify filter criteria when loading entities using the Entity Search Endpoint: `/entities/:entityName/search`.
+Вы можете указать критерии фильтрации при загрузке сущностей с помощью операции Entity Search: `/entities/:entityName/search`.
 
-Both HTTP methods `GET` and `POST` are possible when interacting with the search endpoint. In both cases, the filter criterion has to be provided as part of the request.
+При взаимодействии с операцией поиска возможно использовать оба метода HTTP `GET` и `POST`. В обоих случаях критерий фильтрации должен быть предоставлен как часть запроса.
 
-The filter definition is a JSON structure that contains a set of conditions. A condition consists of the following attributes:
+Определение фильтра — это структура JSON, содержащая набор условий. Условие состоит из следующих атрибутов:
 
-property:: the entity attribute that is being filtered on (like `amount` on the Order entity).
+property:: атрибут объекта, по которому проводится фильтрация (например, `amount` сущности Order).
 +
-In case the attribute is a reference to another entity, it can also be a property path like `customer.name`
+Если атрибут является ссылкой на другую сущность, он также может быть путем к свойству, например `customer.name`
 
-operator:: the filter operator. An operator describes how to filter for a particular attribute. There are multiple operators that can be used independently of the datatype:
+operator:: оператор фильтра. Оператор описывает, как фильтровать определенный атрибут. Существует несколько операторов, которые можно использовать независимо от типа данных:
 +
-* Standard Operators: `=`, `<>`, `notEmpty`, `isNull`
-* List Operators: `in`, `notIn`
+* Стандартные операторы: `=`, `<>`, `notEmpty`, `isNull`
+* Операторы списка: `in`, `notIn`
 
-Additionally, some operators are only possible for particular datatypes:
+Кроме того, некоторые операторы возможны только для определенных типов данных:
 [cols="1,1"]
 |===
-|Datatype | Specific Operators
+|Datatype | Специальные операторы
 
 |String, UUID
 |`startsWith`, `endsWith`, `contains`, `doesNotContain`
@@ -330,9 +330,9 @@ Additionally, some operators are only possible for particular datatypes:
 
 |===
 
-value:: the value to search for. Value is not required for the `notEmpty` and `isNull` operators.
+value:: значение для поиска. Не требуется для операторов `notEmpty` и `isNull`.
 
-Additionally, conditions can be combined via `AND`, `OR` group conditions to define a more complex filter criterion. The JSON structure of the filter definitions looks like this:
+Помимо этого условия можно комбинировать с помощью групповых условий `AND` и `OR` для определения более сложного критерия фильтрации. JSON-структура определений фильтров выглядит следующим образом:
 
 [source,json]
 .Filter Criterion JSON structure
@@ -363,9 +363,9 @@ Additionally, conditions can be combined via `AND`, `OR` group conditions to def
 }
 ----
 
-This is a representation of the Filter criterion: `\((stringField = stringValue) OR (intField > 100) AND (booleanField = true))`.
+Это представление критерия фильтра `\((stringField = stringValue) OR (intField > 100) AND (booleanField = true))`.
 
-When using the HTTP POST method, the filter is part of the request body.
+При использовании метода HTTP `POST` фильтр является частью тела запроса.
 
 [source,http request]
 .Filter POST Request
@@ -385,7 +385,7 @@ POST http://localhost:8080/rest/entities/sample_Order/search
 }
 ----
 
-When using the `GET` method, the JSON filter criterion needs to be transferred via the URL Query parameter `filter`.
+При использовании метода `GET` критерий фильтра JSON необходимо передавать через параметр URL-запроса `filter`.
 
 [source, http request]
 .Filter GET Request
@@ -398,30 +398,30 @@ GET http://localhost:8080/rest
 ----
 
 [IMPORTANT]
-.URI Encoding
+.Кодировка URI
 ====
-The HTTP URI standard only allows ASCII characters as part of the URI / URL. When using URL Query parameters for the filter definition, the JSON definition has to be URL encoded to match this requirement. This is also true for the `value` data that normally contains user input.
+Стандарт HTTP URI допускает символы ASCII только как часть URI/URL. При использовании параметров URL-запроса для определения фильтра определение JSON должно быть URL-закодировано, чтобы соответствовать этому требованию. Это также верно в случае данных `value`, которые обычно содержат пользовательский ввод.
 
-As there is also a practical limit of the URI length that can cause problems for big filter definitions, the `POST` method for filtering entities should be preferred as those restrictions do not apply.
+Практическое ограничение длины URI может оказаться проблемой для больших определений фильтров, поэтому метод фильтрации сущностей `POST` предпочтительнее, так как к нему не применяются эти ограничения.
 ====
 
 
 [[load-list-jpql]]
-== Load Entities via JPQL
+== Загрузка сущностей через JPQL
 
-Another alternative to loading entities from the application is to use predefined JPQL queries. The Entity Query Endpoint `/queries/:entityName/:queryName` is responsible for providing this capability. Queries can contain a list of parameters, that need to be provided by the client. Additionally, the endpoint contains the same general parameters for pagination, fetch plans, etc.
+Другой альтернативой загрузке сущностей из приложения является использование предопределенных запросов JPQL. За предоставление этой возможности отвечает операция Entity Query `/queries/:entityName/:queryName`. Запросы могут содержать список параметров, которые должен предоставить клиент. Кроме того, конечная точка содержит все те же общие параметры для разбивки на страницы, фетч-планы и т. д.
 
 
 [TIP]
-.When to use JPQL vs. Search Filter?
+.Когда использовать JPQL вместо фильтра поиска?
 ====
-Jmix provides various ways to load entity data generically. Use pre-defined JPQL queries when the search filter is not advanced enough to express the filter criterion. Also in case, the parameter should be pre-defined and not be adjustable by the API client.
+Jmix предоставляет различные способы общей загрузки данных сущности. Используйте предопределенные запросы JPQL, если фильтр поиска недостаточно продвинут для выражения критерия фильтра, а также в случае, если параметр должен быть предопределен и не может быть изменен клиентом API.
 ====
 
 [[jpql-query-config]]
-=== JPQL Query Configuration
+=== Конфигурация запроса JPQL
 
-To use the Entity Query endpoint you need to define the accessible queries. This happens via an XML configuration file, normally called `rest-queries.xml`. You need to create this new file in your Jmix application under `src/main/resources`. It lists all published queries with information about their parameters.
+Чтобы использовать операцию Entity Query, необходимо определить доступные запросы через файл конфигурации XML, обычно называемый `rest-queries.xml`. Создайте этот новый файл в вашем приложении Jmix в `src/main/resources`. В нем перечисляются все опубликованные запросы с информацией об их параметрах.
 
 [source,xml]
 .rest-queries.xml
@@ -443,11 +443,11 @@ To use the Entity Query endpoint you need to define the accessible queries. This
 </queries>
 ----
 
-A query needs to have a unique `name` value as well as an `entity` reference. The combination of `name` and `entity` needs to be unique. Also, a `fetchPlan` needs to be referenced to indicate which entity attributes are returned.
+Запрос должен иметь уникальное значение `name`, а также ссылку `entity`. Сочетание `name` и `entity` должно быть уникальным. Кроме того, необходима ссылка на `fetchPlan`, чтобы указать возвращаемые атрибуты сущности.
 
-In the `<jpql>` tag the actual query is configured. The parameters need to be listed within the `params` tag defining their name and Java type. In the query parameters, you can reference via their name prefixed with a colon like `:customerName`.
+В теге `<jpql>` конфигурируется сам запрос. Параметры должны быть перечислены внутри тега `params`, определяющего их имя и тип Java. В параметрах запроса можно ссылаться через их имя с префиксом двоеточия, например `:customerName`.
 
-After the file has been created, and the queries have been defined, you need to register the `rest-queries.xml` configuration in the `application.properties` of your Jmix application:
+После создания файла и определения запросов необходимо зарегистрировать конфигурацию `rest-queries.xml` в `application.properties` вашего приложении Jmix:
 
 [source,properties]
 .application.properties
@@ -455,7 +455,7 @@ After the file has been created, and the queries have been defined, you need to 
 jmix.rest.queries-config = rest/sample/rest-queries.xml
 ----
 
-You can invoke the Entity Query endpoint either by the `GET` or `POST` HTTP method. In the case of `GET`, the parameters are appended as URL query parameters.
+Операцию Entity Query можно вызвать с помощью HTTP метода `GET` или `POST`. В случае выбора `GET` параметры добавляются как параметры URL-запроса.
 
 [source, http request]
 .Query API GET Request
@@ -469,12 +469,12 @@ GET http://localhost:8080/rest
 
 
 [IMPORTANT]
-.URI Encoding
+.URI-Кодировка
 ====
-The URL should only contain ASCII characters. This means the values of the parameters need to be URL encoded, as those values normally represent direct user input and therefore it cannot be ensured that non-ASCII characters are used.
+URL-адрес должен содержать только символы ASCII. Это означает, что значения параметров должны быть URL-закодированы, поскольку эти значения обычно представляют собой прямой пользовательский ввод, и гарантировать использование отличных от ASCII символов невозможно.
 ====
 
-In the case of using `POST`, the query parameters are transferred in the JSON body containing each parameter as a key.
+В случае использования `POST` параметры запроса передаются в теле JSON, содержащем каждый параметр в качестве ключа.
 
 [source, http request]
 .Query API POST Request
@@ -486,9 +486,9 @@ POST http://localhost:8080/rest/queries/sample_Order/ordersByCustomerName
 }
 ----
 
-=== Collection Parameters
+=== Параметры коллекции
 
-It is also possible to define a parameter as a collection type. In this case, the query definition should contain an `[]` indicator after the Java type.
+Также возможно определить параметр как тип коллекции. В этом случае определение запроса должно содержать индикатор `[]` после типа Java.
 
 [source,xml]
 .rest-queries.xml
@@ -503,9 +503,9 @@ It is also possible to define a parameter as a collection type. In this case, th
     </query>
 </queries>
 ----
-<1> The `ids` parameter is marked as collection of `UUID` type.
+<1> Параметр `ids` помечен как коллекция типа `UUID`.
 
-When this parameter is used in a query, the corresponding  IDs have to be provided as a JSON array.
+Когда этот параметр используется в запросе, соответствующие идентификаторы должны быть предоставлены в виде массива JSON.
 
 [source, http request]
 .Query API Collection Parameters Request
@@ -522,13 +522,13 @@ POST http://localhost:8080/rest/queries/sample_Order/ordersByIds
 
 
 [[empty-values-json]]
-== Return Empty Values in JSON
+== Возврат пустых значений в JSON
 
-By default, Jmix will remove empty values (`null`) from the JSON response, so that the attribute keys are not present in the JSON document.
+По умолчанию Jmix удаляет пустые значения (`null`) из ответа JSON, чтобы ключи атрибутов не присутствовали в документе JSON.
 
-You can control this behavior by using the URL query parameter `returnNulls` and set its value to `true`. With that, Jmix will always add the attribute keys to the response, independent if the value is empty or not.
+Вы можете управлять этим поведением, используя параметр URL-запроса `returnNulls` и присвоив ему значение `true`. Тогда Jmix будет всегда добавлять ключи атрибутов к ответу, независимо от того, является ли значение пустым или нет.
 
-In the following example, a Customer is loaded by its ID and also requesting to contain all empty values:
+В следующем примере `Customer` загружается по его идентификатору, а также запрашиваются все пустые значения:
 
 [source, http request]
 .Load Customer with empty values
@@ -558,6 +558,6 @@ GET http://localhost:8080/rest
   "deletedBy": null
 }
 ----
-<1> The response contains the key `type` although it is empty
+<1> Ответ содержит ключ `type`, хотя тот пуст
 
-NOTE: The Parameter `returnNulls` is present in all Entity Load APIs: Load by ID, Load List, Search and Load by Query.
+NOTE: Параметр `returnNulls` присутствует во всех Entity Load API: Загрузка по ID, Загрузка списка, Поиск и загрузка по запросу.
