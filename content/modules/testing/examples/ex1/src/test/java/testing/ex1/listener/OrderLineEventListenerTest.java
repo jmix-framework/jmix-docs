@@ -1,5 +1,6 @@
 package testing.ex1.listener;
 
+import org.junit.jupiter.api.BeforeEach;
 import testing.ex1.entity.Order;
 import testing.ex1.entity.OrderLine;
 import testing.ex1.entity.Product;
@@ -16,10 +17,10 @@ import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-
+// tag::order-line-event-listener-test[]
 @SpringBootTest
-@ActiveProfiles("test")
 public class OrderLineEventListenerTest {
 
     @Autowired
@@ -27,6 +28,54 @@ public class OrderLineEventListenerTest {
 
     @Autowired
     DataSource dataSource;
+    private Product mac;
+    private Product ipad;
+
+    @BeforeEach
+    void initProducts() {
+        mac = dataManager.create(Product.class);
+        mac.setName("MacBook Pro");
+        mac.setPrice(BigDecimal.valueOf(2500));
+
+        ipad = dataManager.create(Product.class);
+        ipad.setName("iPad");
+        ipad.setPrice(BigDecimal.valueOf(1000));
+
+        dataManager.save(mac, ipad);
+    }
+
+    @Test
+    void given_orderWithTwoOrderLines_expect_amountIsSumOfOrderLineValues() {
+
+        // given
+        Order order = dataManager.create(Order.class);
+        order.setDate(LocalDate.now());
+        dataManager.save(order);
+
+        // and
+        OrderLine twoMacs = dataManager.create(OrderLine.class);
+        twoMacs.setOrder(order);
+        twoMacs.setProduct(mac);
+        twoMacs.setQuantity(2.0);
+
+        // and
+        OrderLine threeIpads = dataManager.create(OrderLine.class);
+        threeIpads.setOrder(order);
+        threeIpads.setProduct(ipad);
+        threeIpads.setQuantity(3.0);
+
+        // when
+        dataManager.save(twoMacs, threeIpads);
+
+        Order reloadedOrder = dataManager.load(Id.of(order)).one();
+
+        // then
+        assertThat(reloadedOrder.getAmount())
+                .isEqualByComparingTo(BigDecimal.valueOf(3 * 1000 + 2 * 2500));
+    }
+
+    // ...
+    // end::order-line-event-listener-test[]
 
     @AfterEach
     void tearDown() {
@@ -35,40 +84,5 @@ public class OrderLineEventListenerTest {
         jdbc.execute("delete from ORDER");
         jdbc.execute("delete from PRODUCT");
     }
-
-    @Test
-    void test() {
-        Product product1 = dataManager.create(Product.class);
-        product1.setName("MacBook Pro");
-        product1.setPrice(BigDecimal.valueOf(2500));
-
-        Product product2 = dataManager.create(Product.class);
-        product2.setName("iPad");
-        product2.setPrice(BigDecimal.valueOf(1000));
-
-        Order order1 = dataManager.create(Order.class);
-        order1.setDate(LocalDate.now());
-
-        dataManager.save(order1, product1, product2);
-
-        OrderLine orderLine1 = dataManager.create(OrderLine.class);
-        orderLine1.setOrder(order1);
-        orderLine1.setProduct(product1);
-        orderLine1.setQuantity(2.0);
-
-        dataManager.save(orderLine1);
-
-        assertEquals(0, BigDecimal.valueOf(5000).compareTo(dataManager.load(Id.of(order1)).one().getAmount()));
-
-        OrderLine orderLine2 = dataManager.create(OrderLine.class);
-        orderLine2.setOrder(order1);
-        orderLine2.setProduct(product2);
-        orderLine2.setQuantity(3.0);
-
-        dataManager.save(orderLine2);
-
-        assertEquals(0, BigDecimal.valueOf(8000).compareTo(dataManager.load(Id.of(order1)).one().getAmount()));
-    }
-
 
 }

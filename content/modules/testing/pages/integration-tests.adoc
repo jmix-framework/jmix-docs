@@ -1,1 +1,80 @@
 = Integration Tests
+
+An integration test is a broader type of test. It allows to exercise the source code in the same way the application runs in production. When we talk about integration tests, we mean a test, that starts the complete Spring context and also interacts with a real database.
+
+In the following example, we will look at the `OrderAmountCalculation` again. But this time, we don't test the class as a unit test in isolation (as described in the previous chapter), but we test it as part of the bigger context where it is used in the application.
+
+In the example application there is an event listener, that listens to `EntityChangedEvent` of `OrderLine` entities. As part of the persistence logic, the listener recalculates the order amount of the order, the order line belongs to with the help of the `OrderAmountCalculation` class:
+
+[source,java,indent=0,title='OrderLineEventListener.java']
+----
+include::example$/ex1/src/main/java/testing/ex1/listener/OrderLineEventListener.java[tags=recalculate-order-amount]
+----
+
+In the integration test, we can now test the `OrderLineEventListener` and the `OrderAmountCalculation` together. We can use the `@Autowired` annotation to inject the `DataManager` into the test class. The `DataManager` is Jmix central entry point to the persistence layer of the application. As during the save operation of entities, it is executing the event listeners, that are registered in the application as well.
+
+In the test class we use the `DataManager` to create an order and an order line and store them in the database. This process will trigger the event listener and the order amount will be calculated.
+
+== Dependency Injection in Tests
+
+In a Spring integration test, we can use the same dependency injection mechanism as in the application. We can use the `@Autowired` annotation to inject beans into our test class. In this example, we inject the `DataManager` into the test class to use it to transitively trigger the `OrderLineEventListener` logic:
+
+[source,java,indent=0,title='OrderLineEventListenerTest.java']
+----
+@SpringBootTest
+public class OrderLineEventListenerTest {
+
+    @Autowired
+    DataManager dataManager;
+
+    // ...
+}
+----
+
+In case we want to test a custom bean directly, we can also directly inject the code under test into the test class. In this example, we inject the `CustomerService` to directly execute the method we want to test:
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+@SpringBootTest
+public class CustomerServiceTest {
+
+    @Autowired
+    CustomerService customerService;
+
+    // ...
+}
+----
+
+== Database interactions
+
+In an integration test there are two main reasons to interact with the database. The first reason is that we want to set up test data. This is oftentimes required as a prerequisite for the execution of the test case. For this we can use the regular Jmix functionalities like `DataManager` to interact with the database as we would in production code.
+
+The second reason is that indirect: by executing the business logic that we want to test, this business logic perform some operation against the database. Let's look at an example for both of those scenarios:
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.java[tags=find-by-email-found]
+----
+<1> The `DataManager` is used in the test, to store a test customer in the database.
+<2> The `CustomerService` is used to perform a database lookup of customers by Email.
+
+=== Test data cleanup
+
+In the example above, we use the `DataManager` to store a test customer in the database. Since all tests share the same database instance by default, it means that this test data will also be available for the next test. This is not a problem in this example, but in other cases, it might be. For example, if we would have a test that creates a customer with a specific email address, and another test that searches for a customer by email address, the second test would fail, because it would find the customer created by the first test.
+
+There are several ways on how to clean up the test data. The first is to keep references of data that was created during the test. In the example above, we could keep a reference to the customer that was created in the test and delete it after the test has finished via `dataManager.remove(customer)`. This is a valid approach, but it requires some additional code in the test. Additionally, it is not always possible to keep a reference to the data that was created during the test. For example, if we create a new entity in the production code, we don't have a reference to it in the test. Furthermore, in case of an exception during the test, the cleanup code might not be executed.
+
+Due to this the second alternative would be to perform more general database cleanup. In the following example we use `JdbcTemplate` to perform a SQL statement `DELETE FROM CUSTOMER` to delete all customers from the database:
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.java[tags=cleanup-customer-table]
+----
+<1> The `DataSource` is injected to instantiate the `JdbcTemplate`.
+<2> `@AfterEach` from JUnit is used to execute the data cleanup after each test case.
+<3> The `JdbcTemplate` is used to execute a SQL statement to delete all customers from the database.
+
+
+== Executing logic as a specific user
+
+== Overriding behaviour of the application
