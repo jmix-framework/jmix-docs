@@ -1,15 +1,15 @@
-= Authentication
+= Аутентификация
 
-Authentication is the first part of the interaction with the REST API. It is required so that Jmix can identify the user, who performs the requests. This allows Jmix to impose permission / data-access constraints on the requests to ensure the user is only allowed to see/interact with the parts of the system that it should be.
+Аутентификация — это первая часть взаимодействия с REST API. Она необходима для того, чтобы Jmix мог идентифицировать пользователя, выполняющего запрос. Это позволяет Jmix накладывать ограничения разрешений/доступа к данным на запросы, чтобы гарантировать, что пользователю мог видеть/взаимодействовать только с разрешенным ему частями системы.
 
 [[authentication-request]]
-== Authentication Request
+== Запрос аутентификации
 
-To interact with the Jmix REST API, it is required to authenticate through an OAuth2 flow. The following sequence diagram explains the general interaction with the REST API:
+Для взаимодействия с Jmix REST API требуется аутентификация через поток OAuth2. Краткий обзор представлен на следующей диаграмме последовательности:
 
 image::authentication-diagram.svg[align="center"]
 
-First, the API client needs to request an access token through the authentication request. For that, you need to send a `www-form-urlencoded` request with the username and password as part of the form body to Jmix:
+Во-первых, клиент API должен запросить токен доступа через запрос аутентификации. Для этого нужно отправить запрос `www-form-urlencoded` с именем пользователя и паролем как часть тела формы в Jmix:
 
 .Authentication Request
 [source, http request]
@@ -22,12 +22,12 @@ grant_type=password // <3>
 &username={{username}} // <4>
 &password={{password}}
 ----
-<1> The Authentication Request itself is authenticated with Basic Auth xref:app-properties.adoc#jmix.security.oauth2.client-id[client_id] and xref:app-properties.adoc#jmix.security.oauth2.client-secret[client_secret].
-<2> The content of the authentication request is `application/x-www-form-urlencoded`.
-<3> The `grant_type` is `password` to indicate the type of login.
-<4> The user credentials are provided as part of the form with the keys `username` and `password`.
+<1> Сам Authentication Request аутентифицируется с помощью Basic Auth xref:app-properties.adoc#jmix.security.oauth2.client-id[client_id] и xref:app-properties.adoc#jmix.security.oauth2.client-secret[client_secret].
+<2> Содержимое запроса аутентификации – `application/x-www-form-urlencoded`.
+<3> Значение `grant_type` – `password`, чтобы обозначить тип логина.
+<4> Учетные данные пользователя предоставляются как часть формы с ключами `username` и `password`.
 
-After a successful login, Jmix returns the access token as part of the HTTP response:
+После успешного входа в систему Jmix возвращает токен доступа как часть ответа HTTP:
 
 .HTTP/1.1 200
 [source, json]
@@ -42,18 +42,17 @@ After a successful login, Jmix returns the access token as part of the HTTP resp
 }
 ----
 
-The attribute `access_token` contains the token, that you can use in further requests: `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`.
+Атрибут `access_token` содержит токен, который вы можете использовать в дальнейших запросах: `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`.
 
-=== Refresh Token
+=== Обновление токена
 
-The token acts as a temporary credential/password. After a particular period, the token expires and you need to request a new token.
-The first option for requesting a new token to ask the user for their credentials again and perform a regular Authentication Request again.
+Токен действует как временные учетные данные/пароль. По истечении определенного периода срок действия токена истекает, и становится необходимо запросить новый. Первый вариант – снова запросить у пользователя его учетные данные и выполнить обычный запрос аутентификации.
 
-WARNING: Do not store the username and password in your client application so that the user does not need to re-enter its credentials. Either ask the user again for their credentials or use the refresh token to prevent token expiration.
+WARNING: Не храните имя пользователя и пароль в своем клиентском приложении, чтобы пользователю не нужно было повторно вводить свои учетные данные. Либо снова запросите у пользователя его учетные данные, либо используйте токен обновления, чтобы предотвратить истечение срока действия.
 
-The original Authentication Request contains a `refresh_token`, that you can use to create a new access token. While the access token is comparably short-lived (by default 12 hours for Jmix), the refresh token is valid for 365 days by default. Therefore, it is well suited as a long-lived credential to issue new tokens.
+Исходный Authentication Request содержит `refresh_token`, который можно использовать для создания нового токена доступа. В то время как токен доступа сравнительно недолговечен (по умолчанию 12 часов для Jmix), токен обновления по умолчанию действителен в течение 365 дней. Поэтому он хорошо подходит в качестве долгоживущего способа для выпуска новых токенов.
 
-To get a new access token via the refresh token, you can use the same endpoint of obtaining a token. But instead of using the `grand_type`: `password`, you can also use `refresh_token`. Here is an example of how to use the refresh token to obtain a new access token:
+Чтобы получить новый токен доступа с помощью токена обновления, вы можете использовать ту же операцию. Но вместо использования `grand_type`: `password` вы также можете использовать `refresh_token`. Пример использования токена обновления:
 
 
 .Refresh Authentication Request
@@ -66,20 +65,20 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=refresh_token // <1>
 &refresh_token=Hh2xCuZ7fgd35obagEBNGevF4ws= // <2>
 ----
-<1> The `grant_type` is `refresh_token` to indicate the type of login that is performed.
-<2> The refresh token is provided as part of the form with the key `refresh_token`.
+<1> Значение `grant_type` – `refresh_token`, чтобы обозначить тип логина.
+<2> Токен обновления предоставляется как часть формы с ключом `refresh_token`.
 
-The response contains a new access token, that has a new expiration period. With that, you can keep access to the API without the need to ask the user for their credentials after the access token expires.
+Ответ содержит новый токен доступа с новым сроком действия. При этом вы можете сохранить доступ к API без необходимости запрашивать у пользователя его учетные данные после истечения срока действия токена доступа.
 
 [[making-api-requests]]
-== Making API Requests
+== Выполнение запросов к API
 
-There are two ways on how to use the access token to authenticate against the different Jmix APIs, depending on the use case. Let's start with the first and main way of providing the access token: via an HTTP header in the following requests.
+Существует два способа использования токена доступа для аутентификации в различных API-интерфейсах Jmix, в зависимости от варианта использования. Начнем с первого и основного: через HTTP-заголовок в следующих запросах.
 
 [[authenticate-via-header]]
-=== Authenticate via Header
+=== Аутентификация через заголовок
 
-With the received access token `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`, you can now perform requests against the REST API. The access token needs to be passed in as the `Authorization` Header in every request, like in the following example:
+С полученным токеном доступа `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=` вы можете выполнять запросы к REST API. Токен необходимо передавать в качестве заголовка (Header) `Authorization` в каждом запросе, как в следующем примере:
 
 .Create Customers Request
 [source, http request]
@@ -93,16 +92,16 @@ Authorization: Bearer CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=  //<1>
   name: "Randall Bishop"
 }
 ----
-<1> The API request is authenticated with the authorization type `Bearer`, and the received access token.
+<1> Запрос API аутентифицируется с помощью типа авторизации `Bearer` и полученного токена доступа.
 
 [[authenticate-via-url-parameter]]
-=== Authenticate via URL Parameter
+=== Аутентификация через параметр URL
 
-It is also possible to pass the access token as a URL query parameter. This is necessary when the HTTP headers cannot be set. In case of the browser linking to a file or render an image.
+Также можно передать токен доступа в качестве параметра запроса URL. Это необходимо, когда установить заголовок HTTP невозможно в случае ссылки браузера на файл или отображения изображения.
 
-In the following example an image from the xref:files-api.adoc[Files API] should be rendered via `<img src="..." />` on a website.
+В следующем примере изображение из xref:files-api.adoc[Files API] должно отображаться на сайте через `<img src="..." />`.
 
-In this case, it is not possible to set the HTTP headers. Therefore, you can pass in the `access_token` as a URL as a query parameter:
+В этом случае установить заголовок HTTP невозможно. Передадим `access_token` как параметр запроса URL:
 
 [source,html]
 ----
@@ -114,14 +113,13 @@ In this case, it is not possible to set the HTTP headers. Therefore, you can pas
 ----
 
 [[anonymous-access]]
-== Anonymous Access
+== Анонимный доступ
 
-By default, all endpoints are only available after a successful authentication against the application.
-But it is also possible to expose certain parts of the REST API without authentication. This is possible by using the anonymous access functionality of Jmix. In this case, the API request is performed as the user `anonymous`, which is configured by default in a Jmix application.
+По умолчанию все операции доступны только после успешной аутентификации в приложении. Но также возможно предоставить определенные части REST API и без аутентификации с помощью функции анонимного доступа Jmix. В этом случае запрос API выполняется от имени пользователя `anonymous`, который настроен по умолчанию в приложении Jmix.
 
-For every secured endpoint that is called without the `Authentication` header, the user will be authenticated with the `anonymous` user session.
+Для каждой защищенной операции, которая вызывается без заголовка `Authentication`, пользователь будет аутентифицирован как `anonymous`.
 
-To whitelist specific endpoints for anonymous access, set a comma-separated list of URL patterns in the xref:rest:app-properties.adoc#jmix.rest.anonymous-url-patterns[jmix.rest.anonymous-url-patterns] application property. For example:
+Чтобы внести определенные операции в белый список для анонимного доступа, задайте список шаблонов URL-адресов, разделенных запятыми, в свойстве приложения xref:rest:app-properties.adoc#jmix.rest.anonymous-url-patterns[jmix.rest.anonymous-url-patterns]. Например:
 
 [source,properties]
 ----
@@ -131,9 +129,9 @@ jmix.rest.anonymous-url-patterns = \
   /rest/entities/Product/*
 ----
 
-The last pattern in the example above is needed if you want to update or delete the `Product` entity, because in this case the URL has the id part.
+Последний шаблон в приведенном выше примере необходим, если вы хотите обновить или удалить объект `Product`, потому что в этом случае URL-адрес имеет часть идентификатора.
 
-Once this setting is in place, it is possible to interact with the `ProductService` without sending an `Authorization` header:
+Как только параметр установлен, можно взаимодействовать с `ProductService` без отправки заголовка `Authorization`:
 
 .GetProductInformation Request
 [source, http request]
@@ -146,7 +144,7 @@ GET {{baseRestUrl}}
 # Authorization: not set
 ----
 
-This request will respond in a successful response of the Service:
+На этот запрос вернется успешный ответ сервиса:
 
 .HTTP/1.1 200
 [source, json]
@@ -158,7 +156,7 @@ This request will respond in a successful response of the Service:
 }
 ----
 
-If you want to provide anonymous access to some xref:rest:entities-api.adoc[entities] endpoints, make sure the `anonymous` user has rights to these entities. You can do it by creating a xref:security:resource-roles.adoc[resource role] and assigning it to the `anonymous` user in the `DatabaseUserRepository.initAnonymousUser()` method. For example:
+Если вы хотите предоставить анонимный доступ к операциям некоторых xref:rest:entities-api.adoc[сущностей], убедитесь, что у пользователя `anonymous` есть права на эти сущности. Для этого создайте xref:security:resource-roles.adoc[ресурсную роль] и назначьте ее пользователю `anonymous` в методе `DatabaseUserRepository.initAnonymousUser()`. Например:
 
 [source,java,indent=0]
 ----
@@ -193,7 +191,7 @@ public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User>
 }
 ----
 
-TIP: The anonymous access feature *does not* require that `anonymous` user has the `rest-minimal` role.
+TIP: Функция анонимного доступа *не требует* наличия роли `rest-minimal` у пользователя `anonymous`.
 
 //== LDAP Authentication
 //

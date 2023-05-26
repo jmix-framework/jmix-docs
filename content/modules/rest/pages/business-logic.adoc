@@ -1,34 +1,32 @@
-= Business Logic
+= Бизнес-логика
 
-When interacting with the REST API it is oftentimes needed to have an application-level layer of business logic in place that represents the invocation point for the API. It can be used for orchestration, validation, or other tasks that should happen when the API client interacts with the system. The xref:rest:entities-api.adoc[Entities API] does not allow placing additional orchestration business logic when interacting with the API. Instead, the API client directly interacts with the xref:data-access:index.adoc[Data Access Layer] of Jmix.
+При взаимодействии с REST API часто требуется наличие бизнес-логики на уровне приложения, которая представляла бы собой точку вызова для API. Ее можно использовать для оркестрации, валидации и других задач, выполняющихся когда клиент API взаимодействует с системой. xref:rest:entities-api.adoc[Entities API] не допускает использования дополнительной бизнес-логики оркестрации при взаимодействии с API. Вместо этого клиент взаимодействует напрямую с xref:data-access:index.adoc[уровнем доступа к данным] Jmix.
 
-For exposing business logic to the API client, Jmix provides two ways:
+В Jmix есть два способа предоставления бизнес-логики клиенту API:
 
-1. Services API
-2. Custom controllers
+* <<services-api>>
+* <<custom-controller>>
 
-In the next section, we will take a look at both options to understand where the difference between those approaches is.
+В следующем разделе мы рассмотрим оба варианта и разницу между этими подходами.
 
 [[services-api]]
 == Services API
 
-Let's look at the first approach to expose business logic to the API client: the Services API.
+Данный API позволяет предоставлять произвольный бин Spring в качестве конечной точки HTTP. В этом случае Jmix позаботится о таких взаимодействиях HTTP, как предоставление кодов ответов HTTP, обработка ошибок и т. д.
 
-The Services API allows exposing an arbitrary Spring bean as an HTTP endpoint. In this case, Jmix will take care of the HTTP interactions like providing HTTP response codes, perform error handling, etc.
-
-In this overview you can see the interaction between the API client and the Jmix application when using the Services API:
+Ниже представлен общий вид взаимодействий между клиентом API и приложением Jmix при использовании Services API:
 
 image::business-logic-diagram.svg[align="center"]
 
 [[exposing-a-service]]
-=== Exposing a Service
+=== Предоставление сервиса
 
-To use a Spring bean as part of the Jmix Services API, it needs to fulfill the following criteria:
+Чтобы использовать бин Spring в Jmix Services API, он должен соответствовать следующим критериям:
 
-1. The Spring bean needs to be annotated with Spring's `@Service` annotation (a specialized version of the `@Component` annotation).
-2. The Spring bean needs to be registered in the `rest-services.xml` configuration file.
+1. Бин должен иметь аннотацию Spring `@Service` (специализированная версия аннотации `@Component`).
+2. Бин необходимо зарегистрировать в файле конфигурации `rest-services.xml`.
 
-Let's look at the first part with this example:
+Рассмотрим первый критерий на следующем примере:
 
 [source,java]
 .CalculationServiceBean.java
@@ -43,11 +41,11 @@ public class OrderService {
     }
 }
 ----
-<1> The `OrderServiceBean` is registered as the Spring `@Service` with the name `sample_OrderService`.
+<1> `OrderServiceBean` зарегистрирован как `@Service` Spring с именем `sample_OrderService`.
 
-NOTE: If the service name is not specfied explicitly in the annotation, it is assumed to be equal to the simple class name with the first letter in lowercase. In the example above it would be `orderService`.
+NOTE: Если имя сервиса не указано в аннотации явно, предполагается, что оно равно простому имени класса с первой буквой в нижнем регистре. В приведенном выше примере это было бы `orderService`.
 
-The second part is to mention all Service methods as API endpoints. This happens via an XML configuration file, normally called `rest-services.xml`. You need to create this new file in your Jmix application as part of `src/main/resources`. It lists all service methods with information about the parameters that you want to expose.
+Для выполнения второго критерия нужно упомянуть все методы сервиса как конечные точки API. Это делается через файл конфигурации XML, обычно называемый `rest-services.xml`. Вам нужно создать такой файл в `src/main/resources` вашего приложения. В нем перечислены все методы сервиса с информацией о параметрах, которые вы хотите предоставить.
 
 [source,xml]
 .rest-services.xml
@@ -61,11 +59,11 @@ The second part is to mention all Service methods as API endpoints. This happens
     </service>
 </services>
 ----
-<1> You register the Service by its Spring component name.
-<2> Each method that you want to expose needs to be mentioned here.
-<3> The parameter needs to be described by its name and optionally by its type.
+<1> Регистрация сервиса по имени его бина Spring.
+<2> Здесь должен быть упомянут каждый метод, который нужно предоставить.
+<3> Параметр должен быть описан своим именем и, что необязательно, своим типом.
 
-After the file has been created, and the services have been defined, the last part is to register the `rest-services.xml` configuration in the `application.properties` of your Jmix application:
+После создания файла и определения сервисов последним шагом является регистрация конфигурации `rest-services.xml` в `application.properties` вашго приложения Jmix:
 
 [source,properties]
 .application.properties
@@ -73,17 +71,17 @@ After the file has been created, and the services have been defined, the last pa
 jmix.rest.services-config = rest-services.xml
 ----
 
-NOTE: The value of the `serviceConfig` is a reference to the file within the classpath. In this case, the file is located directly in the classpath root under `src/main/resources`. If you for example put the file in the `src/resources/com/example/rest-services.xml` package, the value would be: `com/example/rest-services.xml`.
+NOTE: Значение `serviceConfig` является ссылкой на файл в пути к классу. В нашем случае файл находится непосредственно в корне пути к классу в разделе `src/main/resources`. Если поместить файл в, например, пакет `src/resources/com/example/rest-services.xml`, то значение будет таким: `com/example/rest-services.xml`.
 
 [[using-the-services-api]]
-=== Using the Services API
+=== Использование Services API
 
-Once we have exposed the Service through the Services API, you can invoke it from an API client. This is possible by HTTP GET or HTTP POST.
+Как только вы предоставили сервис через Services API, вы сможете вызывать ее из клиента API с помощью HTTP GET или HTTP POST.
 
 [[invoke-a-service-via-get]]
-==== Invoke a Service via GET
+==== Вызов сервиса через GET
 
-In the case of HTTP GET, you need to provide the method parameter values as URL query parameters:
+В случае использования HTTP GET необходимо предоставить значения параметров метода в качестве параметров запроса URL:
 
 [source, http request]
 .Calculate Total Order Amount via HTTP GET
@@ -101,20 +99,20 @@ Authorization: Bearer {{access_token}}
 450.0
 ----
 
-NOTE: When using GET for invoking a service through the Services API, the OAuth access token still needs to be provided by the HTTP Authorization header. It is not possible to append the access token as a URL query parameter.
+NOTE: При использовании GET для вызова службы через Services API токен доступа OAuth по-прежнему должен быть предоставлен заголовком авторизации HTTP. Невозможно добавить токен доступа в качестве параметра запроса URL.
 
-A service method may return a result of a simple data type, an entity, an entity collection, or a serializable POJO. In our case, the service method returns an `int`, so the response body contains just a number.
+Метод сервиса может вернуть результат простого типа данных, сущность, коллекцию сущностей или сериализуемый POJO. В нашем случае метод сервиса возвращает `int`, поэтому тело ответа содержит только число.
 
 [[invoke-a-service-via-post]]
-==== Invoke a Service via POST
+==== Вызов сервиса через POST
 
-Alternatively, it is also possible to invoke the Service via HTTP POST. This is in particularly useful, when the Service method has one of the following parameter types:
+В качестве альтернативы сервис можно также вызвать через HTTP POST. Это особенно полезно, когда метод сервиса имеет один из следующих типов параметров:
 
-* Entities
-* Entity Collections
-* Serializable POJOs
+* Сущности
+* Коллекции сущностей
+* Сериализуемые POJO
 
-Suppose we added a new method to the OrderService created in the previous part:
+Предположим, мы добавили новый метод в OrderService, созданный в предыдущей части:
 
 [source,java]
 .OrderServiceBean.java
@@ -131,7 +129,7 @@ public class OrderService {
 }
 ----
 
-With the following structure for the `OrderValidationResult` POJO as the result object:
+Метод обладает следующей структурой для POJO `OrderValidationResult` в качестве результирующего объекта:
 
 [source,java]
 .OrderValidationResult.java
@@ -162,7 +160,7 @@ public class OrderValidationResult implements Serializable {
 }
 ----
 
-The new method has an Order entity in the arguments list and returns a POJO. Before the invocation of the REST API, the new method also must be registered in the `rest-services.xml`. Once you exposed the method you can perform the API call:
+Новый метод имеет сущность Order в списке аргументов и возвращает POJO. Перед вызовом REST API новый метод также должен быть зарегистрирован в файле `rest-services.xml`. После предоставления метода вы можете вызвать API:
 
 [source, http request]
 .Invoke Order Validation via HTTP POST
@@ -178,7 +176,7 @@ POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
 }
 ----
 
-The REST API method returns a serialized `OrderValidationResult` POJO:
+Метод REST API возвращает сериализованный POJO `OrderValidationResult`:
 
 [source, json]
 .Response: 200 - OK
@@ -190,32 +188,32 @@ The REST API method returns a serialized `OrderValidationResult` POJO:
 ----
 
 [[service-parameters]]
-==== Passing Parameters
+==== Передача параметров
 
-Parameter values must be passed in a format defined for the corresponding xref:data-model:data-types.adoc[datatype].
+Значения параметров должны передаваться в формате, определенном для соответствующего xref:data-model:data-types.adoc[datatype].
 
-* If the parameter type is `java.util.Date`, then the value is handled by `DateTimeDatatype`. This datatype implementation uses the https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE_TIME[ISO_DATE_TIME^] format where the date and time parts are separated with `T`, for example `2011-12-03T10:15:30`.
-* Parameters of `java.sql.Date` type are handled by `DateDatatype` which uses https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE[ISO_DATE^] format, for example `2011-12-03`.
-* Parameters of `java.sql.Time` type are handled by `TimeDatatype` which uses https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_TIME[ISO_TIME^] format, for example `10:15:30`.
+* Если тип параметра – `java.util.Date`, то значение обрабатывает `DateTimeDatatype`. Эта реализация datatype использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE_TIME[ISO_DATE_TIME^], в котором части даты и времени разделены `T`, например 2011-12-03T10:15:30.
+* Параметры типа `java.sql.Date` обрабатывает `DateDatatype`, который использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE[ISO_DATE^], например `2011-12-03`.
+* Параметры типа `java.sql.Time` обрабатывает `TimeDatatype`, который использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_TIME[ISO_TIME^], например `10:15:30`.
 
 [[custom-controller]]
-== Custom Controller
+== Пользовательские контроллеры
 
-The second way of exposing business logic as an API is the ability to use custom HTTP controllers. The main difference is that in this case, it is also possible to influence the HTTP interactions (like status codes, security, etc.) on your own. Jmix uses the default mechanisms from Spring MVC for creating HTTP endpoints.
+Второй способ представления бизнес-логики в виде API — использование настраиваемых контроллеров HTTP. Основное отличие состоит в том, что в этом случае также можно самостоятельно влиять на HTTP-взаимодействия (такие как коды состояния, безопасность и т.д.). Jmix использует механизмы Spring MVC по умолчанию для создания конечных точек HTTP.
 
-Use-cases for custom controllers could be:
+Варианты использования пользовательских контроллеров могут быть следующими:
 
-* explicitly define HTTP status codes
-* use other request & response content type than JSON
-* set custom response headers (e.g. for caching)
-* create custom error messages from exceptions
+* Явное определение кодов состояния HTTP;
+* Использование другого типа содержимого запроса и ответа, чем JSON;
+* Установка пользовательских заголовков ответов (например, для кэширования);
+* Создание собственных сообщений об ошибках исключений.
 
-In these situations, the generic Services API might be not flexible enough to accomplish your goals. Therefore Jmix allows natively integrate Spring MVC controllers into a Jmix application.
+В таких ситуациях обычный Services API может оказаться недостаточно гибким. Поэтому Jmix позволяет интегрировать контроллеры Spring MVC в собственном коде в приложение Jmix.
 
 [[creating-custom-controllers]]
-=== Creating Custom Controllers
+=== Создание пользовательских контроллеров
 
-To create a Spring MVC controller, it is only required to create a Spring bean in the Jmix application annotated as a Spring MVC controller. Jmix itself does not have any further requirements over Spring MVC. Let's look at an example Controller:
+Для создания контроллера требуется только создать в приложении Jmix бин Spring, аннотированный как контроллер Spring MVC. Сам Jmix не предъявляет никаких дополнительных требований к Spring MVC. Рассмотрим пример:
 
 [source,java]
 .OrderController.java
@@ -229,10 +227,10 @@ public class OrderController {
     // ...
 }
 ----
-<1> The custom controller is marked as `@RestController` to indicate to Spring that this bean contains HTTP endpoints.
-<2> The request mapping defines the base path for this Controller.
+<1> Пользовательский контроллер помечен как `@RestController` чтобы указать Spring, что этот бин содержит операции HTTP.
+<2> Сопоставление запроса определяет базовый путь для этого контроллера.
 
-Now that the Spring controller is registered, we can create a method exposing a particular HTTP endpoint with it:
+Теперь, когда контроллер Spring зарегистрирован, мы можем создать метод, предоставляющий с его помощью конкретную конечную точку HTTP:
 
 [source,java]
 .OrderController.java
@@ -262,13 +260,13 @@ public class OrderController {
     }
 }
 ----
-<1> The method `calculateTotalAmount` is annotated with `@GetMapping` indicating that it is accessible via HTTP GET on the subpath `/calculateTotalAmount`.
-<2> The parameter `orderId` is retrieved via URL query parameters.
-<3> We can use Spring's `ResponseEntity` class to indicate a JSON response together with different HTTP aspects.
+<1> Метод `calculateTotalAmount` аннотирован `@GetMapping`, указывающей, что он доступен через HTTP GET в подпути `/calculateTotalAmount`.
+<2> Параметр `orderId` извлекается через параметры запроса URL.
+<3> Класс Spring `ResponseEntity` можно использовать для указания ответа JSON вместе с различными аспектами HTTP.
 
-More detailed information on the various aspects of how to create Spring MVC controllers can be found in the Spring guide: https://spring.io/guides/gs/rest-service/[Building a RESTful Web Service] as well as the https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc[reference documentation] for Spring MVC.
+Более подробную информацию о различных аспектах создания контроллеров Spring MVC можно найти в руководстве Spring: https://spring.io/guides/gs/rest-service/[Building a RESTful Web Service], а также в https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc[справочной документации] по Spring MVC.
 
-With that controller in place, Jmix can serve this HTTP endpoint. Let's have a look at how to interact with the controller:
+Имея этот контроллер, Jmix может обслуживать данную конечную точку HTTP. Пример взаимодействия с контроллером:
 
 [source, http request]
 .Invoke Custom Orders Controller
@@ -276,7 +274,7 @@ With that controller in place, Jmix can serve this HTTP endpoint. Let's have a l
 GET http://localhost:8080/orders/calculateTotalAmount?orderId=123
 ----
 
-The result contains the calculation result exposed as JSON as well as the defined HTTP headers:
+Ответ содержит результат вычисления, представленный в виде JSON, а также определенные заголовки HTTP:
 
 [source, http request]
 .Response: 200 - OK
@@ -292,9 +290,9 @@ Content-Type: application/json
 ----
 
 [[securing-custom-controllers]]
-=== Securing Custom Controllers
+=== Защита пользовательских контроллеров
 
-To secure a custom controller via the same OAuth2 mechanism that the other parts of the Jmix REST APIs use, register the controller's URL pattern in the `jmix.rest.authenticated-url-patterns` application property:
+Чтобы защитить пользовательский контроллер с помощью того же механизма OAuth2, который используют другие части Jmix REST API, зарегистрируйте шаблон URL-адреса контроллера в свойстве приложения `jmix.rest.authenticated-url-patterns`:
 
 [source,properties]
 .application.properties
@@ -302,11 +300,11 @@ To secure a custom controller via the same OAuth2 mechanism that the other parts
 jmix.rest.authenticated-url-patterns = /orders/**
 ----
 
-Here, the `/orders/**` wildcard indicates to Jmix that all endpoints that start with `/orders/` should also use the OAuth2 mechanism.
+Здесь подстановочный знак `/orders/**` указывает Jmix, что все операции, начинающиеся с `/orders/` также должны использовать механизм OAuth2.
 
-NOTE: The value can contain a comma-separated list of https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/util/AntPathMatcher.html[Apache Ant style URL patterns].
+NOTE: Значение может содержать список https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/util/AntPathMatcher.html[шаблонов URL-адресов в стиле Apache Ant], разделенных запятыми.
 
-Trying to invoke the Order Controller now without a valid OAuth2 token will result in an `HTTP 401 - Unauthorized`:
+Теперь попытка вызвать Order Controller без действительного токена OAuth2 приводит к результату `HTTP 401 - Unauthorized`:
 
 [source, http request]
 .Response: 401 - Unauthorized
@@ -320,7 +318,7 @@ WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_de
 }
 ----
 
-Authenticated endpoints can rely on data access control provided by the Jmix xref:security:index.adoc[security] subsystem. If your controller uses xref:data-access:data-manager.adoc[DataManager] to load or save data, it will check rights of the authenticated user on xref:security:resource-roles.adoc#entity-policy[entity operations]. In the following example, the "Access denied" exception will be thrown if the user has no rights to read the `Order` entity:
+Аутентифицированные операции опираются на управление доступом к данным, обеспечиваемое подсистемой xref:security:index.adoc[безопасности] Jmix. Если ваш контроллер использует xref:data-access:data-manager.adoc[DataManager] для загрузки или сохранения данных, он будет проверять права аутентифицированного пользователя на xref:security:resource-roles.adoc#entity-policy[операции с сущностями]. В следующем примере будет выдано исключение "Отказано в доступе", если у пользователя нет прав на чтение сущности `Order`:
 
 [source,java,indent=0]
 ----
@@ -337,7 +335,7 @@ public class OrderController {
     }
 ----
 
-If you want to limit access also to entity attributes, use the `EntitySerialization` bean for serializing entities returned from the endpoint. In the following example, only attributes, permitted by the xref:security:resource-roles.adoc#entity-attribute-policy[entity attribute policy] will be returned in JSON to the client:
+Если вы также хотите ограничить доступ к атрибутам сущностей, используйте бин `EntitySerialization` для сериализации сущностей, возвращаемых из операции. В следующем примере только атрибуты, разрешенные xref:security:resource-roles.adoc#entity-attribute-policy[политикой атрибутов сущности], будут возвращены в формате JSON клиенту:
 
 [source,java,indent=0]
 ----
