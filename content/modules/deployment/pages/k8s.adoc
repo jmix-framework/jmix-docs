@@ -1,16 +1,16 @@
-= Kubernetes Cluster
+= Кластер Kubernetes
 
-In this guide, we describe how to deploy a Jmix application to a Kubernetes cluster. We'll use the single-node Kubernetes cluster provided by https://minikube.sigs.k8s.io/[minikube^], which you can install on your development machine and test the deployment locally.
+В данном разделе описывается развертывание приложения Jmix в кластер Kubernetes. Мы будем использовать одноузловой кластер, предоставляемый https://minikube.sigs.k8s.io/[minikube^]. Вы можете установить его на свою машину разработки, чтобы протестировать развертывание локально.
 
-The guide focuses on what should be configured in the application in order to run on Kubernetes. You can complete the guide and prepare your application for such deployment without any previous knowledge of Kubernetes. However, to run real production deployments, you should be familiar with this technology.
+Руководство сфокусировано на настройке приложения для запуска в Kubernetes. По нему вы можете подготовить свое приложение к такому развертыванию без каких-либо предварительных знаний о Kubernetes. Однако для запуска реальных производственных развертываний вы должны быть знакомы с этой технологией.
 
 [[app-configuration]]
-== Configure Your Application
+== Настройка приложения
 
 [[build-image]]
-=== Configure Image Building
+=== Настройка создания образа
 
-The Spring Boot Gradle plugin provides the `bootBuildImage` task which builds your application and creates a Docker image with it. To specify the image name, add the following section to your `build.gradle` file:
+Плагин Spring Boot Gradle предоставляет задачу `bootBuildImage`, которая собирает ваше приложение и создает образ Docker. Чтобы указать имя образа, добавьте следующий раздел в файл `build.gradle`:
 
 [source,groovy,indent=0]
 ----
@@ -18,48 +18,48 @@ include::example$/ex1/build.gradle[tags=bootBuildImage]
 ----
 
 [[hazelcast-configuration]]
-=== Configure Hazelcast
+=== Настройка Hazelcast
 
-Jmix framework modules use various caches: JPA entity and query caches, pessimistic locks, dynamic attributes configuration, etc. When running in a cluster, a Jmix application requires coordination of caches between cluster nodes.
+Модули фреймворка Jmix используют различные кэши: кэши сущностей JPA и запросов, пессимистические блокировки, конфигурации динамических атрибутов и т.д. При запуске в кластере приложение Jmix требует координации кэшей между узлами кластера.
 
-All Jmix caches support coordination through https://docs.hazelcast.com/imdg/latest/index.html[Hazelcast^]. In this guide, we'll use Hazelcast in the embedded mode, together with the https://github.com/hazelcast/hazelcast-kubernetes[hazelcast-kubernetes^] plugin for auto-discovery in Kubernetes environment.
+Все кэши Jmix поддерживают координацию через https://docs.hazelcast.com/imdg/latest/index.html[Hazelcast^]. В данном руководстве мы будем использовать Hazelcast во встроенном режиме вместе с плагином https://github.com/hazelcast/hazelcast-kubernetes[hazelcast-kubernetes^] для автоматического обнаружения в среде Kubernetes.
 
-Follow the steps below to configure Hazelcast for coordination of caches in a Kubernetes cluster.
+Следуйте приведенной ниже инструкции, чтобы настроить Hazelcast для координации кэшей в кластере Kubernetes.
 
-. Add Hazelcast dependencies to your `build.gradle`:
+. Добавьте зависимости Hazelcast в `build.gradle`:
 +
 [source,groovy,indent=0]
 ----
 include::example$/ex1/build.gradle[tags=dependencies]
 ----
 
-. Specify Hazelcast as JCache provider by adding the following property to the `application.properties` file:
+. Укажите Hazelcast в качестве провайдера JCache, добавив следующее свойство в файл `application.properties`:
 +
 [source,properties,indent=0]
 ----
 include::example$/ex1/src/main/resources/application.properties[tags=properties]
 ----
 
-. Create `hazelcast.yaml` file in the `resources` root:
+. Создайте файл `hazelcast.yaml` в корне `resources`:
 +
 [source,yaml,indent=0]
 ----
 include::example$/ex1/src/main/resources/hazelcast.yaml[]
 ----
 
-The `hazelcast.network.join.kubernetes.service-name` property must point to the application service defined in the <<app-service-config,application service configuration file>>.
+Свойство `hazelcast.network.join.kubernetes.service-name` должно указывать на службу приложения, определенную в <<app-service-config,файле конфигурации сервиса приложения>>.
 
-Notice that the `hazelcast.network.join.kubernetes.enabled` property is set to `false` in this file. It's done to be able to run your application locally without Kubernetes. The property is set to `true` when the application actually runs on Kubernetes, using the `HZ_NETWORK_JOIN_KUBERNETES_ENABLED` environment variable in the application service configuration file.
+Обратите внимание, что свойству `hazelcast.network.join.kubernetes.enabled` в этом файле присвоено значение `false`. Это сделано для того, чтобы иметь возможность запускать приложение локально без Kubernetes. Свойство устанавливается в `true`, когда приложение фактически запускается в Kubernetes, используя переменную окружения `HZ_NETWORK_JOIN_KUBERNETES_ENABLED` в файле конфигурации сервиса приложения.
 
 [[k8s-config]]
-== Create Kubernetes Configuration Files
+== Создание конфигурационных файлов Kubernetes
 
-Create `k8s` folder in the project root and add the files listed below to it.
+Создайте папку `k8s` в корне проекта и добавьте в нее перечисленные ниже файлы.
 
 [[db-service-config]]
-=== Database Service Configuration
+=== Конфигурация службы базы данных
 
-This file defines the PostgreSQL database service named `sample-db-service`.
+Этот файл определяет службу базы данных PostgreSQL с именем `sample-db-service`.
 
 .k8s/db.yaml
 [source,yaml,indent=0]
@@ -68,9 +68,9 @@ include::example$/ex1/k8s/db.yaml[]
 ----
 
 [[app-service-config]]
-=== Application Service Configuration
+=== Конфигурация службы приложенияn
 
-This file defines the application service named `sample-app-service`. It uses the `mycompany/sample-app` Docker <<build-image,image>> with our application.
+Этот файл определяет службу приложения с именем `sample-app-service`. Использует <<build-image,образ>> Docker `mycompany/sample-app` для приложения.
 
 .k8s/app.yaml
 [source,yaml,indent=0]
@@ -79,9 +79,9 @@ include::example$/ex1/k8s/app.yaml[]
 ----
 
 [[load-balancer-config]]
-=== Load-balancer Configuration
+=== Настройка балансировщика нагрузки
 
-The Jmix xref:ui:index.adoc[] expects that all requests from a user come to the same server. In a cluster environment with multiple servers it requires a load-balancer with sticky sessions. Below is the configuration of NGINX Ingress Controller with https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#session-affinity[session affinity^].
+xref:ui:index.adoc[Пользовательский интерфейс] Jmix ожидает, что все запросы от пользователя поступают на один и тот же сервер. В кластерной среде с несколькими серверами для этого требуется балансировщик нагрузки с "липкими сессиями" (sticky sessions). Ниже приведена конфигурация NGINX Ingress Controller с https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#session-affinity[session affinity^].
 
 .k8s/balancer.yaml
 [source,yaml,indent=0]
@@ -90,7 +90,7 @@ include::example$/ex1/k8s/balancer.yaml[]
 ----
 
 [[hazelcast-rbac-config]]
-=== Hazelcast Access Control Confguration
+=== Настройка контроля доступа Hazelcast
 
 .k8s/hazelcast-rbac.yaml
 [source,yaml,indent=0]
@@ -99,41 +99,41 @@ include::example$/ex1/k8s/hazelcast-rbac.yaml[]
 ----
 
 [[local-k8s]]
-== Set up Local Kubernetes
+== Настройка локального Kubernetes
 
-. Make sure Docker is running on your machine. The below command displays the Docker version:
+. Убедитесь, что на вашей машине запущен Docker. Приведенная ниже команда отображает версию Docker:
 +
 [source,shell script]
 ----
 docker -v
 ----
 +
-If the command fails, see https://docs.docker.com/get-docker[Docker documentation^] for how to install and run Docker.
+Если команда не выполняется, обратитесь к https://docs.docker.com/get-docker[документации Docker^] Docker о том, как установить и запустить Docker.
 
-. Install Minikube as described in its https://minikube.sigs.k8s.io/docs/start[installation instruction^].
+. Установите Minikube, как описано в https://minikube.sigs.k8s.io/docs/start[инструкции по установке^].
 
-. Run Minikube:
+. Запустите Minikube:
 +
 [source,shell script]
 ----
 minikube start --vm-driver=virtualbox
 ----
 
-. Enable Ingress Controller:
+. Включите Ingress Controller:
 +
 [source,shell script]
 ----
 minikube addons enable ingress
 ----
 
-. Configure the Kubernetes command-line tool to use Minikube:
+. Настройте инструмент командной строки Kubernetes для использования Minikube:
 +
 [source,shell script]
 ----
 kubectl config use-context minikube
 ----
 
-. To open the Kubernetes dashboard in the web browser, run in a separate terminal:
+. Чтобы открыть панель мониторинга Kubernetes в веб-браузере, выполните следующую команду в отдельном терминале:
 +
 [source,shell script]
 ----
@@ -141,41 +141,41 @@ minikube dashboard
 ----
 
 [[build-and-run-app]]
-== Build and Run Application
+== Сборка и запуск приложения
 
-. Build Docker image:
+. Соберите образ Docker:
 +
 [source,shell script]
 ----
 ./gradlew bootBuildImage
 ----
 
-. Load the image into Minikube:
+. Загрузите образ в Minikube:
 +
 [source,shell script]
 ----
 minikube image load mycompany/sample-app:latest
 ----
 
-. Apply Kubernetes <<k8s-config,configuration files>>:
+. Примените <<k8s-config,конфигурационные файлы>> Kubernetes:
 +
 [source,shell script]
 ----
 kubectl apply -f ./k8s
 ----
 
-. To increase the number of application instances, use the following command:
+. Чтобы увеличить количество экземпляров приложения, используйте следующую команду:
 +
 [source,shell script]
 ----
 kubectl scale deployment sample-app --replicas=2
 ----
 
-. Figure out the cluster IP address:
+. Определите IP-адрес кластера:
 +
 [source,shell script]
 ----
 minikube ip
 ----
 +
-Use this address to open the application in the web browser, for example: `++http://192.168.99.100++`
+Используйте этот адрес для открытия приложения в веб-браузере, например: `++http://192.168.99.100++`

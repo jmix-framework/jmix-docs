@@ -1,34 +1,34 @@
 = Google Cloud
 :page-aliases: deploy-to-google-cloud.adoc
 
-Before starting the guide, create an account and ensure that you have access to the https://console.cloud.google.com/[Google Cloud Console^]. We will use Google App Engine for the application deploy.
+Перед началом работы с руководством создайте учетную запись и убедитесь, что у вас есть доступ к https://console.cloud.google.com/[консоли Google Cloud^]. Мы будем использовать Google App Engine для развертывания приложения.
 
-NOTE: We will use PostgreSQL as a database for this guide.
+NOTE: В качестве базы данных будет использоваться PostgreSQL.
 
 [[sdk]]
-== SDK Installation
+== Установка SDK
 
-Install the Cloud SDK. link:https://cloud.google.com/sdk/docs/install[See the documentation^].
+Установите Cloud SDK. link:https://cloud.google.com/sdk/docs/install[См. документацию^].
 
-Install the `app-engine-java` component:
+Установите компонент `app-engine-java`:
 
 [source,shell script]
 ----
 gcloud components install app-engine-java
 ----
 
-== Google Cloud Project Setup
+== Настройка проекта Google Cloud
 
-To run the application in Google Cloud, you need to create a *Project*. Inside the project, you need to create an *Application* that will run the deployed JAR file and *Database* that will be used by the application. We will use Google Cloud SDK command line interface to do this, but it is also possible to use Google Cloud Web console.
+Чтобы запустить приложение в Google Cloud, создайте *Project*. Внутри проекта вам нужно создать *Application*, которое будет запускать развернутый JAR-файл, и *Database*, которая будет использоваться приложением. Для этого мы будем использовать интерфейс командной строки Google Cloud SDK, но также можно использовать веб-консоль Google Cloud.
 
-The first step is project creation. Type the following command in the terminal:
+Первый шаг – это создание проекта. Введите следующую команду в терминале:
 
 [source,shell script]
 ----
 gcloud init
 ----
 
-After issuing this command, you will be asked about init configuration. Init with new configuration using your account and create a new project. For this example, the name `jmix-application` will be used.
+После выполнения этой команды вам будет задан вопрос о конфигурации init. Инициализируйте с новой конфигурацией, используя свою учетную запись, и создайте новый проект. В этом примере будет использоваться имя `jmix-application`.
 
 [source,text]
 ----
@@ -41,16 +41,16 @@ Project IDs must be 6-30 characters (lowercase ASCII, digits, or
 hyphens) in length and start with a lowercase letter. *jmix-application*
 ----
 
-After that, we need to associate billing account with the project. It may be free of charge, but it is required in order to be able to deploy applications.
+После этого необходимо связать платежную учетную запись с проектом. Она может быть бесплатной, но это нужно сделать для того, чтобы иметь возможность развертывать приложения.
 
-To do this, find your billing account ID:
+Для этого найдите ID своей платежной учетной записи:
 
 [source,shell script]
 ----
 gcloud alpha billing accounts list
 ----
 
-You should see output similar to this:
+Вы должны увидеть результат, похожий на этот:
 
 [source,text]
 ----
@@ -58,14 +58,14 @@ ACCOUNT_ID            NAME                OPEN  MASTER_ACCOUNT_ID
 019961-BB112F-B3C8E6  My Billing Account  True
 ----
 
-Link your project with the account ID by executing the command and use your account ID as a parameter:
+Свяжите свой проект с ID учетной записи, выполнив команду с этим ID в качестве параметра:
 
 [source,shell script]
 ----
 gcloud alpha billing projects link jmix-application --billing-account=019961-BB112F-B3C8E6
 ----
 
-Next, we need to set up default project for the Google Cloud SDK and enable the following cloud APIs that we need to deploy the application:
+Далее необходимо настроить проект по умолчанию для Google Cloud SDK и включить следующие облачные API, которые нужны нам для развертывания приложения:
 
 * SQL Admin API
 * Cloud Build API
@@ -79,27 +79,27 @@ gcloud services enable cloudbuild.googleapis.com
 gcloud services enable clouddebugger.googleapis.com
 ----
 
-The next step: create a Google App Engine application inside the project. This application will be responsible for running the uploaded JAR file. To create the application, issue the following command in the console:
+Следующий шаг: создайте приложение Google App Engine внутри проекта. Это приложение будет отвечать за запуск загруженного JAR-файла. Чтобы создать приложение, выполните следующую команду в консоли:
 
 [source,shell script]
 ----
 gcloud app create
 ----
 
-In the list of the geographical locations select one for your application deploy. For this example we will use `europe-west2`.
+В списке географических местоположений выберите одно из них для развертывания вашего приложения. В этом примере мы будем использовать `europe-west2`.
 
-After the application is created, we can set up the database. The database name will be `sampledb`. It will be created inside the PostgreSQL instance named `sample`. The instance will be placed in the same region and zone as the application - `europe-west2`.
+После того как приложение создано, мы можем настроить базу данных. Имя БД будет `sampledb`. Она будет создана внутри экземпляра PostgreSQL с именем `sample`. Экземпляр будет размещен в том же регионе и зоне, что и приложение – `europe-west2`.
 
-For the PostgreSQL database type, we need to specify server parameters. You can find all possible parameters (CPU and Memory) link:https://cloud.google.com/sql/docs/postgres/create-instance#machine-types[on this page^].
+Для типа базы данных PostgreSQL нужно указать параметры сервера. Вы можете найти все возможные параметры (процессор и память) link:https://cloud.google.com/sql/docs/postgres/create-instance#machine-types[на этой странице^].
 
-To create a PostgreSQL database instance, execute the following command:
+Чтобы создать экземпляр базы данных PostgreSQL, выполните следующую команду:
 
 [source,shell script]
 ----
 gcloud sql instances create sample --database-version=POSTGRES_12 --tier=db-custom-1-3840 --region=europe-west2
 ----
 
-Create the database for the application and change the password for the default user using the following commands:
+Создайте базу данных для приложения и измените пароль пользователя по умолчанию, используя следующие команды:
 
 [source,shell script]
 ----
@@ -107,39 +107,39 @@ gcloud sql databases create sampledb --instance=sample
 gcloud sql users set-password postgres --instance=sample --prompt-for-password
 ----
 
-We have our database up and running. To continue, you need to write down the following information:
+Наша база данных запущена. Чтобы продолжить, запишите следующую информацию:
 
-* Database name (in this example `sampledb`).
-* Database username (by default it is `postgres`).
-* Database password (the password that you assigned during database creation).
-* Cloud-specific instance connection name.
+* Имя БД (in this example `sampledb`).
+* Имя пользователя БД (по умолчанию это `postgres`).
+* Пароль БД (который вы назначили при создании базы данных)
+* Специфичное для Cloud имя подключения экземпляра.
 
-Get the connection name of the instance in the format `project-id:zone-id:instance-id` by running the following command:
+Получите имя подключения экземпляра в формате `project-id:zone-id:instance-id`, выполнив следующую команду:
 
 [source,shell script]
 ----
 gcloud sql instances describe sample
 ----
 
-Find *connectionName* property in the output data. For our case it will look like `jmix-application:europe-west2:sample`
+Найдите свойство *connectionName* в выходных данных. В нашем случае оно будет выглядеть как `jmix-application:europe-west2:sample`.
 
-The cloud environment is set up and ready.
+Облачная среда настроена и готова.
 
 [[prepare-app]]
-== Preparing Application
+== Подготовка приложения
 
 [[database-connection]]
-=== Defining Database Connection
+=== Определение подключения к БД
 
-Since we have more than one database connections now (local and Google Cloud Database), we need to configure additional properties file that will contain connection properties specific for the Google Cloud environment.
+Поскольку сейчас у нас есть несколько подключений к базе данных (локальное и облачная базы данных Google), нам нужно настроить дополнительный файл, который будет содержать свойства подключения, специфичные для среды Google Cloud.
 
-To switch between different configurations, we will use link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[Runtime Profiles^]. For our case, we will use profile name `gae`.
+Для переключения между различными конфигурациями мы будем использовать https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[Профили среды выполнения^]. В нашем случае имя профиля будет `gae`.
 
-Let's create `application-gae.properties` file according to naming rules described in the link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot Documentation^].
+Создадим файл `application-gae.properties` в соответствии с правилами именования, описанными в link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[документации Spring Boot^].
 
-In this file we need to specify database connection properties and cloud-specific spring boot application diagnostic context path.
+В этом файле нужно указать свойства подключения к БД и специфичный для Cloud путь к контексту диагностики приложения Spring Boot.
 
-For our application, the file may look like this:
+Для нашего приложения файл может выглядеть следующим образом:
 
 [source, properties]
 ----
@@ -154,20 +154,20 @@ management.contextPath = /_ah
 ----
 
 [[cloud-specific-settings]]
-=== Cloud-Specific Settings
+=== Специфичные для Cloud настройки
 
-To run the application in the Google Cloud AppEngine, we need to create the execution environment configuration file named `app.yaml`. Create this file in your source code, the path is: `src/main/appengine/app.yaml`.
+Чтобы запустить приложение в Google Cloud AppEngine, необходимо создать файл конфигурации среды выполнения с именем `app.yaml`. Создайте этот файл в своем исходном коде, путь: `src/main/appengine/app.yaml`.
 
-In this file we need to specify application execution runtime, environment variables and scaling parameters. You can find more information about configuration file in link:https://cloud.google.com/appengine/docs/flexible/java/configuring-your-app-with-app-yaml[the Google Cloud documentation^].
+В этом файле нужно указать среду выполнения приложения, переменные окружения и параметры масштабирования. Вы можете найти более подробную информацию о файле конфигурации в link:https://cloud.google.com/appengine/docs/flexible/java/configuring-your-app-with-app-yaml[документации Google Cloud^].
 
-For our case, we specify the minimum set of parameters:
+Для нашего случая укажем минимальный набор параметров:
 
-* Java 11 as an execution environment.
-* Active Spring runtime profile name (`gae`).
-* Temporary directory path.
-* No scaling.
+* Java 11 как среда выполнения.
+* Имя активного профиля Spring runtime (`gae`).
+* Путь к временному каталогу.
+* Отсутствие масштабирования.
 
-So the file may look like this:
+Файл будет выглядеть следующим образом:
 [source, properties]
 ----
 runtime: java11
@@ -178,12 +178,12 @@ manual_scaling:
   instances: 1
 ----
 
-The applicatin is configured, now we need to alter the build script to enable application deploy using Google Cloud SDK.
+Приложение настроено, теперь нам нужно изменить сценарий сборки, чтобы включить развертывание приложения с помощью Google Cloud SDK.
 
 [[deploy-task]]
-=== Deploy Task
+=== Задача развертывания
 
-First, we need to add Google Cloud plugin to import its Gradle tasks. You can do it by specifying the following in the beginning of the build script:
+Во-первых, нам нужно добавить плагин Google Cloud для импорта его задач Gradle. Сделайте это, указав в начале скрипта сборки следующее:
 
 [source, groovy]
 ----
@@ -197,14 +197,14 @@ buildscript {
 }
 ----
 
-Then we need to apply this plugin along with Spring Boot plugin. Add the following line as an addition to the Spring Boot plugin application:
+Затем нам нужно применить этот плагин вместе с плагином Spring Boot. Добавьте следующую строку в качестве дополнения к приложению плагина Spring Boot:
 
 [source, groovy]
 ----
 apply plugin: 'com.google.cloud.tools.appengine'
 ----
 
-In the dependencies section, add the cloud connector:
+В разделе зависимости добавьте облачный коннектор:
 
 [source, groovy]
 ----
@@ -213,7 +213,7 @@ implementation('com.google.cloud.sql:postgres-socket-factory:1.2.0') {
 }
 ----
 
-Finally, add the deployment task definition to the end of the build file and specify project ID in it:
+Наконец, добавьте определение задачи развертывания в конец файла сборки и укажите в нем ID проекта:
 
 [source, groovy]
 ----
@@ -228,21 +228,21 @@ appengine {  // App Engine tasks configuration
 }
 ----
 
-Now our application is ready for deploy.
+Теперь приложение готово к развертыванию.
 
 [[deploy]]
-== Deploying Application
+== Развертывание приложения
 
-In order to deploy the application to the Google Cloud, execute the following command in the command line:
+Чтобы развернуть приложение в Google Cloud, выполните следующую команду в командной строке:
 
 [source,shell script]
 ----
 ./gradlew appengineDeploy
 ----
 
-Gradle will use Google Cloud SDK and upload the application Jar file to the cloud execution environment.
+Gradle будет использовать Google Cloud SDK и загрузит JAR-файл приложения в облачную среду выполнения.
 
-You should see a console output similar to the following:
+Вы увидите консольный вывод, похожий на этот:
 
 [source,text]
 ----
@@ -257,4 +257,4 @@ Setting traffic split for service [default]..................................don
 Deployed service [default] to [https://jmix-application.nw.r.appspot.com]
 ----
 
-Notice the URL in the last line. This is the address that you can use to get access to the deployed application.
+Обратите внимание на URL-адрес в последней строке. Это адрес, который вы можете использовать для получения доступа к развернутому приложению.

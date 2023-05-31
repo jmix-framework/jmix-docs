@@ -1,38 +1,38 @@
 = Azure App Services
 
-In this guide, we describe how to deploy a Jmix application to Azure App Services cloud.
+В данном разделе вы узнаете, как развернуть приложение Jmix в облако Azure App Services.
 
-Before starting the guide, create a Microsoft Azure account and Azure DevOps account, and ensure that you have access to link:https://portal.azure.com/[Azure portal^].
+Перед началом работы с руководством создайте учетную запись Microsoft Azure и Azure DevOps и убедитесь, что у вас есть доступ к link:https://portal.azure.com/[порталу Azure^].
 
-NOTE: We will use PostgreSQL as a database for this guide.
+NOTE: В качестве базы данных будет использоваться PostgreSQL.
 
 [[azure-env]]
-== Creating The Azure Environment
+== Создание среды Azure
 
-Launch the link:https://docs.microsoft.com/en-in/azure/cloud-shell/overview[Azure Cloud Shell^] from the Azure portal and begin with creating a resource group:
+Запустите link:https://docs.microsoft.com/en-in/azure/cloud-shell/overview[Azure Cloud Shell^] из портала Azure и начните с создания группы ресурсов:
 
 [source,shell,indent=0]
 ----
 az group create --name MyJmixGroup1 --location eastus
 ----
 
-After that, create a PostgreSQL server. Here `sku` stands for Stock Keeping Unit, so `--sku-name GP_Gen5_2` maps to General Purpose pricing tier, Generation 5, and 2 virtual cores. Pass your own database credentials in the command:
+После этого создайте сервер PostgreSQL. Здесь `sku` означает "Stock Keeping Unit", поэтому `--sku-name GP_Gen5_2` означает "General Purpose pricing tier, Generation 5, and 2 virtual cores". Передайте свои собственные учетные данные базы данных в команде:
 
 [source,shell,indent=0]
 ----
 az postgres server create --resource-group MyJmixGroup1 --name myjmixpostgres1 --admin-user jmixadmin --admin-password ChangeMe@42 --sku-name GP_Gen5_2
 ----
 
-Remember the password, as you will not be able to see it anywhere in the Azure interface.
+Запомните пароль, так его нельзя увидеть в интерфейсе Azure.
 
-Navigate to *myjmixpostgres1* in portal, open *Connection security*, set *Allow access to Azure services* to *Yes* and click *Save*.
+В портале перейдите к *myjmixpostgres1*, откройте *Connection security*, установите для *Allow access to Azure services* значение *Yes* и нажмите *Save*.
 
 //Go to the portal dashboard and open *myjmixpostgres1*, find *Connection strings* and copy JDBC URL. It
 
 [[azure-project-setup]]
-== Jmix Project Setup
+== Настройка проекта Jmix
 
-If you want to use a local PostgreSQL database for development, your Data Store settings and `application.properties` should contain connection parameters for the local database, for example:
+Если вы хотите использовать для разработки локальную базу данных PostgreSQL, настройки вашего хранилища данных и `application.properties` должны содержать параметры подключения к ней, например:
 
 [source,properties,indent=0]
 ----
@@ -41,9 +41,9 @@ main.datasource.username = root
 main.datasource.password = root
 ----
 
-The Azure PostgreSQL connection parameters should be specified in the Gradle task configuration as described below.
+Параметры подключения Azure PostgreSQL должны быть указаны в конфигурации задачи Gradle, как описано ниже.
 
-Open `build.gradle` and add the https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[Azure WebApp Plugin for Gradle^] to the `plugins` section:
+Откройте `build.gradle` и добавьте https://github.com/microsoft/azure-gradle-plugins/tree/master/azure-webapp-gradle-plugin[плагин Azure WebApp для Gradle^] в раздел `plugins`:
 
 [source,groovy,indent=0]
 ----
@@ -53,7 +53,7 @@ plugins {
 }
 ----
 
-Then add the `azurewebapp` task configuration with your Azure parameters and credentials:
+Затем добавьте конфигурацию задачи `azurewebapp` с вашими параметрами и учетными данными Azure:
 
 [source,groovy,indent=0]
 ----
@@ -76,29 +76,29 @@ azurewebapp {
     }
 }
 ----
-<1> The resource group which you created in Azure portal.
-<2> The app service plan will be created automatically on first deployment.
-<3> The app name which will be used also in your application URL.
-<4> A container for Spring Boot executable JAR.
-<5> Java version must correspond to the version used to compile the application.
-<6> The `appSettings` section allows you to set environment variables for connecting to the Azure PostgreSQL when the application is deployed to the cloud. Here `myjmixpostgres1` is the name of PostgreSQL server created above.
+<1> Группа ресурсов, которую вы создали на портале Azure.
+<2> Тарифный план обслуживания приложения будет создан автоматически при первом развертывании.
+<3> Название приложения, которое также будет использоваться в URL-адресе приложения.
+<4> Контейнер для исполняемого файла Spring Boot JAR.
+<5> Версия Java должна соответствовать версии, использованной при компиляции приложения.
+<6> Раздел `appSettings` позволяет устанавливать переменные среды для подключения к Azure PostgreSQL при развертывании приложения в облаке. Здесь `myjmixpostgres1` – это имя сервера PostgreSQL, созданного выше.
 
-Now you can deploy the application to Azure cloud with the following command:
+Теперь вы можете развернуть приложение в облаке Azure с помощью следующей команды:
 
 [source,shell]
 ----
 ./gradlew azureWebAppDeploy
 ----
 
-If the deployment was successful, the running application is available at `++https://myjmixapp1.azurewebsites.net++`.
+Если развертывание прошло успешно, запущенное приложение будет доступно по адресу `++https://myjmixapp1.azurewebsites.net++`.
 
-If you got an error from Gradle, try to execute the command again with the `--stacktrace` option to see the cause:
+Если вы получили сообщение об ошибке от Gradle, попробуйте выполнить команду еще раз с параметром `--stacktrace`, чтобы увидеть причину:
 
 [source,shell]
 ----
 ./gradlew azureWebAppDeploy --stacktrace
 ----
 
-To https://docs.microsoft.com/en-us/azure/app-service/troubleshoot-diagnostic-logs#enable-application-logging-linuxcontainer[enable application logging^], open the app in the portal and select *App Service logs*. In the *Application logging* field, select *File System* and click *Save*. After that, redeploy the application from the command line or restart it at the app overview page in the portal.
+Чтобы включить https://docs.microsoft.com/en-us/azure/app-service/troubleshoot-diagnostic-logs#enable-application-logging-linuxcontainer[ведение журнала приложений^], откройте приложение в портале и выберите *App Service logs*. В поле *Application logging* выберите *File System* и нажмите *Save*. После этого повторно разверните приложение из командной строки или перезапустите его на странице обзора приложения на портале.
 
-To view or download the logs, go to the app page in the portal, *Diagnose and solve problems* -> *Availability and Performance* -> *Application Logs*.
+Чтобы просмотреть или загрузить журналы, перейдите на страницу приложения на портале и выберите *Diagnose and solve problems* -> *Availability and Performance* -> *Application Logs*.

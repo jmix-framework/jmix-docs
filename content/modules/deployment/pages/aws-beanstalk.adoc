@@ -1,42 +1,42 @@
 = Amazon Web Services
 :page-aliases: deploy-to-aws.adoc
 
-In this section, you will learn how to build a Jmix application as executable JAR and deploy it to the link:https://aws.amazon.com/elasticbeanstalk/[AWS Elastic Beanstalk^] service.
+В данном разделе вы узнаете, как собрать приложение Jmix в виде исполняемого файла JAR и развернуть его в сервис link:https://aws.amazon.com/elasticbeanstalk/[AWS Elastic Beanstalk^].
 
-Before starting the guide, create an account and ensure that you have access to the link:https://console.aws.amazon.com/console/home[AWS Console^].
+Перед началом работы с руководством создайте учетную запись и убедитесь, что у вас есть доступ к link:https://console.aws.amazon.com/console/home[консоли AWS^].
 
-NOTE: We will use PostgreSQL as a database for this guide.
+NOTE: В качестве базы данных будет использоваться PostgreSQL.
 
-TIP: If you need to deploy your application just for the test or demo purposes, consider using xref:studio:aws-deployment.adoc[]. It will deploy and run your application together with the database on a newly created EC2 instance.
+TIP: Если вы хотите развернуть приложение лишь для тестирования или демонстрации, рассмотрите возможность использования xref:studio:aws-deployment.adoc[Быстрого развертывания в AWS]. Эта функция развернет и запустит ваше приложение вместе с базой данных на вновь созданном экземпляре EC2.
 
 [[executable-jar]]
-== Deploying Executable JAR
+== Развертывание исполняемого JAR-файла
 
 [[prepare-app]]
-=== Preparing The Application
+=== Подготовка приложения
 
-Since we have more than one database connection now (local development and AWS), we need to configure additional properties file that will contain connection properties for AWS environment.
+Поскольку сейчас у нас есть более одного подключения к БД (локальная разработка и AWS), нам нужно настроить дополнительный файл свойств, который будет содержать свойства подключения для среды AWS.
 
-To switch between different configurations, we will use https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[Runtime Profiles^]. For our case, we will use `aws` profile name.
+Для переключения между различными конфигурациями мы будем использовать https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles[Профили среды выполнения^]. В нашем случае имя профиля будет `aws`.
 
-Let's create `application-aws.properties` file according to naming rules described in link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[Spring Boot Documentation].
+Создадим файл `application-aws.properties` в соответствии с правилами именования, описанными в link:https://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/html/features.html#features.profiles.profile-specific-configuration-files[документации Spring Boot].
 
-In this file, we will specify database connection properties using AWS Elastic Beanstalk environment variables:
+В этом файле зададим свойства подключения к базе данных, используя переменные среды AWS Elastic Beanstalk:
 
-* `RDS_HOSTNAME` - internal Beanstalk-specific database host name
-* `RDS_PORT` - database port allocated by Beanstalk
-* `RDS_DB_NAME` - database name
-* `RDS_USERNAME` - database username
-* `RDS_PASSWORD` - database password
+* `RDS_HOSTNAME` - внутреннее имя хоста базы данных, специфичное для Beanstalk
+* `RDS_PORT` - порт базы данных, выделенный Beanstalk
+* `RDS_DB_NAME` - имя базы данных
+* `RDS_USERNAME` - имя пользователя базы данных
+* `RDS_PASSWORD` - пароль к базе данных
 
-TIP: Note that these variables should be specified if you create a database using Beanstalk. If you created the database separately using RDS or another AWS service, you may not need these variables
+TIP: Обратите внимание, что эти переменные должны быть указаны, если вы создаете БД с помощью Beanstalk. Если вы создали БД отдельно, используя RDS или другой сервис AWS, эти переменные могут быть вам не нужны.
 
-In addition to the datasource coordinates, we may want to specify the following properties before the deployment:
+В дополнение к координатам источника данных, нам может понадобится указать следующие свойства перед развертыванием:
 
-* `server.port` - should be set to 5000 by default. You can specify Beanstalk environment property `SERVER_PORT` instead if you like. We will show how to set Beanstalk environment later.
-* `jmix.liquibase.enabled` - if set to `true` (default value) - enables automatic execution of Liquibase database migration scripts on application start.
+* `server.port` - по умолчанию должно быть установлено значение 5000. Вместо этого вы можете указать свойство среды Beanstalk `SERVER_PORT`, если хотите. Как настроить среду Beanstalk будет показано позже.
+* `jmix.liquibase.enabled` - если установлено значение `true` (по умолчанию), включает автоматическое выполнение скриптов миграции БД Liquibase при запуске приложения.
 
-So, the `application-aws.properties` file content may look like this:
+Итак, содержимое файла `application-aws.properties` может выглядеть следующим образом:
 
 [source,properties,indent=0]
 main.datasource.url = jdbc:postgresql://${RDS_HOSTNAME}:${RDS_PORT}/${RDS_DB_NAME}
@@ -44,55 +44,55 @@ main.datasource.username = ${RDS_USERNAME}
 main.datasource.password = ${RDS_PASSWORD}
 server.port=5000
 
-The application is ready, you can create an executable JAR and move to the next step.
+Приложение готово, вы можете создать исполняемый файл JAR и перейти к следующему шагу.
 
 [[create-aws-env]]
-=== Creating The AWS environment
+=== Создание среды AWS
 
-Log in to the AWS Console and select *Elastic Beanstalk* service from the list of services.
+Войдите в консоль AWS и выберите *Elastic Beanstalk* из списка сервисов.
 
-After that, create the application by clicking on a corresponding link on the Beanstalk main page. Enter application information:
+После этого создайте приложение, перейдя по соответствующей ссылке на главной странице Beanstalk. Введите информацию о заявке:
 
-* Application name - any name you prefer.
-* Platform - Java. Select platform branch according to your preferences.
+* Application name - любое предпочитаемое вами имя.
+* Platform - Java. Выберите ветвь платформы в соответствии с вашими предпочтениями.
 
-In the *Application code* section select *Upload your code* option. In the *Source code origin* section for the *Local file* option click on *Choose file* button and upload your application's JAR. It is usually located in `/build/libs` folder.
+В разделе *Application code* выберите опцию *Upload your code*. В разделе *Source code origin* для опции *Local file* нажмите на кнопку *Choose file* и загрузите JAR вашего приложения. Обычно он находится в папке `/build/libs`.
 
-Add a database to the environment by clicking on *Configure more options* button. In the configuration page, edit the database parameters:
+Добавьте базу данных в среду, нажав на кнопку *Configure more options*. На странице конфигурации отредактируйте параметры БД:
 
 image::aws-ebs-add-database.png[align=center]
 
-Set database parameters similar to those on the picture:
+Установите параметры базы данных, аналогичные показанным на рисунке:
 
 image::aws-rds-parameters.png[align=center]
 
-TIP: Setting *Retention* to `Delete` is recommended for test environments. For production environments set it to `Create snapshot` to avoid data loss in case of the application is deleted accidentally.
+TIP: Для тестовых сред рекомендуется установить *Retention* в `Delete`. Для производственных сред установите значение `Create snapshot`, чтобы избежать потери данных в случае случайного удаления приложения.
 
-After creating the database, we have one more step specifying runtime profile to enable proper application configuration - `aws`. In order to do this, edit *Software* settings in the environment configuration page:
+После создания БД необходимо указать профиль среды выполнения, чтобы обеспечить правильную конфигурацию приложения - `aws`. Для этого отредактируйте настройки *Software* на странице конфигурации среды:
 
 image::aws-ebs-environment-settings.png[align=center]
 
-In the *Environment properties* section add the `SPRING_PROFILES_ACTIVE` property and set its value to `aws`:
+В разделе *Environment properties* добавьте свойство `SPRING_PROFILES_ACTIVE` и установите для него значение `aws`:
 
 image::aws-ebs-environment-values.png[align=center]
 
-Save all settings and create the application. The creation and startup usually takes 5-10 minutes.
+Сохраните все настройки и создайте приложение. Создание и запуск обычно занимают 5-10 минут.
 
 [[test]]
-=== Testing The Deploy
+=== Тестирование развертывания
 
-When the application is created and deployed, open the environments list and click on the corresponding environment:
+Когда приложение будет создано и развернуто, откройте список сред и щелкните по соответствующей среде:
 
 image:aws-ebs-app-env-list.png[align=center]
 
-In the environment page, click on the *Go to environment* link to open the deployed application page.
+На странице среды нажмите на ссылку *Go to environment*, чтобы открыть страницу развернутого приложения.
 
 image:aws-ebs-app-env-page.png[align=center]
 
-The application page should open.
+Откроется страница приложения.
 
-=== More Information
+=== Дополнительная информация
 
-The guide is based on the link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[AWS guide^], so you can refer to it for further details.
+Данный раздел основан на link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[руководстве AWS^], поэтому вы можете обратиться к нему за более подробной информацией.
 
-Also, you may find the link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[guide on deploying Java applications^]  useful.
+Кроме того, может быть полезным link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[руководство по развертыванию Java-приложений^].
