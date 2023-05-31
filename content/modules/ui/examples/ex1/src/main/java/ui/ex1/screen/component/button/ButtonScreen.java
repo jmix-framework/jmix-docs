@@ -40,12 +40,19 @@ public class ButtonScreen extends Screen {
     // end::inject-icons[]
 
     // tag::click-handler[]
-    @Subscribe("helloButton") // <1>
-    protected void onHelloButtonClick(Button.ClickEvent event) {
-        Button button = event.getSource(); // <2>
+    @Subscribe("helloButton")
+    private void onHelloButtonClick(Button.ClickEvent event) {
         // ...
     }
     // end::click-handler[]
+
+    // tag::click-handler-1[]
+    @Subscribe("helloButton") // <1>
+    private void onHelloButton1Click(Button.ClickEvent event) {
+        Button button = event.getSource(); // <2>
+        // ...
+    }
+    // end::click-handler-1[]
 
     @Autowired
     protected Button styledBtn1;
