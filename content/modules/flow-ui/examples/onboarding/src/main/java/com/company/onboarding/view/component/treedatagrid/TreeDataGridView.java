@@ -14,13 +14,4 @@ import io.jmix.flowui.view.ViewDescriptor;
 @ViewController("TreeDataGridView")
 @ViewDescriptor("tree-data-grid-view.xml")
 public class TreeDataGridView extends StandardView {
-    @Subscribe("departmentsTable")
-    public void onDepartmentsTableCollapse(CollapseEvent<Object, TreeDataGrid> event) {
-        
-    }
-
-    @Subscribe("departmentsTable")
-    public void onDepartmentsTableExpand(ExpandEvent<Object, TreeDataGrid> event) {
-        
-    }
 }

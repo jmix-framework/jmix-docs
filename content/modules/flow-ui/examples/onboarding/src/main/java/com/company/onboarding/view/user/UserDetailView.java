@@ -75,14 +75,6 @@ public class UserDetailView extends StandardDetailView<User> {
     @Autowired
     private UiComponents uiComponents;
 
-    @ViewComponent
-    private FormLayout form;
-
-    private Image image;
-
-    @Autowired
-    private FileStorage fileStorage;
-
     @Subscribe
     public void onInit(InitEvent event) {
         timeZoneField.setItems(List.of(TimeZone.getAvailableIDs()));
@@ -101,23 +93,7 @@ public class UserDetailView extends StandardDetailView<User> {
                 }))
                 .setWidth("50px"); // width doesn't work
 
-        DataGridHelper.setDataGridColumnPosition(stepsDataGrid, checkboxColumn, 0);
-
-        MemoryBuffer memoryBuffer = new MemoryBuffer();
-        Upload upload = new Upload(memoryBuffer);
-        upload.setMaxFiles(1);
-        upload.addFinishedListener(event1 -> {
-            FileRef fileRef = fileStorage.saveStream(memoryBuffer.getFileName(), memoryBuffer.getInputStream());
-            getEditedEntity().setPicture(fileRef);
-            updateImage();
-        });
-        form.add(upload);
-
-        image = new Image();
-        image.setHeight("200px");
-        image.setWidth("200px");
-        image.addClassName("user-picture");
-        form.add(image);
+        stepsDataGrid.setColumnPosition(checkboxColumn, 0);
     }
 
     @Subscribe
@@ -133,18 +109,6 @@ public class UserDetailView extends StandardDetailView<User> {
     public void onReady(ReadyEvent event) {
         if (entityStates.isNew(getEditedEntity())) {
             usernameField.focus();
-        }
-
-        updateImage();
-    }
-
-    private void updateImage() {
-        FileRef fileRef = getEditedEntity().getPicture();
-        if (fileRef != null) {
-            StreamResource streamResource = new StreamResource(
-                    fileRef.getFileName(),
-                    () -> fileStorage.openStream(fileRef));
-            image.setSrc(streamResource);
         }
     }
 

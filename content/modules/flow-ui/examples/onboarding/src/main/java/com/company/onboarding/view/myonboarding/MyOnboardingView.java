@@ -2,7 +2,6 @@ package com.company.onboarding.view.myonboarding;
 
 import com.company.onboarding.entity.User;
 import com.company.onboarding.entity.UserStep;
-import com.company.onboarding.view.DataGridHelper;
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.button.Button;
@@ -10,7 +9,6 @@ import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.function.SerializableFunction;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.security.CurrentAuthentication;
 import io.jmix.flowui.UiComponents;
@@ -21,7 +19,6 @@ import io.jmix.flowui.model.DataContext;
 import io.jmix.flowui.model.InstanceContainer;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 
@@ -30,9 +27,9 @@ import java.time.LocalDate;
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
 @DialogMode(width = "AUTO", height = "AUTO")
-public class MyOnboardingView extends StandardView {
 // end::annotations[]
-
+public class MyOnboardingView extends StandardView {
+    // end::annotations[]
     @Autowired
     private CurrentAuthentication currentAuthentication;
     @Autowired
@@ -62,19 +59,19 @@ public class MyOnboardingView extends StandardView {
     @Subscribe
     public void onInit(InitEvent event) {
         Grid.Column<UserStep> checkboxColumn = stepsDataGrid.addColumn(new ComponentRenderer<>(userStep -> {
-                    Checkbox checkbox = uiComponents.create(Checkbox.class);
-                    checkbox.setValue(userStep.getCompletedDate() != null);
-                    checkbox.addValueChangeListener(e -> {
-                        if (userStep.getCompletedDate() == null) {
-                            userStep.setCompletedDate(LocalDate.now());
-                        } else {
-                            userStep.setCompletedDate(null);
-                        }
-                    });
-                    return checkbox;
-                }));
+            Checkbox checkbox = uiComponents.create(Checkbox.class);
+            checkbox.setValue(userStep.getCompletedDate() != null);
+            checkbox.addValueChangeListener(e -> {
+                if (userStep.getCompletedDate() == null) {
+                    userStep.setCompletedDate(LocalDate.now());
+                } else {
+                    userStep.setCompletedDate(null);
+                }
+            });
+            return checkbox;
+        }));
 
-        DataGridHelper.setDataGridColumnPosition(stepsDataGrid, checkboxColumn, 0);
+        stepsDataGrid.setColumnPosition(checkboxColumn, 0);
 
         stepsDataGrid.getColumnByKey("dueDate")
                 .setClassNameGenerator(userStep ->
