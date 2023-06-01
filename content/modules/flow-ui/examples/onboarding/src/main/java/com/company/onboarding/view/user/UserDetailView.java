@@ -39,6 +39,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 @Route(value = "users/:id", layout = MainView.class)
 @ViewController("User.detail")
@@ -67,13 +68,27 @@ public class UserDetailView extends StandardDetailView<User> {
     @Autowired
     private DataManager dataManager;
     @ViewComponent
-    private CollectionPropertyContainer<UserStep> stepsDc;
-    @ViewComponent
     private DataContext dataContext;
     @ViewComponent
     private DataGrid<UserStep> stepsDataGrid;
     @Autowired
     private UiComponents uiComponents;
+
+    // tag::filter[]
+    @ViewComponent
+    private CollectionPropertyContainer<UserStep> stepsDc;
+
+    private void filterByDueDate(LocalDate dueDate) {
+        List<UserStep> filtered = getEditedEntity().getSteps().stream()
+                .filter(userStep -> userStep.getDueDate().isAfter(dueDate))
+                .collect(Collectors.toList());
+        stepsDc.setDisconnectedItems(filtered);
+    }
+
+    private void resetFilter() {
+        stepsDc.setDisconnectedItems(getEditedEntity().getSteps());
+    }
+    // end::filter[]
 
     @Subscribe
     public void onInit(InitEvent event) {
