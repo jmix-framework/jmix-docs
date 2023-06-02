@@ -39,7 +39,7 @@ public class EntityPickerView extends StandardView {
     public void onInit(InitEvent event) {
         // end::onInit[]
         // tag::addAction[]
-        departmentEntityPicker.addAction(actions.create(EntityOpenAction.class));
+        departmentEntityPicker.addAction(actions.create(EntityOpenAction.ID));
         // end::addAction[]
         // tag::addCustomAction[]
         departmentEntityPicker.addAction(new BaseAction("showManager")
