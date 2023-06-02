@@ -27,7 +27,6 @@ import java.time.LocalDate;
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
 @DialogMode(width = "AUTO", height = "AUTO")
-// end::annotations[]
 public class MyOnboardingView extends StandardView {
     // end::annotations[]
     @Autowired
