@@ -15,6 +15,7 @@ import org.springframework.security.core.GrantedAuthority;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,9 @@ public class User implements JmixUserDetails, HasTimeZone {
     @SystemLevel
     @Column(name = "PASSWORD")
     protected String password;
+
+    @Column(name = "PASSWORD_EXPIRATION")
+    private LocalDateTime passwordExpiration;
 
     @Column(name = "FIRST_NAME")
     protected String firstName;
@@ -81,6 +85,14 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public LocalDateTime getPasswordExpiration() {
+        return passwordExpiration;
+    }
+
+    public void setPasswordExpiration(LocalDateTime passwordExpiration) {
+        this.passwordExpiration = passwordExpiration;
+    }
 
     public List<UserStep> getSteps() {
         return steps;
