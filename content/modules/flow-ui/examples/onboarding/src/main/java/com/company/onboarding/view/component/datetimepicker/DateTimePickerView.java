@@ -53,6 +53,9 @@ public class DateTimePickerView extends StandardView {
         dateTimePicker.setMax(LocalDateTime.now().plusDays(7));
         //end::time-range[]
 
+        //tag::locale[]
+        dateTimePicker.setLocale(Locale.UK);
+        //end::locale[]
 
         User user = metadata.create(User.class);
         user.setPasswordExpiration(LocalDateTime.now().plusYears(1));
