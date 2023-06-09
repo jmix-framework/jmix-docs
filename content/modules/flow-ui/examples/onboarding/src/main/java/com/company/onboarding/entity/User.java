@@ -10,10 +10,10 @@ import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.security.authentication.JmixUserDetails;
-import org.springframework.security.core.GrantedAuthority;
-
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
+import org.springframework.security.core.GrantedAuthority;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -33,6 +33,11 @@ public class User implements JmixUserDetails, HasTimeZone {
     @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
     private UUID id;
+
+    // tag::document[]
+    @Column(name = "DOCUMENT")
+    private byte[] document;
+    // end::document[]
 
     @Version
     @Column(name = "VERSION", nullable = false)
@@ -75,6 +80,7 @@ public class User implements JmixUserDetails, HasTimeZone {
     // tag::picture[]
     @Column(name = "PICTURE", length = 1024)
     private FileRef picture;
+
     // end::picture[]
     @Column(name = "ONBOARDING_STATUS")
     private Integer onboardingStatus;
@@ -86,6 +92,14 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public byte[] getDocument() {
+        return document;
+    }
+
+    public void setDocument(byte[] document) {
+        this.document = document;
+    }
 
     public LocalDateTime getPasswordExpiration() {
         return passwordExpiration;
