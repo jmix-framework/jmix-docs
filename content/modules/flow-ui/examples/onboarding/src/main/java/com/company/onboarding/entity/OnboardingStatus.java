@@ -1,7 +1,7 @@
 package com.company.onboarding.entity;
 
-import io.jmix.core.metamodel.datatype.impl.EnumClass;
 
+import io.jmix.core.metamodel.datatype.EnumClass;
 import jakarta.annotation.Nullable;
 
 
