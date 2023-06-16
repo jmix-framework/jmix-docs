@@ -9,9 +9,8 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import io.jmix.core.MessageTools;
 import io.jmix.core.security.AccessDeniedException;
-import io.jmix.flowui.FlowuiLoginProperties;
 import io.jmix.flowui.component.loginform.JmixLoginForm;
-import io.jmix.flowui.kit.component.FlowuiComponentUtils;
+import io.jmix.flowui.kit.component.ComponentUtils;
 import io.jmix.flowui.kit.component.loginform.EnhancedLoginForm;
 import io.jmix.flowui.kit.component.loginform.JmixLoginI18n;
 import io.jmix.flowui.view.*;
@@ -58,7 +57,7 @@ public class LoginFormView extends StandardView {
     }
 
     protected void initLocales() {
-        FlowuiComponentUtils.setItemsMap(loginForm,
+        ComponentUtils.setItemsMap(loginForm,
                 MapUtils.invertMap(messageTools.getAvailableLocalesMap()));
 
         loginForm.setSelectedLocale(VaadinSession.getCurrent().getLocale());
