@@ -10,7 +10,7 @@
 
 В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *Resource Role*:
 
-image::security/employee-role-1.png[align="center", width="359"]
+image::security/employee-role-1.png[align="center", width="348"]
 
 В диалоговом окне *New Resource Role* введите `Employee` в поле *Role name* и выберите `UI` в раскрывающемся списке *Security scope*:
 
@@ -33,7 +33,7 @@ public interface EmployeeRole {
 
 TIP: Роль с областью `UI` применяется к пользователям только тогда, когда они входят в систему через пользовательский интерфейс. Если тот же пользователь входит в систему через REST API, роль не применяется. Рекомендуется создать другой набор ролей для API, обычно с меньшим количеством разрешений.
 
-Перейдите на вкладку *User Interface*, чтобы определить права доступа к экранам. Выберите `MyOnboardingScreen` в дереве меню и установите справа флажки *Allow*:
+Перейдите на вкладку *User Interface*, чтобы определить права доступа к экранам. Выберите `MyOnboardingView` в дереве меню и установите справа флажки *Allow*:
 
 image::security/employee-role-3.png[align="center"]
 
@@ -49,16 +49,9 @@ image::security/employee-role-4.png[align="center"]
 ----
 @ResourceRole(name = "Employee", code = "employee", scope = "UI")
 public interface EmployeeRole {
-    @MenuPolicy(menuIds = "MyOnboardingScreen")
-    @ScreenPolicy(screenIds = "MyOnboardingScreen")
+    @MenuPolicy(menuIds = "MyOnboardingView")
+    @ViewPolicy(viewIds = "MyOnboardingView")
     void screens();
-
-    @EntityAttributePolicy(entityClass = Step.class,
-            attributes = "*",
-            action = EntityAttributePolicyAction.VIEW)
-    @EntityPolicy(entityClass = Step.class,
-            actions = EntityPolicyAction.READ)
-    void step();
 
     @EntityAttributePolicy(entityClass = User.class,
             attributes = "*",
@@ -68,27 +61,35 @@ public interface EmployeeRole {
     void user();
 
     @EntityAttributePolicy(entityClass = UserStep.class,
-            attributes = "*", action = EntityAttributePolicyAction.VIEW)
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
     @EntityPolicy(entityClass = UserStep.class,
             actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
     void userStep();
+
+    @EntityAttributePolicy(entityClass = Step.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Step.class,
+            actions = EntityPolicyAction.READ)
+    void step();
 }
 ----
 
-Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Откройте экран *Administration* -> *Resource roles*. Вы увидите новую роль в списке:
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Откройте экран *Security* -> *Resource roles*. Вы увидите новую роль в списке:
 
 image::security/employee-role-5.png[align="center"]
 
 [[assign-role]]
 === Назначение роли
 
-Теперь давайте назначим роль пользователю. Откройте экран просмотра пользователей и создайте нового пользователя `bob`. Выберите пользователя и нажмите кнопку *Role assignments*:
+Теперь давайте назначим роль пользователю. Откройте экран списка пользователей и создайте нового пользователя `bob`. Выберите пользователя и нажмите кнопку *Role assignments*:
 
 image::security/assign-role-1.png[align="center"]
 
 На экране *Role assignments* нажмите кнопку *Add* на панели *Resource permissions*.
 
-В диалоговом окне *Select resource roles* выберите роли `Employee` и `UI: minimal access` (используя *Click+Ctrl/Cmd*):
+В диалоговом окне *Select resource roles* выберите роли `Employee` и `UI: minimal access`:
 
 image::security/assign-role-2.png[align="center"]
 
@@ -98,11 +99,11 @@ image::security/assign-role-3.png[align="center"]
 
 Нажмите кнопку *OK*, чтобы сохранить назначения ролей.
 
-TIP: Роль `UI: minimal access` требуется для входа в пользовательский интерфейс приложения. Вы можете исследовать содержимое роли, открыв ее на экране *Resource roles* или найдя класс `UiMinimalRole` в IDE.
+TIP: Роль `UI: minimal access` требуется для входа в пользовательский интерфейс приложения. Вы можете найти ее в своем проекте и исследовать содержимое роли.
 
 Выйдите из системы с помощью кнопки рядом с текущим именем пользователя:
 
-image::security/assign-role-4.png[align="center", width="568"]
+image::security/assign-role-4.png[align="center", width="414"]
 
 Войдите в систему как `bob`. В меню вы увидите только экран `My onboarding`:
 
@@ -132,7 +133,7 @@ public interface HRManagerRole {
 }
 ----
 
-Перейдите на вкладку *User Interface* и разрешите экраны `User.browse` и `User.edit` (вы можете использовать поле поиска сверху для фильтрации дерева):
+Перейдите на вкладку *User Interface* и разрешите экраны `User.list` и `User.detail` (вы можете использовать поле поиска сверху для фильтрации дерева):
 
 image::security/manager-role-2.png[align="center"]
 
@@ -146,8 +147,8 @@ image::security/manager-role-3.png[align="center"]
 ----
 @ResourceRole(name = "HR Manager", code = "hr-manager", scope = "UI")
 public interface HRManagerRole {
-    @MenuPolicy(menuIds = "User.browse")
-    @ScreenPolicy(screenIds = {"User.browse", "User.edit"})
+    @MenuPolicy(menuIds = "User.list")
+    @ViewPolicy(viewIds = {"User.detail", "User.list"})
     void screens();
 
     @EntityAttributePolicy(entityClass = Department.class,
@@ -180,7 +181,7 @@ public interface HRManagerRole {
 }
 ----
 
-Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Войдите в систему как администратор. Откройте экран *Administration* -> *Resource roles*  и убедитесь, что новая роль `HR Manager` есть в списке.
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Войдите в систему как администратор. Откройте экран *Security* -> *Resource roles*  и убедитесь, что новая роль `HR Manager` есть в списке.
 
 Создайте нового пользователя, например, `alice`.
 
@@ -199,7 +200,7 @@ image::security/manager-role-4.png[align="center"]
 
 В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *Row-level Role*:
 
-image::security/rl-role-1.png[align="center", width="368"]
+image::security/rl-role-1.png[align="center", width="353"]
 
 В открывшемся диалоговом окне *New Row-level Role* введите:
 
@@ -219,8 +220,7 @@ package com.company.onboarding.security;
 
 import io.jmix.security.role.annotation.RowLevelRole;
 
-@RowLevelRole(
-        name = "HR manager's departments and users",
+@RowLevelRole(name = "HR manager's departments and users",
         code = "hr-manager-rl")
 public interface HrManagerRlRole {
 }
@@ -228,7 +228,7 @@ public interface HrManagerRlRole {
 
 Кликните *Add Policy* -> *JPQL Policy* в верхней панели действий:
 
-image::security/rl-role-3.png[align="center", width="804"]
+image::security/rl-role-3.png[align="center", width="536"]
 
 В диалоге *Add JPQL Policy* введите:
 
@@ -278,7 +278,7 @@ public interface HrManagerRlRole {
 <3> Класс сущности, для которого применяется политика.
 <4> Раздел `where`, который должен быть добавлен для каждого оператора JPQL select для этой сущности. `\{E}` используется вместо псевдонима сущности в запросе. `:current_user_id` - это предопределенный параметр, устанавливаемый фреймворком для идентификатора текущего вошедшего в систему пользователя.
 
-Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Войдите в систему как администратор. Откройте экран *Administration* -> *Row-level roles* и убедитесь, что в списке есть новая роль `HR manager's departments and users`.
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Войдите в систему как администратор. Откройте экран *Security* -> *Row-level roles* и убедитесь, что в списке есть новая роль `HR manager's departments and users`.
 
 Откройте экран *Role assignments* для `alice` и добавьте роль в таблицу *Row-level constraints*:
 
@@ -292,13 +292,13 @@ image::security/rl-role-5.png[align="center"]
 
 Войдите в систему как `alice`.
 
-На экране браузера пользователей вы увидите только пользователей ее отдела:
+На экране списка пользователей вы увидите только пользователей ее отдела:
 
 image::security/rl-role-6.png[align="center"]
 
 И `alice` может назначить пользователю только этот отдел:
 
-image::security/rl-role-7.png[align="center", width="554"]
+image::security/rl-role-7.png[align="center", width="500"]
 
 [[summary]]
 == Резюме
@@ -311,6 +311,6 @@ image::security/rl-role-7.png[align="center", width="554"]
 
 * xref:security:row-level-roles.adoc[Роль уровня строки], напротив, ограничивает способность пользователя просматривать определенные экземпляры для сущности, разрешенной ресурсной ролью.
 
-* Роли назначаются пользователям во время выполнения с помощью экрана *Role assignment*, доступного на экране `User.browse`.
+* Роли назначаются пользователям во время выполнения с помощью экрана *Role assignment*, доступного на экране `User.detail`.
 
-* Предопределенная роль `UI: minimal access` необходима пользователю для входа в пользовательский интерфейс приложения.
+* Сгенерированная в новом проекте роль `UI: minimal access` необходима пользователю для входа в пользовательский интерфейс приложения.

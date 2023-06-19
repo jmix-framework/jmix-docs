@@ -21,31 +21,18 @@ image::images/attribute-2.png[align="center", width="862"]
 
 Нажмите на кнопку *OK*.
 
-Выберите атрибут `picture` и нажмите на кнопку *Add to Screens* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*.
+Выберите атрибут `picture` и нажмите на кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*.
 
-В появившемся диалоговом окне будут показаны все экраны, на которых отображается сущность `User`. Выберите оба экрана `User.edit` и `User.browse` и нажмите *OK*.
+В появившемся диалоговом окне будут показаны все экраны, на которых отображается сущность `User`. Выберите экран `User.detail` и нажмите *OK*.
 
-Studio создаст колонку `picture` в таблице пользователей `usersTable` на экране `User.browse`:
+Studio создаст компонент `pictureField` в форме экрана `User.detail`:
 
 [source,xml]
 ----
-<groupTable id="usersTable" dataContainer="usersDc" ...>
+<formLayout id="form" dataContainer="userDc">
     ...
-    <columns>
-        ...
-        <column id="picture"/>
-    </columns>
-----
-
-и компонент `pictureField` в форме экрана `User.edit`:
-
-[source,xml]
-----
-<form id="form" dataContainer="userDc">
-    <column ...>
-        ...
-        <fileStorageUpload id="pictureField" property="picture"/>
-    </column>
+    <fileStorageUploadField id="pictureField" property="picture"/>
+</formLayout>
 ----
 
 Нажмите на кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
@@ -62,99 +49,116 @@ image::images/run-app-1.png[align="center"]
 
 Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
 
-Раскройте меню *Application* и нажмите на подпункт *Users*. Вы увидите колонку *Picture* на экране `User.browse` (прокрутите таблицу вправо):
+Раскройте меню *Application* и нажмите на подпункт *Users*.
 
-image::images/run-app-2.png[align="center"]
-
-Выделите пользователя в таблице и нажмите на кнопку *Edit*. UI-компонент для загрузки изображения показан в нижней части формы:
+Выделите пользователя в таблице и нажмите на кнопку *Edit*. UI-компонент для загрузки изображения показан на форме:
 
 image::images/run-app-3.png[align="center"]
 
 [[image-in-form]]
 == Отображение изображения в форме
 
-В этом разделе вы улучшите экран редактирования, чтобы отобразить загруженное изображение в форме.
+В этом разделе вы улучшите экран деталей, чтобы отобразить загруженное изображение в форме.
 
-Сначала добавьте вторую колонку в компонент `form` и переместите в нее компонент `fileStorageUpload`:
+Сначала оберните компонент `fileStorageUpload` в сворачиваемый контейнер `Details`:
 
 image::images/form-1.gif[]
 
-Затем добавьте компонент `image` ниже компонента `fileStorageUpload`. Укажите следующие атрибуты:
+Теперь компонент `fileStorageUpload` расположен не непосредственно в `formLayout`, который определяет контейнер данных для своих вложенных компонентов. Поэтому необходимо установить свойство `dataContainer` в `fileStorageUpload` явно:
+
+image::images/form-4.png[align="center",width="338"]
+
+Затем добавьте компонент `image` и установите следующие атрибуты:
 
 [source,xml]
 ----
-<form id="form" dataContainer="userDc">
-    ...
-    <column>
-        <fileStorageUpload id="pictureField" property="picture"/>
-        <image id="image" property="picture"
-               scaleMode="CONTAIN"
-               rowspan="10" caption=""
-               height="200" width="200"/>
-    </column>
-</form>
+<details summaryText="Picture">
+    <hbox>
+        <fileStorageUploadField id="pictureField" dataContainer="userDc" property="picture"/>
+        <image id="image" property="picture" dataContainer="userDc" height="10em" width="10em"
+            classNames="user-picture"/>
+    </hbox>
+</details>
 ----
 
-* `property="picture"` связывает компонент `image` с атрибутом `picture` сущности `User`.
-* `scaleMode="CONTAIN"` гарантирует, что изображение заполнит всю выделенную область, но сохранит пропорции.
-* `rowspan="10"` позволяет компоненту заполнить до 10 строк формы вместо 1. Таким образом, изображение будет занимать все доступное пространство справа.
-* `caption=""` удаляет заголовок по умолчанию, определенный для атрибута сущности.
+* `dataContainer="userDc" property="picture"` связывают компонент `image` с атрибутом `picture` сущности `User`.
+* `classNames="user-picture"` указывает класс CSS, который задается далее.
 
-Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Снова откройте экран редактирования пользователя:
+Откройте файл `onboarding.css` из раздела *User Interface* -> *Themes* и задайте класс `user-picture`:
+
+image::images/form-5.png[align="center",width="680"]
+
+Свойство `object-fit: contain` гарантирует, что изображение заполнит всю выделенную область, но сохранит пропорции.
+
+[source,css]
+----
+.user-picture {
+    object-fit: contain;
+}
+----
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и попробуйте загрузить изображение:
 
 image::images/form-2.png[align="center"]
-
-Если вы загружаете изображение из файла, имя файла будет отображаться полем `fileStorageUpload`, а изображение будет отображаться компонентом `image`:
-
-image::images/form-3.png[align="center"]
 
 [[image-in-table]]
 == Отображение изображения в таблице
 
-Если вы закроете экран редактирования после загрузки изображения, вы увидите, что в колонке таблицы отображается только название загруженного файла:
+Давайте создадим колонку для отображения изображения в таблице экрана `User.list`.
 
-image::images/table-1.png[align="center"]
-
-Давайте переместим колонку `picture` в первую позицию и создадим для нее обработчик `columnGenerator`:
-
-image::images/table-2.gif[]
-
-Инжектируйте объект `UiComponents` в класс контроллера:
+Добавьте следующие поля в класс `UserListView`:
 
 [source,java]
 ----
+@ViewComponent
+private DataGrid<User> usersDataGrid;
+
 @Autowired
 private UiComponents uiComponents;
+
+@Autowired
+private FileStorage fileStorage;
 ----
 
-TIP: Вы можете использовать кнопку *Inject* на верхней панели действий редактора, чтобы инжектировать зависимости в контроллеры экрана и бины Spring.
+TIP: Вы можете использовать кнопку *Inject* в верхней панели действий редактора, чтобы инжектировать зависимости в контроллеры экрана и бины Spring.
 
-Реализуйте метод обработчика:
+Сгенерируйте обработчик события `InitEvent` используя команду  *Generate Handler* и реализуйте его следующим образом:
 
 [source,java]
 ----
-@Install(to = "usersTable.picture", subject = "columnGenerator") // <1>
-private Component usersTablePictureColumnGenerator(User user) { // <2>
-    if (user.getPicture() != null) {
-        Image image = uiComponents.create(Image.class); // <3>
-        image.setScaleMode(Image.ScaleMode.CONTAIN);
-        image.setSource(FileStorageResource.class)
-                .setFileReference(user.getPicture()); // <4>
-        image.setWidth("30px");
-        image.setHeight("30px");
-        return image; // <5>
-    } else {
-        return null;
-    }
+@Subscribe
+public void onInit(final InitEvent event) {
+    Grid.Column<User> pictureColumn = usersDataGrid.addComponentColumn(user -> { // <1>
+        FileRef fileRef = user.getPicture();
+        if (fileRef != null) {
+            Image image = uiComponents.create(Image.class); // <2>
+            image.setWidth("30px");
+            image.setHeight("30px");
+            StreamResource streamResource = new StreamResource(
+                    fileRef.getFileName(),
+                    () -> fileStorage.openStream(fileRef));
+            image.setSrc(streamResource); // <3>
+            image.setClassName("user-picture");
+
+            return image; // <4>
+        } else {
+            return new Span();
+        }
+    });
+    pictureColumn.setFlexGrow(0); // <5>
+    pictureColumn.setWidth("40px");
+    usersDataGrid.setColumnPosition(pictureColumn, 0); // <6>
 }
 ----
-<1> Аннотация `@Install` указывает, что метод является _делегатом_: UI компонент (в данном случае таблица) вызывает его на каком-то этапе своего жизненного цикла.
-<2> Этот конкретный делегат (генератор колонок) получает экземпляр сущности, который отображается в строке таблицы в качестве аргумента.
-<3> Экземпляр компонента `Image` создается с помощью фабрики компонентов `UiComponents`.
-<4> Компонент изображения получает свое содержимое из файлового хранилища по ссылке, хранящейся в атрибуте `picture` сущности `User`.
-<5> Делегат генератора колонок возвращает визуальный компонент, который будет отображаться в ячейках колонки.
+<1> Метод `addComponentColumn()` принимает лямбду, которая создает UI-компонент, отображаемый в ячейках колонки. Лямбда принимает экземпляр сущности данной строки.
+<2> Экземпляр компонента `Image` создается с помощью фабрики компонентов `UiComponents`.
+<3> Компонент изображения получает свое содержимое из файлового хранилища по ссылке, хранящейся в атрибуте `picture` сущности `User`.
+<4> Лямбда возвращает визуальный компонент, который будет отображаться в ячейках колонки.
+<5> Установка ширины созданной колонки.
+<6> Установка позиции созданной колонки
 
-Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Снова откройте экран просмотра пользователя. Вы увидите изображение пользователя в первой колонке таблицы:
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран списка пользователей. Вы увидите изображение пользователя в первой колонке таблицы:
 
 image::images/table-3.png[]
 
@@ -167,8 +171,6 @@ image::images/table-3.png[]
 
 * xref:files:uploading-files.adoc[Загруженные файлы] могут храниться в xref:files:file-storage.adoc[файловом хранилище] и связываться с сущностями с использованием атрибутов типа `FileRef`.
 
-* Компонент xref:ui:vcl/components/file-storage-upload-field.adoc[FileStorageUploadField] позволяет загружать файлы, сохранять их в хранилище файлов и ссылаться на атрибут сущности.
+* Компонент xref:flow-ui:vc/components/fileStorageUploadField.adoc[] позволяет загружать файлы, сохранять их в хранилище файлов и связывать с атрибутом сущности.
 
-* Компонент xref:ui:vcl/components/image.adoc[] может отображать изображения, сохраненные в файловом хранилище.
-
-* xref:ui:vcl/components/table.adoc#table-column-generation[Генерируемы колонки] можно использовать для отображения изображений в ячейках таблицы.
+* Компонент `image` может отображать изображения, сохраненные в файловом хранилище.
