@@ -10,7 +10,7 @@ So far you entered the application as admin and had full control over data and U
 
 In the *Jmix* tool window, click *New* (image:common/add.svg[]) -> *Resource Role*:
 
-image::security/employee-role-1.png[align="center", width="359"]
+image::security/employee-role-1.png[align="center", width="348"]
 
 In the *New Resource Role* dialog, enter `Employee` to *Role name* field and select `UI` in *Security scope* dropdown:
 
@@ -33,7 +33,7 @@ public interface EmployeeRole {
 
 TIP: A role with the `UI` scope is applied to users only when they enter the system through the UI. If the same user logs in through the REST API, the role is not applied. It is recommended to create a different set of roles for the API, usually with fewer permissions.
 
-Switch to the *User Interface* tab to define permissions to screens. Select `MyOnboardingScreen` in the menu tree and select *Allow* checkboxes on the right:
+Switch to the *User Interface* tab to define permissions to views. Select `MyOnboardingView` in the menu tree and select *Allow* checkboxes on the right:
 
 image::security/employee-role-3.png[align="center"]
 
@@ -49,16 +49,9 @@ Switch back to the *Text* tab. You will see that Studio has generated a few meth
 ----
 @ResourceRole(name = "Employee", code = "employee", scope = "UI")
 public interface EmployeeRole {
-    @MenuPolicy(menuIds = "MyOnboardingScreen")
-    @ScreenPolicy(screenIds = "MyOnboardingScreen")
+    @MenuPolicy(menuIds = "MyOnboardingView")
+    @ViewPolicy(viewIds = "MyOnboardingView")
     void screens();
-
-    @EntityAttributePolicy(entityClass = Step.class,
-            attributes = "*",
-            action = EntityAttributePolicyAction.VIEW)
-    @EntityPolicy(entityClass = Step.class,
-            actions = EntityPolicyAction.READ)
-    void step();
 
     @EntityAttributePolicy(entityClass = User.class,
             attributes = "*",
@@ -68,43 +61,51 @@ public interface EmployeeRole {
     void user();
 
     @EntityAttributePolicy(entityClass = UserStep.class,
-            attributes = "*", action = EntityAttributePolicyAction.VIEW)
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
     @EntityPolicy(entityClass = UserStep.class,
             actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
     void userStep();
+
+    @EntityAttributePolicy(entityClass = Step.class,
+            attributes = "*",
+            action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = Step.class,
+            actions = EntityPolicyAction.READ)
+    void step();
 }
 ----
 
-Press *Ctrl/Cmd+S* and switch to the running application. Open *Administration* -> *Resource roles* screen. You will see the new role in the list:
+Press *Ctrl/Cmd+S* and switch to the running application. Open *Administration* -> *Resource roles* view. You will see the new role in the list:
 
 image::security/employee-role-5.png[align="center"]
 
 [[assign-role]]
 === Assigning Role
 
-Now let's assign the role to a user. Open the *Users* browse screen and create a new user `bob`. Select the user and click *Role assignments* button:
+Now let's assign the role to a user. Open the *Users* list view and create a new user `bob`. Select the user and click *Role assignments* button:
 
 image::security/assign-role-1.png[align="center"]
 
-In the *Role assignments* screen, click *Add* button in the *Resource permissions* panel.
+In the *Role assignments* view, click *Add* button in the *Resource roles* panel.
 
-In the *Select resource roles* dialog, select `Employee` and `UI: minimal access` roles (using `Click+Ctrl/Cmd`):
+In the *Select resource roles* dialog, select `Employee` and `UI: minimal access` roles:
 
 image::security/assign-role-2.png[align="center"]
 
-Click *Select*. The selected roles will be shown in the *Resource permissions* panel:
+Click *Select*. The selected roles will be shown in the *Resource roles* panel:
 
 image::security/assign-role-3.png[align="center"]
 
 Click *OK* to save the role assignments.
 
-TIP: The `UI: minimal access` role is required for the user to log in to the application UI. You can investigate its contents by opening the role in the *Resource roles* screen or finding the `UiMinimalRole` class in the IDE.
+TIP: The `UI: minimal access` role is required for the user to log in to the application UI. You can find it in your project and investigate its contents.
 
 Log out using the button next to the current user name:
 
-image::security/assign-role-4.png[align="center", width="568"]
+image::security/assign-role-4.png[align="center", width="414"]
 
-Log in as `bob`. You will see only `My onboarding` screen in the menu:
+Log in as `bob`. You will see only `My onboarding` view in the menu:
 
 image::security/assign-role-5.png[align="center"]
 
@@ -132,7 +133,7 @@ public interface HRManagerRole {
 }
 ----
 
-Switch to the *User Interface* tab and allow `User.browse` and `User.edit` screens (you can use the search field on top to filter the tree):
+Switch to the *User Interface* tab and allow `User.list` and `User.detail` views (use the search field on top to filter the tree):
 
 image::security/manager-role-2.png[align="center"]
 
@@ -146,8 +147,8 @@ Switch back to the *Text* tab and inspect the annotations generated by Studio:
 ----
 @ResourceRole(name = "HR Manager", code = "hr-manager", scope = "UI")
 public interface HRManagerRole {
-    @MenuPolicy(menuIds = "User.browse")
-    @ScreenPolicy(screenIds = {"User.browse", "User.edit"})
+    @MenuPolicy(menuIds = "User.list")
+    @ViewPolicy(viewIds = {"User.detail", "User.list"})
     void screens();
 
     @EntityAttributePolicy(entityClass = Department.class,
@@ -180,13 +181,13 @@ public interface HRManagerRole {
 }
 ----
 
-Press *Ctrl/Cmd+S* and switch to the running application. Log in as `admin`. Open *Administration* -> *Resource roles* screen and make sure the new `HR Manager` role is in the list.
+Press *Ctrl/Cmd+S* and switch to the running application. Log in as `admin`. Open *Security* -> *Resource roles* view and make sure the new `HR Manager` role is in the list.
 
 Create a new user, say `alice`.
 
 Assign the `HR Mnager` and `UI: minimal access` roles to `alice` as you did in the <<assign-role,previous>> section.
 
-Log in as `alice`. You will see the `Users` screen and will be able to manage users and their onboarding steps:
+Log in as `alice`. You will see the `Users` view and will be able to manage users and their onboarding steps:
 
 image::security/manager-role-4.png[align="center"]
 
@@ -199,7 +200,7 @@ In this section, you will introduce a _row-level role_ which restricts access to
 
 In the *Jmix* tool window, click *New* (image:common/add.svg[]) -> *Row-level Role*:
 
-image::security/rl-role-1.png[align="center", width="368"]
+image::security/rl-role-1.png[align="center", width="353"]
 
 In the *New Row-level Role* dialog, enter:
 
@@ -219,8 +220,7 @@ package com.company.onboarding.security;
 
 import io.jmix.security.role.annotation.RowLevelRole;
 
-@RowLevelRole(
-        name = "HR manager's departments and users",
+@RowLevelRole(name = "HR manager's departments and users",
         code = "hr-manager-rl")
 public interface HrManagerRlRole {
 }
@@ -228,7 +228,7 @@ public interface HrManagerRlRole {
 
 Click *Add Policy* -> *JPQL Policy* in the top actions panel:
 
-image::security/rl-role-3.png[align="center", width="804"]
+image::security/rl-role-3.png[align="center", width="536"]
 
 In the *Add JPQL Policy* dialog, enter:
 
@@ -278,9 +278,9 @@ public interface HrManagerRlRole {
 <3> The entity class for which the policy is applied.
 <4> The `where` clause to be added for each JPQL select statement for this entity. `\{E}` is used instead of the entity alias in the query. `:current_user_id` is a predefined parameter set by the framework to the id of the currently logged-in user.
 
-Press *Ctrl/Cmd+S* and switch to the running application. Log in as `admin`. Open *Administration* -> *Row-level roles* screen and make sure the new `HR manager's departments and users` role is in the list.
+Press *Ctrl/Cmd+S* and switch to the running application. Log in as `admin`. Open *Security* -> *Row-level roles* view and make sure the new `HR manager's departments and users` role is in the list.
 
-Open *Role assignments* screen for `alice` and add the role to the *Row-level constraints* table:
+Open *Role assignments* view for `alice` and add the role to the *Row-level roles* table:
 
 image::security/rl-role-4.png[align="center"]
 
@@ -292,13 +292,13 @@ image::security/rl-role-5.png[align="center"]
 
 Log in as `alice`.
 
-In the *Users* browse screen, you will see only users of her department:
+In the *Users* list view, you will see only users of her department:
 
 image::security/rl-role-6.png[align="center"]
 
 And `alice` can assign only this department to a user:
 
-image::security/rl-role-7.png[align="center", width="554"]
+image::security/rl-role-7.png[align="center", width="500"]
 
 [[summary]]
 == Summary
@@ -307,10 +307,10 @@ In this section, you have created HR Managers and Employees roles to restrict ac
 
 You have learned that:
 
-* A xref:security:resource-roles.adoc[resource role] gives users permissions to open screens and to work with particular entities.
+* A xref:security:resource-roles.adoc[resource role] gives users permissions to open views and to work with particular entities.
 
 * A xref:security:row-level-roles.adoc[row-level role], in contrast, restricts user's ability to read particular entity instances for an entity permitted by a resource role.
 
-* Roles are assigned to users at runtime using the *Role assignment* screen available from the `User.browse` screen.
+* Roles are assigned to users at runtime using the *Role assignment* view available from the `User.detail` view.
 
-* The `UI: minimal access` predefined role is required for a user to log in to the application UI.
+* The `UI: minimal access` role scaffolded in the project is required for a user to log in to the application UI.

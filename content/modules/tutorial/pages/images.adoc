@@ -21,31 +21,18 @@ Accept the suggested value (1024) in the *Length* field. For `FileRef` attribute
 
 Click *OK*.
 
-Select the `picture` attribute and click the *Add to Screens* (image:common/add-attribute-to-screens.svg[]) button in the *Attributes* toolbar.
+Select the `picture` attribute and click the *Add to Views* (image:common/add-attribute-to-screens.svg[]) button in the *Attributes* toolbar.
 
-The appeared dialog window will show all screens that display the `User` entity. Select both `User.edit` and `User.browse` screens and click *OK*.
+The appeared dialog window will show all views that display the `User` entity. Select `User.detail` view and click *OK*.
 
-Studio will create the `picture` column in the `usersTable` of the `User.browse` screen:
+Studio will create the `pictureField` component in the `formLayout` of the `User.detail` view:
 
 [source,xml]
 ----
-<groupTable id="usersTable" dataContainer="usersDc" ...>
+<formLayout id="form" dataContainer="userDc">
     ...
-    <columns>
-        ...
-        <column id="picture"/>
-    </columns>
-----
-
-and the `pictureField` component in the form of the `User.edit` screen:
-
-[source,xml]
-----
-<form id="form" dataContainer="userDc">
-    <column ...>
-        ...
-        <fileStorageUpload id="pictureField" property="picture"/>
-    </column>
+    <fileStorageUploadField id="pictureField" property="picture"/>
+</formLayout>
 ----
 
 Click the *Debug* button (image:common/start-debugger.svg[]) in the main toolbar.
@@ -62,99 +49,115 @@ Studio will execute the changelog, then build and run the application.
 
 Open `++http://localhost:8080++` in your web browser and log in to the application with `admin` / `admin` credentials.
 
-Click on the `Users` item in the `Application` menu. You will see the `Picture` column in the `User.browse` screen (scroll the table to the right):
+Click on the `Users` item in the `Application` menu.
 
-image::images/run-app-2.png[align="center"]
-
-Click *Edit* for a user. The UI control for uploading a picture is shown at the bottom of the form:
+Click *Edit* for a user. The UI control for uploading a picture is shown on the form:
 
 image::images/run-app-3.png[align="center"]
 
 [[image-in-form]]
 == Displaying Image in Form
 
-In this section, you will improve the edit screen to display the uploaded picture in the form.
+In this section, you will improve the detail view to display the uploaded picture in the form.
 
-First, add a second column to the `form` component and move `fileStorageUpload` to it:
+First, let's wrap `fileStorageUpload` into the collapsible `Details` layout:
 
 image::images/form-1.gif[]
+
+Now the field is located not immediately in the `formLayout` which defines the data container for its nested components, so set the `dataContainer` to the field explicitly:
+
+image::images/form-4.png[align="center",width="338"]
 
 Then add the `image` component below `fileStorageUpload` with the following attributes:
 
 [source,xml]
 ----
-<form id="form" dataContainer="userDc">
-    ...
-    <column>
-        <fileStorageUpload id="pictureField" property="picture"/>
-        <image id="image" property="picture"
-               scaleMode="CONTAIN"
-               rowspan="10" caption=""
-               height="200" width="200"/>
-    </column>
-</form>
+<details summaryText="Picture">
+    <hbox>
+        <fileStorageUploadField id="pictureField" dataContainer="userDc" property="picture"/>
+        <image id="image" property="picture" dataContainer="userDc" height="10em" width="10em"
+            classNames="user-picture"/>
+    </hbox>
+</details>
 ----
 
-* `property="picture"` binds the `image` component to the `picture` attribute of the `User` entity.
-* `scaleMode="CONTAIN"` makes sure the image fills the whole allocated area but keeps the proportions.
-* `rowspan="10"` allows the component to fill up to 10 rows of the form instead of 1. So the image will occupy all available space on the right.
-* `caption=""` removes the default caption inferred from the entity attribute.
+* `dataContainer="userDc" property="picture"` attributes bind the `image` component to the `picture` attribute of the `User` entity.
+* `classNames="user-picture"` refers to CSS class defined below.
 
-Press *Ctrl/Cmd+S* and switch to the running application. Reopen the User edit screen:
+Open `onboarding.css` file from the *User Interface* -> *Themes* section and define the `user-picture` class:
+
+image::images/form-5.png[align="center",width="680"]
+
+`object-fit: contain` property makes sure the image fills the whole allocated area but keeps the proportions.
+
+[source,css]
+----
+.user-picture {
+    object-fit: contain;
+}
+----
+
+Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User detail view and try to upload an image:
 
 image::images/form-2.png[align="center"]
 
-If you upload a picture from a file, the file name will be shown by `fileStorageUpload` and the picture will be displayed by the `image` component:
-
-image::images/form-3.png[align="center"]
-
 [[image-in-table]]
-== Displaying Image in Table
+== Displaying Image in Data Grid
 
-If you close the edit screen after uploading a picture, you will see that the table column shows only the name of the uploaded file:
+Let's create the column to render the image in the data grid of the `User.list` view.
 
-image::images/table-1.png[align="center"]
-
-Let's move the `picture` column to the first position and create a `columnGenerator` handler for it:
-
-image::images/table-2.gif[]
-
-Inject `UiComponents` object into the controller class:
+Add the following fields to the `UserListView` class:
 
 [source,java]
 ----
+@ViewComponent
+private DataGrid<User> usersDataGrid;
+
 @Autowired
 private UiComponents uiComponents;
+
+@Autowired
+private FileStorage fileStorage;
 ----
 
-TIP: You can use *Inject* button in the top actions panel of the editor to inject dependencies into screen controllers and Spring beans.
+TIP: You can use *Inject* button in the top actions panel of the editor to inject dependencies into view controllers and Spring beans.
 
-Implement the handler method:
+Generate the `InitEvent` handler using the *Generate Handler* action and implement it as follows:
 
 [source,java]
 ----
-@Install(to = "usersTable.picture", subject = "columnGenerator") // <1>
-private Component usersTablePictureColumnGenerator(User user) { // <2>
-    if (user.getPicture() != null) {
-        Image image = uiComponents.create(Image.class); // <3>
-        image.setScaleMode(Image.ScaleMode.CONTAIN);
-        image.setSource(FileStorageResource.class)
-                .setFileReference(user.getPicture()); // <4>
-        image.setWidth("30px");
-        image.setHeight("30px");
-        return image; // <5>
-    } else {
-        return null;
-    }
+@Subscribe
+public void onInit(final InitEvent event) {
+    Grid.Column<User> pictureColumn = usersDataGrid.addComponentColumn(user -> { // <1>
+        FileRef fileRef = user.getPicture();
+        if (fileRef != null) {
+            Image image = uiComponents.create(Image.class); // <2>
+            image.setWidth("30px");
+            image.setHeight("30px");
+            StreamResource streamResource = new StreamResource(
+                    fileRef.getFileName(),
+                    () -> fileStorage.openStream(fileRef));
+            image.setSrc(streamResource); // <3>
+            image.setClassName("user-picture");
+
+            return image; // <4>
+        } else {
+            return new Span();
+        }
+    });
+    pictureColumn.setFlexGrow(0); // <5>
+    pictureColumn.setWidth("40px");
+    usersDataGrid.setColumnPosition(pictureColumn, 0); // <6>
 }
 ----
-<1> The `@Install` annotation indicates that the method is a _delegate_: a UI component (table in this case) invokes it on some stage of its lifecycle.
-<2> This specific delegate (column generator) receives an entity instance which is shown in the table row as an argument.
-<3> The `Image` component instance is created using the `UiComponents` factory.
-<4> The image component gets its content from the file storage by the reference stored in the `picture` attribute of the `User` entity.
-<5> The column generator delegate returns the visual component to be shown in the column cells.
+<1> The `addComponentColumn()` method accepts a lambda which creates a UI component to be rendered in the column. The lambda receives an entity instance for the current row.
+<2> The `Image` component instance is created using the `UiComponents` factory.
+<3> The image component gets its content from the file storage by the reference stored in the `picture` attribute of the `User` entity.
+<4> The lambda returns the visual component to be shown in the column cells.
+<5> Setting the width of the created column.
+<6> Setting the position of the created column.
 
-Press *Ctrl/Cmd+S* and switch to the running application. Reopen the User browse screen. You will see the user's picture in the first table column:
+Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User list view. You will see the user's picture in the first table column:
 
 image::images/table-3.png[]
 
@@ -167,8 +170,6 @@ You have learned that:
 
 * xref:files:uploading-files.adoc[Uploaded files] can be stored in a xref:files:file-storage.adoc[file storage] and linked with entities using attributes of the `FileRef` type.
 
-* The xref:ui:vcl/components/file-storage-upload-field.adoc[] component allows you to upload files, save them into the file storage and link to an entity attribute.
+* The xref:flow-ui:vc/components/fileStorageUploadField.adoc[] component allows you to upload files, save them into the file storage and link to an entity attribute.
 
-* The xref:ui:vcl/components/image.adoc[] component can display images saved in the file storage.
-
-* xref:ui:vcl/components/table.adoc#table-column-generation[Generated columns] can be used to display images in table cells.
+* The `image` component can display images saved in the file storage.
