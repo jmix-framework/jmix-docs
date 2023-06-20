@@ -10,6 +10,8 @@ This section covers new features of Jmix framework and Studio {page-component-di
 To create new projects with Jmix {page-component-display-version} or to upgrade an existing project, you need Studio {page-component-display-version} or later, so xref:studio:update.adoc[update] your Jmix Studio plugin first.
 
 The minimal supported IntelliJ IDEA version is now {minimal-idea-version}.
+
+The automatic migration from Jmix 1.5 to {page-component-display-version} is possible only if your project is based on *Flow UI* and uses *JDK 17*.
 ====
 
 See xref:studio:project.adoc#upgrading-project[Upgrading Project] section for how to upgrade your project using Studio. The automatic migration procedure makes the following changes in your project:
@@ -17,18 +19,75 @@ See xref:studio:project.adoc#upgrading-project[Upgrading Project] section for ho
 * Updates the version of Jmix BOM which in turn defines versions of all dependencies.
 * Updates the version of Jmix Gradle plugin.
 * Updates the version of Gradle wrapper to 8.0.2 in `gradle/wrapper/gradle-wrapper.properties`.
+* Replaces Java EE packages with Jakarta EE (`javax` to `jakarta` with some exceptions).
+* Replaces usages of `io.jmix.core.metamodel.datatype.impl.EnumClass` with `io.jmix.core.metamodel.datatype.EnumClass`.
+* Replaces usages of `io.jmix.flowui.kit.component.FlowuiComponentUtils` with `io.jmix.flowui.kit.component.ComponentUtils`.
+* Replaces usages of `javax.annotation.Nullable` with `org.springframework.lang.Nullable`.
+* Replaces application properties starting with `jmix.flowui` with `jmix.ui`.
+* Replaces `flowui.loginToUi` specific permission with `ui.loginToUi`.
+* In view descriptors:
+** Changes `queryParameters` element with `urlQueryParameters`.
+** Changes standard list action types to `list_`.
+* Adds a script block to the `index.html` file.
 
 See also the full list of <<breaking-changes,breaking changes>> that can affect your project after the upgrade.
 
-[[new-features]]
-== New Features and Improvements
-
-
-[[preview]]
-== Preview Features
+// [[new-features]]
+// == New Features and Improvements
+//
+//
+// [[preview]]
+// == Preview Features
 
 [[breaking-changes]]
 == Breaking Changes
+
+[[renamed-classes-and-properties]]
+=== Renamed Properties and Classes
+
+. The `jmix.flowui` prefix for application properties has been renamed to `jmix.ui`. footnote:studio-migrator[The Studio migration procedure makes appropriate changes in your project automatically.]
+
+. Renamed security specific policies:
+
+* `datatools.flowui.showEntityInfo` > `datatools.showEntityInfo`
+* `flowui.loginToUi` > `ui.loginToUi` footnote:studio-migrator[]
+* `flowui.showExceptionDetails` > `ui.showExceptionDetails`
+* `flowui.filter.modifyJpqlCondition` > `ui.genericfilter.modifyJpqlCondition`
+* `flowui.filter.modifyConfiguration` > `ui.genericfilter.modifyConfiguration`
+* `flowui.genericfilter.modifyGlobalConfiguration` > `ui.genericfilter.modifyGlobalConfiguration`
+
+. The `io.jmix.core.metamodel.datatype.impl.EnumClass` base class has been moved to the `io.jmix.core.metamodel.datatype` package. footnote:studio-migrator[]
+
+. The `queryParameters` facet has been renamed to `urlQueryParameters`. footnote:studio-migrator[]
+
+. The `list_` prefix has been added to standard list action types. footnote:studio-migrator[]
+
+. In all framework classes except Spring configurations and auto-configurations, the `Flowui` prefix has been removed or replaced with `Ui`. The usages of `io.jmix.flowui.kit.component.FlowuiComponentUtils` are automatically replaced with `ComponentUtils` by the Studio migration procedure. If you have used other classes with `Flowui` prefix, change the usage manually. See more information at https://github.com/jmix-framework/jmix/issues/1830[#1830^].
+
+[[removed-features]]
+=== Removed Features
+
+. Methods of `Actions` interface creating an action by its class have been removed. You should replace them with methods creating actions by their string identifiers. See details at https://github.com/jmix-framework/jmix/issues/1529[#1529^].
+
+. Support for xref:flow-ui:vc/components/tooltip.adoc[] has been removed from the following UI components: `ComboButton`, `DropdownButton`, `SimplePagination`, `UserIndicator`.
+
+. The `UiLoginProperties` class which was deprecated since Jmix 1.5, has been removed. If you created the project on Jmix 1.4, this class is used in your LoginView, so you should change the LoginView class and XML descriptor to the one provided by the new project template of Jmix 2.0.
+
+. The Jmix BOM does not provide the `commons-fileupload:commons-fileupload` dependency anymore.
+
+. The `jmix.rest.max-upload-size` property has been removed. Use `spring.servlet.multipart.max-file-size` and other properties from {spring-boot-api}/org/springframework/boot/autoconfigure/web/servlet/MultipartProperties.html[MultipartProperties^] instead. See details at https://github.com/jmix-framework/jmix/issues/1496[#1496^].
+
+[[data-repositories-initialization]]
+=== Data Repositories Initialization
+
+Previously optional `@EnableJmixDataRepositories` annotation is now required to initialize xref:data-access:data-repositories.adoc[data repositories] in the project. See details at https://github.com/jmix-framework/jmix/issues/1589[#1589^].
+
+[[rounding-in-datatypes]]
+=== Rounding in Datatypes
+
+The `BigDecimal`, `Double` and `Float` xref:data-model:data-types.adoc[datatypes] now round values according to specified formats when parsing values from strings. For example, `"12.3456"` string becomes `12.35` number if the format is `++#.##++`.
+
+To return to the previous behaviour whithout rounding, set the `jmix.core.round-decimal-value-by-format` application property to false. See details at https://github.com/jmix-framework/jmix/issues/968[#968^].
 
 [[changelog]]
 == Changelog
