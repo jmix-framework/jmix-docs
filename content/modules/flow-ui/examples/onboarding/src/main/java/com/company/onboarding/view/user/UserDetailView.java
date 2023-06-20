@@ -39,6 +39,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 @Route(value = "users/:id", layout = MainView.class)
 @ViewController("User.detail")
@@ -67,21 +68,27 @@ public class UserDetailView extends StandardDetailView<User> {
     @Autowired
     private DataManager dataManager;
     @ViewComponent
-    private CollectionPropertyContainer<UserStep> stepsDc;
-    @ViewComponent
     private DataContext dataContext;
     @ViewComponent
     private DataGrid<UserStep> stepsDataGrid;
     @Autowired
     private UiComponents uiComponents;
 
+    // tag::filter[]
     @ViewComponent
-    private FormLayout form;
+    private CollectionPropertyContainer<UserStep> stepsDc;
 
-    private Image image;
+    private void filterByDueDate(LocalDate dueDate) {
+        List<UserStep> filtered = getEditedEntity().getSteps().stream()
+                .filter(userStep -> userStep.getDueDate().isAfter(dueDate))
+                .collect(Collectors.toList());
+        stepsDc.setDisconnectedItems(filtered);
+    }
 
-    @Autowired
-    private FileStorage fileStorage;
+    private void resetFilter() {
+        stepsDc.setDisconnectedItems(getEditedEntity().getSteps());
+    }
+    // end::filter[]
 
     @Subscribe
     public void onInit(InitEvent event) {
@@ -101,23 +108,7 @@ public class UserDetailView extends StandardDetailView<User> {
                 }))
                 .setWidth("50px"); // width doesn't work
 
-        DataGridHelper.setDataGridColumnPosition(stepsDataGrid, checkboxColumn, 0);
-
-        MemoryBuffer memoryBuffer = new MemoryBuffer();
-        Upload upload = new Upload(memoryBuffer);
-        upload.setMaxFiles(1);
-        upload.addFinishedListener(event1 -> {
-            FileRef fileRef = fileStorage.saveStream(memoryBuffer.getFileName(), memoryBuffer.getInputStream());
-            getEditedEntity().setPicture(fileRef);
-            updateImage();
-        });
-        form.add(upload);
-
-        image = new Image();
-        image.setHeight("200px");
-        image.setWidth("200px");
-        image.addClassName("user-picture");
-        form.add(image);
+        stepsDataGrid.setColumnPosition(checkboxColumn, 0);
     }
 
     @Subscribe
@@ -133,18 +124,6 @@ public class UserDetailView extends StandardDetailView<User> {
     public void onReady(ReadyEvent event) {
         if (entityStates.isNew(getEditedEntity())) {
             usernameField.focus();
-        }
-
-        updateImage();
-    }
-
-    private void updateImage() {
-        FileRef fileRef = getEditedEntity().getPicture();
-        if (fileRef != null) {
-            StreamResource streamResource = new StreamResource(
-                    fileRef.getFileName(),
-                    () -> fileStorage.openStream(fileRef));
-            image.setSrc(streamResource);
         }
     }
 

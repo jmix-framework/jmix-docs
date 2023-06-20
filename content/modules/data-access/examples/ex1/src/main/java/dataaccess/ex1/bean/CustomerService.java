@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.persistence.LockModeType;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -120,6 +122,26 @@ public class CustomerService {
     }
     // end::load-by-condition[]
 
+    void emptyConditions() {
+        // tag::empty-conditions[]
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.contains("email", null))
+                .list();
+
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.contains("email", ""))
+                .list();
+
+        dataManager.load(Customer.class)
+                .condition(PropertyCondition.inList("email", Collections.emptyList()))
+                .list();
+
+        dataManager.load(Customer.class)
+                .all()
+                .list();
+        // end::empty-conditions[]
+    }
+
     // tag::load-and-sort[]
     List<Customer> loadSorted() {
         return dataManager.load(Customer.class)
@@ -136,6 +158,15 @@ public class CustomerService {
                 .list();
     }
     // end::load-by-query-sorted[]
+
+    // tag::using-locks[]
+    List<Customer> loadAndLock() {
+        return dataManager.load(Customer.class)
+                .query("e.email like ?1", "%@company.com")
+                .lockMode(LockModeType.PESSIMISTIC_WRITE)
+                .list();
+    }
+    // end::using-locks[]
 
     // tag::save[]
     Customer saveCustomer(Customer entity) {

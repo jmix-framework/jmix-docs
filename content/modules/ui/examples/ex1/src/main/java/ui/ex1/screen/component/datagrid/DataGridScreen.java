@@ -12,7 +12,7 @@ import io.jmix.ui.model.CollectionContainer;
 import io.jmix.ui.model.CollectionLoader;
 import io.jmix.ui.screen.*;
 import io.jmix.ui.theme.ThemeClassNames;
-import io.jmix.uiexport.action.ExcelExportAction;
+import io.jmix.gridexportui.action.ExcelExportAction;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import ui.ex1.entity.*;

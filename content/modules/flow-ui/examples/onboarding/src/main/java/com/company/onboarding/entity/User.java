@@ -10,11 +10,12 @@ import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.security.authentication.JmixUserDetails;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import org.springframework.security.core.GrantedAuthority;
 
-import javax.persistence.*;
-import javax.validation.constraints.Email;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +34,11 @@ public class User implements JmixUserDetails, HasTimeZone {
     @JmixGeneratedValue
     private UUID id;
 
+    // tag::document[]
+    @Column(name = "DOCUMENT")
+    private byte[] document;
+    // end::document[]
+
     @Version
     @Column(name = "VERSION", nullable = false)
     private Integer version;
@@ -44,6 +50,9 @@ public class User implements JmixUserDetails, HasTimeZone {
     @SystemLevel
     @Column(name = "PASSWORD")
     protected String password;
+
+    @Column(name = "PASSWORD_EXPIRATION")
+    private LocalDateTime passwordExpiration;
 
     @Column(name = "FIRST_NAME")
     protected String firstName;
@@ -68,9 +77,11 @@ public class User implements JmixUserDetails, HasTimeZone {
     @Column(name = "JOINING_DATE")
     private LocalDate joiningDate;
 
+    // tag::picture[]
     @Column(name = "PICTURE", length = 1024)
     private FileRef picture;
 
+    // end::picture[]
     @Column(name = "ONBOARDING_STATUS")
     private Integer onboardingStatus;
 
@@ -81,6 +92,22 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public byte[] getDocument() {
+        return document;
+    }
+
+    public void setDocument(byte[] document) {
+        this.document = document;
+    }
+
+    public LocalDateTime getPasswordExpiration() {
+        return passwordExpiration;
+    }
+
+    public void setPasswordExpiration(LocalDateTime passwordExpiration) {
+        this.passwordExpiration = passwordExpiration;
+    }
 
     public List<UserStep> getSteps() {
         return steps;

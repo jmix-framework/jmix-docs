@@ -1,0 +1,90 @@
+= Data Repositories
+
+https://docs.spring.io/spring-data/commons/docs/current/reference/html/#repositories.core-concepts[Spring Data] repositories provide a useful abstraction for working with entities, especially when implementing business logic.
+
+Jmix data repositories are built on top of Spring Data and use xref:data-access:data-manager.adoc[DataManager] under the hood. It allows you to utilize the convenient repository interface while having the full support for advanced Jmix data access features, such as xref:data-access:entity-events.adoc[entity events], xref:data-model:entities.adoc#cross-data-store-ref[cross-datastore references], xref:security:authorization.adoc#data-access-checks[data access checks], etc.
+
+[TIP]
+====
+Currently, in version {page-component-display-version} the Jmix data repositories API is marked as experimental. It will undergo minor changes in the next feature release and become stable.
+====
+
+[[working-with-data-repositories]]
+== Working with Data Repositories
+
+. Create an interface extending `JmixDataRepository`. Use the entity class and the entity identifier class as type parameters for `JmixDataRepository`. For example:
++
+--
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=data-repository;data-repository-end]
+----
+--
+
+. Add `@EnableJmixDataRepositories` annotation to the main application class or the add-on configuration:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/SampleDataAccessApplication.java[tags=data-repositories]
+----
++
+Jmix will initialize all data repositories located under the base package of the application or the add-on. If you need more customized control over where to search for repositories, use the `basePackages`, `excludeFilters` and `includeFilters` attributes of the annotation.
+
+. Inject your repository into Spring beans or UI controllers using the `@Autowired` annotation:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/dataaccess/ex1/repository/CustomerRepositoryTest.java[tags=inject]
+----
+
+[[jmix-data-repository-features]]
+== JmixDataRepository Features
+
+The `JmixDataRepository` interface extends the standard Spring Data https://docs.spring.io/spring-data/commons/docs/{spring-boot-version}/api/org/springframework/data/repository/PagingAndSortingRepository.html[PagingAndSortingRepository^]. It provides a few own methods considering Jmix specifics:
+
+* Load methods, such as `findById()` or `findAll()`, can accept a xref:data-access:fetching.adoc#fetch-plan[fetch plan].
+* `create()` method xref:data-model:entities.adoc#instantiation[instantiates] a new entity.
+* `getById()` method with the non-optional result loads an entity by id and throws the exception if the entity is not found.
+
+You can use the following annotations on custom query methods:
+
+* `@io.jmix.core.repository.Query` defines a JPQL query string, similar to the Spring Data JPA `@Query` annotation.
+* `@io.jmix.core.repository.FetchPlan` defines a fetch plan to be used when loading data.
+
+[[query-method-examples]]
+== Query Method Examples
+
+Jmix data repositories support the standard Spring Data feature of deriving the query from the method name, for example:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=name-based-method]
+----
+
+Similar to Spring Data JPA, a JPQL query can be defined explicitly using the `@io.jmix.core.repository.Query` annotation:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=query]
+----
+
+Query methods can accept `Pageable` for pagination and sorting:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=paging]
+----
+
+Another special parameter that can be passed to query methods is a xref:data-access:fetching.adoc#fetch-plan[fetch plan]:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository.java[tags=fetch-plan]
+----
+
+A shared fetch plan can be defined in the `@io.jmix.core.repository.FetchPlan` annotation on the query method:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/repository/CustomerRepository2.java[tags=fetch-plan]
+----
