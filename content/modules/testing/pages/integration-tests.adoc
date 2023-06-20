@@ -2,22 +2,18 @@
 
 An integration test is a broader type of test. It allows to exercise the source code in the same way the application runs in production. When we talk about integration tests, we mean a test, that starts the complete Spring context and also interacts with a real database.
 
-In the following example, we will look at the `OrderAmountCalculation` again. But this time, we don't test the class as a unit test in isolation (as described in the previous chapter), but we test it as part of the bigger context where it is used in the application.
-
-In the example application there is an event listener, that listens to `EntityChangedEvent` of `OrderLine` entities. As part of the persistence logic, the listener recalculates the order amount of the order, the order line belongs to with the help of the `OrderAmountCalculation` class:
+In the following example, we will look at the `OrderAmountCalculation` again. But this time, we don't test the class as a unit test in isolation (as described in the previous chapter), but we test it as part of the bigger context where it is used in the application. In this case, there is an event listener, that listens to `EntityChangedEvent` of `OrderLine` entities. As part of the persistence logic, the listener recalculates the order amount of the order, the order line belongs to with the help of the `OrderAmountCalculation` class:
 
 [source,java,indent=0,title='OrderLineEventListener.java']
 ----
 include::example$/ex1/src/main/java/testing/ex1/listener/OrderLineEventListener.java[tags=recalculate-order-amount]
 ----
 
-In the integration test, we can now test the `OrderLineEventListener` and the `OrderAmountCalculation` together. We can use the `@Autowired` annotation to inject the `DataManager` into the test class. The `DataManager` is Jmix central entry point to the persistence layer of the application. As during the save operation of entities, it is executing the event listeners, that are registered in the application as well.
-
-In the test class we use the `DataManager` to create an order and an order line and store them in the database. This process will trigger the event listener and the order amount will be calculated.
+In the integration test, we can now test the `OrderLineEventListener` and the `OrderAmountCalculation` together. The `DataManager` is Jmix central entry point to the persistence layer of the application. During the save operation, it is executing the event listeners, that are registered in the application. We will create an order and an order line and store them in the database via the `DataManager` API. This will trigger the event listener and the order amount will be calculated.
 
 == Dependency Injection in Tests
 
-In a Spring integration test, we can use the same dependency injection mechanism as in the application. We can use the `@Autowired` annotation to inject beans into our test class. In this example, we inject the `DataManager` into the test class to use it to transitively trigger the `OrderLineEventListener` logic:
+In a Spring Integration test, we can use the same dependency injection mechanism as in the application. We can use the `@Autowired` annotation to inject beans into our test class. In this example, we inject the `DataManager` into the test class to use it to transitively trigger the `OrderLineEventListener` logic:
 
 [source,java,indent=0,title='OrderLineEventListenerTest.java']
 ----
@@ -49,7 +45,7 @@ public class CustomerServiceTest {
 
 In an integration test there are two main reasons to interact with the database. The first reason is that we want to set up test data. This is oftentimes required as a prerequisite for the execution of the test case. For this we can use the regular Jmix functionalities like `DataManager` to interact with the database as we would in production code.
 
-The second reason is that indirect: by executing the business logic that we want to test, this business logic perform some operation against the database. Let's look at an example for both of those scenarios:
+The second reason is that indirect: by executing the business logic that we want to test. This business logic itself performs some operation against the database. Let's look at an example for both of those scenarios:
 
 [source,java,indent=0,title='CustomerServiceTest.java']
 ----
@@ -60,9 +56,9 @@ include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.jav
 
 === Test data cleanup
 
-In the example above, we use the `DataManager` to store a test customer in the database. Since all tests share the same database instance by default, it means that this test data will also be available for the next test. This is not a problem in this example, but in other cases, it might be. For example, if we would have a test that creates a customer with a specific email address, and another test that searches for a customer by email address, the second test would fail, because it would find the customer created by the first test.
+In the example above, we use the `DataManager` to store a test customer in the database. Since all tests share the same database instance by default, it means that this test data will also be available for the next test. This is not a problem in this example, but in other cases, it might be. Let's look at an example for this: assuming we have a unique constraint on the email address field of the Customer entity. If we have a test that creates a customer with a specific email address, and another test that searches for a customer by email address - assuming it is not there, the second test would fail, because it would find the customer created by the first test.
 
-There are several ways on how to clean up the test data. The first is to keep references of data that was created during the test. In the example above, we could keep a reference to the customer that was created in the test and delete it after the test has finished via `dataManager.remove(customer)`. This is a valid approach, but it requires some additional code in the test. Additionally, it is not always possible to keep a reference to the data that was created during the test. For example, if we create a new entity in the production code, we don't have a reference to it in the test. Furthermore, in case of an exception during the test, the cleanup code might not be executed.
+There are several ways on how to clean up the test data. The first is to keep references of entities that were created during the test. In the example above, we could keep a reference to the customer that was created in the test and delete it after the test has finished via `dataManager.remove(customer)`. This is a valid approach, but it requires some additional code in the test. Additionally, it is not always possible to keep a reference to the data that was created during the test. For example, if we create a new entity in the production code, we don't have a reference to it in the test. Furthermore, in case of an exception during the test, the cleanup code might not be executed.
 
 Due to this the second alternative would be to perform more general database cleanup. In the following example we use `JdbcTemplate` to perform a SQL statement `DELETE FROM CUSTOMER` to delete all customers from the database:
 
@@ -72,9 +68,79 @@ include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.jav
 ----
 <1> The `DataSource` is injected to instantiate the `JdbcTemplate`.
 <2> `@AfterEach` from JUnit is used to execute the data cleanup after each test case.
-<3> The `JdbcTestUtils` from Spring is used as a convinience method to delete all data from a database table. More information on `JdbcTestUtils` can be found in the https://docs.spring.io/spring-framework/reference/testing/support-jdbc.html[Spring testing documentation^].
+<3> The `JdbcTestUtils` from Spring is used as a convenience method to delete all data from a database table. More information on `JdbcTestUtils` can be found in the https://docs.spring.io/spring-framework/reference/testing/support-jdbc.html[Spring testing documentation^].
+
+== Security Context in Tests
+
+Jmix allows running code under a specific user's authority, which is often necessary when testing functionalities that depend on user roles and permissions. This can be achieved by using the xref:security:authentication.adoc#system[SystemAuthenticator].
+
+With the SystemAuthenticator bean, you can execute of some business logic as a particular user. This is useful in testing scenarios where your code has security constraints and behaves differently depending on the user's role.
+
+Let's consider an example where we need to test a CustomerService method that behaves differently depending on the role of the user who executes it:
+
+[source,java,indent=0,title='CustomerService.java']
+----
+include::example$/ex1/src/main/java/testing/ex1/app/customer/CustomerService.java[tags=customer-service]
+----
+
+In this example, the `CustomerService` has a method `findCustomerByEmail` that returns a customer entity if found. The underlying permissions restrict customer data to only particular roles. We can test this behaviour by using the `SystemAuthenticator` to execute the method as a particular user:
 
 
-== Executing logic as a specific user
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.java[tags=find-by-email-as-user]
+----
+<1> For the test case, we create a new user without any role assignment
+<2> `SystemAuthenticator` is used to execute the code under test as the newly created user.
+<3> The `CustomerService` is used to perform a database lookup of customers by Email with the security context of that user.
+
+As we did not assign any roles to the user, the customer service returns an empty optional.
+
+=== AuthenticatedAsAdmin
+
+When you are writing integration test that requires a security context (like reading and writing to the database, e.g. through the Jmix `DataManager` facility), it is required to always set up a security context. This is also true for all test data that is written to the database via `DataManager`. But oftentimes, the security context is not relevant for the test case itself, but only for the test data setup.
+In this case, you can use the JUnit extension `AuthenticatedAsAdmin`, which is automatically present in a Jmix project.
+
+It creates a security context before each test and sets the authenticated user to the admin user. This allows you to write tests that require a security context without having to set up the security context yourself.
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/CustomerServiceTest.java[tags=authenticated-as-admin]
+----
+
+It is also possible to combine the `AuthenticatedAsAdmin` extension with the `SystemAuthenticator` to execute the test code as a particular user. By annotating the test class the default security context is set to the admin. But within the test case, we can use the `SystemAuthenticator` to execute the code as a particular user. This way, we don't have to manually wrap all test data generation code into by a `SystemAuthenticator` call.
 
 == Overriding behaviour of the application
+
+Sometimes even for integration tests it is required to mock out certain parts of the application. In those cases, it is possible to combine the functionalities of a `@SpringBooTest` with Mockito and mock out particular beans, but still use the overall Spring context.
+
+Assuming we have a `NotificationService` that as part of its business logic uses the `Emailer` API from the Jmix https://www.jmix.io/marketplace/email-sending/[Email Sending Add-on^]. In our integration test we don't want to actually send out emails. Instead, we would like to mock this functionality.
+
+=== @MockBean
+
+To mock a bean in a Spring Integration test, we can use the `@MockBean` annotation. In the following example, we mock out the `Emailer` bean as described above:
+
+[source,java,indent=0,title='NotificationServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/NotificationServiceTest.java[tags=emailer-mock-bean]
+----
+
+By using the `@MockBean` annotation, we can replace the bean in the application context and replace it with a mock. This enables two things:
+
+1. it prevents the email from actually being sent
+2. it allows to simulate failure scenario where email sending did not work
+
+===  @TestConfiguration
+
+In the example above, we use the `@MockBean` annotation to replace the `Emailer` bean with a mock. But this is not the only way to replace a bean in the application context. Another way is to use the `@TestConfiguration` annotation. This annotation can be used to create a new configuration class that is only used for the test. In the following example, we create a new configuration class that replaces the `Emailer` bean with a mock:
+
+[source,java,indent=0,title='NotificationServiceTest.java']
+----
+include::example$/ex1/src/test/java/testing/ex1/customer/NotificationServiceWithTestConfigurationTest.java[]
+----
+<1> The inner static class annotated with `@TestConfiguration` will be picked up by Spring when executing the test case.
+<2> A bean with the name `emailer` of type `Emailer` will be manually declared. It overrides the production definition of that bean.
+<3> A mock instance is manually created
+<4> The behaviour of the mock is specified and the configured mock is returned.
+
+For the production code, when interacting with the Emailer bean, it will now use the mock instead of the actual implementation.

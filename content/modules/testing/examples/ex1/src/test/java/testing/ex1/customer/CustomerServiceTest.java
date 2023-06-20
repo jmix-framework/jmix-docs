@@ -1,35 +1,48 @@
 package testing.ex1.customer;
 
 import io.jmix.core.DataManager;
+import io.jmix.core.security.SystemAuthenticator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.jdbc.JdbcTestUtils;
 import testing.ex1.app.customer.CustomerService;
 import testing.ex1.entity.Customer;
+import testing.ex1.entity.User;
+import testing.ex1.test_support.AuthenticatedAsAdmin;
 
 import javax.sql.DataSource;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+
+// tag::authenticated-as-admin[]
 @SpringBootTest
+@ExtendWith(AuthenticatedAsAdmin.class)
 public class CustomerServiceTest {
+    private final String USERNAME = "userWithoutPermissions";
+
+    // ...
+    // end::authenticated-as-admin[]
 
     @Autowired
     CustomerService customerService;
 
     @Autowired
     DataManager dataManager;
+    @Autowired
+    SystemAuthenticator systemAuthenticator;
 
     // tag::cleanup-customer-table[]
 
     @Autowired // <1>
     DataSource dataSource;
 
-    @AfterEach// <2>
+    @AfterEach // <2>
     void tearDown() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         JdbcTestUtils.deleteFromTables(jdbc, "CUSTOMER"); // <3>
@@ -68,5 +81,37 @@ public class CustomerServiceTest {
         // then
         assertThat(foundCustomer)
                 .isNotPresent();
+    }
+
+    // tag::find-by-email-as-user[]
+    @Test
+    void given_noPermissionsToReadCustomerData_when_findByEmail_then_nothingFound() {
+
+        // given
+        Customer customer = dataManager.create(Customer.class);
+        customer.setEmail("customer@test.com");
+        dataManager.save(customer);
+
+        // and
+        User userWithoutPermissions = dataManager.create(User.class);
+        userWithoutPermissions.setUsername(USERNAME);
+        dataManager.save(userWithoutPermissions); // <1>
+
+        // when
+        Optional<Customer> foundCustomer = systemAuthenticator.withUser( // <2>
+                USERNAME,
+                () -> customerService.findByEmail("customer@test.com") // <3>
+        );
+
+        // then
+        assertThat(foundCustomer)
+                .isNotPresent();
+    }
+    // end::find-by-email-as-user[]
+
+    @AfterEach // <2>
+    void removeUser() {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        JdbcTestUtils.deleteFromTableWhere(jdbc, "USER_", "username = ?", USERNAME); // <3>
     }
 }

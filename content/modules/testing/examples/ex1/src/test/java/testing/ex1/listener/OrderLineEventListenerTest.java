@@ -1,6 +1,7 @@
 package testing.ex1.listener;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import testing.ex1.entity.Order;
 import testing.ex1.entity.OrderLine;
 import testing.ex1.entity.Product;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import testing.ex1.test_support.AuthenticatedAsAdmin;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
@@ -21,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 // tag::order-line-event-listener-test[]
 @SpringBootTest
+@ExtendWith(AuthenticatedAsAdmin.class)
 public class OrderLineEventListenerTest {
 
     @Autowired

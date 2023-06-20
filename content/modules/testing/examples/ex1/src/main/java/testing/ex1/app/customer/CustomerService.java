@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import testing.ex1.entity.Customer;
 
 import java.util.Optional;
-
+// tag::customer-service[]
 @Component
 public class CustomerService {
 
@@ -20,3 +20,4 @@ public class CustomerService {
                 .optional();
     }
 }
+// end::customer-service[]
