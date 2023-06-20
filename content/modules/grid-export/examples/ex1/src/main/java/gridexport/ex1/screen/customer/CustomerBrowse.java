@@ -8,8 +8,8 @@ import io.jmix.ui.component.*;
 import io.jmix.ui.screen.*;
 import gridexport.ex1.entity.Customer;
 import io.jmix.ui.screen.LookupComponent;
-import io.jmix.uiexport.action.ExcelExportAction;
-import io.jmix.uiexport.action.JsonExportAction;
+import io.jmix.gridexportui.action.ExcelExportAction;
+import io.jmix.gridexportui.action.JsonExportAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 

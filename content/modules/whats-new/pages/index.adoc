@@ -9,221 +9,480 @@ This section covers new features of Jmix framework and Studio {page-component-di
 ====
 To create new projects with Jmix {page-component-display-version} or to upgrade an existing project, you need Studio {page-component-display-version} or later, so xref:studio:update.adoc[update] your Jmix Studio plugin first.
 
-The minimal supported IntelliJ IDEA version is now 2022.1.
+The minimal supported IntelliJ IDEA version is now 2022.3.
 ====
 
 See xref:studio:project.adoc#upgrading-project[Upgrading Project] section for how to upgrade your project using Studio. The automatic migration procedure makes the following changes in your project:
 
 * Updates the version of Jmix BOM which in turn defines versions of all dependencies.
 * Updates the version of Jmix Gradle plugin.
-* Updates the version of Gradle wrapper to 7.5.1 in `gradle/wrapper/gradle-wrapper.properties`.
+* Updates the version of Gradle wrapper to 7.6 in `gradle/wrapper/gradle-wrapper.properties`.
+* Adds all necessary includes to the root Liquibase changelog file.
+* The `main.liquibase.change-log` property is added to `application.properties`.
+* All `++jmix.liquibase.*++` application properties are renamed to `++main.liquibase.*++`.
+* Additional data store Liquibase configurations are be updated (if any).
+* In a project with Flow UI, `UiMinimalRole` is created in the project.
+* If the project uses Grid Export Actions and/or GrapesJS add-ons, their artefact names are changed.
+
+See also the full list of <<breaking-changes,breaking changes>> that can affect your project after the upgrade.
 
 [[new-features]]
 == New Features and Improvements
 
-[[flow-ui]]
-=== Flow UI
+[[root-changelog-includes]]
+=== Root Liquibase Changelog with All Includes
 
-The new xref:flow-ui:index.adoc[Flow UI] module based on Vaadin 23 is now available as a solid foundation for creating new projects. Its API is stable enough and will be evolved further by the standard rules: backward compatible patches, possible minor incompatibilities in minor feature releases.
+The root Liquibase changelog for the main data store now contains `include` directives for changelogs of all add-ons used in the project. It makes the changelog compatible with the https://github.com/liquibase/liquibase-gradle-plugin[Liquibase Gradle plugin^] and Liquibase CLI and allows you to run Liquibase outside the Studio or the application, for example on a CI server.
 
-To use Flow UI in a new project, create it with the `Full-Stack Application with Incubating FlowUI` template.
+The project must have the `main.liquibase.change-log` property set to the root changelog path, for example:
 
-NOTE: We consider Flow UI as incubating module because it's not yet comparable in features with the classic UI.
-
-There are a few add-ons ready to be used in a Flow UI project: Data Tools, Audit, as well as all add-ons without UI, like REST or file storage implementations.
-
-Studio comes with the new visual designer for Flow UI views. It has a significant difference from the classic UI designer: there is no *Palette* tool window. Instead, use the *Add Component* action available through the top actions panel, *Component Hierarchy* context menu and *Generate* menu (*Alt+Ins / Cmd+N*).
-
-If you have any trouble with the designer preview window, click *Restart* button on its top panel. The *Console* button opens or closes the console showing the frontend build output, which can be helpful in diagnosing problems.
-
-image::flowui-designer-1.png[align="center", width="790"]
-
-[[jtw]]
-=== Jmix Tool Window
-
-The *Configuration* section of the Jmix tool window now displays all classes annotated with `@Configuration` and its derived annotations (e.g. `@SpringBootApplication`), `@ConfigurationProperties` classes, as well as REST xref:rest:entities-api/load-entities.adoc#jpql-query-config[queries] and xref:rest:business-logic.adoc#exposing-a-service[services] configuration files:
-
-image::config-section.png[align="center", width="370"]
-
-Spring beans having methods with an entity in the arguments or the result are shown in the *Beans* section of the entity:
-
-image::data-model-beans.png[align="center", width="899"]
-
-TIP: You can see items grouped by packages if you select *Show Options Menu* (image:gear.svg[]) -> *Group by Packages*.
-
-[[constructor-injection]]
-=== Constructor Injection
-
-Studio now supports constructor injection into Spring beans. In the *Choose Objects to Inject* dialog, select the *Use constructor injection* checkbox:
-
-image::constructor-injection-1.png[align="center", width="856"]
-
-Then Studio will create a final field and a constructor argument:
-
-[source,java,indent=0]
+[source,properties]
 ----
-@Component
-public class CustomerService {
-
-    private final DataManager dataManager;
-
-    public CustomerService(DataManager dataManager) {
-        this.dataManager = dataManager;
-    }
+main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
 ----
 
-Your choice will be remembered, and you can change it also in the Jmix plugin settings.
+Studio maintains the includes automatically when you add or remove add-ons. Also, when you start the application, it checks that includes in the root changelog correspond to the add-ons used in the project. If it finds a mismatch, Studio shows a notification dialog and suggests to add or remove includes. You can ignore some paths, and the notification won't be shown again for the ignored items.
 
-[[row-level-role-wizard]]
-=== Row-level Role Wizard
+The Studio version migration procedure updates the root changelog and sets the application property automatically.
 
-Now you can create xref:security:row-level-roles.adoc[row-level roles] and policies using a wizard available via the *New* -> *Row-level Role* command of the Jmix tool window. See more information in the xref:studio:role-designer.adoc#row-level-role-wizard[Row-level Role Wizard] section.
+Read about  breaking changes <<breaking-changes-liquibase, below>> .
 
-[[custom-project-templates]]
-=== Custom Project Templates
+[[flow-ui-core]]
+=== Flow UI Core
 
-Studio now supports custom artifacts containing project templates, so you can provide your own templates for new projects, UI screens and FlowUI views.
+Flow UI module has been upgraded to Vaadin 23.3.
 
-See details in the xref:studio:custom-project-templates.adoc[] section.
+The following Vaadin components were integrated into Flow UI:
 
-[[security-configuration-extension-points]]
-=== Security Configuration Extension Points
+* https://vaadin.com/docs/v23/components/tabs/#tab-sheet[TabSheet^] -> `JmixTabSheet` (`tabSheet` in XML)
++
+[source,xml]
+----
+<tabSheet width="100%">
+    <tab id="mainTab" label="Main">
+        <formLayout id="form" dataContainer="userDc">...</formLayout>
+    </tab>
+    <tab id="additionalTab" label="Onboarding steps">
+        <vbox>
+            <hbox>...</hbox>
+            <dataGrid width="100%" dataContainer="stepsDc">...</dataGrid>
+        </vbox>
+    </tab>
+</tabSheet>
+----
 
-Now you can extend security configurations provided by the framework and add-ons instead of replacing them completely.
+* https://vaadin.com/docs/v23/components/multi-select-combo-box[MultiSelectComboBox^] -> `JmixMultiSelectComboBox` (`multiSelectComboBox` in XML)
++
+[source,xml]
+----
+<instance id="productDc"
+          class="com.company.demo.entity.Product">
+    <fetchPlan extends="_base">
+        <property name="tags" fetchPlan="_base"/>
+    </fetchPlan>
+    <loader/>
+</instance>
+<collection class="com.company.demo.entity.Tag" id="allTagsDc">
+    <fetchPlan extends="_base"/>
+    <loader id="allTagsDl">
+        <query>
+            <![CDATA[select e from Tag e]]>
+        </query>
+    </loader>
+</collection>
+<!-- ... -->
+<formLayout id="form" dataContainer="productDc">
+    <textField id="nameField" property="name"/>
+    <multiSelectComboBox property="tags" itemsContainer="allTagsDc"/>
+</formLayout>
+----
 
-To adjust a security configuration, define a Spring bean extending the `AbstractHttpConfigurer` class and annotate it with an appropriate `@Qualifier`.
+* https://vaadin.com/docs/v23/components/upload[Upload^] -> `FileStorageUploadField` (`fileStorageUploadField` in XML) and `FileUploadField` (`fileUploadField` in XML)
++
+[source,xml]
+----
+<fileStorageUploadField id="uploadField"
+        dataContainer="userDc" property="picture"/>
+----
 
-Example of extending `StandardSecurityConfiguration`:
+* https://vaadin.com/docs/v23/create-ui/standard-html[Image^] -> `JmixImage` (`image` in XML)
++
+[source,xml]
+----
+<image id="image"
+        dataContainer="userDc" property="picture"
+        height="280px" width="200px" classNames="user-picture"/>
+----
+
+* Many components now support the https://vaadin.com/docs/v23/components/tooltip[Tooltip^], for example:
++
+[source,xml]
+----
+<textField id="nameField" property="name">
+    <tooltip text="Product name" position="BOTTOM_START"/>
+</textField>
+----
++
+In Studio, tooltips are added using the *Add* button in the Jmix UI inspector panel.
+
+[[input-dialog]]
+==== Input Dialog
+
+The xref:flow-ui:dialogs.adoc[Dialogs] interface now has the `createInputDialog()` method which allows you to show input dialogs with arbitrary parameters. For example:
 
 [source,java]
 ----
-@Component
-@Qualifier(StandardSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
-public class MySecurityConfigurer extends AbstractHttpConfigurer<MySecurityConfigurer, HttpSecurity> {
-
-    @Override
-    public void configure(HttpSecurity http) throws Exception {
-        MyFilter myFilter = new MyFilter();
-        http.addFilterBefore(myFilter, UsernamePasswordAuthenticationFilter.class);
-    }
-}
+dialogs.createInputDialog(this)
+        .withParameters(
+                stringParameter("name").withLabel("Name"),
+                intParameter("age").withLabel("Age"))
+        .withCloseListener(dialogCloseEvent -> {
+            if (dialogCloseEvent.closedWith(DialogOutcome.OK)) {
+                System.out.println("Name: " + dialogCloseEvent.getValue("name"));
+                System.out.println("Age: " + dialogCloseEvent.getValue("age"));
+            }
+        })
+        .open();
 ----
 
-Example of extending security configuration of OIDC add-on:
+[[background-tasks]]
+==== Background Tasks
 
-[source,java]
-----
-@Component
-@Qualifier(OidcAutoConfiguration.OAuth2LoginSecurityConfiguration.SECURITY_CONFIGURER_QUALIFIER)
-public class MyOidcSecurityConfigurer extends AbstractHttpConfigurer<MyOidcSecurityConfigurer, HttpSecurity> {
-    @Override
-    public void init(HttpSecurity http) throws Exception {
-	// any method that adds another configurer must be invoked in the init method
-        http.headers(headers -> {
-            headers.frameOptions().deny();
-        });
-    }
-}
-----
+Flow UI now has the mechanism for executing asynchronous tasks without blocking the user interface, same as in Classic UI.
 
-[[custom-password-validation]]
-=== Custom Password Validation
-
-To implement a custom password validation in the application, create a bean (or multiple beans) implementing the `PasswordValidator` interface, for example:
-
-[source,java]
-----
-@Component
-public class MyPasswordValidator implements PasswordValidator<User> {
-
-    @Override
-    public void validate(PasswordValidationContext<User> context) throws PasswordValidationException {
-         if (context.getPassword().length() < 3)
-            throw new PasswordValidationException("Password is too short, must be >= 3 characters");
-    }
-}
-----
-
-All password validators will be automatically used in the ChangePassword action dialog.
-
-To add the validation to the User edit screen or detail view, use `PasswordValidation` helper bean:
+Example of running a task and displaying the progress in a label:
 
 [source,java]
 ----
 @Autowired
-private PasswordValidation passwordValidation;
+private BackgroundWorker backgroundWorker;
 
-@Subscribe
-protected void onBeforeCommit(BeforeCommitChangesEvent event) {
-  if (entityStates.isNew(getEditedEntity())) {
-      // ...
-      List<String> validationErrors = passwordValidation.validate(getEditedEntity(), passwordField.getValue());
-      if (!validationErrors.isEmpty()) {
-          notifications.create(Notifications.NotificationType.WARNING)
-                  .withCaption(String.join("\n", validationErrors))
-                  .show();
-          event.preventCommit();
-      }
-      getEditedEntity().setPassword(passwordEncoder.encode(passwordField.getValue()));
-  }
+@ViewComponent
+private Span taskProgress;
+
+@Subscribe("testBtn")
+public void onTestBtnClick(ClickEvent<Button> event) {
+    BackgroundTaskHandler<Void> handler = backgroundWorker.handle(new SampleTask(15, null, 10));
+    handler.execute();
+}
+
+protected class SampleTask extends BackgroundTask<Integer, Void> {
+    int count;
+
+    public SampleTask(long timeoutSeconds, View<?> view, int count) {
+        super(timeoutSeconds, view);
+        this.count = count;
+    }
+
+    @Override
+    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
+        for (int i = 1; i < count + 1; i++) {
+            Thread.sleep(1000);
+            taskLifeCycle.publish(i);
+        }
+        return null;
+    }
+
+    @Override
+    public void progress(List<Integer> changes) {
+        taskProgress.setText(changes.get(0) + "");
+    }
 }
 ----
 
-[[pessimistic-lock-by-datamanager]]
-=== Pessimistic Lock by DataManager
-
-The `DataManager` fluent loader interface now accepts the `javax.persistence.LockModeType` enum values in the `lockMode()` method. When working with JPA entities, it leads to the corresponding pessimistic lock on the database level using the `select ... for update` statement.
-
-For example:
+Example of running a task and displaying the progress in a modal dialog:
 
 [source,java]
 ----
-Customer customer = dataManager.load(Customer.class)
-        .id(customerId)
-        .lockMode(LockModeType.PESSIMISTIC_WRITE)
-        .one();
+@Autowired
+private Dialogs dialogs;
+
+@Subscribe("testBtn")
+public void onTestBtnClick(ClickEvent<Button> event) {
+    dialogs.createBackgroundTaskDialog(new SampleTask(15, this, 10))
+            .withTotal(10)
+            .withCancelAllowed(true)
+            .open();
+}
+
+protected class SampleTask extends BackgroundTask<Integer, Void> {
+    int count;
+
+    public SampleTask(long timeoutSeconds, View<?> view, int count) {
+        super(timeoutSeconds, view);
+        this.count = count;
+    }
+
+    @Override
+    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
+        for (int i = 1; i < count + 1; i++) {
+            Thread.sleep(1000);
+            taskLifeCycle.publish(i);
+        }
+        return null;
+    }
+}
 ----
+
+[[flow-ui-in-add-ons]]
+=== Flow UI in Add-ons
+
+Flow UI modules are now available for the following add-ons:
+
+* Multitenancy
+
+* Quartz
+
+* Application Settings
+
+* Grid Export Actions (with the ability to export all rows, see <<excel-export>>).
+
+[[flow-ui-menu-designer]]
+=== Flow UI Menu Designer
+
+The "single mode" of the Flow UI menu designer has been significantly improved. When you switch to the single mode, Studio still provides the ability to add inherited menu items from the add-ons included in the project. All available items are always displayed in the separate panel on the left, and you can easily drag-and-drop them into your current custom menu.
+
+[[excel-export]]
+=== Excel Export
+
+The Grid Export Actions add-on now allows users to export to Excel all rows for the currently selected criteria. The `excelExport` action shows a dialog with *All rows* | *Current page* | *Selected rows* options.
+
+
+Previously, it could export only rows visible on the current page or selected rows.
+
+[[pessimistic-locking-ui]]
+=== Pessimistic Locking UI
+
+Pessimistic locking management UI has been added to the core UI modules. You can find it in the *Administration* menu of Classic UI and the *System* menu of Flow UI.
+
+[[ui-designer-tool-window]]
+=== UI Designer Tool Window
+
+The designer for both Classic and Flow UI now has a single tool window on the right: *Jmix UI*. It includes the components hierarchy and the inspector of the selected component properties.
+
+The component palette is opened when you click *Add component* in the hierarchy context menu, in the XML descriptor top panel or *Generate* menu.
+
+[[code-snippets]]
+=== Code Snippets
+
+The Code Snippets palette is now available by clicking the *Code Snippets* button in the editor window top panel for Spring beans and UI controllers.
+
+The tool window has been removed because it has proven to be hard to find and thus rarely used.
 
 [[preview]]
 == Preview Features
 
-[[authorization-server]]
-=== Authorization Server
+[[flow-ui-generic-filter]]
+=== Flow UI Generic Filter
 
-The Jmix Authorization Server add-on allows you to issue access and refresh tokens and protect API resources (REST API, custom controllers) with these tokens. It supports authorization code grant for web clients and mobile devices and client credentials grant for server-to-server interaction.
+The `GenericFilter` component (`genericFilter` in XML) allows users to filter data by arbitrary conditions created at runtime.
 
-The add-on is built on top of https://spring.io/projects/spring-authorization-server[Spring Authorization Server^]. Jmix Authorization Server is a replacement for Jmix Security OAuth2 module which depends on outdated Spring Security OAuth project.
+Usage example:
 
-See more details in the project's https://github.com/jmix-framework/jmix/blob/master/jmix-authorization-server/README.md[README^].
+[source,xml]
+----
+<facets>
+    <dataLoadCoordinator auto="true"/>
+    <queryParameters>
+        <genericFilter component="filter"/>
+    </queryParameters>
+</facets>
+<layout>
+        <genericFilter id="filter" dataLoader="usersDl"
+                       summaryText="My filter">
+            <responsiveSteps>
+                <responsiveStep minWidth="0" columns="1"/>
+                <responsiveStep minWidth="800px" columns="2"/>
+                <responsiveStep minWidth="1200px" columns="3"/>
+            </responsiveSteps>
+        </genericFilter>
+----
+
+The `genericFilter` element of the `queryParameters` facet is needed for reflecting the filter state in the URL query parameters. It ensures the same filter is applied when navigating back to the list view from a detail view, and when the user refreshes the browser page.
+
+Currently, the generic filter supports only property conditions. All other features of the classic UI filter (JPQL and custom conditions, grouping, ability to save configurations) will be implemented in the next release.
 
 [[breaking-changes]]
 == Breaking Changes
 
-[[migration-to-securityfilterchain]]
-=== Migration to SecurityFilterChain
+[[changed-add-on-artefacts]]
+=== Changed Add-on Artefacts
 
-The framework security configurations have been migrated from the deprecated `WebSecurityConfigurerAdapter` to `SecurityFilterChain`.
+[[grid-export-actions-artefact]]
+==== Grid Export Actions
 
-If you have security configurations that extend `WebSecurityConfigurerAdapter`, rewrite them by following recommendations of https://spring.io/blog/2022/02/21/spring-security-without-the-websecurityconfigureradapter[this article^] from the Spring blog.
+Changed the starter artefact name:
+
+- Was `io.jmix.ui:io.jmix.ui:jmix-ui-export-starter`
+- Now `io.jmix.gridexport:jmix-gridexport-ui-starter`
+
+And the base package:
+
+- Was `io.jmix.uiexport`
+- Now `io.jmix.gridexportui`
+
+The Studio migration procedure automatically changes the artefact names in `build.gradle`, but you may need to change package names in your code manually if you get compilation errors.
+
+[[grapesjs-artefact]]
+==== GrapesJS
+
+Changed the starter artefact name:
+
+- Was `io.jmix.grapesjs:jmix-grapesjs-starter`
+- Now `io.jmix.grapesjs:jmix-grapesjs-ui-starter`
+
+and the theme artefact name:
+
+- Was `io.jmix.grapesjs:jmix-grapesjs`
+- Now `io.jmix.grapesjs:jmix-grapesjs-ui`
+
+[[quartz-artefact]]
+==== Quartz
+
+Additional starter is now required for UI: `io.jmix.quartz:jmix-quartz-ui-starter`
+
+[[breaking-changes-liquibase]]
+=== Liquibase Properties
+
+. `++jmix.liquibase.*++` prefix has been renamed to `++main.liquibase.*++` in order to conform to the datasource properties naming pattern (e.g. `main.datasource.url` where `main` is the data store name). If you add a `second` data store, its Liquibase configuration properties will be `second.liquibase.*`.
+
+. `application.properties` **must** contain the explicit path to the root Liquibase changelog for each data store. For example:
++
+[source,properties]
+----
+main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
+
+second.liquibase.change-log=com/company/demo/liquibase/second-changelog.xml
+----
+
+[[breaking-changes-datastore]]
+=== Data Store Configurations
+
+Additional datastore configuration must be changed.
+
+The `LiquibaseChangeLogProcessor` class has been removed.
+
+Previously, if we defined an additional data store and set _DB Schema Management_ to _Create and Update_ then Studio generated a bean definition like this:
+
+[source,java]
+----
+@Bean
+public SpringLiquibase thirdLiquibase(
+            LiquibaseChangeLogProcessor processor,
+            @Qualifier("thirdDataSource") DataSource dataSource) {
+   return JmixLiquibaseCreator.create(
+                dataSource,
+                new LiquibaseProperties(),
+                processor,
+                "third");
+}
+----
+
+A new bean definition must look as follows ("third" here is the data store name):
+
+[source,java]
+----
+@Bean("thirdLiquibaseProperties")
+@ConfigurationProperties(prefix = "third.liquibase")
+public LiquibaseProperties thirdLiquibaseProperties() {
+   return new LiquibaseProperties();
+}
+
+@Bean("thirdLiquibase")
+public SpringLiquibase thirdLiquibase(
+            @Qualifier("thirdDataSource") DataSource dataSource,
+            @Qualifier("thirdLiquibaseProperties") LiquibaseProperties liquibaseProperties) {
+    return JmixLiquibaseCreator.create(
+                dataSource,
+                liquibaseProperties);
+}
+----
+
+[[reference-to-message-in-formatters]]
+=== Reference to Message in Formatters
+
+We have fixed the incorrect handling of references to externalized messages in formatters defined in XML.
+
+Now, as for any other messages, the `msg://myFormat` reference will look for a message with the group of the current screen, for example `com.company.app.screen.foo/myFormat`. The prefix with the triple slash will look for a message without group, for example `myFormat`.
+
+To adapt your project to this change, find all usages of externalized messages in formatters and change double slashes to triple ones. For example:
+
+[source,xml]
+----
+<formatter>
+     <date format="msg:///myDateFormat"/>
+</formatter>
+----
+
+[[breaking-changes-UiMinimalRole]]
+=== UiMinimalRole in projects with Flow UI
+
+`UiMinimalRole` defines access to login and main views. To be able to change these views, the role has been moved from the framework to the projects. For example:
+
+[source,java]
+----
+package com.company.demo.security;
+
+import io.jmix.core.entity.KeyValueEntity;
+import io.jmix.security.model.*;
+import io.jmix.security.role.annotation.*;
+import io.jmix.securityflowui.role.annotation.ViewPolicy;
+
+@ResourceRole(name = "Flow UI: minimal access", code = UiMinimalRole.CODE, scope = SecurityScope.UI)
+public interface UiMinimalRole {
+
+    String CODE = "flowui-minimal";
+
+    @ViewPolicy(viewIds = "MainView")
+    void main();
+
+    @ViewPolicy(viewIds = "LoginView")
+    @SpecificPolicy(resources = "flowui.loginToUi")
+    void login();
+
+    @EntityPolicy(entityClass = KeyValueEntity.class, actions = EntityPolicyAction.READ)
+    @EntityAttributePolicy(entityClass = KeyValueEntity.class, attributes = "*", action = EntityAttributePolicyAction.VIEW)
+    void keyValueEntity();
+}
+----
+
+[[breaking-changes-DataGrid]]
+=== Flow UI DataGrid
+
+. The `getColumns()` method of `DataGrid` and `TreeDataGrid` now only returns columns that are not hidden by security. Previously, it returned all columns including hidden ones.
+
+. Columns hidden by security do not change their visibility property. Previously, their `visible` attribute was being set to false.
+
+[[breaking-changes-ui-test-assist]]
+=== ui-test-assist
+
+The `ui-test-assist` module doesn't bring transitive dependencies on Spock and Groovy anymore. Also, it does not contain `UiTestAssistSpecification`, `ScreenSpecification` and `TestMainScreen` classes.
+
+All Spock and Groovy stuff has been moved to the new `ui-test-assist-spock` module.
+
+If your project contains tests based on `ScreenSpecification` or `UiTestAssistSpecification`, add the following dependency to `build.gradle`:
+
+[source,groovy]
+----
+testImplementation 'io.jmix.ui:jmix-ui-test-assist-spock'
+----
+
+and change imports of `ScreenSpecification`, `UiTestAssistSpecification`, `TestMainScreen` classes to `io.jmix.ui.testassistspock.*`.
 
 [[changelog]]
 == Changelog
 
 * Resolved issues in Jmix Framework:
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.4[1.4.4^]
-
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.3[1.4.3^]
-
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.2[1.4.2^]
-
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.1[1.4.1^]
-
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.4.0[1.4.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.2[1.5.2^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.1[1.5.1^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.0[1.5.0^]
 
 * Resolved issues in Jmix Studio:
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.4.3[1.4.3^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.4.2[1.4.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.4.1[1.4.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.4.0,-1.3.*[1.4.0^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.6[1.5.6^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.4,%201.5.5[1.5.5^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.3[1.5.3^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.2[1.5.2^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.1[1.5.1^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.0,-1.4.*[1.5.0^]

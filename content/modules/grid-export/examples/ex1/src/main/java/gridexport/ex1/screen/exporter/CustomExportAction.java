@@ -1,7 +1,7 @@
 package gridexport.ex1.screen.exporter;
 
 import io.jmix.ui.action.ActionType;
-import io.jmix.uiexport.action.ExportAction;
+import io.jmix.gridexportui.action.ExportAction;
 import org.springframework.context.ApplicationContext;
 
 // tag::my-custom-action[]

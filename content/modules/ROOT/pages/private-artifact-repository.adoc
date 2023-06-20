@@ -1,0 +1,108 @@
+= Private Artifact Repository
+
+This section describes how to set up a private Maven repository and use it instead of the Jmix public repositories for caching the framework artifacts and their transitive dependencies. It is recommended in the following cases:
+
+* You are not going to prolong your Enterprise subscription to Jmix commercial add-ons, but you need to be able to build your application in the future using the downloaded version of the artifacts.
+
+* You have an unstable or slow connection to the internet. Despite the fact that Gradle caches downloaded artifacts on the developer’s machine, you may need to connect to the artifact repository from time to time, for example when you run build for the first time or switch to a newer version of the framework.
+
+== Installing Repository Manager
+
+First, install and run the repository manager on a computer located in your network.
+
+The instructions below assume that the computer works under Linux operating system.
+
+. Download Nexus OSS repository manager from https://help.sonatype.com/repomanager3/product-information/download/download-archives---repository-manager-3[^] and unpack it to the `~/work/nexus` folder.
+
+. Download JDK 8 (for example from https://adoptium.net/temurin/releases/?version=8[^]) and unpack it to the `~/work/jdk8` folder.
+
+. Open the `~/.bashrc` file in a text editor and add the following line:
++
+[source,bash]
+----
+export INSTALL4J_JAVA_HOME=/home/$USER/work/jdk8
+----
++
+The `INSTALL4J_JAVA_HOME` variable pointing to the JDK 8 installation folder is needed to run the Nexus repository manager.
+
+. Open the terminal, go to the `~/work/nexus/nexus-<version>/bin` folder and execute:
++
+[source,bash]
+----
+./nexus run
+----
+
+. Open `++http://localhost:8081++` in your web browser.
+
+. Click *Sign in* in the top right corner.
+
+. Enter with `admin` username and the password stored in the `~/work/nexus/sonatype-work/nexus3/admin.password` file.
+
+. Change the password.
+
+. On the *Configure Anonymous Access* step, enable anonymous access to the repository. It will simplify the project configuration.
+
+[[create-jmix-repositories]]
+== Creating Jmix Proxy Repositories
+
+After the repository manager is up and running, configure proxy repositories using its web interface.
+
+. Go to the administration section ("gear" icon on top) and open the *Repositories* menu.
+
+. Create proxy for the public Jmix repository:
+
+** Click *Create repository* button.
+
+** Select `maven2 (proxy)` type.
+
+** Fill in the fields:
+*** *Name*: `jmix-public-proxy`
+*** *Version policy*: `Mixed`
+*** *Remote storage*: `++https://global.repo.jmix.io/repository/public++`
+
+** Click *Create repository* button at the bottom of the page.
+
+. Create proxy for the premium Jmix repository:
+
+** Click *Create repository* button.
+
+** Select `maven2 (proxy)` type.
+
+** Fill in the fields:
+*** *Name*: `jmix-premium-proxy`
+*** *Version policy*: `Mixed`
+*** *Remote storage*: `++https://global.repo.jmix.io/repository/premium++`
+*** In the *HTTP* section, enable *Authentication* and enter the first part of your Enterprise subscription license key (before dash) in the *Username* field and the second part of your license key (after dash) in the *Password* field. For example, if the key is `111111222222-abcdefabcdef`, then the username is `111111222222` and the password is `abcdefabcdef`.
+
+** Click *Create repository* button at the bottom of the page.
+
+. Create a group to access both proxy repositories using a single URL:
+
+** Click *Create repository* button.
+
+** Select `maven2 (group)` type.
+
+** Fill in the fields:
+*** *Name*: `jmix-proxy`
+*** *Version policy*: `Mixed`
+*** In *Group -> Member repositories*, move `jmix-public-proxy` and `jmix-premium-proxy` to the *Members* list.
+
+** Click *Create repository* button at the bottom of the page.
+
+[[configuring-jmix-project]]
+== Configuring Jmix Project
+
+In the `build.gradle` file of your project, replace the `repositories` section with the following code:
+
+[source,groovy]
+----
+repositories {
+    mavenCentral()
+    maven {
+        allowInsecureProtocol true
+        url 'http://localhost:8081/repository/jmix-proxy'
+    }
+}
+----
+
+Use the real name of the host where the artifact repository is running instead of `localhost`.
