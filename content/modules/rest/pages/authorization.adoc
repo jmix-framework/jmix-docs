@@ -1,0 +1,69 @@
+= Authorization
+
+Authentication and authorization required for using REST API add-on is done by the Authorization Server add-on (its starter `io.jmix.authserver:jmix-authserver-starter` is automatically included when you add the REST API add-on using Jmix Studio). The Authorization Server add-on is based on {spring-authorization-server-docs}/index.html[Spring Authorization Server^] framework. You may address its documentation for details.
+
+To access a protected resource (REST API endpoints) the client must provide a valid access token. The OAuth 2.1 protocol specifies several ways to obtain a token.
+
+== Client Credentials Grant
+
+The {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^] enables getting access tokens from the authorization server by providing registered client credentials in the request.
+
+An example of registering a client in the `application.properties` file and getting an access token with the Client Credentials grant may be found in the xref:getting-started.adoc#obtaining-access-token[Getting Started] section.
+
+Alternatively to specifying client properties in the `application.properties` file clients may be registered by providing a `RegisteredClientRepository` bean. See {spring-authorization-server-docs}/core-model-components.html#registered-client-repository[Spring Authorization Server documentation^] for details.
+
+NOTE: If you registered a `RegisteredClientRepository` application.properties won't be analyzed.
+
+== Authorization Code Grant
+
+You can read details about the {oauth-specification-page}#name-authorization-code-grant[Authorization Code grant] in the OAuth 2.1 Framework documentation.
+
+In order to enable the grant type in Jmix application you need to define a client that supports this grant type.
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration]
+----
+
+In this example we will use the https://oauthdebugger.com site. It will emulate some external application that requires access to Jmix resources and that need to obtain an access token.
+
+Open the https://oauthdebugger.com. Fill the fields:
+
+* Authorize URI: http://localhost:8080/oauth2/authorize
+* Client ID: myapp
+* Scope: leave this field empty
+* Use PKCE?: enable the checkbox
+
+Remember the value of the Code Challenge field. We will need it later.
+
+Click the *SEND REQUEST* button on the bottom of the page.
+
+You should see a special login form provided by Jmix application where you should enter credentials of existing Jmix user. The access token you will get leter as a result of all steps will be associated with this user and all requests to Jmix REST API will consider this user permissions (resource roles and row-level roles).
+
+If credentials are valid you should be redirected to the Redirect URI (https://oauthdebugger.com/debug). Authorization code must be added as a `code` URL parameter, e.g. `https://oauthdebugger.com/debug?code=BdgQArzTaj_xna_a0-PoUIQwszMR0xPkToxcktd5wPe4SbO18qBYStqJePOPNaoe9cuIJe0nac0cw0yVC9Iv3SeofEYbMZhMKldoJQQwcBUnBTfp2AyQayDlaE8KPaCf&state=sujodv3j7eh`
+
+To exchange this authorization code for access token you need to execute another HTTP request to the token endpoint of Jmix application. We will use the `curl` command line tools for this.
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=authorization_code" \
+   -d "redirect_uri=https://oauthdebugger.com/debug" \
+   -d "code=c9ehHTJyT84mX-v2v2Q8sbAxkAFYg-gjfZDJImu5ExZVGLUyWn_J2-afs_m7kiv7MwjD-XXVRQtwz_6H-JTb4NvuWiUw6-5vrF75LtyNYAovuvSJQ680nQwv3PbhB4Y-" \
+   -d "code_verifier=zdhRZIStXgwonFfvNYo2oI6nYuYt022LdcZF8eh3LGE" \
+   -d "code_challenge_method=S256"
+----
+
+As a result, you should get something like this:
+
+[source,json]
+----
+{
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "refresh_token":"DSINNaxmYykPrs3bDaKqaRgnrQDeZYInEF0yjtj2Vzkf5Nbf7OA0N09uQFN97MUmqaHBIXVxJFPQHtIbn-BM6Di035P68NqiIVfCawR5m6qQ6HbD6pQsCqAo-FBYAMqv",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
