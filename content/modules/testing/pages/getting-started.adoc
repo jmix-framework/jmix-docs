@@ -1,0 +1,83 @@
+= Getting Started with Testing
+
+This section contains a practical guide on getting started with creating and running the first test case with Jmix.
+
+By default, every Jmix project already contains the directory structure for automated tests. It also scaffolds two automated test cases `UserTest` in the directory:
+1. `src/test/java/\<<project-base-package>>/user/UserTest.java` - a database integration test for the `User` entity.
+2. `src/test/java/\<<project-base-package>>/user/UserUiTest.java` - a UI integration test that interacts with the User Management UI screen.
+
+
+[[running-the-first-test-case]]
+== Running the first test case
+
+Jmix Studio uses IntelliJ IDEA's capabilities to execute tests. When you open the `UserTest.java` class in Jmix Studio, you can run the test case by clicking the play button on the line of the test class.
+
+NOTE: More information on how to run a test in IDEA can be found in the official JetBrains documentation: https://www.jetbrains.com/help/idea/performing-tests.html[IDEA: Run tests].
+
+Jmix Studio will show the result of the test execution and if the test was successful or the test failed.
+
+The `UserTest` saves a `User` entity through the `DataManager` API of Jmix.
+Then the test verifies that when loading the user by its username, the user is found and matches the originally saved user.
+
+[source, java]
+.UserTest.java
+----
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Sample integration test for the User entity.
+ */
+@SpringBootTest //<1>
+@ExtendWith(AuthenticatedAsAdmin.class) //<2>
+public class UserTest {
+
+    @Autowired  //<3>
+    DataManager dataManager;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    @Autowired
+    UserRepository userRepository;
+
+    User savedUser;
+
+    @Test //<4>
+    void test_saveAndLoad() {
+        // Create and save a new User
+        User user = dataManager.create(User.class);
+        user.setUsername("test-user-" + System.currentTimeMillis());
+        user.setPassword(passwordEncoder.encode("test-passwd"));
+        savedUser = dataManager.save(user);
+
+        // Check the new user can be loaded
+        User loadedUser = dataManager.load(User.class).id(user.getId()).one();
+        assertThat(loadedUser).isEqualTo(user);
+
+        // Check the new user is available through UserRepository
+        UserDetails userDetails = userRepository.loadUserByUsername(user.getUsername());
+        assertThat(userDetails).isEqualTo(user);  //<5>
+    }
+
+    @AfterEach //<6>
+    void tearDown() {
+        if (savedUser != null)
+            dataManager.remove(savedUser);
+    }
+}
+
+----
+<1> The `@SpringBootTest` annotation indicates that the Spring context is started during test execution.
+<2> `AuthenticatedAsAdmin` allows the test to interact with the system and the database as the `admin` user.
+<3> Dependencies can be injected into the test code via Spring dependency injection mechanism `@Autowired`.
+<4> Each test case is marked with JUnit's `@Test` annotation.
+<5> To perform verifications, the assertion library https://assertj.github.io/doc/[AssertJ] is automatically available in Jmix projects.
+<6> Operations like database cleanup are performed via tear down methods annotated with JUnit's `@AfterEach` annotation.
+
+The test itself is a regular Spring Boot integration test. The only Jmix specific part is the use of the JUnit Extension `@ExtendWith(AuthenticatedAsAdmin.class)`. It sets the security context for the test to the `admin` user. This setting is required to interact with the `DataManager` API in the test case.
+
+The test is an Integration test, meaning it starts the complete Spring context and also interacts with a real database.
+
+NOTE: Be default the tests use the same database as the application when running locally.
+
+In the next sections different types of tests are explained in more detail.
