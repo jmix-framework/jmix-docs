@@ -1,0 +1,87 @@
+= 快速云部署
+:page-aliases: aws-deployment.adoc
+
+使用快速云部署功能可以仅通过几次点击就能将应用部署至 AWS。该功能可用于 demo 演示或简易生产部署。
+
+应用程序将使用 https://docs.docker.com/compose/[Docker Compose^] 运行在一个特定的 EC2 实例中，该实例的环境与开发环境一致。因此，默认情况下，应用程序将使用本地数据库，文件也存储在本地文件系统。
+
+[[prerequisites]]
+== 前置条件
+
+目前，主数据存储仅支持使用 PostgreSQL。Studio 在生成的 `docker-compose` 文件中自动配置了数据库。如果应用程序使用了附加数据存储，可以在 `docker-compose` 文件中手动配置。
+
+应用程序需要使用标准的 8080 端口。这个要求会在后续版本中移除。
+
+开始快速部署之前，你需要完成下列步骤：
+
+. 创建 AWS 账号并确保能访问 https://console.aws.amazon.com/console/home[AWS 控制台^]。
+
+. 安装 Docker，确认 Docker CLI 可用。使用下面的终端命令显示 Docker 客户端的信息：
++
+[source,bash,indent=0]
+----
+docker info
+----
+
+. 在 IDE 中安装 https://plugins.jetbrains.com/plugin/7724-docker[Docker 插件^] 并启用。
+
+[[initial-deployment]]
+== 初始化部署
+
+. 在 Jmix 工具窗口中，选择 *Deployment* 节点，并点击右键菜单中的 *Quick Cloud Deployment*。如果所有的 <<prerequisites,前置条件>> 都已满足，则会显示以下弹窗：
++
+image::quick-deployment/quick-deployment-1.png[align="center",width="451"]
+
+. 点击 *Choose* 按钮选择或生成 `docker-compose` 文件。如果项目中没有合适的文件，弹窗中的字段展示为空：
++
+image::quick-deployment/quick-deployment-2.png[align="center",width="536"]
+
+. 点击字段中的 “+” 按钮。新的弹窗中，包含两个服务：`Jmix App` 和 `Postgres`。`Jmix App` 服务的 *Depends on* 字段显示依赖 `Postgres`：
++
+image::quick-deployment/quick-deployment-3.png[align="center",width="568"]
+
+. 点击 *Docker Compose Services* 窗口中的 *OK* 保存生成的 `docker-compose.yaml` 文件。文件路径将在 *Choose Docker-Compose* 窗口设置。点击 *OK* 选择文件用于快速部署。
+
+. 点击 *Quick Cloud Deployment* 窗口中的 *Start Deployment* 按钮。弹出 *Create AWS Deployment Configuration* 窗口：
++
+image::quick-deployment/quick-deployment-4.png[align="center",width="795"]
+
+. 在 *Server* 下拉框中，选择 *Create new* 选项。弹出 *AWS EC2 Instance* 窗口：
++
+image::quick-deployment/quick-deployment-5.png[align="center",width="807"]
+
+. 选择合适的地区和实例类型。提供 AWS 的登录凭证：可以直接在弹窗中输入或者在电脑中配置一个 https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html[AWS CLI profile^]。
+
+. 点击 *OK* 保存实例配置。然后点击 *Create AWS Deployment Configuration* 窗口中的 *Run*。
+
+. 然后回显示 *Services* 工具窗口并开始部署。部署过程中会创建 EC2 实例，通过 SSH 连接并安装 Docker。之后会构建应用程序镜像，并在 EC2 实例上启动 `docker-compose`。
++
+可以在 *AWS EC2 Instance -> AWS EC2 via Docker-compose* 节点查看输出了解部署状态。
++
+image::quick-deployment/quick-deployment-6.png[align="center"]
++
+⓵ - 整体部署状态。注意，尽管显示了 `'AWS EC2 via Docker-compose' has been deployed successfully` 消息，但这并不表示应用程序已经可以通过 URL 访问了。需要检查应用程序日志 ⓶ 确认是否已经启动完成。
++
+⓶ - 应用程序容器日志。
++
+⓷ - PostgreSQL 容器日志。
+
+. 如需在浏览器打开应用程序的Web界面，右键点击 Jmix 工具窗口的 *Deployment -> Servers -> AWS -> AWS EC2 Instance* 节点，然后选择 *Open Application in Browser*。
+
+[[redeployment]]
+== 重部署
+
+如需重新构建并部署应用程序至同一个云服务器，可以直接运行初始化部署中的 `AWS EC2 Instance Deployment` 配置。
+
+由于在 `docker-compose.yaml` 中定义了卷映射，数据库中的数据和文件存储都会在重部署的过程中保留。数据其实是存储在容器之外的 EC2 文件系统中。
+
+如需刷新 *Services* 工具窗口中显示的容器日志，可以邮件点击 *AWS EC2 Docker <instance-id>* 节点，先 *Disconnect*，在 *Connect*。
+
+[[maintenance]]
+== 运维
+
+可以通过 SSH 直接连接运行中的 EC2 实例。如需获得连接服务器的命令，可以在 Jmix 工具窗口选择 *Deployment -> Servers -> AWS -> AWS EC2 Instance* 节点，然后点击右键菜单中的 *Connect to Server*。复制这里显示的命令，然后在你的终端运行即可。
+
+如需暂停（stop）或终止（terminate） EC2 实例，可以使用 *Deployment -> Servers -> AWS -> AWS EC2 Instance* 节点右键菜单中的相应选项。
+
+CAUTION: 终止实例会完全删除实例，因此应用程序的数据会丢失，请谨慎操作。

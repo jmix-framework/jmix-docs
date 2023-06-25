@@ -6,8 +6,8 @@
 
 * 为 `User` 实体添加 `department` 和 `joiningDate` 属性，并在 UI 展示。
 * 创建 `UserStep` 实体，关联一个用户和一个入职步骤。
-* 为 `User` 实体添加 `UserStep` 实体集合，并在 `User.edit` 界面展示。
-* 在 `User.edit` 界面实现生成和保存 `UserStep` 实例的功能。
+* 为 `User` 实体添加 `UserStep` 实体集合，并在 `User.detail` 视图展示。
+* 在 `User.detail` 视图实现生成和保存 `UserStep` 实例的功能。
 
 下图展示本节要用到的实体和属性：
 
@@ -36,15 +36,15 @@ image::data-in-ui/add-attr-1.png[align="center"]
 
 点击 *OK*。
 
-然后选中 `department` 属性，在 *Attributes* 工具栏中点击 *Add to Screens*（image:common/add-attribute-to-screens.svg[]）按钮：
+然后选中 `department` 属性，在 *Attributes* 工具栏中点击 *Add to views*（image:common/add-attribute-to-screens.svg[]）按钮：
 
-image::data-in-ui/add-attr-2.png[align="center", width="445"]
+image::data-in-ui/add-attr-2.png[align="center", width="490"]
 
-出现的对话框中会显示 `User.edit` 和 `User.browse` 界面。我们都选上，然后点击 *OK*。
+出现的对话框中会显示 `User.detail` 和 `User.list` 视图。我们都选上，然后点击 *OK*。
 
-Studio 会在 `User.browse` 界面的表格组件和 `User.edit` 界面的表单组件中添加 `department` 属性。
+Studio 会在 `User.list` 视图的 `dataGrid` 组件和 `User` 视图的 `formLayout` 组件中添加 `department` 属性。
 
-你可能会注意，Studio 在 `user-browse.xml` 中添加了下面的代码：
+你可能会注意，Studio 在 `user-list-view.xml` 中添加了下面的代码：
 
 [source,xml]
 ----
@@ -56,7 +56,7 @@ Studio 会在 `User.browse` 界面的表格组件和 `User.edit` 界面的表单
         </fetchPlan>
 ----
 
-以及 `user-edit.xml`：
+以及 `user-detail-view.xml`：
 
 [source,xml]
 ----
@@ -70,7 +70,7 @@ Studio 会在 `User.browse` 界面的表格组件和 `User.edit` 界面的表单
 
 有了这些代码，关联的部门实体会与用户实体在同一个数据库查询中加载。
 
-TIP: 即使 fetch plan 中没有包含 `department`，基于关联实体的 _懒加载_ 机制，界面也能正常工作。但是在懒加载时，关联实体是通过单独的数据库请求进行加载。因此，懒加载在浏览界面会造成性能问题，该界面首先执行一个加载所有用户的请求，然后针对每个用户，执行单独的请求加载部门（N+1 查询问题）。
+TIP: 即使 fetch plan 中没有包含 `department`，基于关联实体的 _懒加载_ 机制，视图也能正常工作。但是在懒加载时，关联实体是通过单独的数据库请求进行加载。因此，懒加载在列表视图会造成性能问题，该视图首先执行一个加载所有用户的请求，然后针对每个用户，执行单独的请求加载部门（N+1 查询问题）。
 
 运行应用程序可以查看新的属性。
 
@@ -82,42 +82,45 @@ Studio 会执行更改日志，然后构建并运行应用程序。
 
 在浏览器打开 `++http://localhost:8080++` 并使用 `admin` / `admin` 凭证登录。
 
-点击主菜单的 *Application* -> *Users*，打开 `User.browse` 界面，可以看到新加的 *Department* 列。创建用户时，可以看到 `User.edit` 中的 *Department* 选择控件：
+点击主菜单的 *Application* -> *Users*，打开 `User.list` 视图，可以看到新加的 *Department* 列。创建用户时，可以看到 `User.detail` 中的 *Department* 选择控件：
 
-image::data-in-ui/add-attr-3.png[align="center", width="507"]
+image::data-in-ui/add-attr-3.png[align="center", width="869"]
 
 [[using-dropdown]]
 == 使用下拉框选择
 
-默认情况下，Studio 会生成 `entityPicker` 组件选择关联实体。可以在 `User.edit` 界面中看到这样的组件。打开 `user-edit.xml` 并在 `form` 中找到 `entityPicker` 组件：
+默认情况下，Studio 会生成 `entityPicker` 组件选择关联实体。可以在 `User.detail` 视图中看到这样的组件。打开 `user-detail-view.xml` 并在 `formLayout` 中找到 `entityPicker` 组件：
 
 [source,xml]
 ----
 <layout ...>
-    <form id="form" dataContainer="userDc">
-        <column width="350px">
-            ...
-            <entityPicker id="departmentField" property="department"/>
-        </column>
-    </form>
+    <formLayout id="form" dataContainer="userDc">
+        ...
+        <entityPicker id="departmentField" property="department">
+            <actions>
+                <action id="entityLookup" type="entity_lookup"/>
+                <action id="entityClear" type="entity_clear"/>
+            </actions>
+        </entityPicker>
+    </formLayout>
 ----
 
-该组件支持通过一个查找界面选择实体，支持过滤、排序或者分页。但是当备选的记录相对比较少时（比如少于 1000），通过简单的下拉框列表选择会更加方便。
+该组件支持通过一个列表视图选择实体，支持过滤、排序或者分页。但是当备选的记录相对比较少时（比如少于 1000），通过简单的下拉框列表选择会更加方便。
 
-我们将修改 `User.edit` 界面，使用 `entityComboBox` 组件选择用户的部门。
+我们将修改 `User.detail` 视图，使用 `entityComboBox` 组件选择用户的部门。
 
-将组件的 XML 元素修改为 `entityComboBox`：
+将组件的 XML 元素修改为 `entityComboBox` 并删除内部的 `actions` 元素：
 
 [source,xml]
 ----
 <entityComboBox id="departmentField" property="department"/>
 ----
 
-切换至运行的应用程序，重新打开用户编辑界面。
+切换至运行的应用程序，重新打开用户详情视图。
 
-可以看到，*Department* 字段现在变成了下拉框，但是列表是空的，即便已经创建了一些部门。
+可以看到，*Department* 字段现在变成了下拉框，但是无法打开，即便已经创建了一些部门。
 
-image::data-in-ui/dropdown-2.png[align="center", width="506"]
+image::data-in-ui/dropdown-2.png[align="center", width="430"]
 
 [[options-container]]
 === 创建选项数据容器
@@ -149,7 +152,7 @@ image::data-in-ui/options-container-1.gif[align="center"]
 
 可以在 XML 中直接编辑查询语句，或者通过 JPQL 设计器进行编辑。在 *Jmix UI* 中的组件面板中，找到数据组件的 `query` 属性，然后点击右侧的链接打开设计器：
 
-image::data-in-ui/options-container-2.png[align="center",width="1133"]
+image::data-in-ui/options-container-2.png[align="center",width="365"]
 
 在 *JPQL Query Designer* 窗口中，切换至 *ORDER* 标签页并添加 `name` 属性：
 
@@ -177,15 +180,15 @@ image::data-in-ui/options-container-3.png[align="center"]
 
 现在需要将 `entityComboBox` 组件与 `departmentsDc` 数据容器进行关联。
 
-在 *Jmix UI* 的层级面板选中 `departmentField`，然后在 *Jmix UI* 的组件面板中为 `optionsContainer` 属性选择 `departmentsDc`：
+在 *Jmix UI* 的层级面板选中 `departmentField`，然后在 *Jmix UI* 的组件面板中为 `itemsContainer` 属性选择 `departmentsDc`：
 
-image::data-in-ui/options-container-4.png[align="center",width="1153"]
+image::data-in-ui/options-container-4.png[align="center",width="364"]
 
-切换至运行的应用程序并重新打开用户编辑界面。
+切换至运行的应用程序并重新打开用户详情视图。
 
 可以看到 *Department* 下拉框现在已经有了选项：
 
-image::data-in-ui/dropdown-3.png[align="center", width="496"]
+image::data-in-ui/dropdown-3.png[align="center", width="438"]
 
 TIP: `entityComboBox` 组件支持直接在组件内输入的方式对选项进行过滤。过滤的过程是在服务端的内存中进行，所有的选项已经一次从数据加载出来了。
 
@@ -279,9 +282,9 @@ image::data-in-ui/composition-1.png[align="center"]
 private List<UserStep> steps;
 ----
 
-`UserSteps` 需要在用户编辑界面展示，因此，选中 `steps` 属性并点击 *Attributes* 工具栏中的 *Add to Screens*（image:common/add-attribute-to-screens.svg[]）按钮，选择 `User.edit` 界面，点击 *OK*。
+`UserSteps` 需要在用户详情视图展示，因此，选中 `steps` 属性并点击 *Attributes* 工具栏中的 *Add to Views*（image:common/add-attribute-to-screens.svg[]）按钮，选择 `User.detail` 视图，点击 *OK*。
 
-Studio 会修改 `user-edit.xml`：
+Studio 会修改 `user-detail-view.xml`：
 
 [source,xml]
 ----
@@ -297,33 +300,31 @@ Studio 会修改 `user-edit.xml`：
     </instance>
     ...
 <layout ...>
-    <form id="form" dataContainer="userDc">
+    <formLayout id="form" dataContainer="userDc">
         ...
     </form>
-    <groupBox id="stepsBox" ...>
-        <table id="stepsTable" dataContainer="stepsDc" ...> <!--3-->
-            <actions>
-                <action id="create" type="create"/>
-                <action id="edit" type="edit"/>
-                <action id="remove" type="remove"/>
-            </actions>
-            <columns>
-                <column id="version"/>
-                <column id="dueDate"/>
-                <column id="completedDate"/>
-                <column id="sortValue"/>
-            </columns>
-            <buttonsPanel>
-                <button action="stepsTable.create"/>
-                <button action="stepsTable.edit"/>
-                <button action="stepsTable.remove"/>
-            </buttonsPanel>
-        </table>
-    </groupBox>
+    <hbox id="buttonsPanel" classNames="buttons-panel">
+        <button action="stepsDataGrid.create"/>
+        <button action="stepsDataGrid.edit"/>
+        <button action="stepsDataGrid.remove"/>
+    </hbox>
+    <dataGrid id="stepsDataGrid" dataContainer="stepsDc" ...> <!--3-->
+        <actions>
+            <action id="create" type="list_create"/>
+            <action id="edit" type="list_edit"/>
+            <action id="remove" type="list_remove"/>
+        </actions>
+        <columns>
+            <column property="version"/>
+            <column property="dueDate"/>
+            <column property="completedDate"/>
+            <column property="sortValue"/>
+        </columns>
+    </dataGrid>
 ----
 <1> Fetch plan 添加了 `steps` 属性，确保 UserSteps 与 User 一起进行预加载。
 <2> 内部的 `stepsDc` 集合数据容器用于将可视化组件与 `steps` 集合属性做绑定。
-<3> `groupBox` 内部的 `table` 组件用于展示 `stepsDc` 数据容器中的数据。
+<3> `dataGrid` 组件用于展示 `stepsDc` 数据容器中的数据。
 
 运行应用程序查看这些改动。
 
@@ -335,11 +336,11 @@ Studio 会执行更改日志，然后运行应用程序。
 
 应用程序准备好后，在浏览器打开 `++http://localhost:8080++` 并使用 `admin` / `admin` 凭证登录。
 
-打开一个用户进行编辑。可以看到 *Steps* 表格展示 `UserStep` 实体：
+打开一个用户进行编辑。可以看到数据网格展示 `UserStep` 实体：
 
 image::data-in-ui/composition-2.png[align="center"]
 
-如果点击 *Steps* 表格中的 *Create* 按钮，系统会抛出异常：`Screen 'UserStep.edit' is not defined`。是的，我们还没有为 `UserStep` 实体创建编辑界面。但是实际上我们不需要创建这个界面，因为 `UserStep` 实例可以通过给用户分配预定义的 `Step` 实体生成。
+如果点击数据网格中的 *Create* 按钮，系统会抛出异常：`View 'UserStep.detail' is not defined`。是的，我们还没有为 `UserStep` 实体创建详情视图。但是实际上我们不需要创建这个视图，因为 `UserStep` 实例可以通过给用户分配预定义的 `Step` 实体生成。
 
 [[generate-user-steps]]
 == 为用户生成 UserSteps
@@ -363,41 +364,40 @@ image::data-in-ui/joining-date-1.png[align="center"]
 
 点击 *OK*。
 
-然后选中新创建的 `joiningDate` 属性，在 *Attributes* 工具栏中点击 *Add to Screens*（image:common/add-attribute-to-screens.svg[]）按钮。在弹窗中选择 `User.edit` 和 `User.browse` 界面并点击 *OK*。
+然后选中新创建的 `joiningDate` 属性，在 *Attributes* 工具栏中点击 *Add to Views*（image:common/add-attribute-to-screens.svg[]）按钮。在弹窗中选择 `User.detail` 和 `User.list` 视图并点击 *OK*。
 
 点击主工具栏中的 *Debug*（image:common/start-debugger.svg[]）按钮启动应用程序。
 
 Studio 会生成 Liquibase 更改日志，为 `USER_` 表添加 `JOINING_DATE` 列。确认此改动。
 
-Studio 会执行更改日志，然后运行应用程序。在浏览器打开 `++http://localhost:8080++`，登录后在用户浏览界面和编辑界面确认新属性已经添加上了。
-
+Studio 会执行更改日志，然后运行应用程序。在浏览器打开 `++http://localhost:8080++`，登录后在用户列表视图和详情视图确认新属性已经添加上了。
 
 [[custom-button]]
 === 添加自定义按钮
 
 现在我们需要删除管理 UserSteps 的默认操作按钮，然后添加一个按钮用于启动自定义逻辑创建实体。
 
-打开 `user-edit.xml` 并删除 `table` 内的 `actions` 元素和全部的 `button` 元素：
+打开 `user-detail-view.xml` 并删除 `dataGrid` 内的 `actions` 元素和 `hbox` 内的全部 `button` 元素：
 
 [source,xml]
 ----
-<table id="stepsTable" dataContainer="stepsDc" width="100%" height="200px">
+<hbox id="buttonsPanel" classNames="buttons-panel">
+</hbox>
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" width="100%" height="100%">
     <columns>
-        <column id="version"/>
-        <column id="dueDate"/>
-        <column id="completedDate"/>
-        <column id="sortValue"/>
+        <column property="version"/>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="sortValue"/>
     </columns>
-    <buttonsPanel>
-    </buttonsPanel>
-</table>
+</dataGrid>
 ----
 
-然后点击操作面板的 *Add Component* 将 `Button` 组件拖放至界面 XML 中的 `buttonsPanel` 元素上。在 *Jmix UI* 的组件面板选择新创建的 `button` 元素并设置其 `id` 为 `generateButton`，`caption` 为 `Generate`。切换至 *Handlers* 标签页，创建一个 `ClickEvent` 的处理器方法：
+然后在 *Jmix UI* 层级面板中选择 `hbox`，右键点击节点，在菜单中选择 *Add Component*，添加一个按钮。在 *Jmix UI* 的组件面板选择新创建的 `button` 元素并设置其 `id` 为 `generateButton`，`text` 为 `Generate`。切换至 *Handlers* 标签页，创建一个 `ClickEvent` 的处理器方法：
 
 image::data-in-ui/button-1.gif[]
 
-按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面，查看我们新添加的按钮正常展示而不是展示默认的 CRUD 按钮：
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户详情视图，查看我们新添加的 *Generate* 按钮正常展示而不是展示默认的 CRUD 按钮：
 
 image:data-in-ui/button-2.png[align="center"]
 
@@ -406,28 +406,29 @@ image:data-in-ui/button-2.png[align="center"]
 
 现在实现生成 `UserStep` 实例的逻辑。
 
-在 `UserEdit` 控制器中添加下列字段：
+在 `UserDetailView` 控制器中添加下列字段：
 
 [source,java]
 ----
-public class UserEdit extends StandardEditor<User> {
+public class UserDetailView extends StandardDetailView<User> {
 
     @Autowired
     private DataManager dataManager;
 
     @Autowired
+    private Notifications notifications;
+
+    @ViewComponent
     private DataContext dataContext;
 
-    @Autowired
+    @ViewComponent
     private CollectionPropertyContainer<UserStep> stepsDc;
-
-    //...
 }
 ----
 
 [TIP]
 ====
-可以通过操作面板中的 *Inject* 按钮注入界面中的组件和 Spring bean：
+可以通过操作面板中的 *Inject* 按钮注入视图中的组件和 Spring bean：
 
 image::data-in-ui/inject-1.gif[]
 ====
@@ -437,13 +438,12 @@ image::data-in-ui/inject-1.gif[]
 [source,java]
 ----
 @Subscribe("generateButton")
-public void onGenerateButtonClick(Button.ClickEvent event) {
+public void onGenerateButtonClick(final ClickEvent<Button> event) {
     User user = getEditedEntity(); // <1>
 
     if (user.getJoiningDate() == null) { // <2>
-        notifications.create()
-                .withCaption("Cannot generate steps for user without 'Joining date'")
-                .show();
+        notifications.create("Cannot generate steps for user without 'Joining date'")
+               .show();
         return;
     }
 
@@ -453,7 +453,7 @@ public void onGenerateButtonClick(Button.ClickEvent event) {
 
     for (Step step : steps) {
         if (stepsDc.getItems().stream().noneMatch(userStep ->
-                    userStep.getStep().equals(step))) { // <4>
+                userStep.getStep().equals(step))) { // <4>
             UserStep userStep = dataContext.create(UserStep.class); // <5>
             userStep.setUser(user);
             userStep.setStep(step);
@@ -464,32 +464,32 @@ public void onGenerateButtonClick(Button.ClickEvent event) {
     }
 }
 ----
-<1> 使用 `StandardEditor` 父类中的 `getEditedEntity()` 方法获取正在编辑的 `User` 实体。
+<1> 使用 `StandardDetailView` 父类中的 `getEditedEntity()` 方法获取正在编辑的 `User` 实体。
 <2> 如果 `joiningDate` 属性未设置，展示消息并退出。
 <3> 加载已经添加的入职步骤。
 <4> 忽略 `stepsDc` 集合容器中已经存在的步骤。
 <5> 用 `DataContext.create()` 方法创建新的 `UserStep` 实例。
 <6> 将新的 `UserStep` 实例添加至 `stepsDc` 集合容器，以便在 UI 展示。
 
-NOTE: 当通过 `DataContext` 对象创建实例时，实例自动由 `DataContext` 进行管理，并会在界面提交时（点击界面的 *OK* 按钮时）自动保存至数据库。
+NOTE: 当通过 `DataContext` 对象创建实例时，实例自动由 `DataContext` 进行管理，并会在视图提交时（点击视图的 *OK* 按钮时）自动保存至数据库。
 
-按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面，此时我们点击 *Generate* 按钮，会创建对应入职步骤的几条记录。
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户详情视图，此时我们点击 *Generate* 按钮，会创建对应入职步骤的几条记录。
 
-如果通过点击 *OK* 提交界面，所有创建的 UserSteps 实例都会自动保存。如果点击 *Cancel*，则不会保存。因为在上面的代码中，我们没有显式地保存创建的实体。而是通过 `DataContext.create()` 将实体合并至界面的 `DataContext` 内，只有在整个界面的 `DataContext` 提交时才会保存新创建的实例。
+如果通过点击 *OK* 提交视图，所有创建的 UserSteps 实例都会自动保存。如果点击 *Cancel*，则不会保存。因为在上面的代码中，我们没有显式地保存创建的实体。而是通过 `DataContext.create()` 将实体合并至视图的 `DataContext` 内，只有在整个视图的 `DataContext` 提交时才会保存新创建的实例。
 
-[[improve-table]]
-== 优化 UserSteps 表格
+[[improve-data-grid]]
+== 优化 UserSteps 数据网格
 
-下面的小节中，我们将完善处理生成的 UserSteps 的 UI 界面。
+下面的小节中，我们将完善处理生成的 UserSteps 的 UI 视图。
 
 [[order-nested-collection]]
 === 内部集合的排序
 
-你可能已经注意到，当打开一个带有生成 UserSteps 的用户界面时，这些步骤并没有按照 `sortValue` 属性排序：
+你可能已经注意到，当打开一个带有生成 UserSteps 的用户视图时，这些步骤并没有按照 `sortValue` 属性排序：
 
 image::data-in-ui/ordering-1.png[align="center"]
 
-表格展示 `User` 实体的 `steps` 集合属性，因此我们可以在数据模型级别引入排序。
+数据网格展示 `User` 实体的 `steps` 集合属性，因此我们可以在数据模型级别引入排序。
 
 打开 `User` 实体，选择 `steps` 属性并在 *Order by* 字段输入 `sortValue`：
 
@@ -509,20 +509,20 @@ private List<UserStep> steps;
 
 如果应用程序正在运行，请重新启动。
 
-打开用户编辑界面。可以看到步骤的顺序现在对了：
+打开用户详情视图。可以看到步骤的顺序现在对了：
 
 image::data-in-ui/ordering-3.png[align="center"]
 
-[[rearrange-table-columns]]
-=== 表格的列重排
+[[rearrange-data-grid-columns]]
+=== 数据网格的列重排
 
-此时，UserSteps 表格提供的信息并不是很有用。我们需要删除 `Version` 和 `Sort value` 列并添加展示步骤名称的列。
+此时，UserSteps 数据网格提供的信息并不是很有用。我们需要删除 `Version` 和 `Sort value` 列并添加展示步骤名称的列。
 
 删除列很简单，在 *Jmix UI* 的层级面板中选择这些列并按下 *Delete*，或直接从 XML 代码里删除相应的元素即可。
 
 添加列时，在 *Jmix UI* 的层级面板中选择 `columns` 元素，然后在组件面板中点击 *Add* -> *Column*，会出现 *Add Column* 弹窗：
 
-image::data-in-ui/columns-2.png[align="center",width="1153"]
+image::data-in-ui/columns-2.png[align="center"]
 
 可以看到，这里并不允许添加步骤名称。这是因为 `step` 属性是一个关联属性，而我们没有定义一个合适的 fetch plan 去加载这个实体。
 
@@ -551,7 +551,7 @@ image::data-in-ui/columns-4.png[align="center"]
 </instance>
 ----
 
-现在 UserSteps 集合会与 `User` 实例一起从数据库进行预加载。
+现在 UserSteps 集合会与 `Step` 实例一起从数据库进行预加载。
 
 在 *Jmix UI* 的层级面板中选择 `columns` 元素并在组件面板中点击 *Add* -> *Column*。现在 *Add Column* 弹窗中包含了关联的 `Step` 实体和属性了：
 
@@ -561,64 +561,39 @@ image::data-in-ui/columns-5.png[align="center", width="386"]
 
 [source,xml]
 ----
-<table id="stepsTable" dataContainer="stepsDc" ...>
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" ...>
     <columns>
-        <column id="dueDate"/>
-        <column id="completedDate"/>
-        <column id="step.name"/>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="step.name"/>
     </columns>
 ----
 
 除了 `step.name` 之外，也可以直接使用 `step`。此时，表格列中将展示实体的 xref:references.adoc#instance-name[实例名称]。对于 `Step` 实体，实例名称是从 `name` 属性获取，所以结果没有不同。
 
-TIP: 也可以在 XML 中直接添加 `step` 列而不修改 fetch plan，由于关联实体的懒加载机制，UI 界面也能正常工作。但是此时 `Step` 会在单独的请求中加载，集合中的每个 `UserStep` 会触发一次（N+1 查询性能问题）。
+TIP: 也可以在 XML 中直接添加 `step` 列而不修改 fetch plan，由于关联实体的懒加载机制，UI 视图也能正常工作。但是此时 `Step` 会在单独的请求中加载，集合中的每个 `UserStep` 会触发一次（N+1 查询性能问题）。
 
 将 `step.name` 移到最前面，可以直接在 XML 中修改或者在 *Jmix UI* 层级面板中拖动元素：
 
 [source,xml]
 ----
-<table id="stepsTable" dataContainer="stepsDc" ...>
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" width="100%" height="100%">
     <columns>
-        <column id="step.name"/>
-        <column id="dueDate"/>
-        <column id="completedDate"/>
+        <column property="step.name"/>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
     </columns>
+</dataGrid>
 ----
 
-按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面，确保 *Steps* 表格现在展示步骤名称：
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户详情视图，确保 *Steps* 表格现在展示步骤名称：
 
 image::data-in-ui/columns-6.png[align="center"]
 
-[[generated-column]]
-=== 添加自定义列
+[[component-column]]
+=== 添加组件列
 
-本小节中，我们将实现这样一个功能：可以直接在入职步骤表格的一行中，通过勾选一个复选框将当前步骤标记为已完成。
-
-UI 表格组件支持 _生成列（generated columns）_，这种列的内容可以不与特定的实体属性绑定。在生成列的单元格中，可以展示任何可视化组件或者带有多个内部组件的可视化容器。
-
-我们添加一个生成列用于展示复选框。
-
-在 *Jmix UI* 层级面板中选择 `columns` 元素并在组件面板中点击 *Add* -> *Column*。显示 *Add Column* 对话框：
-
-image::data-in-ui/generated-column-1.png[align="center",width="1153"]
-
-选择 *New Custom Column* 并点击 *OK*。
-
-在 *Additional Settings for Custom Coulmn* 弹窗中，*Custom column id* 字段输入 `completed` 并勾选 *Create generator*：
-
-image::data-in-ui/generated-column-2.png[align="center", width="536"]
-
-点击 *OK*。
-
-Studio 会在表格的 XML 中添加 `completed` 列：
-
-image::data-in-ui/generated-column-3.png[align="center", width="537"]
-
-以及在 `UserEdit` 控制器中添加处理方法：
-
-image::data-in-ui/generated-column-4.png[align="center", width="709"]
-
-注意左侧的行标记：支持在 XML 中的列定义和控制器中的处理方法之间切换。
+本小节中，我们将实现：通过点击数据网格行中的一个复选框，即可标记 UserStep 完成。复选框在数据网格左侧新增一列中显示。
 
 在控制器类中注入 `UiComponents`：
 
@@ -628,58 +603,54 @@ image::data-in-ui/generated-column-4.png[align="center", width="709"]
 private UiComponents uiComponents;
 ----
 
-TIP: 可以通过编辑器顶部操作面板中的 *Inject* 按钮注入界面中的组件和 Spring bean。
+TIP: 可以通过编辑器顶部操作面板中的 *Inject* 按钮注入视图中的组件和 Spring bean。
 
-实现处理器方法：
+在 `onInit` 方法中 添加下列代码：
 
 [source,java]
 ----
-@Install(to = "stepsTable.completed", subject = "columnGenerator") // <1>
-private Component stepsTableCompletedColumnGenerator(UserStep userStep) { // <2>
-    CheckBox checkBox = uiComponents.create(CheckBox.class); // <3>
-    checkBox.setValue(userStep.getCompletedDate() != null);
-    checkBox.addValueChangeListener(e -> { // <4>
-        if (userStep.getCompletedDate() == null) {
-            userStep.setCompletedDate(LocalDate.now());
-        } else {
-            userStep.setCompletedDate(null);
-        }
+@Subscribe
+public void onInit(final InitEvent event) {
+    timeZoneField.setItems(List.of(TimeZone.getAvailableIDs()));
+
+    Grid.Column<UserStep> completedColumn = stepsDataGrid.addComponentColumn(userStep -> { // <1>
+        Checkbox checkbox = uiComponents.create(Checkbox.class); // <2>
+        checkbox.setValue(userStep.getCompletedDate() != null);
+        checkbox.addValueChangeListener(e -> { // <3>
+            if (userStep.getCompletedDate() == null) {
+                userStep.setCompletedDate(LocalDate.now());
+            } else {
+                userStep.setCompletedDate(null);
+            }
+        });
+        return checkbox; // <4>
     });
-    return checkBox; // <5>
+    completedColumn.setFlexGrow(0); // <5>
+    completedColumn.setWidth("4em");
+    stepsDataGrid.setColumnPosition(completedColumn, 0); // <6>
 }
 ----
-<1> `@Install` 注解表示该方法是一个 _代理（delegate）_：一个 UI 组件（这个 case 中是表格）会在生命周期的某个阶段调用该方法。
-<2> 这个特殊的代理（列生成器）接收一个实体实例作为参数，该实例在表格中的一行显示。
-<3> `CheckBox` 组件实例通过 `UiComponents` 工厂生成。
-<4> 当点击复选框时，它的值会发生变化，复选框会调用其 `ValueChangeEvent` 监听器。在监听器中，设置 `UserStep` 实体的 `completedDate` 属性。
-<5> 列生成器代理返回列单元格需要展示的可视化组件。
+<1> `addComponentColumn()` 方法使接收一个 lambda 函数用于创建 UI 组件并显示在列中。Lambda 函数的参数是当前行的实体。
+<2> 使用 `UiComponents` 工厂创建 `Checkbox` 组件实例。
+<3> 当点击复选框时，复选框的值会发生变化，并且调用其 `ValueChangeEvent` 监听器。监听器中，为 `UserStep` 实体设置了 `completedDate` 属性。
+<4> lambda 函数返回可视化组件。
+<5> 设置新列的宽度。
+<6> 设置新列在数据网格中的位置。
 
-将 `completed` 列移至最前面，并设置 `caption` 属性为空，`width` 设置为 `50px`：
-
-[source,xml]
-----
-<table id="stepsTable" dataContainer="stepsDc" ...>
-    <columns>
-        <column id="completed" caption="" width="50px"/>
-        <column id="step.name"/>
-        <column id="dueDate"/>
-        <column id="completedDate"/>
-    </columns>
-----
-
-按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面并点击某些行的复选框。*Completed date* 列会做相应的更改：
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户详情视图并点击某些行的复选框。*Completed date* 列会做相应的更改：
 
 image::data-in-ui/generated-column-5.png[align="center"]
 
-`UserStep` 实例的改动会在点击界面的 *OK* 按钮后保存到数据库。由界面的 `DataContext` 负责：能跟踪所有实体的改动并保存修改的实例。
+`UserStep` 实例的改动会在点击视图的 *OK* 按钮后保存到数据库。由视图的 `DataContext` 负责：能跟踪所有实体的改动并保存修改的实例。
 
+[[reacting-to-changes]]
 === 响应更改
 
 当为用户生成入职步骤、标记一个 UserStep 完成或者删除一个步骤时，`Onboarding status` 字段应该也做相应的调整。
 
 我们现在实现根据 UserSteps 集合变动做出响应的逻辑。
 
-打开 `UserEdit` 控制器并在顶部的操作面板中点击 *Generate Handler*。收起所有的树结构，然后在 *Data containers handlers* -> `stepsDc` 下面选择 `ItemPropertyChangeEvent` 和 `CollectionChangeEvent`：
+打开 `UserDetailView` 控制器并在顶部的操作面板中点击 *Generate Handler*。收起所有的树结构，然后在 *Data containers handlers* -> `stepsDc` 下面选择 `ItemPropertyChangeEvent` 和 `CollectionChangeEvent`：
 
 image::data-in-ui/container-listener-1.png[align="center"]
 
@@ -690,12 +661,12 @@ Studio 会生成两个方法桩代码：`onStepsDcItemPropertyChange()` 和 `onS
 [source,java]
 ----
 @Subscribe(id = "stepsDc", target = Target.DATA_CONTAINER)
-public void onStepsDcItemPropertyChange(InstanceContainer.ItemPropertyChangeEvent<UserStep> event) {
+public void onStepsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<UserStep> event) {
     updateOnboardingStatus(); // <1>
 }
 
 @Subscribe(id = "stepsDc", target = Target.DATA_CONTAINER)
-public void onStepsDcCollectionChange(CollectionContainer.CollectionChangeEvent<UserStep> event) {
+public void onStepsDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<UserStep> event) {
     updateOnboardingStatus(); // <2>
 }
 
@@ -718,9 +689,9 @@ private void updateOnboardingStatus() {
 <1> `ItemPropertyChangeEvent` 处理器在实体的属性发生更改时调用。
 <2> `CollectionChangeEvent` 处理器在容器中添加或者删除数据时调用。
 <3> 获取当前编辑的 `User` 实例。
-<4> 更新 `onboardingStatus` 属性。由于数据绑定机制，对该属性的更新会立即展示在 UI 属性中。
+<4> 更新 `onboardingStatus` 属性。由于数据绑定机制，对该属性的更新会立即展示在 UI 组件中。
 
-按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。重新打开用户编辑界面，然后在 UserStep 表格中做一些改动，并查看 `Onboarding status` 字段的值。
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新用户详情视图，然后在 UserStep 数据网格中做一些改动，并查看 `Onboarding status` 字段的值。
 
 [[summary]]
 == 小结
@@ -732,26 +703,26 @@ private void updateOnboardingStatus() {
 
 学习内容：
 
-* 关联属性应该包含在界面的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中，以避免 N+1 查询性能问题。
+* 关联属性应该包含在视图的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中，以避免 N+1 查询性能问题。
 
-* xref:ui:vcl/components/entity-combo-box.adoc[] 可以用来在下拉框中选择关联实体。该组件需要一个 xref:ui:data/collection-container.adoc[]，选项列表在 xref:ui:vcl/xml.adoc#options-container[optionsContainer] 属性设置。
+* xref:flow-ui:vc/components/entityComboBox.adoc[] 可以用来在下拉框中选择关联实体。该组件需要一个 xref:flow-ui:data/collection-container.adoc[]，选项列表在 `itemsContainer` 属性设置。
 
 * `User` 和 `UserStep` 实体的关系是 _组合_ 的一个很好的示例，关联实体（`UserStep`）仅作为其所有者（`User`）的一部分存在。这种关联通过 xref:data-model:entities.adoc#composition[@Composition] 注解标记。
 
 * 关联实体的集合可以用关联属性的 `@OrderBy` 注解进行排序。
 
-* xref:ui:vcl/components/button.adoc[] 组件的 `ClickEvent` 处理器用来处理按钮的点击事件。可以在 *Jmix UI* 组件面板的 *Handlers* 标签页自动生成。
+* xref:flow-ui:vc/components/button.adoc[] 组件的 `ClickEvent` 处理器用来处理按钮的点击事件。可以在 *Jmix UI* 组件面板的 *Handlers* 标签页自动生成。
 
-* xref:ui:screens/methods.adoc#methods-of-standard-editor[编辑界面控制器] 的 `getEditedEntity()` 方法返回正在编辑的实体。
+* 实体详情视图控制器的 `getEditedEntity()` 方法返回正在编辑的实体。
 
-* xref:ui:notifications.adoc[Notifications] 接口用来展示弹出通知消息。
+* xref:flow-ui:notifications.adoc[Notifications] 接口用来展示弹出通知消息。
 
 * xref:data-access:data-manager.adoc[DataManager] 接口可以用来从数据库加载数据。
 
-* 内部的嵌套关联实体集合会被加载到 xref:ui:data/property-containers.adoc[CollectionPropertyContainer]。容器的 `getItems()` 和 `getMutableItems()` 方法可以用来遍历集合或者添加/删除集合项。
+* 内部的嵌套关联实体集合会被加载到 xref:flow-ui:data/property-containers.adoc[CollectionPropertyContainer]。容器的 `getItems()` 和 `getMutableItems()` 方法可以用来遍历集合或者添加/删除集合项。
 
-* xref:ui:data/data-context.adoc[DataContext] 跟踪实体的更改，并在用户点击界面的 *OK* 按钮时将改动的实例保存至数据库。
+* xref:flow-ui:data/data-context.adoc[DataContext] 跟踪实体的更改，并在用户点击视图的 *OK* 按钮时将改动的实例保存至数据库。
 
-* UI 表格支持 xref:ui:vcl/components/table.adoc#table-column-generation[生成列]，用来展示任意的可视化组件。
+* UI 数据网格可以添加列，用来展示任意的可视化组件。
 
-* xref:ui:data/instance-container.adoc#events[ItemPropertyChangeEvent] 和 xref:ui:data/collection-container.adoc#events[CollectionChangeEvent] 可以用来对数据容器中的实体变更做出响应。
+* xref:flow-ui:data/instance-container.adoc#events[ItemPropertyChangeEvent] 和 xref:flow-ui:data/collection-container.adoc#events[CollectionChangeEvent] 可以用来对数据容器中的实体变更做出响应。

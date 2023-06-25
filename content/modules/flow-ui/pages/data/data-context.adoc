@@ -1,0 +1,113 @@
+= 数据上下文
+
+`DataContext` 是跟踪加载到 UI 层的实体改动的接口。受跟踪实体的任何属性发生修改后，都标记成 “dirty”（表示发生变化），`DataContext` 会在调用 `save()` 方法的时候进行保存。
+
+在 `DataContext` 内，具有唯一标识符的实体总是以单一的对象实例呈现，不管对象关系图中它在哪里被使用或者使用了多少次。
+
+为了能跟踪实体变化，必须使用其 `merge()` 方法将实体放入 `DataContext` 中。如果上下文中不包含同样 id 的实体，则会创建一个新实例，将传递的实体状态拷贝至新实例，并将新实例返回。如果上下文已经有同样 id 的实例，则会将传递实例的状态拷贝至已经存在的实例并返回。使用这个机制保证在数据上下文中对于同一个 id 始终只有一个实例。
+
+当合并实体时，实体内包含根节点的整个实体对象关系图都会被合并。也就是说，所有的引用实体（包括集合）都会处于被跟踪状态。
+
+NOTE: 使用 `merge()` 方法的重要原则就是，使用返回的实例进行继续操作而丢掉传入的那个实例。在很多情况下，返回的对象实例会跟传入的不同。唯一的例外是在给 `merge()` 方法传递实例时，如果该实例是在同一个数据上下文中调用另一个 `merge()` 或者 `find()` 返回的实例，则没有区别。
+
+合并实体到 `DataContext` 的示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=data-context]
+----
+
+对于一个特定的视图，只存在一个 `DataContext` 单例。在视图 XML 描述存在 `<data>` 元素的情况下创建。
+
+`<data>` 元素可以有 `readOnly="true"` 属性，此时会使用一个特殊的 “不操作” 的 `DataContext` 实现，该实现不跟踪实体的改动，因此不会影响性能。默认情况下，Studio 生成的实体列表视图会有只读的数据上下文，所以如果需要在实体列表视图跟踪实体改动并且提交改动的实体，需删除 XML 的 `readOnly="true"` 属性。
+
+CAUTION: 如果关联实体没有包含在视图的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中，而是通过 xref:data-access:fetching.adoc#lazy-loading[延迟加载] 进行获取，那么关联实体不会合并到视图的 `DataContext`，因此也无法追踪其改动。所以需要确保视图编辑的所有实体必须通过 fetch plan 预加载包含的引用实体。
+
+[[obtaining-data-context]]
+== 获取 DataContext
+
+. 视图的 `DataContext` 可以在控制器用注入的方式获取：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=data-context-inject]
+----
++
+. 如果只有视图的引用，则可以通过 `UiControllerUtils` 类获取其 `DataContext`：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=sample-method]
+----
+
+[[parent-data-context]]
+== 父 DataContext
+
+`DataContext` 实例可以形成父子关系。如果一个 `DataContext` 有父上下文，它会将改动的实体提交给父上下文而不是直接保存至数据存储。通过这个功能支持编辑实体的组合关系，从实体只能跟主实体一起保存到数据库。如果一个实体属性使用 xref:data-model:entities.adoc#composition[@Composition] 注解，框架会自动在此属性的详情视图设置父上下文，从而该属性的改动会保存到主实体的数据上下文。
+
+可以很容易为任何实体和视图提供与此相同的行为。
+
+如果打开的详情视图需要提交数据到当前视图的数据上下文，可以使用 builder 的 `withParentDataContext()` 方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=department-edit]
+----
+
+CAUTION: 确保父数据上下文没有使用 `readOnly="true"` 属性。否则在使用其作为父上下文的时候会抛出异常。
+
+[[data-context-events]]
+== 事件和处理器
+
+本章节介绍可以在视图控制器处理的 DataContext 生命周期事件。
+
+include::events-handlers-generation-data-tip.adoc[]
+
+[[save-delegate]]
+=== SaveDelegate
+
+默认情况下，`DataContext` 使用 xref:data-access:data-manager.adoc#save[DataManager.save(SaveContext)] 方法保存实体改动和删除。而 `saveDelegate` 代理方法可以自定义保存数据的逻辑，在处理 xref:data-model:entities.adoc#dto[DTO 实体] 时非常有用。例如，可以用自定义的服务保存修改的实体：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=save-delegate]
+----
+
+[[change-event]]
+=== ChangeEvent
+
+当跟踪实体变化时，或者合并了新实体或者删除了旧实体，就会发送该事件。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=change-event]
+----
+
+[[pre-save-event]]
+=== PreSaveEvent
+
+该事件在保存改动之前发送。
+在事件监听器中，可以在 `getModifiedInstances()` 和 `getRemovedInstances()` 方法返回的实体集合中添加任何实体，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=pre-save-event]
+----
+
+还可以用事件的 `preventSave()` 方法阻止数据保存，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=prevent-save]
+----
+
+[[post-save-event]]
+=== PostSaveEvent
+
+该事件在保存改动之后发送。
+在事件监听器中，可以获取通过 `DataManager` 或自定义 <<save-delegate,保存代理>> 保存后的实体集合。这些实体已经合并至 DataContext。示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=post-save-event]
+----

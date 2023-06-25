@@ -2,13 +2,13 @@ package com.company.onboarding.view.component.datepicker;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.router.Route;
-import io.jmix.flowui.action.valuepicker.ValueClearAction;
-import io.jmix.flowui.view.*;
+import io.jmix.core.TimeSource;
 import io.jmix.flowui.component.datepicker.TypedDatePicker;
+import io.jmix.flowui.view.*;
 import io.jmix.flowui.exception.ValidationException;
+import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.Locale;
 
 @Route(value = "DatePickerView", layout = MainView.class)
@@ -16,17 +16,34 @@ import java.util.Locale;
 @ViewDescriptor("date-picker-view.xml")
 public class DatePickerView extends StandardView {
 
-    @ViewComponent
-    private TypedDatePicker datePicker;
 
+    //tag::datePicker[]
+    @ViewComponent
+    private TypedDatePicker<Comparable> datePicker;
+
+    //end::datePicker[]
+
+    @Autowired
+    private TimeSource timeSource;
+
+    @Subscribe
+    //tag::onInit[]
+    public void onInit(final InitEvent event) {
+        //end::onInit[]
+        //tag::locale[]
+        datePicker.setLocale(Locale.US);
+        //end::locale[]
+        //tag::onInit[]
+    }
+    //end::onInit[]
 
     //tag::validator[]
-    @Install(to = "datePicker", subject = "validator")
-    private void datePickerValidator(LocalDate value) {
-        LocalDate today = LocalDate.now();
-        if (value != null && today.isAfter(value)) {
-            throw new ValidationException("The date must be today or later.");
-        }
+    @Install(to = "birthDatePicker", subject = "validator")
+    private void birthDatePickerValidator(Date date) {
+            Date now = timeSource.currentTimestamp();
+            if (date != null && DateUtils.addYears(now,-18).compareTo(date) < 0) {
+                throw new ValidationException("The age must be over 18 years");
+            }
     }
     //end::validator[]
 }

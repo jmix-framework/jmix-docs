@@ -9,473 +9,247 @@
 ====
 如需新建 Jmix {page-component-display-version} 项目或者升级已有项目，需要使用 Studio {page-component-display-version} 以上版本。因此，请先 xref:studio:update.adoc[升级] Jmix Studio 插件。
 
-IntelliJ IDEA 的最低版本要求是 2022.3。
+IntelliJ IDEA 的最低版本要求是 {minimal-idea-version}。
+
+从 Jmix 1.5 自动迁移至 {page-component-display-version}，仅支持使用 *Flow UI* 和 *JDK 17* 的项目。
 ====
 
 参阅 xref:studio:project.adoc#upgrading-project[升级项目] 部分的介绍了解如何使用 Studio 升级项目。自动升级迁移过程会对项目做如下修改：
 
 * 升级 Jmix BOM 的版本，BOM 又定义了所有依赖的版本。
 * 升级 Jmix Gradle 插件的版本。
-* 在 `gradle/wrapper/gradle-wrapper.properties` 文件中升级 Gradle wrapper 的版本至 7.6。
-* 将所有必须包含的内容添加至根（root） Liquibase Changelog 文件中。
-* `application.properties` 中添加了 `main.liquibase.change-log` 配置。
-* 将所有的 `++jmix.liquibase.*++` 应用程序属性都重命名为 `++main.liquibase.*++`。
-* 更新附件数据存储的 Liquibase 配置（如果有的话）。
-* 在 Flow UI 的项目中创建 `UiMinimalRole` 角色。
-* 如果项目中使用了表格导出操作 / GrapesJS 扩展组件，则会修改这两个制件的名称。
+* 在 `gradle/wrapper/gradle-wrapper.properties` 文件中升级 Gradle wrapper 的版本至 8.0.2。
+* 替换 Java EE 包为 Jakarta EE（`javax` -> `jakarta`）
+* `io.jmix.core.metamodel.datatype.impl.EnumClass` -> `io.jmix.core.metamodel.datatype.EnumClass`。
+* `io.jmix.flowui.kit.component.FlowuiComponentUtils` -> `io.jmix.flowui.kit.component.ComponentUtils`。
+* `javax.annotation.Nullable` -> `org.springframework.lang.Nullable`。
+* 应用程序属性中的 `jmix.flowui` -> `jmix.ui`.
+* 特殊权限中的 `flowui.loginToUi` -> `ui.loginToUi`.
+* 在视图描述中：
+** `queryParameters` -> `urlQueryParameters`。
+** 标准的列表操作类型均改为以 `list_` 开头。
+* `index.html` 文件中添加了 script 块。
 
 请参考破坏性改动的 <<breaking-changes,完整列表>>，并在升级后做相应修复。
+
+[[updated-dependencies]]
+== 依赖更新
+
+更新了下列主要依赖：
+
+* Spring Boot 3.1
+* Vaadin 24.0
+* EclipseLink 4.0
+* Flowable 7.0
+
+项目需要使用 JDK 17 运行。
+
+WAR 部署需要 Tomcat 10。
 
 [[new-features]]
 == 新功能和改进
 
-[[root-changelog-includes]]
-=== Liquibase Changelog
-
-主数据存储的 root Liquibase changelog 现在包含 `include` 指令，用于引入项目中扩展组件的更改日志。这样一来，更改日志能兼容 https://github.com/liquibase/liquibase-gradle-plugin[Liquibase Gradle 插件^] 和 Liquibase CLI，并可以在不使用 Studio 或者不直接运行程序的情况下运行 Liquibase，例如在 CI 服务器中。
-
-项目必须用 `main.liquibase.change-log` 配置 root 更改日志的路径，示例：
-
-[source,properties]
-----
-main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
-----
-
-当添加扩展组件时，Studio 会自动维护更改日志的引入。另外，当应用程序启动时，会检查 root 更改日志中的引入项是否与项目的扩展组件匹配。如果检测到不匹配项，Studio 会显示一个通知弹窗，建议添加或删除引入。这里可以选择忽略，忽略之后不会再次出现对已忽略引入的提示。
-
-Studio 的版本迁移程序会自动更新 root 更改日志并设置正确的应用程序属性。
-
-更多信息，请参阅 <<breaking-changes-liquibase,下面>> 的破坏性改动章节。
-
-[[flow-ui-core]]
-=== Flow UI
-
-Flow UI 模块更新至 Vaadin 23.3。
-
-在 Flow UI 中集成了下列 Vaadin 组件：
-
-* https://vaadin.com/docs/v23/components/tabs/#tab-sheet[TabSheet^] -> `JmixTabSheet`（XML 元素：`tabSheet`）
-+
-[source,xml]
-----
-<tabSheet width="100%">
-    <tab id="mainTab" label="Main">
-        <formLayout id="form" dataContainer="userDc">...</formLayout>
-    </tab>
-    <tab id="additionalTab" label="Onboarding steps">
-        <vbox>
-            <hbox>...</hbox>
-            <dataGrid width="100%" dataContainer="stepsDc">...</dataGrid>
-        </vbox>
-    </tab>
-</tabSheet>
-----
-
-* https://vaadin.com/docs/v23/components/multi-select-combo-box[MultiSelectComboBox^] -> `JmixMultiSelectComboBox`（XML 元素：`multiSelectComboBox`）
-+
-[source,xml]
-----
-<instance id="productDc"
-          class="com.company.demo.entity.Product">
-    <fetchPlan extends="_base">
-        <property name="tags" fetchPlan="_base"/>
-    </fetchPlan>
-    <loader/>
-</instance>
-<collection class="com.company.demo.entity.Tag" id="allTagsDc">
-    <fetchPlan extends="_base"/>
-    <loader id="allTagsDl">
-        <query>
-            <![CDATA[select e from Tag e]]>
-        </query>
-    </loader>
-</collection>
-<!-- ... -->
-<formLayout id="form" dataContainer="productDc">
-    <textField id="nameField" property="name"/>
-    <multiSelectComboBox property="tags" itemsContainer="allTagsDc"/>
-</formLayout>
-----
-
-* https://vaadin.com/docs/v23/components/upload[Upload^] -> `FileStorageUploadField`（XML 元素：`fileStorageUploadField`）和 `FileUploadField`（XML 元素：`fileUploadField`）
-+
-[source,xml]
-----
-<fileStorageUploadField id="uploadField"
-        dataContainer="userDc" property="picture"/>
-----
-
-* https://vaadin.com/docs/v23/create-ui/standard-html[Image^] -> `JmixImage`（XML 元素：`image`）
-+
-[source,xml]
-----
-<image id="image"
-        dataContainer="userDc" property="picture"
-        height="280px" width="200px" classNames="user-picture"/>
-----
-
-* 很多组件现在支持 https://vaadin.com/docs/v23/components/tooltip[Tooltip^]，示例：
-+
-[source,xml]
-----
-<textField id="nameField" property="name">
-    <tooltip text="Product name" position="BOTTOM_START"/>
-</textField>
-----
-+
-在 Studio 中，通过 *Jmix UI* 组件面板中的 *Add* 按钮添加 tooltips。
-
-[[input-dialog]]
-==== 输入对话框
-
-xref:flow-ui:dialogs.adoc[Dialogs] 接口增加了 `createInputDialog()` 方法，支持使用任意参数展示一个输入对话框。示例：
-
-[source,java]
-----
-dialogs.createInputDialog(this)
-        .withParameters(
-                stringParameter("name").withLabel("Name"),
-                intParameter("age").withLabel("Age"))
-        .withCloseListener(dialogCloseEvent -> {
-            if (dialogCloseEvent.closedWith(DialogOutcome.OK)) {
-                System.out.println("Name: " + dialogCloseEvent.getValue("name"));
-                System.out.println("Age: " + dialogCloseEvent.getValue("age"));
-            }
-        })
-        .open();
-----
-
-[[background-tasks]]
-==== 后台任务
-
-经典 UI（Vaadin 8）中可以执行不阻塞用户的异步后台任务，Flow UI 现在也支持该机制。
-
-执行后台任务并在一个 label 中展示进度的示例：
-
-[source,java]
-----
-@Autowired
-private BackgroundWorker backgroundWorker;
-
-@ViewComponent
-private Span taskProgress;
-
-@Subscribe("testBtn")
-public void onTestBtnClick(ClickEvent<Button> event) {
-    BackgroundTaskHandler<Void> handler = backgroundWorker.handle(new SampleTask(15, null, 10));
-    handler.execute();
-}
-
-protected class SampleTask extends BackgroundTask<Integer, Void> {
-    int count;
-
-    public SampleTask(long timeoutSeconds, View<?> view, int count) {
-        super(timeoutSeconds, view);
-        this.count = count;
-    }
-
-    @Override
-    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
-        for (int i = 1; i < count + 1; i++) {
-            Thread.sleep(1000);
-            taskLifeCycle.publish(i);
-        }
-        return null;
-    }
-
-    @Override
-    public void progress(List<Integer> changes) {
-        taskProgress.setText(changes.get(0) + "");
-    }
-}
-----
-
-运行后台任务并在模态弹窗展示进度的示例：
-
-[source,java]
-----
-@Autowired
-private Dialogs dialogs;
-
-@Subscribe("testBtn")
-public void onTestBtnClick(ClickEvent<Button> event) {
-    dialogs.createBackgroundTaskDialog(new SampleTask(15, this, 10))
-            .withTotal(10)
-            .withCancelAllowed(true)
-            .open();
-}
-
-protected class SampleTask extends BackgroundTask<Integer, Void> {
-    int count;
-
-    public SampleTask(long timeoutSeconds, View<?> view, int count) {
-        super(timeoutSeconds, view);
-        this.count = count;
-    }
-
-    @Override
-    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
-        for (int i = 1; i < count + 1; i++) {
-            Thread.sleep(1000);
-            taskLifeCycle.publish(i);
-        }
-        return null;
-   }
-}
-----
-
-[[flow-ui-in-add-ons]]
+[[add-ons-with-flow-ui]]
 === 支持 Flow UI 的扩展组件
 
-以下扩展组件目前已经支持 Flow UI：
+下列扩展组件现在已经支持 Flow UI：
 
-* Multitenancy - 多租户
+* xref:bpm:index.adoc[]
+* xref:business-calendar:index.adoc[]
+* xref:email:index.adoc[]
+* xref:reports:index.adoc[]
 
-* Quartz - 定时任务
+[[rest-api-with-authorization-server]]
+=== REST API 使用授权服务
 
-* Application Settings - 应用程序设置
+xref:rest:index.adoc[] 扩展组件现在使用授权服务（Authorization Server）进行认证。Jmix 2.0 中已经删除了之前的 Jmix Security OAuth2 模块。
 
-* Grid Export Actions - 表格导出操作（支持导出所有数据，参阅 <<excel-export>>）。
+敬请期待更多信息。
 
-[[flow-ui-menu-designer]]
-=== Flow UI 菜单设计器
+[[flow-ui-test-assist]]
+=== Flow UI 测试助手
 
-Flow UI 菜单设计器的 “Single mode” 做了很大提升。当切换至 “Single mode” 时，Studio 仍然会提供添加项目扩展组件菜单的功能。左侧会有单独的面板展示可用的菜单项，可以拖拽至菜单目录中，方便自定义组合菜单。
+Flow UI 测试助手（Test Assist）模块已经完成改进，现在支持视图之间的交互。新创建的应用程序项目中会生成一个用户管理视图的 UI 测试示例。
 
-[[excel-export]]
-=== Excel 导出
+更多信息请参阅 https://github.com/jmix-framework/jmix/issues/1467[GitHub #1467]。
 
-表格导出操作组件现在支持将当前过滤条件产生的所有数据导出至 Excel 文件。`excelExport` 操作会展示包含 *All rows* | *Current page* | *Selected rows* 选项的弹窗。
+[[generic-filter]]
+=== 通用过滤器
 
-以前的版本仅支持导出当前能看到的数据或者选中的数据。
+`genericFilter` 组件现在支持在设计时和运行时创建配置和自定义条件。运行时配置和自定义条件可交由终端用户管理。
 
-[[pessimistic-locking-ui]]
-=== 悲观锁管理 UI
+设计时配置的示例：
 
-UI 核心模块添加了悲观锁管理界面。界面位于经典 UI 的 *Administration* 菜单或者 Flow UI 的 *System* 菜单下。
+[source,xml]
+----
+<genericFilter id="genericFilter" dataLoader="usersDl">
+    <properties include=".*"/>
+    <configurations>
+        <configuration id="byEmail" name="By email">
+            <propertyFilter operation="CONTAINS" property="email"/>
+        </configuration>
+    </configurations>
+</genericFilter>
+----
 
-[[ui-designer-tool-window]]
-=== UI 设计器工具窗口
+如需创建运行时配置，在添加完过滤条件之后，使用过滤器设置菜单（“齿轮” 按钮）将条件保存为配置。
 
-经典 UI 和 Flow UI 的设计器工具窗口现在都统一放在了右侧：*Jmix UI*，整合了组件结构和组件属性面板。
+如需创建运行时自定义条件，使用 *Add condition（添加条件）* 弹窗中的 *Create* 按钮。
 
-组件工具箱默认不展示，需要时可通过点击 *Add component* 操作打开，该操作有以下几个位置：组件结构的右键菜单、XML 描述的顶部操作区、或者 *Generate* 菜单。
+[[codeeditor-component]]
+=== CodeEditor Component
 
-[[code-snippets]]
-=== 代码片段
-
-代码片段工具箱可以用 Spring bean 或者 UI 控制器编辑窗口顶部的 *Code Snippets* 按钮打开。
-
-这样改进的原因是可以提高代码片段的使用率（我们发现顶部的操作面板使用率较高）。
-
-[[preview]]
-== 预览功能
-
-[[flow-ui-generic-filter]]
-=== Flow UI 通用过滤器
-
-`GenericFilter` 组件（XML 元素：`genericFilter`）支持用户通过运行时创建的任意条件对数据进行过滤。
+基于 Ace 编辑器的全新 `codeEditor` 组件支持用户查看和编辑代码，并支持语法高亮、自动缩进等高级功能。同时，该组件提供了通过 `dataContainer` 和 `property` XML 属性进行声明式数据绑定的功能。
 
 示例：
 
 [source,xml]
 ----
-<facets>
-    <dataLoadCoordinator auto="true"/>
-    <queryParameters>
-        <genericFilter component="filter"/>
-    </queryParameters>
-</facets>
-<layout>
-        <genericFilter id="filter" dataLoader="usersDl"
-                       summaryText="My filter">
-            <responsiveSteps>
-                <responsiveStep minWidth="0" columns="1"/>
-                <responsiveStep minWidth="800px" columns="2"/>
-                <responsiveStep minWidth="1200px" columns="3"/>
-            </responsiveSteps>
-        </genericFilter>
+<codeEditor id="codeEditor" mode="GROOVY"
+            dataContainer="taskDc" property="script"/>
 ----
 
-`queryParameters` facet 中需要有 `genericFilter` 元素，用来将过滤器的状态反映至 URL 参数中。这样一来，当用户从详情视图返回列表视图或者刷新浏览器网页时，能使用与之前一样的过滤器条件。
+[[preventing-browser-tab-closing]]
+=== 防止浏览器标签页关闭
 
-现在通用过滤器仅支持属性条件。经典 UI 过滤器的其他功能（JPQL、自定义条件、分组、保存过滤器配置等）将在下一版本提供。
+当展示实体详情视图时，如果用户尝试关闭浏览器标签页，系统会显示一个标准的确认离开页面窗口。这样可以放置意外的数据丢失。
+
+如需为某个特定的视图关闭该窗口，可以在 `InitEvent` 处理方法中调用 `setPreventBrowserTabClosing()`：
+
+[source,java]
+----
+@Subscribe
+public void onInit(final InitEvent event) {
+    setPreventBrowserTabClosing(false);
+}
+----
+
+[[quick-cloud-deployment]]
+=== 快速云部署
+
+这次我们重新实现了 xref:studio:quick-cloud-deployment.adoc[] 功能，默认在 *Jmix* 工具窗口就能使用。通过几次点击就可以将应用程序部署在一个自动创建的 AWS EC2 实例中。
+
+[[beans-in-jmix-tool-window]]
+=== Jmix 工具窗口显示 Beans
+
+*Jmix* 工具窗口现在能显示项目中定义的所有 Beans.
+
+可以通过 *Options* -> *Group by Packages* 操作将 Beans 列表按包名分组。
+
+[[bpm-in-jmix-tool-window]]
+=== Jmix 工具窗口显示 BPM
+
+如果你的项目包含了 xref:bpm:index.adoc[BPM add-on]，*Jmix* 工具窗口会显示 `BPM` 部分。其中包含 BPMN 流程、流程草稿以及 DMN 表格，对应项目的这些目录：
+
+[cols="1,2,1"]
+|===
+|节点 |目录 |文件扩展名
+
+|Processes
+|`src/main/resources/processes`
+|`.bpmn` 或 `.bpmn20.xml`
+
+|Process Drafts
+|`src/main/resources/process-drafts`
+|`.draft.bpmn`
+
+|DMN Tables
+|`src/main/resources/dmn`
+|`.dmn.xml`
+|===
+
+当执行 *New* -> *BPMN Process* 操作时，Studio 会创建一个新的流程草稿并展示在 `Process Drafts` 部分。流程准备好后，点击 BPM 设计器顶部的 *Copy to Processes* 按钮，或点击 *Jmix* 工具窗口的右键菜单按钮。Studio 会将草稿复制到 `Processes` 节点并从文件名中删除 `draft` 扩展名。
+
+`Processes` 和 `DMN Tables` 节点的内容会在应用程序启动时自动部署。
+
+[[all-beans-in-inject-dialog]]
+=== Inject 窗口包含所有 Beans
+
+*Inject* 窗口现在能展示项目 classpath 中定义的所有 beans，包括使用 `@Bean` 注解在 Java 配置类中定义的 beans。
+
+当启用窗口中的分组选项时，`Other Beans` 和 `Other Properties` 部分按照包名中第一个非顶级域名部分进行分组。
+
+NOTE: 不能保证出现在 *Inject* 窗口中的类在运行时就一定能注入成功。依赖很多运行时的条件，这些条件是 Studio 没有办法在设计时分析出来的。
+
+[[using-final-modifier]]
+=== 使用 final 修饰符
+
+Studio 在生成代码是开始使用 `final` 修饰符修饰字段、变量以及方法参数。
+
+可以在 *Jmix* 插件的 *Project Settings* 部分关掉此功能。
+
+[[offsetdatetime-for-audit-fields]]
+=== 审计字段使用 OffsetDateTime
+
+时间戳类型的实体属性，包括实体审计特性的创建时间、修改时间和软删除时间现在都使用 `OffsetDateTime` 类型。因此，数据库也保存了时间戳的时区。
+
+[[invalidating-studio-caches]]
+=== 清除 Studio 缓存
+
+*Jmix* 插件的配置页现在包含一个 *Invalidate cache* 按钮，支持删除 Studio 在 https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory[IDE 配置目录] 中存储的信息。如果你遇到项目模板问题、生成视图有问题，或者视图设计器有问题，可以尝试清除缓存。
+
+这个操作也可以通过 *File* -> *Invalidate Caches* 执行。
+
+// [[preview]]
+// == Preview Features
 
 [[breaking-changes]]
 == 破坏性改动
 
-[[changed-add-on-artefacts]]
-=== 扩展组件重命名
+[[renamed-classes-and-properties]]
+=== 属性和类名变更
 
-[[grid-export-actions-artefact]]
-==== 表格导出操作
+. 以 `jmix.flowui` 开头的应用程序属性已经重命名为以 `jmix.ui` 开头。footnote:studio-migrator[Studio 迁移程序会自动对你的项目做必要的改动。]
 
-修改了 starter 制件名：
+. 重命名安全模块的特殊策略：
 
-- `io.jmix.ui:io.jmix.ui:jmix-ui-export-starter` -> `io.jmix.gridexport:jmix-gridexport-ui-starter`
+* `datatools.flowui.showEntityInfo` -> `datatools.showEntityInfo`
+* `flowui.loginToUi` -> `ui.loginToUi` footnote:studio-migrator[]
+* `flowui.showExceptionDetails` -> `ui.showExceptionDetails`
+* `flowui.filter.modifyJpqlCondition` -> `ui.genericfilter.modifyJpqlCondition`
+* `flowui.filter.modifyConfiguration` -> `ui.genericfilter.modifyConfiguration`
+* `flowui.genericfilter.modifyGlobalConfiguration` -> `ui.genericfilter.modifyGlobalConfiguration`
 
-[[grapesjs-artefact]]
-==== GrapesJS
+. `io.jmix.core.metamodel.datatype.impl.EnumClass` 基类移至 `io.jmix.core.metamodel.datatype` 包。footnote:studio-migrator[]
 
-修改了 starter 制件名：
+. `queryParameters` facet 重命名为 `urlQueryParameters`。footnote:studio-migrator[]
 
-- `io.jmix.grapesjs:jmix-grapesjs-starter` -> `io.jmix.grapesjs:jmix-grapesjs-ui-starter`
+. 标准列表操作类型添加了 `list_` 前缀。footnote:studio-migrator[]
 
-以及主题制件名：
+. 框架的所有类中，除了 Spring 配置类和自动配置类，`Flowui` 前缀都改为了 `Ui` 前缀。用到 `io.jmix.flowui.kit.component.FlowuiComponentUtils` 的地方也都由 Studio 迁移程序替换成了 `ComponentUtils`。如果你还用到其他以 `Flowui` 开头的类，请手动替换。更多信息参考 https://github.com/jmix-framework/jmix/issues/1830[GitHub #1830^]。
 
-- `io.jmix.grapesjs:jmix-grapesjs` -> `io.jmix.grapesjs:jmix-grapesjs-ui`
+[[removed-features]]
+=== 删除的功能
 
-还有基础包名：
+. 删除了 `Actions` 接口中使用操作类创建操作的方法。有用到的请替换为使用字符串标识符创建操作的方法。详情参阅 https://github.com/jmix-framework/jmix/issues/1529[GitHub #1529^]。
 
-- `io.jmix.uiexport` -> `io.jmix.gridexportui`
+. 删除了一些 UI 组件对 xref:flow-ui:vc/components/tooltip.adoc[] 的支持，包括：`ComboButton`、`DropdownButton`、`SimplePagination`、`UserIndicator`。
 
-Studio 的迁移过程会自动修改 `build.gradle` 中的制件名，但是对于代码中的包名，需要手动修改。
+. 删除了从 Jmix 1.5 开始标记废弃的 `UiLoginProperties` 类。如果你的项目是使用 Jmix 1.4 创建的，这个类用在 LoginView 中，需要按照 Jmix 2.0 的项目模板修改你的 LoginView 及其 XML。
 
-[[quartz-artefact]]
-==== Quartz
+. Jmix BOM 不再提供 `commons-fileupload:commons-fileupload` 依赖。
 
-UI 需要添加额外的 starter：`io.jmix.quartz:jmix-quartz-ui-starter`
+. 删除了 `jmix.rest.max-upload-size` 属性。请使用 `spring.servlet.multipart.max-file-size` 和其他 {spring-boot-api}/org/springframework/boot/autoconfigure/web/servlet/MultipartProperties.html[MultipartProperties^] 中的属性。详情参阅 https://github.com/jmix-framework/jmix/issues/1496[GitHub #1496^]。
 
-[[breaking-changes-liquibase]]
-=== Liquibase 属性
+[[data-repositories-initialization]]
+=== 初始化 Data Repositories 
 
-. `++jmix.liquibase.*++` 前缀更名为 `++main.liquibase.*++`，目的是为了遵循数据源属性的命名模式（例如，`main.datasource.url`，这里 `main` 是数据存储名称）。如果添加一个名为 `second` 的数据存储，Liquibase 配置属性则是 `second.liquibase.*`。
+在项目中初始化 xref:data-access:data-repositories.adoc[data repositories] 的可选注解 `@EnableJmixDataRepositories` 现在改成了必需注解。详情参阅 https://github.com/jmix-framework/jmix/issues/1589[GitHub #1589^]。
 
-. `application.properties` **必须** 包含每个数据存储的 root Liquibase 更改日志的路径。示例：
-+
-[source,properties]
-----
-main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
+[[rounding-in-datatypes]]
+=== 数据类型中的四舍五入
 
-second.liquibase.change-log=com/company/demo/liquibase/second-changelog.xml
-----
+将字符串解析成 `BigDecimal`、`Double` 和 `Float` xref:data-model:data-types.adoc[datatypes] 时，现在能根据指定的格式对结果进行四舍五入处理。例如，如果数字格式设置为 `++#.##++`，当解析 `"12.3456"` 字符串时，结果会是数字 `12.35`。
 
-[[breaking-changes-datastore]]
-=== 数据存储配置
-
-附件数据存储的配置必须更改。
-
-`LiquibaseChangeLogProcessor` 类已被移除。
-
-以前的版本中，如果我们定义一个附加数据存储并设置 _DB Schema Management_ 为 _Create and Update_（即，通过 Jmix 创建并维护该附件数据存储），则 Studio 会生成一个类似下面这样定义的 bean：
-
-[source,java]
-----
-@Bean
-public SpringLiquibase thirdLiquibase(
-            LiquibaseChangeLogProcessor processor,
-            @Qualifier("thirdDataSource") DataSource dataSource) {
-   return JmixLiquibaseCreator.create(
-                dataSource,
-                new LiquibaseProperties(),
-                processor,
-                "third");
-}
-----
-
-新的 bean 定义必须与下面这个类似（“third” 是数据存储名称）：
-
-[source,java]
-----
-@Bean("thirdLiquibaseProperties")
-@ConfigurationProperties(prefix = "third.liquibase")
-public LiquibaseProperties thirdLiquibaseProperties() {
-   return new LiquibaseProperties();
-}
-
-@Bean("thirdLiquibase")
-public SpringLiquibase thirdLiquibase(
-            @Qualifier("thirdDataSource") DataSource dataSource,
-            @Qualifier("thirdLiquibaseProperties") LiquibaseProperties liquibaseProperties) {
-    return JmixLiquibaseCreator.create(
-                dataSource,
-                liquibaseProperties);
-}
-----
-
-[[reference-to-message-in-formatters]]
-=== Formatters 中对消息键值的引用
-
-我们修复了在 XML 中定义的 formatter 对外部消息引用的错误处理问题。
-
-现在，与其他消息一样，对于 `msg://myFormat` 引用，将查找当前界面消息组内的键值，例如，`com.company.app.screen.foo/myFormat`。对带有三个斜杠前缀的键值，将查找没有组的消息，例如 `myFormat`。
-
-项目如果需要采用这个改动，需要查找所有这类用法，并将双斜杠改成三斜杠，示例：
-
-[source,xml]
-----
-<formatter>
-     <date format="msg:///myDateFormat"/>
-</formatter>
-----
-
-[[breaking-changes-UiMinimalRole]]
-=== Flow UI 项目中的 UiMinimalRole 角色
-
-`UiMinimalRole` 定义访问登录页和主页面（Flow UI 称为视图）的权限。为了支持能修改这些视图，角色从框架移至项目。示例：
-
-[source,java]
-----
-package com.company.demo.security;
-
-import io.jmix.core.entity.KeyValueEntity;
-import io.jmix.security.model.*;
-import io.jmix.security.role.annotation.*;
-import io.jmix.securityflowui.role.annotation.ViewPolicy;
-
-@ResourceRole(name = "Flow UI: minimal access", code = UiMinimalRole.CODE, scope = SecurityScope.UI)
-public interface UiMinimalRole {
-
-    String CODE = "flowui-minimal";
-
-    @ViewPolicy(viewIds = "MainView")
-    void main();
-
-    @ViewPolicy(viewIds = "LoginView")
-    @SpecificPolicy(resources = "flowui.loginToUi")
-    void login();
-
-    @EntityPolicy(entityClass = KeyValueEntity.class, actions = EntityPolicyAction.READ)
-    @EntityAttributePolicy(entityClass = KeyValueEntity.class, attributes = "*", action = EntityAttributePolicyAction.VIEW)
-    void keyValueEntity();
-}
-----
-
-[[breaking-changes-DataGrid]]
-=== Flow UI DataGrid
-
-. `DataGrid` 和 `TreeDataGrid` 的 `getColumns()` 方法现在仅返回那些用户有权限看到的列（由于安全配置引起的不可见）。以前的版本中，该方法会返回所有的列，包括隐藏列。
-
-. 由于安全控制隐藏的列不会修改其可见性配置。以前的版本中，这种情况会设置 `visible` 属性为 false。
-
-[[breaking-changes-ui-test-assist]]
-=== ui-test-assist
-
-`ui-test-assist` 模块不再提供对 Spock 和 Groovy 的传递依赖。此外，也不包含 `UiTestAssistSpecification`、`ScreenSpecification` 和 `TestMainScreen` 类。
-
-Spock 和 Groovy 已经移至 `ui-test-assist-spock` 模块。
-
-如果你的项目包含基于 `ScreenSpecification` 或 `UiTestAssistSpecification` 的测试用例，请在 `build.gradle` 添加如下依赖：
-
-[source,groovy]
-----
-testImplementation 'io.jmix.ui:jmix-ui-test-assist-spock'
-----
-
-并修改对 `ScreenSpecification`、`UiTestAssistSpecification`、`TestMainScreen` 的 import 为 `io.jmix.ui.testassistspock.*`。
+如需退回到之前不带四舍五入的行为，请设置 `jmix.core.round-decimal-value-by-format` 应用程序属性为 `false`。详情参阅 https://github.com/jmix-framework/jmix/issues/968[GitHub #968^]。
 
 [[changelog]]
 == 变更日志
 
 * Jmix 框架解决的问题：
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.2[1.5.2^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.1[1.5.1^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.0[1.5.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.0.0[2.0.0^]
 
 * Jmix Studio 解决的问题：
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.3[1.5.3^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.2[1.5.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.1[1.5.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.0,-1.4.*[1.5.0^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.0.0,-1.5.*[2.0.0^]

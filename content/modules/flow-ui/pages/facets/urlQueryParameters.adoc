@@ -1,0 +1,91 @@
+= urlQueryParameters
+
+`urlQueryParameters` facet 用来声明式地将视图状态绑定至 URL。支持在不同的视图之间 xref:flow-ui:opening-views.adoc[切换] 或者刷新浏览器网页时保留视图状态。
+
+如果整个视图状态来自数据库（例如，xref:views.adoc#standard-detail-view[实体详情视图]），URL 路由中的实体 id 已经足够用来恢复视图状态。但是如果某些视图组件包含了非数据库信息，那么需要将这些信息编码至 URL 中，以便重新初始化该视图时能恢复数据。
+
+实体列表的分页和过滤就是一个很好的例子。当刷新浏览器网页或者从详情视图返回时，我们希望保留分页和过滤参数。
+
+将视图状态在 URL 中编码也能提供一个深度链接（deep link），表达视图展示的内容。
+
+[[basics]]
+== 基本用法
+
+如需将分页和过滤参数绑定至 URL，定义 `urlQueryParameters` 并使用内部元素将已有的组件与它们的 id 关联。下面的示例演示了 `urlQueryParameters` facet 与 `genericFilter` 和 `simplePagination` 使用：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/user/user-list-view.xml[tags=url-query-params]
+----
+
+结果是，当使用 `active` 属性对 `User` 实体进行过滤并选择第二页时，URL 将变成类似这样：`++http://localhost:8080/users?genericFilterCondition=property%3Aactive_equal_true&maxResults=50&firstResult=100++`
+
+include::facet-tip.adoc[]
+
+[[components]]
+== 支持的组件
+
+[[pagination]]
+=== pagination
+
+`pagination` 内部元素支持将 `urlQueryParameters` facet 与 xref:vc/components/simplePagination.adoc[] 组件连接。
+
+`pagination` 元素的属性：
+
+* `component` - 所连接分页组件的 id。
+
+* `firstResultParam` -（可选）表示当前页开始的 URL 查询参数。
+
+* `maxResultsParam` -（可选）表示页面数据大小的 URL 查询参数。
+
+[[propertyFilter]]
+=== propertyFilter
+
+`pagination` 内部元素支持将 `urlQueryParameters` facet 与 xref:vc/components/propertyFilter.adoc[] 组件连接。
+
+
+`propertyFilter` 元素的属性：
+
+* `component` - 所连接 `propertyFilter` 组件的 id。
+
+* `param` -（可选）表示过滤器值的 URL 查询参数。
+
+[[genericFilter]]
+=== genericFilter
+
+`pagination` 内部元素支持将 `urlQueryParameters` facet 与 `genericFilter` 组件连接。
+
+`genericFilter` 元素的属性：
+
+* `component` - 所连接 `genericFilter` 组件的 id。
+
+* `conditionParam` -（可选）表示过滤器条件的 URL 查询参数。
+
+* `configurationParam` -（可选）表示所选过滤器配置的 URL 查询参数。
+
+[[custom-binding]]
+== 自定义状态绑定
+
+`urlQueryParameters` facet 还支持在 URL 绑定任何自定义视图状态。
+
+我们看下面的视图示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/url-query-parameters-view.xml[tags=custom-binding]
+----
+
+假设目标是保留 xref:vc/layouts/details.adoc[] 布局的 `opened` 状态以及 xref:vc/components/textField.adoc[] 的值。
+
+我们需要实现一个 binder 对象，并通过 `urlQueryParameters` facet 注册：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/facets/UrlQueryParametersView.java[tags=custom-binding]
+----
+<1> - 从 `AbstractUrlQueryParametersBinder` 基类派生 binder 类。
+<2> - 在 binder 的构造器中，添加组件的监听器，当组件的状态变化时，会调用 `fireQueryParametersChanged()` 方法。
+<3> - 在 `updateState()` 方法中，更新组件的状态。
+<4> - 创建一个 binder 实例，并在视图初始化的时候通过 `urlQueryParameters` facet 注册。
+
+NOTE: `urlQueryParameters` facet 使用 Vaadin API 的 {vaadin-api}/com/vaadin/flow/router/QueryParameters.html[QueryParameters^] 类收发查询参数。

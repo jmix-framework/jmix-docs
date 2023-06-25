@@ -4,17 +4,22 @@ import com.company.onboarding.entity.User;
 import com.company.onboarding.entity.UserStep;
 import com.company.onboarding.view.DataGridHelper;
 import com.company.onboarding.view.main.MainView;
+import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
+import io.jmix.core.DataManager;
 import io.jmix.core.FileRef;
 import io.jmix.core.FileStorage;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.grid.DataGrid;
+import io.jmix.flowui.facet.UrlQueryParametersFacet;
 import io.jmix.flowui.view.*;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
@@ -33,6 +38,11 @@ public class UserListView extends StandardListView<User> {
     private UiComponents uiComponents;
     @Autowired
     private FileStorage fileStorage;
+
+    @ViewComponent
+    private UrlQueryParametersFacet urlQueryParameters;
+    @Autowired
+    private DataManager dataManager;
 
     @Subscribe
     public void onInit(InitEvent event) {
@@ -56,5 +66,16 @@ public class UserListView extends StandardListView<User> {
         }));
 
         DataGridHelper.setDataGridColumnPosition(usersTable, pictureColumn, 0);
+    }
+
+    @Subscribe("generateUsersBtn")
+    public void onGenerateUsersBtnClick(final ClickEvent<Button> event) {
+        for (int i = 0; i < 160; i++) {
+            User user = dataManager.create(User.class);
+            user.setUsername("user-" + StringUtils.leftPad(String.valueOf(i), 3, '0'));
+            user.setActive(true);
+            user.setPassword("{noop}1");
+            dataManager.save(user);
+        }
     }
 }

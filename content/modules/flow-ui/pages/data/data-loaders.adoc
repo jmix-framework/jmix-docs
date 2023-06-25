@@ -1,0 +1,130 @@
+= 数据加载器
+
+数据加载器为 xref:flow-ui:data/data-containers.adoc[数据容器] 加载数据。
+
+根据交互的数据容器不同，数据加载器的接口有稍微的不同：
+
+* `InstanceLoader` 使用实体 id 或者 JPQL 查询语句加载单一实体到 `InstanceContainer`。
+* `CollectionLoader` 使用 JPQL 查询语句加载实体集合到 `CollectionContainer`。可以设置分页、排序以及其他可选的参数。
+* `KeyValueCollectionLoader` 加载 `KeyValueEntity` 实体的集合到 `KeyValueCollectionContainer`。除了 `CollectionLoader` 参数，还可以指定一个数据存储名称。
+
+在视图的 XML 描述中，所有的类型的加载器都是使用 `<loader>` 元素定义，加载器的类型通过归属的数据容器类型确定。
+
+数据加载器不是必要的，因为可以使用 `DataManager` 或者自定义的服务来加载数据，然后直接设置给容器。但通过在视图中声明式的定义加载器可以简化数据加载的过程。
+
+通常，集合加载器从视图的描述文件中获得 JPQL 查询语句，之后创建 `LoadContext` 并调用 `DataManager` 加载实体。所以，典型的 XML 描述看起来是这样：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=collection-container]
+----
+
+在实体详情视图中，加载器的 XML 元素通常是空的，因为实例加载器需要一个实体的标识符，这个标识符通过编程的方式使用 `StandardDetailView` 基类指定。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-detail-view.xml[tags=instance-container]
+----
+
+当加载器设置了 xref:flow-ui:data/data-context.adoc[DataContext]（当使用 XML 描述定义加载器的时候是默认设置的），所有加载的实体都自动合并到数据上下文。
+
+[[data-context-events]]
+== 事件和处理器
+
+本节介绍可以在视图控制器中处理的数据加载器生命周期事件。
+
+include::events-handlers-generation-data-tip.adoc[]
+
+[[load-delegate]]
+=== loadDelegate
+
+加载器可以将实际的加载动作代理给视图控制器的一个方法，方法中可以调用自定义服务，而不使用默认的 `DataManager`。示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=delegate]
+----
+<1> `departmentsDl` 加载器会使用 `departmentsDlLoadDelegate()` 方法来加载 `Department` 实体列表
+<2> 此方法接收 `LoadContext` 参数，加载器会按照其参数（查询语句、过滤器等等）来创建这个参数。
+<3> 数据加载是通过 `DepartmentService.loadDepartments()` 来完成的，该方法接收视图可视化组件为加载器设置的过滤条件、排序和分页参数。
+
+除了调用自定义服务之外，加载代理方法还支持对加载的实体进行加载后处理。
+
+// todo pagination
+// If you declare custom data loading with a delegate, and you display the loaded data in the DataGrid with a pagination component, then you may also need to define the custom logic to count total number of rows. Take a look at xref:vc/components/pagination.adoc#total-count-delegate[TotalCountDelegate] handler for the pagination component associated with the table.
+
+[[pre-load-event]]
+=== PreLoadEvent
+
+该事件在加载实体之前发送。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=pre-load]
+----
+
+可以使用事件的 `preventLoad()` 方法阻止加载。
+
+[[post-load-event]]
+=== PostLoadEvent
+
+该事件在成功加载实体、将实体合并到 `DataContext` 并设置到容器之后发出。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=post-load]
+----
+
+[[query-conditions]]
+== 查询条件
+
+有时需要在运行时修改数据加载器的查询语句，以便在数据库级别过滤加载的数据。根据用户输入的参数进行过滤最简单的方法就是将 `PropertyFilter` 或 `GenericFilter` 可视化组件与数据加载器关联起来。
+
+无论是否使用全局过滤器，都可以为加载器查询语句单独创建一组过滤条件。一个过滤条件是一组带参数的查询子句。子句中所有的参数都设置了之后，这些子句才会被添加到生成的查询语句文本中。过滤条件会在数据存储级别处理，因此可以包含各个数据存储支持的不同语言的子句。框架会提供 JPQL 的过滤条件。
+
+下面例子中，按照 `Department` 实体的两个属性：`name` 和 `hrManager` 对实体进行过滤。
+
+加载器的查询过滤条件可以通过 `<condition>` XML 元素进行声明式的定义，或者通过 `setCondition()` 方法编程式的定义。下面是在 XML 中配置条件的示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=condition-data]
+----
+<1> 添加 JPQL condition 命名空间
+<2> 在 `query` 内定义 `condition` 元素
+<3> 如果有多个条件，添加 `and` 或 `or` 元素
+<4> 使用可选的 `join` 元素和必需的 `where` 元素定义 JPQL 条件
+
+假设视图有两个 UI 组件用来输入条件参数：`nameFilterField` 文本控件和 `hrManagerFilterField` 复选框：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=field]
+----
+
+为了在用户改变输入值的时候刷新数据，需要在视图控制器添加事件监听器：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=condition]
+----
+
+如上面所说，只有在条件的参数都设置了之后才会将条件添加到查询语句中。所以在数据库会执行什么样的查询语句依赖于在 UI 组件如何输入参数：
+
+.只有 nameFilterField 有值
+[source,jpql,indent=0]
+----
+select e from Department e where e.name like :name
+----
+
+.只有 hrManagerFilterField 有值
+[source,jpql,indent=0]
+----
+select e from Department e where e.hrManager = :hrManager
+----
+
+.nameFilterField 和 hrManagerFilterField 都有值
+[source,jpql,indent=0]
+----
+select e from Department e where (e.name like :name) and (e.hrManager = :hrManager)
+----
