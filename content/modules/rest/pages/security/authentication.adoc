@@ -1,116 +1,96 @@
-= Authentication
+= Authentication and Authorization
 
-Authentication is the first part of the interaction with the REST API. It is required so that Jmix can identify the user, who performs the requests. This allows Jmix to impose permission / data-access constraints on the requests to ensure the user is only allowed to see/interact with the parts of the system that it should be.
+Authentication and authorization operations for the REST API add-on are performed by the Authorization Server add-on (its starter `io.jmix.authserver:jmix-authserver-starter` is automatically included when you add the REST API add-on using Jmix Studio). The Authorization Server add-on is based on {spring-authorization-server-docs}/index.html[Spring Authorization Server^] framework. You may address Spring documentation for details.
 
-[[authentication-request]]
-== Authentication Request
+To access a protected resource (REST API endpoints) the client must provide a valid access token. The OAuth 2.1 protocol specifies several ways to obtain a token.
 
-To interact with the Jmix REST API, it is required to authenticate through an OAuth2 flow. The following sequence diagram explains the general interaction with the REST API:
+[[client-credentials-grant]]
+== Client Credentials Grant
 
-image::authentication-diagram.svg[align="center"]
+The {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^] enables getting access tokens from the authorization server by providing registered client credentials in the request.
 
-First, the API client needs to request an access token through the authentication request. For that, you need to send a `www-form-urlencoded` request with the username and password as part of the form body to Jmix:
+An example of registering a client in the `application.properties` file and getting an access token with the Client Credentials grant may be found in the xref:getting-started.adoc#obtaining-access-token[Getting Started] section.
 
-.Authentication Request
-[source, http request]
+Alternatively to specifying client properties in the `application.properties` file clients may be registered by providing a `RegisteredClientRepository` bean. See {spring-authorization-server-docs}/core-model-components.html#registered-client-repository[Spring Authorization Server documentation^] for details.
+
+NOTE: If you register a `RegisteredClientRepository`, then the `application.properties` won't be analyzed.
+
+[[authorization-code-grant]]
+== Authorization Code Grant
+
+You can read details about the Authorization Code grant in the {oauth-specification-page}#name-authorization-code-grant[OAuth 2.1 Framework documentation^].
+
+In order to enable the grant type in Jmix application you need to define a client that supports this grant type.
+
+[source,properties,indent=0]
 ----
-POST http://localhost:8080/oauth/token
-Authorization: Basic {{client_id}} {{client_secret}} // <1>
-Content-Type: application/x-www-form-urlencoded // <2>
-
-grant_type=password // <3>
-&username={{username}} // <4>
-&password={{password}}
+include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration]
 ----
-<1> The Authentication Request itself is authenticated with Basic Auth xref:app-properties.adoc#jmix.security.oauth2.client-id[client_id] and xref:app-properties.adoc#jmix.security.oauth2.client-secret[client_secret].
-<2> The content of the authentication request is `application/x-www-form-urlencoded`.
-<3> The `grant_type` is `password` to indicate the type of login.
-<4> The user credentials are provided as part of the form with the keys `username` and `password`.
 
-After a successful login, Jmix returns the access token as part of the HTTP response:
+In this example we will use the https://oauthdebugger.com site for token issuing testing. It will emulate an external application that requires access to Jmix resources and that needs to obtain an access token.
 
-.HTTP/1.1 200
-[source, json]
+Open the https://oauthdebugger.com. Fill the fields:
+
+* *Authorize URI*: http://localhost:8080/oauth2/authorize
+* *Client ID*: myapp
+* *Scope*: leave this field empty
+* *Use PKCE?*: enable the checkbox
+
+image::oauthdebugger-website.png[align="center"]
+
+Remember the value of the Code Verifier field. We will need it later.
+
+Click the *SEND REQUEST* button on the bottom of the page.
+
+You should see a special login form provided by Jmix application where you should enter credentials of existing Jmix user. The access token you will get later as a result of all steps will be associated with this user and all requests to Jmix REST API will consider this user permissions (resource roles and row-level roles).
+
+If credentials are valid, you should be redirected to the Redirect URI (https://oauthdebugger.com/debug). Authorization code must be added as a `code` URL parameter, e.g. `https://oauthdebugger.com/debug?code=BdgQArzTaj_xna_a0-PoUIQwszMR0xPkToxcktd5wPe4SbO18qBYStqJePOPNaoe9cuIJe0nac0cw0yVC9Iv3SeofEYbMZhMKldoJQQwcBUnBTfp2AyQayDlaE8KPaCf&state=sujodv3j7eh`
+
+To exchange this authorization code for access token you need to execute another HTTP request to the token endpoint of Jmix application. We will use the `curl` command line tools for this.
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=authorization_code" \
+   -d "redirect_uri=https://oauthdebugger.com/debug" \
+   -d "code=c9ehHTJyT84mX-v2v2Q8sbAxkAFYg-gjfZDJImu5ExZVGLUyWn_J2-afs_m7kiv7MwjD-XXVRQtwz_6H-JTb4NvuWiUw6-5vrF75LtyNYAovuvSJQ680nQwv3PbhB4Y-" \
+   -d "code_verifier=zdhRZIStXgwonFfvNYo2oI6nYuYt022LdcZF8eh3LGE" \
+   -d "code_challenge_method=S256"
+----
+
+As a result, you should get something like this:
+
+[source,json]
 ----
 {
-  "access_token": "CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=",
-  "token_type": "bearer",
-  "refresh_token": "Hh2xCuZ7fgd35obagEBNGevF4ws=",
-  "expires_in": 31535999,
-  "scope": "rest-api",
-  "OAuth2.SESSION_ID": "5C46CDF266E8C8C15372887830B74F59"
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "refresh_token":"DSINNaxmYykPrs3bDaKqaRgnrQDeZYInEF0yjtj2Vzkf5Nbf7OA0N09uQFN97MUmqaHBIXVxJFPQHtIbn-BM6Di035P68NqiIVfCawR5m6qQ6HbD6pQsCqAo-FBYAMqv",
+  "token_type":"Bearer",
+  "expires_in":299
 }
 ----
 
-The attribute `access_token` contains the token, that you can use in further requests: `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`.
+[[refresh-code-grant]]
+== Refresh Code Grant
 
-=== Refresh Token
+You can read about Refresh Code grant in {oauth-specification-page}#name-refresh-token-grant[OAuth 2.1 specification^]. The `refresh-token` grant type should be registered for the client:
 
-The token acts as a temporary credential/password. After a particular period, the token expires and you need to request a new token.
-The first option for requesting a new token to ask the user for their credentials again and perform a regular Authentication Request again.
-
-WARNING: Do not store the username and password in your client application so that the user does not need to re-enter its credentials. Either ask the user again for their credentials or use the refresh token to prevent token expiration.
-
-The original Authentication Request contains a `refresh_token`, that you can use to create a new access token. While the access token is comparably short-lived (by default 12 hours for Jmix), the refresh token is valid for 365 days by default. Therefore, it is well suited as a long-lived credential to issue new tokens.
-
-To get a new access token via the refresh token, you can use the same endpoint of obtaining a token. But instead of using the `grand_type`: `password`, you can also use `refresh_token`. Here is an example of how to use the refresh token to obtain a new access token:
-
-
-.Refresh Authentication Request
-[source, http request]
+[source,properties]
 ----
-POST http://localhost:8080/oauth/token
-Authorization: Basic {{client_id}} {{client_secret}}
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=refresh_token // <1>
-&refresh_token=Hh2xCuZ7fgd35obagEBNGevF4ws= // <2>
+include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration-authorization-grant-type]
 ----
-<1> The `grant_type` is `refresh_token` to indicate the type of login that is performed.
-<2> The refresh token is provided as part of the form with the key `refresh_token`.
 
-The response contains a new access token, that has a new expiration period. With that, you can keep access to the API without the need to ask the user for their credentials after the access token expires.
+To exchange the refresh token for a new access token you need to execute HTTP request to the token endpoint of Jmix application. We will use the `curl` command line tools for this.
 
-[[making-api-requests]]
-== Making API Requests
-
-There are two ways on how to use the access token to authenticate against the different Jmix APIs, depending on the use case. Let's start with the first and main way of providing the access token: via an HTTP header in the following requests.
-
-[[authenticate-via-header]]
-=== Authenticate via Header
-
-With the received access token `CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=`, you can now perform requests against the REST API. The access token needs to be passed in as the `Authorization` Header in every request, like in the following example:
-
-.Create Customers Request
-[source, http request]
+[source,bash]
 ----
-POST http://localhost:8080/rest
-            /entities
-            /rstex11_Customer
-Authorization: Bearer CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=  //<1>
-
-{
-  name: "Randall Bishop"
-}
-----
-<1> The API request is authenticated with the authorization type `Bearer`, and the received access token.
-
-[[authenticate-via-url-parameter]]
-=== Authenticate via URL Parameter
-
-It is also possible to pass the access token as a URL query parameter. This is necessary when the HTTP headers cannot be set. In case of the browser linking to a file or render an image.
-
-In the following example an image from the xref:files-api.adoc[Files API] should be rendered via `<img src="..." />` on a website.
-
-In this case, it is not possible to set the HTTP headers. Therefore, you can pass in the `access_token` as a URL as a query parameter:
-
-[source,html]
-----
-<img
-    src="http://localhost:8080/files
-            ?access_token=CXE0w/9cOsnpSo8v2jEDoI8Qa3Y=
-            &fileRef=fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg"
-/>
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=refresh_token" \
+   -d "refresh_token=zN2i5JooLfi0iqNJzaE-iiEiC2oHStv_X-kOaLuqX6ZNyRCs0EaNLik1xZrz-TPHfNEahLS2c402S_1kAO09K2x6oi3LFgpFoyr9snwE3ZXJ3Lp5AVH7s4YUBOXi0VRc"
 ----
 
 [[anonymous-access]]
@@ -194,16 +174,3 @@ public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User>
 ----
 
 TIP: The anonymous access feature *does not* require that `anonymous` user has the `rest-minimal` role.
-
-//== LDAP Authentication
-//
-//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_ldap
-//
-//== Custom Authentication
-//
-//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_custom_auth
-//
-//== OAuth Token
-//
-//=== Persistent Token Storage
-//TIP: https://doc.cuba-platform.com/restapi-7.2/#rest_api_v2_persistent_token_store
