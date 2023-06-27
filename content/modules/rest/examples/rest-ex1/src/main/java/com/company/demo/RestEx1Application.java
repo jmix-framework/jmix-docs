@@ -1,10 +1,6 @@
 package com.company.demo;
 
 import com.google.common.base.Strings;
-import com.vaadin.flow.component.page.AppShellConfigurator;
-import com.vaadin.flow.component.page.Push;
-import com.vaadin.flow.server.PWA;
-import com.vaadin.flow.theme.Theme;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -19,11 +15,8 @@ import org.springframework.core.env.Environment;
 
 import javax.sql.DataSource;
 
-@Push
-@Theme(value = "rest-ex1")
-@PWA(name = "Rest Ex1", shortName = "Rest Ex1")
 @SpringBootApplication
-public class RestEx1Application implements AppShellConfigurator {
+public class RestEx1Application {
 
     @Autowired
     private Environment environment;
