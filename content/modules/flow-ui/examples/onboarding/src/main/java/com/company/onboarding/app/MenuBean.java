@@ -16,16 +16,10 @@ import java.util.Map;
 @Component("MenuBean")
 public class MenuBean {
     // end::start[]
-    @Autowired
-    private Notifications notifications;
 
     // tag::menu-bean[]
     @Autowired
     private ViewNavigators viewNavigators;
-    @Autowired
-    private Views views;
-    @Autowired
-    private DialogWindows dialogWindows;
 
     public void browseCities() {
         viewNavigators.view(CityListView.class)
