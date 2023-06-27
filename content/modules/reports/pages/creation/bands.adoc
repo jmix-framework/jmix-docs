@@ -1,49 +1,27 @@
-[[structure]]
-= Report Data Structure
+= Bands
 
-[[introduction]]
-== Defining Data Structure
+The *Bands* tab contains the important element of the report data structure - band hierarchy.
 
-When creating or editing a report, *Report structure* tab is shown by default:
-
-.Report Data Structure
-image::report_structure.png[align="center"]
-
-[[report_properties]]
-General report properties::
-+
---
-The top part contains fields to enter general report properties:
-
-* *Name* – report name. The name can be localized in the *Localization* tab.
-* *Group* – report group, which is used for grouping in the standard report browser.
-* *Default template* – report output xref:creation/templates.adoc[template].
-* *System code* – optional code, which you may use to identify the report in the application code.
---
-
-[[report_bands]]
-Report bands definition::
-+
---
-The important element of the report data structure is the band hierarchy – *Report bands*.
+image::bands.png[align="center",width="1079"]
 
 A report band has the following parameters:
 
-* *Band name* – unique band name within the report. It must contain only Latin letters, numbers, and underscores. Moreover, if the band name starts with *header*, its data will not be printed in the xref:creation/templates.adoc#table_output[table output].
-* *Orientation* – band orientation: *Horizontal*, *Vertical* or xref:sample-reports.adoc#crosstab_xls[Crosstab]. 
-** Horizontal – bands are copied downwards, may contain sub-bands
-** Vertical – bands are copied to the right
-** Crosstab – bands are copied to the right and downwards as a matrix. 
-* *Parent band* – parent band.
+* *Name* - unique band name within the report. It must contain only Latin letters, numbers, and underscores. Moreover, if the band name starts with *header*, its data will not be printed in the xref:creation/templates.adoc#table_output[table output].
+* *Orientation* - band orientation: *Horizontal*, *Vertical* or xref:sample-reports.adoc#crosstab_xls[Crosstab].
+** Horizontal - bands are copied downwards, may contain sub-bands
+** Vertical - bands are copied to the right
+** Crosstab - bands are copied to the right and downwards as a matrix.
+* *Parent* - parent band.
+* *Multiple Datasets* - select this checkbox if you need more than one dataset.
+* *Dataset type* - <<dataset_types,the type>> of dataset.
 
-Each band includes one or more datasets. When running a report, datasets are transformed into lists of rows, where each row contains a map of name-value pairs. A band appears in the report as many times as the number of rows in its longest dataset. 
+Each band includes one or more datasets. When running a report, datasets are transformed into lists of rows, where each row contains a map of name-value pairs. A band appears in the report as many times as the number of rows in its longest dataset.
 
-Field names can be used in the report template and will be replaced with corresponding values from the dataset when the report is produced. When describing datasets, you can use xref:creation/parameter-and-format.adoc#parameters[report external parameters] and fields from other bands – this allows creation of linked bands.
+Field names can be used in the report template and will be replaced with corresponding values from the dataset when the report is produced. When describing datasets, you can use xref:creation/parameters[report external parameters] and fields from other bands - this allows creation of linked bands.
 
 Each report has the *Root* band. You can create datasets in it and refer to their fields from other bands, but you cannot use the *Root* band in the report template.
 
 The *Dataset name* column value is used for user convenience only.
---
 
 [[dataset_types]]
 == Dataset Types
@@ -55,8 +33,8 @@ The *Dataset name* column value is used for user convenience only.
 
 [source, sql,indent=0]
 ----
-select u.name as "userName", u.login as "userLogin" 
-from jmxrpr_user u
+select u.name as "userName", u.login as "userLogin"
+from user_ u
 ----
 
 You can use report input parameters and parent bands fields in the query. Parameters should be addressed by name enclosed in `${}`, for example, `++${dateFrom}++`. Parent band fields should be addressed similarly, by adding the band name in front of the field name: `${band1.field1}`.
@@ -65,13 +43,14 @@ Below is an example of an SQL query with a `groupId` parameter, obtained from th
 
 [source, sql,indent=0]
 ----
-select u.name as "userName", u.login as "userLogin" 
-from jmxrpr_user u
-where u.group_id = ${group.groupId} 
+select u.name as "userName", u.login as "userLogin"
+from user_ u
+where u.group_id = ${group.groupId}
     and u.enabled = ${enabled}
-    and u.delete_ts is null
+    and u.deleted_date is null
 ----
 
+//TODO узнать, правда ли до сих пор так
 [CAUTION]
 ====
 You should manually include conditions to filter soft deleted records for SQL queries.
@@ -147,7 +126,7 @@ Below is an example of a JPQL query with a `groupId` parameter, obtained from th
 [source, jpql,indent=0]
 ----
 select u.name as userName, u.login as userLogin
-from jmxrpr_User u
+from User u
 where u.group.id = ${group.groupId}
     and u.enabled = ${enabled}
 ----
@@ -170,7 +149,7 @@ The following objects are passed into the script:
 def active = params['active']
 ----
 
-* `parentBand` – parent band as an object of the `com.haulmont.yarg.structure.BandData` type. This object allows you to get a parent band field value by invoking the `getParameterValue()` method, for example:
+* `parentBand` – parent band as an object of the `io.jmix.reports.yarg.structure.BandData` type. This object allows you to get a parent band field value by invoking the `getParameterValue()` method, for example:
 +
 [source, groovy,indent=0]
 ----
@@ -188,14 +167,14 @@ def user = currentAuthentication.getUser()
 +
 [source, groovy,indent=0]
 ----
-def metaClass = metadata.getClass('jmxrpr_User')
+def metaClass = metadata.getClass('User')
 ----
 
 * `dataManager` – an object of the `io.jmix.core.DataManager` type that provides CRUD functionality. For example:
 +
 [source, groovy,indent=0]
 ----
-def book = dataManager.load(Book).id(bookId).fetchPlan("book.edit").one()
+def book = dataManager.load(Book.class).id(bookId).fetchPlan("book.edit").one()
 ----
 
 * `timeSource` – an object of the `io.jmix.core.TimeSource` type used to obtain the current time. For example:
@@ -217,7 +196,7 @@ def accountService = applicationContext.getBean(AccountService);
 
 *Entity* dataset consists of a single row and is produced using attributes of a single JPA entity instance and the entities related to it.
 
-The data source is produced from an external parameter of the *Entity* type, which must be described in the *Parameters and Formats* tab. The value in the *Entity parameter name* field must match the parameter name.
+The data source is produced from an external parameter of the *Entity* type, which must be described in the *Parameters* tab. The value in the *Entity parameter name* field must match the parameter name.
 
 The report template must contain fields with entity attribute names. Attribute names can use names in the existing fetch plan by checking *Use existing fetch plan* or can be selected by the *Select entity attributes* button.
 
@@ -239,7 +218,7 @@ return [['title': entity.title,
 
 *List of entities* dataset is produced using a list of JPA entity instances.
 
-The data source is produced using an external parameter being a *List of entities*, which must be described in the *Parameters and Formats* tab. The value in the *Entity parameter name* field must match the parameter alias.
+The data source is produced using an external parameter being a *List of entities*, which must be described in the *Parameters* tab. The value in the *List of entities parameter name* field must match the parameter alias.
 
 The report template must contain fields with entity attribute names. Attribute names can use names in the existing fetch plan by checking *Use existing fetch plan* or can be selected by the *Select entity attributes* button.
 
@@ -268,6 +247,7 @@ The script provided by the user is supposed to return JSON data as a string.
 
 For example:
 
+//TODO исправить ссылку на актуальную в новом проекте примере
 [source, json,indent=0]
 ----
 include::example$/ex2/src/main/resources/reports/ex2/docrefs/json.groovy[]
@@ -287,10 +267,10 @@ https://jsonplaceholder.typicode.com/users
 ----
 --
 
-. *Parameter of a String type*
+. *Parameter*
 +
 --
-The report external parameter of String type which contains the JSON data must be described in the *Parameters and Formats* tab.
+The report external parameter of String type which contains the JSON data must be described in the *Parameters* tab.
 --
 
 The received JSON tree is queried using the JsonPath query. For example, you can use the `$.store.book[*]` JsonPath to return all books from the following JSON tree:
@@ -306,7 +286,8 @@ For more details on JsonPath expressions, see the http://goessner.net/articles/J
 ====
 Fields outputted by the report that have `Date`, `DateTime`, or `Time` data types do not support the format defined by `java.text.SimpleDateFormat`. To set the correct format, you should write a Groovy script.
 
-To do this, switch to the **Parameters and Formats** tab of the report editor and open the xref:creation/parameter-and-format.adoc#formatters[formatter] editor. For example, for the field `bookPublication.dateTime` Groovy-script will look like this:
+//TODO поправить ссылку на новую вкладку с форматами
+To do this, switch to the **Value formats** tab of the report detail view and open the xref:creation/value-formats.adoc[formatter] editor. For example, for the field `bookPublication.dateTime` Groovy-script will look like this:
 
 [source, groovy,indent=0]
 ----
