@@ -6,483 +6,274 @@
 ====
 Для создания новых проектов в Jmix {page-component-display-version} или для апгрейда существующего проекта требуется Studio {page-component-display-version} или более поздней версии, поэтому в первую очередь xref:studio:update.adoc[обновите] плагин Jmix Studio.
 
-Минимальная требуемая версия IntelliJ IDEA - 2022.3.
+Минимальная требуемая версия IntelliJ IDEA - {minimal-idea-version}.
+
+Автоматическая миграция с Jmix 1.5 на {page-component-display-version} возможна только в том случае, если ваш проект основан на *Flow UI* и использует *JDK 17*.
 ====
 
-Перейдите к разделу xref:studio:project.adoc#upgrading-project[Апгрейд проекта], чтобы узнать, как обновить проект с помощью Studio. Процедура автоматической миграции вносит следующие изменения в ваш проект:
+Раздел xref:studio:project.adoc#upgrading-project[Апгрейд проекта] содержит информацию о том, как обновить проект с помощью Studio. Процедура автоматической миграции вносит следующие изменения в ваш проект:
 
 * Обновляет версию Jmix BOM, которая, в свою очередь, определяет версии всех зависимостей.
 * Обновляет версию Jmix Gradle plugin.
-* Обновляет версию Gradle wrapper до 7.6 в `gradle/wrapper/gradle-wrapper.properties`.
-* Добавляет все необходимые включения в корневой Liquibase changelog.
-* Добавляет свойство `main.liquibase.change-log` в `application.properties`.
-* Переименовывает свойства `++jmix.liquibase.*++` в `++main.liquibase.*++`.
-* Обновляет конфигурации Liquibase для дополнительных хранилищ (если они есть).
-* В проектах с Flow UI создает роль `UiMinimalRole`.
-* Если в проекте используются дополнения Grid Export Actions и/или GrapesJS, изменяет имена их артефактов.
+* Обновляет версию Gradle wrapper до 8.0.2 в `gradle/wrapper/gradle-wrapper.properties`.
+* Заменяет пакеты Java EE на Jakarta EE (`javax` на `jakarta` за некоторыми исключениями).
+* Заменяет использование `io.jmix.core.metamodel.datatype.impl.EnumClass` на `io.jmix.core.metamodel.datatype.EnumClass`.
+* Заменяет использование `io.jmix.flow ui.kit.component.FlowuiComponentUtils` на `io.jmix.flow ui.kit.component.ComponentUtils`.
+* Заменяет использование `javax.annotation.Nullable` на `org.springframework.lang.Nullable`.
+* Заменяет свойства приложения, начинающиеся с `jmix.flowui` на `jmix.ui`.
+* Заменяет специальное разрешение `flowui.loginToUi` на `ui.loginToUi`.
+* В дескрипторах экранов:
+** Изменяет элемент `queryParameters` на `urlQueryParameters`.
+** Изменяет стандартные типы действий со списком на `list_`.
+* Добавляет блок скрипта в файл `index.html`.
 
 См. полный список <<breaking-changes,опасных изменений>>, которые могут затронуть ваш проект после обновления.
+
+[[updated-dependencies]]
+== Обновленные зависимости
+
+Обновлены слеудющие важные зависимости:
+
+* Spring Boot 3.1
+* Vaadin 24.0
+* EclipseLink 4.0
+* Flowable 7.0
+
+Для сборки и запуска приложений теперь требуется JDK 17.
+
+Для WAR-развертывания требуется Tomcat 10.
 
 [[new-features]]
 == Новая и улучшенная функциональность
 
-[[root-changelog-includes]]
-=== Корневой Liquibase Changelog со всеми включениями
+[[add-ons-with-flow-ui]]
+=== Дополнения с Flow UI
 
-Корневой файл Liquibase changelog для главного хранилища теперь содержит директивы `include` для файлов changelog всех дополнений, используемых в проекте. Это делает changelog совместимым с https://github.com/liquibase/liquibase-gradle-plugin[плагином Gradle для Liquibase^] и Liquibase CLI, что позволяет запускать Liquibase вне Studio и приложения, например на сервере CI.
+Следующие дополнения теперь доступны в проектах с Flow UI:
 
-Проект должен содержать свойство `main.liquibase.change-log`, указывающее путь к корневому changelog, например:
+* xref:bpm:index.adoc[]
+* xref:business-calendar:index.adoc[]
+* xref:email:index.adoc[]
+* xref:reports:index.adoc[]
 
-[source,properties]
-----
-main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
-----
+[[flow-ui-test-assist]]
+=== Flow UI Test Assist
 
-Studio поддерживает включения автоматически при добавлении и удалении дополнений. Кроме того, при старте приложения Studio проверяет что включения в корневом changelog соответствуют дополнениям, используемым в проекте. При обнаружении расхождения отображается диалог с рекомендациями. Определенные пути можно добавить в игнорируемые, чтобы не получать о них уведомление впредь.
+Модуль Flow UI Test Assist был улучшен и теперь поддерживает взаимодействие между экранами. Пример UI-теста для экранов управления пользователями генерируется в новом проекте приложения.
 
-Процедура миграции Studio автоматически обновляет корневой changelog и устанавливает необходимое свойство.
+Подробности в тикете https://github.com/jmix-framework/jmix/issues/1467[#1467].
 
-См. также <<breaking-changes-liquibase, опасные изменения>>.
+[[generic-filter]]
+=== Компонент GenericFilter
 
-[[flow-ui-core]]
-=== Ядро Flow UI
+Компонент `genericFilter` теперь позволяет создавать конфигурации и собственные условия во время разработки и во время выполнения. Конфигурациями времени выполнения и пользовательскими условиями могут управлять конечные пользователи.
 
-Модуль Flow UI обновлен до Vaadin 23.3.
+Пример конфигурации времени разработки:
 
-Следующие компоненты Vaadin интегрированы в Flow UI:
-
-* https://vaadin.com/docs/v23/components/tabs/#tab-sheet[TabSheet^] -> `JmixTabSheet` (`tabSheet` в XML)
-+
 [source,xml]
 ----
-<tabSheet width="100%">
-    <tab id="mainTab" label="Main">
-        <formLayout id="form" dataContainer="userDc">...</formLayout>
-    </tab>
-    <tab id="additionalTab" label="Onboarding steps">
-        <vbox>
-            <hbox>...</hbox>
-            <dataGrid width="100%" dataContainer="stepsDc">...</dataGrid>
-        </vbox>
-    </tab>
-</tabSheet>
+<genericFilter id="genericFilter" dataLoader="usersDl">
+    <properties include=".*"/>
+    <configurations>
+        <configuration id="byEmail" name="By email">
+            <propertyFilter operation="CONTAINS" property="email"/>
+        </configuration>
+    </configurations>
+</genericFilter>
 ----
 
-* https://vaadin.com/docs/v23/components/multi-select-combo-box[MultiSelectComboBox^] -> `JmixMultiSelectComboBox` (`multiSelectComboBox` в XML)
-+
+Чтобы создать конфигурацию во время работы приложения, добавьте несколько условий, а затем сохраните их как конфигурацию, используя меню настроек фильтра (кнопка "шестеренка").
+
+Чтобы создать пользовательское условие, используйте кнопку *Create* в диалоговом окне *Add condition*.
+
+[[codeeditor-component]]
+=== Компонент CodeEditor
+
+Новый компонент `codeEditor`, основанный на Ace editor, позволяет пользователям просматривать и редактировать код с подсветкой синтаксиса, автоматическими отступами и другими расширенными функциями. В то же время он обеспечивает декларативную привязку данных с помощью атрибутов `dataContainer` и `property`.
+
+Например:
+
 [source,xml]
 ----
-<instance id="productDc"
-          class="com.company.demo.entity.Product">
-    <fetchPlan extends="_base">
-        <property name="tags" fetchPlan="_base"/>
-    </fetchPlan>
-    <loader/>
-</instance>
-<collection class="com.company.demo.entity.Tag" id="allTagsDc">
-    <fetchPlan extends="_base"/>
-    <loader id="allTagsDl">
-        <query>
-            <![CDATA[select e from Tag e]]>
-        </query>
-    </loader>
-</collection>
-<!-- ... -->
-<formLayout id="form" dataContainer="productDc">
-    <textField id="nameField" property="name"/>
-    <multiSelectComboBox property="tags" itemsContainer="allTagsDc"/>
-</formLayout>
+<codeEditor id="codeEditor" mode="GROOVY"
+            dataContainer="taskDc" property="script"/>
 ----
 
-* https://vaadin.com/docs/v23/components/upload[Upload^] -> `FileStorageUploadField` (`fileStorageUploadField` в XML) и `FileUploadField` (`fileUploadField` в XML)
-+
-[source,xml]
-----
-<fileStorageUploadField id="uploadField"
-        dataContainer="userDc" property="picture"/>
-----
+[[preventing-browser-tab-closing]]
+=== Предотвращение закрытия вкладки браузера
 
-* https://vaadin.com/docs/v23/create-ui/standard-html[Image^] -> `JmixImage` (`image` в XML)
-+
-[source,xml]
-----
-<image id="image"
-        dataContainer="userDc" property="picture"
-        height="280px" width="200px" classNames="user-picture"/>
-----
+Веб-браузер теперь показывает стандартное подтверждение о выходе со страницы, если пользователь закрывает вкладку браузера при отображении экрана деталей сущности. Это предотвращает случайную потерю несохраненных данных.
 
-* Многие компоненты теперь поддерживают https://vaadin.com/docs/v23/components/tooltip[Tooltip^], например:
-+
-[source,xml]
-----
-<textField id="nameField" property="name">
-    <tooltip text="Product name" position="BOTTOM_START"/>
-</textField>
-----
-+
-В Studio tooltip добавляется с помощью кнопки *Add* в панели инспектора Jmix UI.
-
-[[input-dialog]]
-==== Input Dialog
-
-Интерфейс xref:flow-ui:dialogs.adoc[Dialogs] теперь включает метод `createInputDialog()`, который позволяет отображать диалог ввода произвольных параметров. Например:
+Чтобы отключить подтверждение для некоторого экрана, вызовите его метод `setPreventBrowserTabClosing()` в обработчике `InitEvent`:
 
 [source,java]
 ----
-dialogs.createInputDialog(this)
-        .withParameters(
-                stringParameter("name").withLabel("Name"),
-                intParameter("age").withLabel("Age"))
-        .withCloseListener(dialogCloseEvent -> {
-            if (dialogCloseEvent.closedWith(DialogOutcome.OK)) {
-                System.out.println("Name: " + dialogCloseEvent.getValue("name"));
-                System.out.println("Age: " + dialogCloseEvent.getValue("age"));
-            }
-        })
-        .open();
-----
-
-[[background-tasks]]
-==== Background Tasks
-
-Теперь Flow UI имеет механизм выполнения фоновых задач без блокировки пользовательского интерфейса, аналогичный классическому UI.
-
-Пример запуска задачи и отображения прогресса в надписи:
-
-[source,java]
-----
-@Autowired
-private BackgroundWorker backgroundWorker;
-
-@ViewComponent
-private Span taskProgress;
-
-@Subscribe("testBtn")
-public void onTestBtnClick(ClickEvent<Button> event) {
-    BackgroundTaskHandler<Void> handler = backgroundWorker.handle(new SampleTask(15, null, 10));
-    handler.execute();
-}
-
-protected class SampleTask extends BackgroundTask<Integer, Void> {
-    int count;
-
-    public SampleTask(long timeoutSeconds, View<?> view, int count) {
-        super(timeoutSeconds, view);
-        this.count = count;
-    }
-
-    @Override
-    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
-        for (int i = 1; i < count + 1; i++) {
-            Thread.sleep(1000);
-            taskLifeCycle.publish(i);
-        }
-        return null;
-    }
-
-    @Override
-    public void progress(List<Integer> changes) {
-        taskProgress.setText(changes.get(0) + "");
-    }
+@Subscribe
+public void onInit(final InitEvent event) {
+    setPreventBrowserTabClosing(false);
 }
 ----
 
-Пример запуска задачи и отображения прогресса в модальном диалоге:
+[[passing-parameters-in-navigation]]
+=== Передача параметров при навигации
 
-[source,java]
-----
-@Autowired
-private Dialogs dialogs;
+Введен новый способ передачи параметров экранам, открываемым с помощью навигации: использование обработчика `AfterViewNavigationEvent`, создаваемого в вызывающем коде. Данный способ позволяет легко передавать сложные типы данных, но параметры не отражаются в URL-адресе и теряются, если пользователь обновляет веб-страницу.
 
-@Subscribe("testBtn")
-public void onTestBtnClick(ClickEvent<Button> event) {
-    dialogs.createBackgroundTaskDialog(new SampleTask(15, this, 10))
-            .withTotal(10)
-            .withCancelAllowed(true)
-            .open();
-}
+Подробная информация приведена в разделе xref:flow-ui:opening-views.adoc#passing-parameters[Открытие экранов].
 
-protected class SampleTask extends BackgroundTask<Integer, Void> {
-    int count;
+[[quick-cloud-deployment]]
+=== Быстрое развертывание в облаке
 
-    public SampleTask(long timeoutSeconds, View<?> view, int count) {
-        super(timeoutSeconds, view);
-        this.count = count;
-    }
+Функциональность xref:studio:quick-cloud-deployment.adoc[быстрого развертывания в облаке] была полностью переработана и теперь доступна по умолчанию в окне инструментов *Jmix*. Она позволяет вам легко развернуть приложение на автоматически создаваемом сервере AWS EC2.
 
-    @Override
-    public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
-        for (int i = 1; i < count + 1; i++) {
-            Thread.sleep(1000);
-            taskLifeCycle.publish(i);
-        }
-        return null;
-    }
-}
-----
+[[beans-in-jmix-tool-window]]
+=== Бины в окне инструментов Jmix
 
-[[flow-ui-in-add-ons]]
-=== Flow UI в дополнениях
+В окне инструментов *Jmix* теперь отображаются все бины, определенные в проекте.
 
-Модули Flow UI теперь доступны для следующих дополнений:
+Используйте команду *Options* -> *Group by Packages* чтобы переключиться с плоского списка на структурированное представление.
 
-* Multitenancy
+[[bpm-in-jmix-tool-window]]
+=== BPM в окне инструментов Jmix
 
-* Quartz
+Если ваш проект включает дополнение xref:bpm:index.adoc[BPM], в окне инструментов *Jmix* появляется раздел `BPM`. В этом разделе отображаются BPMN-процессы, черновики процессов и DMN-таблицы из следующих каталогов проекта:
 
-* Application Settings
+[cols="1,2,1"]
+|===
+|Подраздел |Каталог |Расширение файлов
 
-* Grid Export Actions (с возможностью экспорта всех строк, см. <<excel-export>>).
+|Processes
+|`src/main/resources/processes`
+|`.bpmn` или `.bpmn20.xml`
 
-[[flow-ui-menu-designer]]
-=== Дизайнер меню Flow UI
+|Process Drafts
+|`src/main/resources/process-drafts`
+|`.draft.bpmn`
 
-Значительно усовершенствован дизайнер меню Flow UI. В режиме "single",  Studio позволяет добавлять в проект пункты меню, унаследованные из подключенных дополнений. Доступные пункты всегда отображаются в отдельной панели слева, что позволяет при необходимости перетаскивать их в свое меню.
+|DMN Tables
+|`src/main/resources/dmn`
+|`.dmn.xml`
+|===
 
-[[excel-export]]
-=== Экспорт в Excel
+При выполнении команды *New* -> *BPMN Process*, Studio создает новый черновик процесса и отображает его в разделе `Process Drafts`. Когда процесс готов, нажмите кнопку *Copy to Processes* в верхней панели действий дизайнера BPM, или используйте контекстное меню в окне инструментов *Jmix*. Studio скопирует черновик в раздел `Processes` и удалит расширение `draft` из имени файла.
 
-Дополнение Grid Export Actions теперь позволяет пользователям экспортировать в Excel все строки по текущим критериям отбора. Действие `excelExport` отображает диалог с опциями *All rows* | *Current page* | *Selected rows*.
+Содержимое разделов `Processes` и `DMN Tables` автоматически развертывается на старте приложения.
 
-Ранее данное действие позволяло экспортировать только строки текущей загруженной страницы.
+[[all-beans-in-inject-dialog]]
+=== Все бины в диалоге Inject
 
-[[pessimistic-locking-ui]]
-=== UI управления пессимистичными блокировками
+В диалоговом окне *Inject* теперь отображаются все бины, определенные в classpath проекта, включая те, которые определены в Java-конфигурациях аннотациями `@Bean`.
 
-В ядро фреймворка добавлен UI управления пессимистичными блокировками. Соответствующий пункт меню можно найти в подменю *Administration* классического UI и в подменю *System* Flow UI.
+Когда включена опция группировки на панели инструментов диалогового окна, разделы `Other Beans` и `Other Properties` группируют содержимое по первой части имени пакета, не являющейся TLD (доменом верхнего уровня).
 
-[[ui-designer-tool-window]]
-=== Окно инструментов UI дизайнера
+NOTE: Наличие класса в диалоговом окне *Inject* не гарантирует, что компонент будет успешно инжектирован во время выполнения. Это зависит от многих условий, которые не могут быть надежно проанализированы студией во время разработки.
 
-Дизайнер и классического и Flow UI теперь имеет одно окно инструментов справа: *Jmix UI*. Оно включает дерево иерархии компонентов и инспектор свойств выбранного компонента.
+[[using-final-modifier]]
+=== Использование модификатора final
 
-Палитра компонентов открывается при нажатии *Add component* в контекстном меню иерархии компонентов, в верхней панели XML-дескриптора, или в меню *Generate*.
+Studio теперь использует модификатор `final` для полей, переменных и параметров метода при генерации кода.
 
-[[code-snippets]]
-=== Сниппеты кода
+Вы можете отключить эту функцию в разделе *Project Settings* на странице настроек плагина *Jmix*.
 
-Палитра Code Snippets теперь доступна при нажатии конпки *Code Snippets* в верхней панели окна редактора для бинов Spring и контроллеров экранов.
+[[offsetdatetime-for-audit-fields]]
+=== OffsetDateTime для полей аудита
 
-Окно инструментов со сниппетами удалено.
+Атрибуты сущности, используемые в качестве временных меток в чертах (traits) `Audit of creation`, `Audit of modification` и `Soft Delete`, теперь создаются с типом `OffsetDateTime`. Таким образом, база данных хранит временную метку с указанием часового пояса.
 
-[[preview]]
-== Предварительные функции
+[[invalidating-studio-caches]]
+=== Очистка кэшей Studio
 
-[[flow-ui-generic-filter]]
-=== Универсальный фильтр для Flow UI
+Страница настроек плагина *Jmx* теперь содержит кнопку *Invalidate cache*, которая позволяет удалить информацию, хранящуюся Studio в https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory[каталоге конфигурации IDE^]. Очистка кэша может помочь, если у вас возникли проблемы с шаблонами проектов, созданием экранов или с дизайнером экранов.
 
-Компонент `GenericFilter` (`genericFilter` в XML) позволяет пользователям фильтровать данные по произвольным условиям во время работы приложения.
-
-Пример использования:
-
-[source,xml]
-----
-<facets>
-    <dataLoadCoordinator auto="true"/>
-    <queryParameters>
-        <genericFilter component="filter"/>
-    </queryParameters>
-</facets>
-<layout>
-        <genericFilter id="filter" dataLoader="usersDl"
-                       summaryText="My filter">
-            <responsiveSteps>
-                <responsiveStep minWidth="0" columns="1"/>
-                <responsiveStep minWidth="800px" columns="2"/>
-                <responsiveStep minWidth="1200px" columns="3"/>
-            </responsiveSteps>
-        </genericFilter>
-----
-
-Элемент `genericFilter` фасета `queryParameters` необходим для отражения состояния фильтра в параметрах запроса в URL. Благодаря ему тот же фильтр применяется при навигации обратно в экран списка из экрана деталей, а также при перезагрузке страницы браузера.
-
-В данный момент универсальный фильтр поддерживает только условия по атрибутам сущностей. Все остальные функции фильтра классического UI (условия JPQL, кастомные условия, группировка условий, возможность сохранения конфигураций) будут реализованы в следующем релизе.
-
+Это действие также доступно в диалоговом окне команды *File* -> *Invalidate Caches*.
 
 [[breaking-changes]]
 == Опасные изменения
 
-[[changed-add-on-artefacts]]
-=== Измененные артефакты дополнений
+[[renamed-classes-and-properties]]
+=== Переименованные свойства и классы
 
-[[grid-export-actions-artefact]]
-==== Grid Export Actions
+. Префикс `jmix.flowui` свойств приложения изменен на `jmix.ui`. footnote:studio-migrator[Процедура миграции Studio производит необходимые изменения в вашем проекте автоматически.]
 
-Изменено имя артефакта стартера:
+. Переименованы специальные политики безопасности:
 
-- Было `io.jmix.ui:io.jmix.ui:jmix-ui-export-starter`
-- Стало `io.jmix.gridexport:jmix-gridexport-ui-starter`
+* `datatools.flowui.showEntityInfo` > `datatools.showEntityInfo`
+* `flowui.loginToUi` > `ui.loginToUi` footnote:studio-migrator[]
+* `flowui.showExceptionDetails` > `ui.showExceptionDetails`
+* `flowui.filter.modifyJpqlCondition` > `ui.genericfilter.modifyJpqlCondition`
+* `flowui.filter.modifyConfiguration` > `ui.genericfilter.modifyConfiguration`
+* `flowui.genericfilter.modifyGlobalConfiguration` > `ui.genericfilter.modifyGlobalConfiguration`
 
-И базовый пакет:
+. Базовый класс `io.jmix.core.metamodel.datatype.impl.EnumClass` перемещен в пакет `io.jmix.core.metamodel.datatype`. footnote:studio-migrator[]
 
-- Было `io.jmix.uiexport`
-- Стало `io.jmix.gridexportui`
+. Фасет `queryParameters` переименован в `urlQueryParameters`. footnote:studio-migrator[]
 
-Процедура миграции Studio автоматически изменяет имя артефакта в `build.gradle`. Имя пакета необходимо изменить вручную, если он используется в коде проекта.
+. Префикс `list_` добавлен к именам типов стандартных действий списка. footnote:studio-migrator[]
 
-[[grapesjs-artefact]]
-==== GrapesJS
+. Переименованы типы действий:
 
-Изменено имя артефакта стартера:
+* `excelExport` -> `grdexp_excelExport`
+* `showRoleAssignments` -> `sec_showRoleAssignments`
+* `showRoleAssignments` -> `sec_showRoleAssignments`
+* `resetPassword` -> `sec_resetPassword`
 
-- Было `io.jmix.grapesjs:jmix-grapesjs-starter`
-- Стало `io.jmix.grapesjs:jmix-grapesjs-ui-starter`
+. Во всех классах фреймворка, за исключением конфигураций и авто-конфигураций Spring, префикс `Flowui` удален или заменен на `Ui`. Использование класса `io.jmix.flowui.kit.component.FlowuiComponentUtils` автоматически заменяется на `ComponentUtils` процедурой миграции Studio. Если в вашем проекте используются другие классы с префиксом `Flowui`, измените имена классов вручную. Детальная информация об изменениях в тикете https://github.com/jmix-framework/jmix/issues/1830[#1830^].
 
-и имя артефакта темы:
+[[removed-features]]
+=== Удаленная функциональность
 
-- Было `io.jmix.grapesjs:jmix-grapesjs`
-- Стало `io.jmix.grapesjs:jmix-grapesjs-ui`
+. Удалены методы интерфейса `Actions`, создающие действие по его классу. Замените данные методы методами создания действий по их строковым идентификаторам. Подробнее см. тикет https://github.com/jmix-framework/jmix/issues/1529[#1529^].
 
-[[quartz-artefact]]
-==== Quartz
+. Поддержка xref:flow-ui:vc/components/tooltip.adoc[] удалена из следующий UI компонентов: `ComboButton`, `DropdownButton`, `SimplePagination`, `UserIndicator`.
 
-Необходим дополнительный стартер для UI: `io.jmix.quartz:jmix-quartz-ui-starter`
+. Удален класс `UiLoginProperties`, объявленный устаревшим в Jmix 1.5. Если вы создавали проект еще на Jmix 1.4, данный класс используется в вашем LoginView, поэтому вам необходимо изменить класс LoginView и его XML-дескриптор на те, которые предоставляются шаблоном создания проекта в Jmix 2.0.
 
-[[breaking-changes-liquibase]]
-=== Liquibase Properties
+. Jmix BOM более не описывает зависимость `commons-fileupload:commons-fileupload`.
 
-. Префикс `++jmix.liquibase.*++` переименован в `++main.liquibase.*++` для соответствия паттерну именования свойств источника данных (например `main.datasource.url`, где `main` - это имя хранилища). Если добавить хранилище `second`, его свойства конфигурации Liquibase будут начинаться с `second.liquibase.*`.
+. Удалено свойство `jmix.rest.max-upload-size`. Вместо него используйте свойство `spring.servlet.multipart.max-file-size` и другие из {spring-boot-api}/org/springframework/boot/autoconfigure/web/servlet/MultipartProperties.html[MultipartProperties^]. Подробнее см. тикет https://github.com/jmix-framework/jmix/issues/1496[#1496^].
 
-. `application.properties` должны содержать путь к корневому файлу Liquibase changelog для каждого хранилища. Например:
-+
+[[data-repositories-initialization]]
+=== Инициализация репозиториев данных
+
+Опциональная ранее аннотация `@EnableJmixDataRepositories` теперь обязательна для инициализации xref:data-access:data-repositories.adoc[репозиториев данных] в проекте. Подробнее см. тикет https://github.com/jmix-framework/jmix/issues/1589[#1589^].
+
+[[rounding-in-datatypes]]
+=== Округление в Datatype
+
+Реализации интерфейса xref:data-model:data-types.adoc[Datatype] для типов `BigDecimal`, `Double` и `Float` теперь округляют значения в соответствии с указанными для них форматами при парсинге из строк. Например, строка `"12.3456"` становится числом `12.35`, если установлен формат `++#.##++`.
+
+Чтобы вернуть предыдущее поведение, установите свойство `jmix.core.round-decimal-value-by-format` в false. Подробности в тикете https://github.com/jmix-framework/jmix/issues/968[#968^].
+
+[[bean-validation-on-persistence-layer]]
+=== Bean Validation на уровне персистенции
+
+Bean validation на уровне персистенции теперь включено по умолчанию. Это означает, что при сохранении сущности через `DataManager`, `EntityManager` или репозитории данных, она будет провалидирована и если ее состояние невалидно, будет выброшено исключение.
+
+Bean validation на уровне персистенции можно отключить путем установки следующего свойства приложения:
+
 [source,properties]
 ----
-main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
-
-second.liquibase.change-log=com/company/demo/liquibase/second-changelog.xml
+jakarta.persistence.validation.mode = NONE
 ----
 
-[[breaking-changes-datastore]]
-=== Конфигурация хранилища данных
+[[generic-rest-access-control]]
+=== Контроль доступа в Generic REST
 
-Конфигурация дополнительных хранилищ данных должны быть изменены.
+Дополнение Универсальный REST теперь использует Jmix Authorization Server для получения токенов доступа. Подробная информация приведена в разделе xref:rest:access-control.adoc[].
 
-Класс `LiquibaseChangeLogProcessor` удален.
+Если в вашем проекте используется Универсальный REST, необходимо выполнить следующее:
 
-Ранее при определении дополнительного хранилища с установкой параметра _DB Schema Management_ в значение _Create and Update_ Studio генерировала следующее определение бина:
-
-[source,java]
-----
-@Bean
-public SpringLiquibase thirdLiquibase(
-            LiquibaseChangeLogProcessor processor,
-            @Qualifier("thirdDataSource") DataSource dataSource) {
-   return JmixLiquibaseCreator.create(
-                dataSource,
-                new LiquibaseProperties(),
-                processor,
-                "third");
-}
-----
-
-Теперь определение бина должно выглядеть следующим образом (здесь "third" - это имя хранилища):
-
-[source,java]
-----
-@Bean("thirdLiquibaseProperties")
-@ConfigurationProperties(prefix = "third.liquibase")
-public LiquibaseProperties thirdLiquibaseProperties() {
-   return new LiquibaseProperties();
-}
-
-@Bean("thirdLiquibase")
-public SpringLiquibase thirdLiquibase(
-            @Qualifier("thirdDataSource") DataSource dataSource,
-            @Qualifier("thirdLiquibaseProperties") LiquibaseProperties liquibaseProperties) {
-    return JmixLiquibaseCreator.create(
-                dataSource,
-                liquibaseProperties);
-}
-----
-
-[[reference-to-message-in-formatters]]
-=== Ссылки на сообщения в форматтерах
-
-Исправлена неверная обработка ссылок на сообщения в форматтерах, определенных в XML.
-
-Теперь, как и для других сообщений, ссылка вида `msg://myFormat` ищет сообщение с группой текущего экрана, например `com.company.app.screen.foo/myFormat`. Префикс с тройной косой чертой ищет сообщение без группы, например `myFormat`.
-
-Для адаптации проекта к данному изменению необходимо найти все ссылки на сообщения в форматтерах и заменить двойную косую черту на тройную. Например:
-
-[source,xml]
-----
-<formatter>
-     <date format="msg:///myDateFormat"/>
-</formatter>
-----
-
-[[breaking-changes-UiMinimalRole]]
-=== UiMinimalRole в проектах с Flow UI
-
-`UiMinimalRole` определяет доступ к главному экрану и экрану логина. Для того, чтобы можно было заменить эти экраны, данная роль перемещена из фреймворка в проекты. Например:
-
-[source,java]
-----
-package com.company.demo.security;
-
-import io.jmix.core.entity.KeyValueEntity;
-import io.jmix.security.model.*;
-import io.jmix.security.role.annotation.*;
-import io.jmix.securityflowui.role.annotation.ViewPolicy;
-
-@ResourceRole(name = "Flow UI: minimal access", code = UiMinimalRole.CODE, scope = SecurityScope.UI)
-public interface UiMinimalRole {
-
-    String CODE = "flowui-minimal";
-
-    @ViewPolicy(viewIds = "MainView")
-    void main();
-
-    @ViewPolicy(viewIds = "LoginView")
-    @SpecificPolicy(resources = "flowui.loginToUi")
-    void login();
-
-    @EntityPolicy(entityClass = KeyValueEntity.class, actions = EntityPolicyAction.READ)
-    @EntityAttributePolicy(entityClass = KeyValueEntity.class, attributes = "*", action = EntityAttributePolicyAction.VIEW)
-    void keyValueEntity();
-}
-----
-
-[[breaking-changes-DataGrid]]
-=== Flow UI DataGrid
-
-. Метод `getColumns()` компонентов `DataGrid` и `TreeDataGrid` теперь возвращает только колонки, не скрытые подсистемой безопасности. Ранее он возвращал все колонки, включая скрытые.
-
-. Колонки, скрытые подсистемой безопасности, не изменяют своего свойства видимости. Ранее атрибут `visible` таких колонок устанавливался в false.
-
-[[breaking-changes-ui-test-assist]]
-=== ui-test-assist
-
-Модуль `ui-test-assist` теперь не приносит транзитивных зависимостей на Spock и Groovy. Кроме того, он не содержит классов `UiTestAssistSpecification`, `ScreenSpecification` м `TestMainScreen`.
-
-Все касающееся Spock и Groovy было перемещено в новый модуль `ui-test-assist-spock`.
-
-Если ваш проект использовал классы `ScreenSpecification` или `UiTestAssistSpecification`, добавьте зависимость в `build.gradle`:
-
-[source,groovy]
-----
-testImplementation 'io.jmix.ui:jmix-ui-test-assist-spock'
-----
-
-и измените импорты классов `ScreenSpecification`, `UiTestAssistSpecification`, `TestMainScreen` на `io.jmix.ui.testassistspock.*`.
-
+* Заменить зависимость `io.jmix.security:jmix-security-oauth2-starter` на `io.jmix.authserver:jmix-authserver-starter`.
+* Сконфигурировать Client Credentials или Authorization Code грант в приложении.
+* Адаптировать клиентов вашего REST к новому методу получения токенов доступа.
 
 [[changelog]]
 == Список изменений
 
 * Решенные проблемы в Jmix Framework:
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.2[1.5.2^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.1[1.5.1^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A1.5.0[1.5.0^]
-
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.0.0[2.0.0^]
 
 * Решенные проблемы в Jmix Studio:
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.6[1.5.6^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.4,%201.5.5[1.5.5^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.3[1.5.3^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.2[1.5.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.1[1.5.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%201.5.0,-1.4.*[1.5.0^]
-
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.0.0,-1.5.*%20Affected%20versions:%20-SNAPSHOT%20[2.0.0^]
