@@ -6,7 +6,7 @@ import io.jmix.core.Metadata;
 import io.jmix.core.accesscontext.CrudEntityContext;
 import io.jmix.core.accesscontext.SpecificOperationAccessContext;
 import io.jmix.core.metamodel.model.MetaClass;
-import io.jmix.flowui.accesscontext.FlowuiShowViewContext;
+import io.jmix.flowui.accesscontext.UiShowViewContext;
 import io.jmix.flowui.view.ViewInfo;
 import io.jmix.flowui.view.ViewRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +61,7 @@ public class NotificationService {
         return viewRegistry.getViewInfos().stream()
                 .map(ViewInfo::getId)
                 .filter(screenId -> {
-                    FlowuiShowViewContext accessContext = new FlowuiShowViewContext(screenId);
+                    UiShowViewContext accessContext = new UiShowViewContext(screenId);
                     accessManager.applyRegisteredConstraints(accessContext);
                     return accessContext.isPermitted();
                 })
