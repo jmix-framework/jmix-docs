@@ -2,46 +2,65 @@
 
 В этом разделе представлено практическое руководство по началу работы с универсальным REST API.
 
-Предположим, что мы хотим получить в приложении информацию о заказах через REST API.
+Предположим, что мы хотим получить через REST API информацию о пользователях приложения.
 
 Для начала добавьте REST в свой проект как описано в разделе xref:index.adoc#installation[Установка] и запустите приложение.
 
-[[allow-user-access-via-rest]]
-== Разрешение пользовательского доступа через REST
+[[obtaining-access-token]]
+== Получение токена доступа
 
-Взаимодействие с приложением через REST API всегда происходит в контексте конкретного пользователя. Поэтому нам будет нужно предоставить пользователю возможность доступа к приложению через API.
+In order to access the protected resource the client must present a valid access token. The OAuth 2.1 specification provides several ways to get an access token from the authorization server. They are called grant types. In this example we will use the {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^].
 
-Выбранному пользователю необходимо назначить предопределенную роль `REST: minimal access` (с кодом `rest-minimal`). Пользователь `admin` уже обладает всеми необходимыми разрешениями благодаря роли `system-full-access`.
+The idea is that in Jmix application we must register the client (e.g. an external application that needs to access Jmix REST API), define client id and secret, and then using these credentials we will be able to get the access token by a special HTTP request.
 
-[[authenticate-against-the-api]]
-== Аутентификация для API
+Functionality responsible for issuing tokens and supporting all OAuth 2.1 and OpenID Connect 1.0 protocol features are located inside the Authorization Server addon that must have been already included during the installation of the REST API add-on (`io.jmix.authserver:jmix-authserver-starter`). The Authorization Server add-on is built on top of https://spring.io/projects/spring-authorization-server[Spring Authorization Server^].
 
-В следующем примере для взаимодействия с REST API мы используем инструмент командной строки `curl`.
+The simplest way to register a client is to add standard Spring Authorization Server application properties:
 
-Перед загрузкой данных или отправкой данных в API необходимо выполнить логин или запрос `Authentication request`. Используйте следующую команду `cURL` для выполнения запроса:
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-registration]
+----
+
+The next set of application properties is Jmix-specific and defines which resource and row-level role must be "linked" to the access token issued to the client. In this example we will assign two resource roles:
+
+* `rest-minimal` (REST: minimal access) - to enable REST API endpoints access
+* `user-management` (User management) - to allow operations with the User entity using REST API
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-role-assignment]
+----
+
+The `user-management` role looks as follows:
+
+[source,java,indent=0]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/security/UserManagementRole.java[tags=user-management-role]
+----
+<1> The API scope indicates the role will be applied for REST API requests
+
+After these properties are defined in the application it should be possible to obtain access tokens. In this example, we will use the `curl` command-line tool for interacting with the REST API.
 
 [source, bash]
 ----
-curl -X POST http://localhost:8080/oauth/token \
-   --basic --user client:secret \
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user my-client:my-secret \
    -H "Content-Type: application/x-www-form-urlencoded" \
-   -d "grant_type=password&username=admin&password=admin"
+   -d "grant_type=client_credentials"
 ----
 
 TIP: В Windows удалите символы `\` и вводите команду одной строкой.
 
-`HTTP 200` означает успешный ответ, который содержит документ JSON с информацией о результате запроса аутентификации:
+Вы должны получить ответ подобный этому:
 
 .HTTP/1.1 200
 [source, json]
 ----
 {
-  "access_token": "zmSIwB4_9he68yrNsHC5N1agktA",
-  "token_type": "bearer",
-  "refresh_token": "Tm3_v0T-eeYS6URZgoi4e_r-ub8",
-  "expires_in": 31535999,
-  "scope": "rest-api",
-  "OAuth2.SESSION_ID": "5C46CDF266E8C8C15372887830B74F59"
+  "access_token":"hKhgNyGMTqaKd6prH-GoHF8zFVTSr9tKKyE3OnMoafRO4FT4Xq_cewHr28cIRITaRmF0olRXpVTyFdxcOPTAl8Vc7xopHrdNuXNXwEeBn7NSiEMvQXW5zO0dwMn_H8FQ",
+  "token_type":"Bearer",
+  "expires_in":299
 }
 ----
 
@@ -66,7 +85,7 @@ curl -X GET http://localhost:8080/rest/entities/User \
 [
   {
     "_entityName": "User",
-    "_instanceName": "  [admin]",
+    "_instanceName": "[admin]",
     "id": "60885987-1b61-4247-94c7-dff348347f93",
     "version": 1,
     "active": true,
