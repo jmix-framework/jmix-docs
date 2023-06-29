@@ -9,7 +9,14 @@ The OAuth 2.1 protocol specifies several ways to obtain a token, called grant ty
 [[client-credentials-grant]]
 == Client Credentials Grant
 
-The {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^] enables getting access tokens from the authorization server by providing registered client credentials in the request.
+The {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^] enables getting access tokens from the authorization server by providing registered client credentials in the request. This grant type should be used in the machine-to-machine communication.
+
+The idea is the following:
+
+* The client with id and secret is registered in Jmix application.
+* Jmix resource and row-level roles are assigned to the client.
+* Client application uses client id and secret to obtain access token.
+* Using this token the client application can access protected REST API endpoints with permissions included to the roles assigned to the client.
 
 An example of registering a client in the `application.properties` file and getting an access token with the Client Credentials grant can be found in the xref:getting-started.adoc#obtaining-access-token[Getting Started] section.
 
@@ -22,6 +29,8 @@ NOTE: If you create a `RegisteredClientRepository` then `application.properties`
 
 You can read about the Authorization Code grant in the {oauth-specification-page}#name-authorization-code-grant[OAuth 2.1 specification^].
 
+This flow allows you to obtain an access token with permissions of a real Jmix application user. You deal with the Authorization Code grant when you authorize using Google or Facebook on any website. A special login form is displayed by Jmix application, Jmix app validates credentials and if they are valid the access token is issued by a series of HTTP requests between the client application and Jmix application.
+
 In order to enable the grant type in Jmix application you need to define a client that supports this grant type.
 
 [source,properties,indent=0]
@@ -29,7 +38,12 @@ In order to enable the grant type in Jmix application you need to define a clien
 include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration]
 ----
 
-In this example we will use the https://oauthdebugger.com[^] site for token issuing testing. It will emulate an external application that requires access to Jmix resources and that needs to obtain an access token.
+Keep in mind that by default Spring Authorization server configures the following endpoint URLs:
+
+* authorization endpoint: `/oauth2/authorize`, e.g. `http://localhost:8080/oauth2/authorize`
+* token endpoint: `/oauth2/token`, e.g. `http://localhost:8080/oauth2/token`
+
+In this example we will use the https://oauthdebugger.com[^] site for token issuing testing. It will emulate an external application that requires access to Jmix resources and that needs to obtain an access token. In your own application you will need to implement steps described in the OAuth 2.1 protocol specification: send a request to the authorization endpoint, handle the redirect, extract the authorization code from it, make a request for the token endpoint to exchange the authorization code for the access token, etc.
 
 Open https://oauthdebugger.com[^]. Fill in the fields:
 
@@ -44,7 +58,11 @@ Remember the value of the Code Verifier field. We will need it later.
 
 Click the *SEND REQUEST* button on the bottom of the page.
 
-You should see a special login form provided by Jmix application where you should enter credentials of existing Jmix user. The access token you will get later as a result of all steps will be associated with this user and all requests to Jmix REST API will consider this user permissions (resource roles and row-level roles).
+You should see a special login form provided by Jmix application where you should enter credentials of existing Jmix user.
+
+image::authserver-login-form.png[align="center"]
+
+The access token you will get later as a result of all steps will be associated with this user and all requests to Jmix REST API will consider this user permissions (resource roles and row-level roles).
 
 If credentials are valid, you should be redirected to the Redirect URI https://oauthdebugger.com/debug[^] that was defined in `application.properties`. Authorization code must be added as a `code` URL parameter, e.g. `++https://oauthdebugger.com/debug?code=BdgQArzTaj_xna_a0-PoUIQwszMR0xPkToxcktd5wPe4SbO18qBYStqJePOPNaoe9cuIJe0nac0cw0yVC9Iv3SeofEYbMZhMKldoJQQwcBUnBTfp2AyQayDlaE8KPaCf&state=sujodv3j7eh++`
 
