@@ -3,16 +3,19 @@ package com.company.onboarding.view.sample;
 import com.company.onboarding.entity.Department;
 import com.company.onboarding.view.department.DepartmentDetailView;
 import com.company.onboarding.view.department.DepartmentListView;
+import com.company.onboarding.view.fancymessage.FancyMessageView;
 import com.company.onboarding.view.main.MainView;
 import com.company.onboarding.view.myonboarding.MyOnboardingView;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.DataManager;
 import io.jmix.core.security.CurrentAuthentication;
 import io.jmix.flowui.DialogWindows;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.ViewNavigators;
+import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -207,4 +210,33 @@ public class SampleView extends StandardView {
     }
     // end::openDetailViewToEditEntity[]
 
+
+    @Subscribe("withAfterNavigationHandlerBtn")
+    public void onWithAfterNavigationHandlerBtnClick(final ClickEvent<JmixButton> event) {
+        navigateToViewWithAfterNavigationHandler();
+    }
+
+    // tag::navigateToViewWithAfterNavigationHandler[]
+    private void navigateToViewWithAfterNavigationHandler() {
+        viewNavigators.view(FancyMessageView.class)
+                .withAfterNavigationHandler(afterViewNavigationEvent -> {
+                    FancyMessageView view = afterViewNavigationEvent.getView();
+                    view.setMessage("Hello World!");
+                })
+                .navigate();
+    }
+    // end::navigateToViewWithAfterNavigationHandler[]
+
+    @Subscribe("queryParametersBtn")
+    public void onQueryParametersBtnClick(final ClickEvent<JmixButton> event) {
+        navigateToViewWithQueryParameters();
+    }
+
+    // tag::navigateToViewWithQueryParameters[]
+    private void navigateToViewWithQueryParameters() {
+        viewNavigators.view(FancyMessageView.class)
+                .withQueryParameters(QueryParameters.of("message", "Hello World!"))
+                .navigate();
+    }
+    // end::navigateToViewWithQueryParameters[]
 }

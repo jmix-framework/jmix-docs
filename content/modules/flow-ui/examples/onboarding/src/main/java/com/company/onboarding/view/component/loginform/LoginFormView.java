@@ -9,16 +9,19 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import io.jmix.core.MessageTools;
 import io.jmix.core.security.AccessDeniedException;
-import io.jmix.flowui.FlowuiLoginProperties;
 import io.jmix.flowui.component.loginform.JmixLoginForm;
-import io.jmix.flowui.kit.component.FlowuiComponentUtils;
+import io.jmix.flowui.kit.component.ComponentUtils;
 import io.jmix.flowui.kit.component.loginform.EnhancedLoginForm;
 import io.jmix.flowui.kit.component.loginform.JmixLoginI18n;
 import io.jmix.flowui.view.*;
 import io.jmix.securityflowui.authentication.AuthDetails;
 import io.jmix.securityflowui.authentication.LoginViewSupport;
-import liquibase.repackaged.org.apache.commons.collections4.MapUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -28,6 +31,7 @@ import org.springframework.security.authentication.LockedException;
 @ViewDescriptor("login-form-view.xml")
 public class LoginFormView extends StandardView {
 
+    private static final Logger log = LoggerFactory.getLogger(LoginFormView.class);
 
     // tag::login-view-support[]
 
@@ -36,15 +40,19 @@ public class LoginFormView extends StandardView {
     // end::login-view-support[]
 
     @Autowired
-    private FlowuiLoginProperties loginProperties;
-
-    @Autowired
     private MessageTools messageTools;
 
     // tag::login-form[]
     @ViewComponent
     private JmixLoginForm loginForm;
     // end::login-form[]
+
+    @Value("${ui.login.defaultUsername:}")
+    private String defaultUsername;
+
+    @Value("${ui.login.defaultPassword:}")
+    private String defaultPassword;
+
     @Subscribe
     public void onInit(InitEvent event) {
         initLocales();
@@ -52,17 +60,20 @@ public class LoginFormView extends StandardView {
     }
 
     protected void initLocales() {
-        FlowuiComponentUtils.setItemsMap(loginForm,
+        ComponentUtils.setItemsMap(loginForm,
                 MapUtils.invertMap(messageTools.getAvailableLocalesMap()));
 
         loginForm.setSelectedLocale(VaadinSession.getCurrent().getLocale());
     }
 
     protected void initDefaultCredentials() {
-        loginProperties.getDefaultUsernameOptional()
-                .ifPresent(loginForm::setUsername);
-        loginProperties.getDefaultPasswordOptional()
-                .ifPresent(loginForm::setPassword);
+        if (StringUtils.isNotBlank(defaultUsername)) {
+            loginForm.setUsername(defaultUsername);
+        }
+
+        if (StringUtils.isNotBlank(defaultPassword)) {
+            loginForm.setPassword(defaultPassword);
+        }
     }
 
 
@@ -76,6 +87,7 @@ public class LoginFormView extends StandardView {
                             .withRememberMe(loginForm.isRememberMe()) // <2>
             );
         } catch (BadCredentialsException | DisabledException | LockedException | AccessDeniedException e) {
+            log.warn("Login failed for user '{}': {}", event.getUsername(), e.toString());
             event.getSource().setError(true);
         }
     }

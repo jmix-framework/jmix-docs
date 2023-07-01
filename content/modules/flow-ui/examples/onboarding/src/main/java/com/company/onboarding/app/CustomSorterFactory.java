@@ -4,7 +4,7 @@ import io.jmix.flowui.model.BaseCollectionLoader;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.Sorter;
 import io.jmix.flowui.model.SorterFactory;
-import jakarta.annotation.Nullable;
+import org.springframework.lang.Nullable;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
