@@ -1,0 +1,201 @@
+= 访问控制
+
+如需访问受保护的资源（REST API 端点），客户端必须提供有效访问 token。
+
+获取通用 REST API token 的操作由认证服务（Authorization Server）扩展组件实现。当使用 Studio 添加 REST API 扩展时，会自动包含认证服务的 starter（`io.jmix.authserver:jmix-authserver-starter`）。认证服务扩展组件基于 {spring-authorization-server-docs}/index.html[Spring Authorization Server^] 框架开发。
+
+OAuth 2.1 协议指定了获取 token 的几种方式，称为授权类型（grant type）。下面我们将说明如何使用客户端凭证（Client Credential）和认证码（Authentication Code）进行授权。
+
+[[client-credentials-grant]]
+== 客户端凭证授权
+
+{oauth-specification-page}#name-client-credentials-grant[Client Credentials grant（客户端凭证授权）^] 支持在请求中使用注册客户端的凭证从认证服务获取访问 token。这种授权类型应当用于服务与服务的通信。
+
+方案如下：
+
+* 客户端使用 id 和秘钥在 Jmix 应用程序中注册。
+* 为客户端分配资源和行级角色。
+* 客户端应用程序，使用客户端 id 和秘钥获取访问 token。
+* 客户端应用程序使用 token 访问受保护的 API 端点，数据权限受所分配的角色控制。
+
+在 xref:getting-started.adoc#obtaining-access-token[Getting Started] 部分有一个示例，演示了如何在 `application.properties` 中注册客户端，并使用客户端凭证获取访问 token 授权。
+
+除了在 `application.properties` 文件设置客户端属性外，也可以通过提供一个 `RegisteredClientRepository` bean 进行注册。参考 {spring-authorization-server-docs}/core-model-components.html#registered-client-repository[Spring Authorization Server 文档^] 了解详情。
+
+NOTE: 如果创建了一个 `RegisteredClientRepository`，则 `application.properties` 的配置将不会生效。
+
+[[authorization-code-grant]]
+== 认证码授权
+
+在 {oauth-specification-page}#name-authorization-code-grant[OAuth 2.1 规范^] 中，有关于认证码授权的详细介绍。
+
+这个流程支持通过某个真正的 Jmix 用户许可而获得访问 token。当使用 Google、Facebook 或任何其他网站进行授权时，使用的就是认证码授权。Jmix 应用程序会展示一个特殊的登录表单，Jmix 对凭证进行验证后，如果验证通过，则访问 token 会用客户端应用和 Jmix 应用的一系列 HTTP 请求进行发送。
+
+如需在 Jmix 中启用这种授权类型，需要定义一个支持这种授权类型的客户端。
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration]
+----
+
+需要注意，默认的 Spring 认证服务会配置以下端点的 URL：
+
+* 认证端点：`/oauth2/authorize`，例如，`http://localhost:8080/oauth2/authorize`
+* token 端点：`/oauth2/token`，例如，`http://localhost:8080/oauth2/token`
+
+在下面的示例中，我们将使用 https://oauthdebugger.com[^] 网站测试 token 的分发。这个网站将模拟一个访问 Jmix 资源的外部应用，需要获取访问 token。在你自己的应用中，需要实现 OAuth 2.1 协议规范中提到的步骤：发送请求至认证端点、处理重定向、解析认证码、发送请求至 token 端点用认证码获取访问 token 等。
+
+打开 https://oauthdebugger.com[^]，填写下列字段：
+
+* *Authorize URI*: ++http://localhost:8080/oauth2/authorize++
+* *Client ID*: myapp
+* *Scope*: 留空
+* *Use PKCE?*: 勾选这个复选框。
+
+image::oauthdebugger-website.png[align="center"]
+
+请记下 Code Verifier 字段的值，后续我们会用到。
+
+点击页面底部的 *SEND REQUEST* 按钮。
+
+此时会展示 Jmix 应用程序的一个特殊登录表单，这里需要填写已有 Jmix 用户的凭证。
+
+image::authserver-login-form.png[align="center"]
+
+完成所有步骤后获取的访问 token 将关联至该用户，所有发送至 Jmix REST API 的请求都会检查该用户的权限（资源角色和行级角色）。
+
+如果凭证有效，网页会重定向至 URI https://oauthdebugger.com/debug[^]，这个地址在 `application.properties` 定义。认证码必须以 `code` URL 参数进行添加，例如：`++https://oauthdebugger.com/debug?code=BdgQArzTaj_xna_a0-PoUIQwszMR0xPkToxcktd5wPe4SbO18qBYStqJePOPNaoe9cuIJe0nac0cw0yVC9Iv3SeofEYbMZhMKldoJQQwcBUnBTfp2AyQayDlaE8KPaCf&state=sujodv3j7eh++`
+
+如需用这个认证码获取访问 token，则需要执行另一个发送至 Jmix 应用 token 端点的 HTTP 请求。这里我们用 `curl` 命令行工具，使用 https://oauthdebugger.com[^] 初始网页的 `code_verifier` 值。
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=authorization_code" \
+   -d "redirect_uri=https://oauthdebugger.com/debug" \
+   -d "code=c9ehHTJyT84mX-v2v2Q8sbAxkAFYg-gjfZDJImu5ExZVGLUyWn_J2-afs_m7kiv7MwjD-XXVRQtwz_6H-JTb4NvuWiUw6-5vrF75LtyNYAovuvSJQ680nQwv3PbhB4Y-" \
+   -d "code_verifier=zdhRZIStXgwonFfvNYo2oI6nYuYt022LdcZF8eh3LGE" \
+   -d "code_challenge_method=S256"
+----
+
+结果如下：
+
+[source,json]
+----
+{
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "refresh_token":"DSINNaxmYykPrs3bDaKqaRgnrQDeZYInEF0yjtj2Vzkf5Nbf7OA0N09uQFN97MUmqaHBIXVxJFPQHtIbn-BM6Di035P68NqiIVfCawR5m6qQ6HbD6pQsCqAo-FBYAMqv",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+[[refresh-code-grant]]
+== 刷新码授权
+
+关于刷新码授权可以阅读 {oauth-specification-page}#name-refresh-token-grant[OAuth 2.1 规范^]。需要为客户端注册 `refresh-token` 授权类型：
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=myapp-client-registration-authorization-grant-type]
+----
+
+如需用刷新码获取新的访问 token，则需要执行一个发送至 Jmix 应用 token 端点的 HTTP 请求。这里我们用 `curl` 命令行工具。
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=refresh_token" \
+   -d "refresh_token=zN2i5JooLfi0iqNJzaE-iiEiC2oHStv_X-kOaLuqX6ZNyRCs0EaNLik1xZrz-TPHfNEahLS2c402S_1kAO09K2x6oi3LFgpFoyr9snwE3ZXJ3Lp5AVH7s4YUBOXi0VRc"
+----
+
+[[anonymous-access]]
+== 匿名访问
+
+默认情况下，所有的端点都需要在应用程序中认证成功才能访问。
+但是，我们也可以将某些 REST API 端点开放为匿名接口。这其实是使用了 Jmix 的匿名访问功能。此时，API 请求是通过 `anonymous` 用户进行，这个用户是 Jmix 应用默认配置的。
+
+对于没有使用 `Authentication` 请求头调用任何安全端点，都会使用 `anonymous` 用户进行认证。
+
+如需添加匿名访问端点的白名单，可以使用 xref:app-properties.adoc#jmix.rest.anonymous-url-patterns[jmix.rest.anonymous-url-patterns] 应用程序属性配置，URL pattern 以逗号隔开。例如：
+
+[source,properties]
+----
+jmix.rest.anonymous-url-patterns = \
+  /rest/services/productService/getProductInformation,\
+  /rest/entities/Product,\
+  /rest/entities/Product/*
+----
+
+上面示例中配置的最后一个 pattern 是必须的，因为在更新或删除 `Product` 实体时，URL 还带有 id 部分。
+
+配置完成后，可以不使用 `Authentication` 请求头与 `ProductService` 进行交互：
+
+.GetProductInformation Request
+[source, http request]
+----
+GET {{baseRestUrl}}
+         /services
+         /productService
+         /getProductInformation
+         ?productId=123
+# Authorization: not set
+----
+
+这个请求会成功拿到服务的返回内容：
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "name": "Apple iPhone",
+  "productId": "123",
+  "price": 499.99
+}
+----
+
+如需为某些 xref:entities-api.adoc[实体] 端点提供匿名访问，请确保 `anonymous` 用户有访问这些实体的权限。可以创建一个 xref:security:resource-roles.adoc[资源角色] 然后分配给 `anonymous` 用户，代码中使用 `DatabaseUserRepository.initAnonymousUser()` 方法。示例：
+
+[source,java,indent=0]
+----
+@ResourceRole(name = "AnonymousRestRole", code = AnonymousRestRole.CODE, scope = "API")
+public interface AnonymousRestRole {
+
+    String CODE = "anonymous-rest-role";
+
+    @EntityAttributePolicy(entityClass = Product.class,
+        attributes = "*",
+        action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = Product.class,
+        actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void product();
+}
+----
+
+[source,java,indent=0]
+----
+@Primary
+@Component("UserRepository")
+public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
+    // ...
+
+    @Override
+    protected void initAnonymousUser(User anonymousUser) {
+        Collection<GrantedAuthority> authorities = getGrantedAuthoritiesBuilder()
+                .addResourceRole(AnonymousRestRole.CODE)
+                .build();
+        anonymousUser.setAuthorities(authorities);
+    }
+}
+----
+
+TIP: 匿名访问功能 *不需要* `anonymous` 用户有 `rest-minimal` 角色。
+
+[[predefined-roles]]
+== 预定义角色
+
+*REST: minimal access* （`rest-minimal`）：支持用户使用 API 与应用程序交互。

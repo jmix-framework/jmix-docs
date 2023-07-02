@@ -8,12 +8,12 @@
 
 当通过对话框窗口的形式打开视图时，浏览器 URL 不会有变化，但是调用方代码可以访问打开的视图实例。因此，可以支持给视图实例传递参数或者在关闭视图时返回一些结果值。例如，在选择控件中打开列表视图选择并返回实体实例时就使用了这种方式。
 
-主菜单通过导航的方式打开视图。标准操作 `create` 和 `edit` 也是通过导航方式打开详情视图，但是可以配置使用对话框方式。`entity_lookup` 标准操作始终使用对话框的方式打开列表视图，以便能返回选中的实体。
+主菜单通过导航的方式打开视图。标准操作 xref:actions/list-actions.adoc#list_create[list_create] 和 xref:actions/list-actions.adoc#list_edit[list_edit] 也是通过导航方式打开详情视图，但是可以配置使用对话框方式。The xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] 标准操作始终使用对话框的方式打开列表视图，以便能返回选中的实体。
 
 下面我们介绍如何在应用程序代码中以编程的方式打开视图。
 
-[[view-navigators]]
-== ViewNavigators
+[[navigation]]
+== 导航
 
 如需通过 URL 打开视图，可以注入 `ViewNavigators` bean，然后使用流式接口指定视图类：
 
@@ -63,10 +63,48 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 
 也可以显式指定详情视图类或 id，使用 `withViewId()` 和 `withViewClass()` 方法。
 
-TIP: 以导航方式打开视图时，使用流式接口的 `withRouteParameters()` 和 `withQueryParameters()` 方法为打开的视图传递参数。 
+[[passing-parameters]]
+=== 传递参数
+
+推荐使用流式接口的 `withQueryParameters()` 方法为导航打开的视图传递参数：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToViewWithQueryParameters]
+----
+
+此时，会在 URL 中添加参数，例如：
+
+[source,text]
+----
+http://localhost:8080/FancyMessageView?message=Hello%20World!
+----
+
+在打开的视图中，可以使用 `QueryParametersChangeEvent` 处理器获取参数：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/fancymessage/FancyMessageView.java[tags=message;QueryParametersChangeEvent]
+----
+
+另一个方法是使用流式接口的 `withAfterNavigationHandler()` 方法直接将参数传递给打开的视图对象：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToViewWithAfterNavigationHandler]
+----
+
+此时，URL 中不包含参数：
+
+[source,text]
+----
+http://localhost:8080/FancyMessageView
+----
+
+这种方式更简单，并且支持传递复杂类型的参数，但是缺点也很明显，与在弹窗中打开视图一样，这种方式不会提供深度链接，用户在刷新网页时会丢失视图状态。
 
 [[dialog-windows]]
-== DialogWindows
+== 打开弹窗
 
 `DialogWindows` bean 提供流式接口用于以对话框窗口的形式打开视图。流式接口的结束方法提供对打开视图实例的访问。支持直接向视图实例传递参数，并可以添加监听器，在打开的视图关闭后获取结果。
 
