@@ -1,4 +1,4 @@
-package com.company.onboarding.view.component.imageresources;
+package com.company.onboarding.view.htmlcomponent.image;
 
 
 import com.company.onboarding.view.main.MainView;
