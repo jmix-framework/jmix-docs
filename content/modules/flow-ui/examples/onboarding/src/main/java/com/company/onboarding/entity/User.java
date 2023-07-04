@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+// tag::user-entity[]
 @JmixEntity
 @Entity
 @Table(name = "USER_", indexes = {
@@ -29,6 +30,9 @@ import java.util.UUID;
 })
 public class User implements JmixUserDetails, HasTimeZone {
 
+    /* other attributes */
+
+//end::user-entity[]
     @Id
     @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
@@ -259,4 +263,6 @@ public class User implements JmixUserDetails, HasTimeZone {
     public void setTimeZoneId(String timeZoneId) {
         this.timeZoneId = timeZoneId;
     }
+    // tag::user-entity[]
 }
+// end::user-entity[]
