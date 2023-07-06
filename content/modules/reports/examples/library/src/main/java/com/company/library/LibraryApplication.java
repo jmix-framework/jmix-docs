@@ -1,10 +1,12 @@
 package com.company.library;
 
+import com.company.library.app.ReportHistoryCleanJob;
 import com.google.common.base.Strings;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.theme.Theme;
+import org.quartz.*;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -53,4 +55,24 @@ public class LibraryApplication implements AppShellConfigurator {
                 + environment.getProperty("local.server.port")
                 + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
     }
+
+    // tag::quartz[]
+    @Bean
+    JobDetail reportHistoryCleanJob() {
+        return JobBuilder.newJob()
+                .ofType(ReportHistoryCleanJob.class)
+                .storeDurably()
+                .withIdentity("reportHistoryClean")
+                .build();
+    }
+
+    @Bean
+    Trigger reportHistoryCleanTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(reportHistoryCleanJob())
+                .startNow()
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 1 * * ?")) // <1>
+                .build();
+    }
+    // end::quartz[]
 }
