@@ -199,3 +199,56 @@ TIP: The anonymous access feature *does not* require that `anonymous` user has t
 == Predefined Roles
 
 *REST: minimal access* (`rest-minimal`): Allows users to interact with the application via the API.
+
+[[custom-login-form-authorization-code-grant]]
+== Custom Login Form For Authorization Code Grant
+
+When using the xref:authorization-code-grant[Authorization Code Grant], it is possible to replace the standard login form provided by the Authorization Server add-on. To achieve this you need to do a several steps.
+
+First, you need to create a login form template. The Authorization Server add-on adds the dependency to the https://www.thymeleaf.org[Thymeleaf^] template engine, so you may use it for your own login form.
+
+Let's create a new `my-as-login.html` file and put into the `src/main/resources/templates` directory (this is a default place where Thymeleaf will search for templates).
+
+.my-as-login.html
+[source,html]
+----
+include::example$/rest-ex1/src/main/resources/templates/my-as-login.html[]
+----
+
+You may notice that the form uses styles and an image located by `+/my-as-login/styles/**+` and `+/my-as-login/icons/**+` paths.
+
+Download the compiled https://getbootstrap.com/docs/5.3/getting-started/download/[Bootstrap^] CSS files and copy the `bootstrap.min.css` file into the `src/main/resources/my-as-login/styles` directory.
+
+Create the `as-login.css` in the `src/main/resources/my-as-login/styles` directory:
+
+.as-login.css
+[source,css]
+----
+include::example$/rest-ex1/src/main/resources/my-as-login/styles/as-login.css[]
+----
+
+Take any icon (e.g. Jmix logo) and put it to the `src/main/resources/my-as-login/icons` directory.
+
+Next we must instruct Spring Security to permit access to files with styles and images. Create the Spring configuration that allows access to URLs where login form resources are located.
+
+.MySecurityConfiguration.java
+[source,java]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/config/MySecurityConfiguration.java[tags=whole-class]
+----
+<1> This bean must have a higher precedence then the security filter chain from the `FlowuiSecurityConfiguration`.
+
+Next we should instruct the application that the new login form must be used instead of the one from the Authorization Server add-on. This may be achieved by creating a `WebMvcConfigurer` that maps the default `/as-login` URL to the new login page template. The `/as-login` is the URL where unauthorized requests are redirected to by the Authorization Server add-on.
+
+.MyWebMvcConfigurer.java
+[source,java]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/config/MyWebMvcConfigurer.java[tags=whole-class]
+----
+<1> The new `WebMvcConfigurer` must have a lower precedence then the one provided by the Authorization Server add-on.
+<2> Maps the default `/as-login` URL to the new login page template `my-as-login.html` that we created previously.
+<3> Specifies location of static resources required by the login page (CSS styles, icons). Files for all requests with URLs started with `/my-as-login` will be searched inside the `my-as-login` directory in application resources.
+
+After performing all the steps above you should get the login page like this one when trying to authorize using Jmix application:
+
+image::custom-login-form.png[align="center"]
