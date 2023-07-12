@@ -26,22 +26,28 @@ import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Profile("custom-login-form")
+//tag::class-header[]
 //tag::whole-class[]
 @EnableWebMvc
 @Configuration
 @Order(AuthServerAutoConfiguration.AuthorizationServerLoginPageConfiguration.ORDER + 10) // <1>
 public class MyWebMvcConfigurer implements WebMvcConfigurer {
-
+//end::class-header[]
+    //tag::view-controllers[]
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/as-login/**").setViewName("my-as-login.html"); // <2>
+        registry.addViewController("/as-login").setViewName("my-as-login.html"); // <2>
     }
-
+    //end::view-controllers[]
+    //tag::resource-handlers[]
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry
                 .addResourceHandler("/my-as-login/**")
-                .addResourceLocations("classpath:/my-as-login/"); // <3>
+                .addResourceLocations("classpath:/META-INF/resources/my-as-login/"); // <1>
     }
+    //end::resource-handlers[]
+    //tag::class-footer[]
 }
+//end::class-footer[]
 //end::whole-class[]
