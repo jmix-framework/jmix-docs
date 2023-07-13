@@ -1,9 +1,6 @@
 package com.company.onboarding.listener;
 
-import com.company.onboarding.entity.Department;
-import com.company.onboarding.entity.Step;
-import com.company.onboarding.entity.User;
-import com.company.onboarding.entity.UserStep;
+import com.company.onboarding.entity.*;
 import io.jmix.core.DataManager;
 import io.jmix.core.FileRef;
 import io.jmix.core.FileStorage;
@@ -44,6 +41,7 @@ public class DemoDataInitializer {
             return;
         }
         List<Step> steps = initSteps();
+        List<Hobby> hobbies = initHobbies();
         List<Department> departments = initDepartments();
         List<User> users = initUsers(steps, departments);
         assignRoles(users);
@@ -105,6 +103,29 @@ public class DemoDataInitializer {
         department = dataManager.create(Department.class);
         department.setName("Finance");
         list.add(dataManager.save(department));
+
+        return list;
+    }
+
+    private List<Hobby> initHobbies() {
+        Hobby hobby;
+        List<Hobby> list = new ArrayList<>();
+
+        hobby = dataManager.create(Hobby.class);
+        hobby.setName("Photography");
+        list.add(dataManager.save(hobby));
+
+        hobby = dataManager.create(Hobby.class);
+        hobby.setName("Painting");
+        list.add(dataManager.save(hobby));
+
+        hobby = dataManager.create(Hobby.class);
+        hobby.setName("Chess");
+        list.add(dataManager.save(hobby));
+
+        hobby = dataManager.create(Hobby.class);
+        hobby.setName("Ice skating");
+        list.add(dataManager.save(hobby));
 
         return list;
     }
