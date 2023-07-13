@@ -32,11 +32,14 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     /* other attributes */
 
-//end::user-entity[]
+    //end::user-entity[]
     @Id
     @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
     private UUID id;
+
+    @OneToMany(mappedBy = "user")
+    private List<Hobby> hobbies;
 
     // tag::document[]
     @Column(name = "DOCUMENT")
@@ -96,6 +99,14 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public List<Hobby> getHobbies() {
+        return hobbies;
+    }
+
+    public void setHobbies(List<Hobby> hobbies) {
+        this.hobbies = hobbies;
+    }
 
     public byte[] getDocument() {
         return document;
