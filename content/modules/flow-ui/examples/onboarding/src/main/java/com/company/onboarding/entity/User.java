@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+// tag::user-entity[]
 @JmixEntity
 @Entity
 @Table(name = "USER_", indexes = {
@@ -29,10 +30,16 @@ import java.util.UUID;
 })
 public class User implements JmixUserDetails, HasTimeZone {
 
+    /* other attributes */
+
+    //end::user-entity[]
     @Id
     @Column(name = "ID", nullable = false)
     @JmixGeneratedValue
     private UUID id;
+
+    @OneToMany(mappedBy = "user")
+    private List<Hobby> hobbies;
 
     // tag::document[]
     @Column(name = "DOCUMENT")
@@ -92,6 +99,14 @@ public class User implements JmixUserDetails, HasTimeZone {
 
     @Transient
     protected Collection<? extends GrantedAuthority> authorities;
+
+    public List<Hobby> getHobbies() {
+        return hobbies;
+    }
+
+    public void setHobbies(List<Hobby> hobbies) {
+        this.hobbies = hobbies;
+    }
 
     public byte[] getDocument() {
         return document;
@@ -259,4 +274,6 @@ public class User implements JmixUserDetails, HasTimeZone {
     public void setTimeZoneId(String timeZoneId) {
         this.timeZoneId = timeZoneId;
     }
+    // tag::user-entity[]
 }
+// end::user-entity[]
