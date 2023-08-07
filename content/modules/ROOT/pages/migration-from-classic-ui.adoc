@@ -1,3 +1,121 @@
 = 从经典 UI 迁移
 
-敬请期待。
+由于 Classic UI 和 Flow UI 的不兼容，因此，无法自动从 Jmix 1.5 Classic UI 项目自动升级为 Jmix {page-component-display-version}。本章节提供如何手动从 Jmix 1.5 Classic UI 升级的说明。
+
+[[converting-project-to-flow-ui]]
+== 将项目转换为 Flow UI
+
+首先，需要从项目中删除 Classic UI，并将项目结构和构建脚本迁移至 Flow UI。
+
+. 在 IDE 打开 Classic UI 项目。
++
+本向导的后面部分，我们将该项目称为 “待迁移” 项目。
+
+. 使用 `Full-Stack Application with Incubating FlowUI` 模板在不同的文件夹创建一个 Jmix 1.5 最新版本的新项目。创建时，请使用与待迁移项目相同的项目名和包名。
++
+本向导的后面部分，我们将该项目称为 “新建” 项目。
+
+. 将新建项目的下列文件拷贝至待迁移项目的根目录：
++
+[source,text]
+----
+.gitignore
+.npmrc
+.pnpmfile.cjs
+build.gradle
+package.json
+tsconfig.json
+types.d.ts
+vite.config.ts
+----
++
+从这里往下，请使用 *Project* 工具窗口的 *Copy* 命令复制源项目的文件，然后在目标项目的对应节点使用 *Paste* 命令。
+
+. 添加扩展组件的 starter，请按照组件安装说明中的手动安装部分在 `build.gradle` 的 `dependencies` 部分添加相应依赖。
++
+如果某个组件没有在 Jmix 1.5 实现，但是在 {page-component-display-version} 中包含（比如，xref:reports:index.adoc[]），则可以在将项目升级至 Jmix {page-component-display-version} 之后再添加。此时需要注意，如果启动项目时未添加组件依赖，请确保自动生成的 Liquibase changelog 不包含扩展组件的 `dropTable` 语句。后面会详细说明。
+
+. 在待迁移项目中，删除下列文件夹（可以关闭 *Safe delete* 避免无效警告）：
+.. `src/main/java/<base_package>/screen`
+.. `src/main/resources/<base_package>/screen`
+.. `src/main/themes`
+.. `src/main/resources/<base_package>/theme`
+
+. 将新建项目的下列文件夹复制到待迁移项目：
+
+.. `frontend`
+.. `src/main/java/<base_package>/view`
+.. `src/main/resources/<base_package>/view`
+.. `src/main/resources/META-INF`
+
+. 在待迁移项目的 `application.properties` 中：
+.. 删除 `++jmix.ui.*++` 相关的配置。
+.. 从新建项目复制 `++jmix.flowui.*++`、`++ui.*++`、`++vaadin.*++` 配置至待迁移项目。
+
+. 从新建项目复制 `src/main/resources/<base_package>/menu.xml` 文件至待迁移项目，并覆盖已有文件。
+
+. 打开待迁移项目的 `src/main/resources/<base_package>/messages_en.properties` 文件并删除 `++<base_package>.screen.*++` 和 `++<base_package>/menu.application++` 相关的键值。从新建项目的相同文件中复制 `++<base_package>.view.*++` 和 `++<base_package>/menu.application.title++` 键值至待迁移项目。
+
+. 复制新建项目 `<base_package>.security` 包中的 `FullAccessRole` 和 `UiMinimalRole` 类至待迁移项目。
+
+. 在待迁移项目的其他角色中，删除 `io.jmix.securityui.role.annotation.MenuPolicy` 和 `io.jmix.securityui.role.annotation.ScreenPolicy` 注解。
+
+. 在应用程序主类中添加下列代码：
++
+[source,java]
+----
+@Push
+@Theme(value = "<project_name>")
+@PWA(name = "<project_name>", shortName = "<project_name>")
+class ... implements AppShellConfigurator
+----
++
+示例：
++
+[source,java]
+----
+// ...
+import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.page.Push;
+import com.vaadin.flow.server.PWA;
+import com.vaadin.flow.theme.Theme;
+// ...
+
+@Push
+@Theme(value = "onboarding")
+@PWA(name = "Onboarding", shortName = "Onboarding")
+@SpringBootApplication
+public class OnboardingApplication implements AppShellConfigurator {
+}
+----
+
+. 执行 *Build* -> *Build Project* 并修复可能出现的编译错误。
+
+. 运行应用程序。
+
+.. Studio 将展示 *Liquibase Root Changelog Check* 窗口并建议删除 Jmix 1.5 Flow UI 不可用模块的 `include` 语句（比如，`/io/jmix/uidata/liquibase/changelog.xml`）。这里接受建议并继续。
+
+.. Studio 将创建一些新的 changeset 用于删除 `UI_FILTER_CONFIGURATION`、`UI_SETTING` 和 `UI_TABLE_PRESENTATION` 表。这里需要保存并应用这些改动，因为 Flow UI 不需要这些表。
+
+.. 如果你的数据库包含 Jmix 1.5 没有的扩展组件的表，请注意不要删除这些表。可以在 Liquibase 弹窗中选择 *Remove from Changelog* -> *Remove and Ignore* 忽略特定的 `dropTable` changeset，或暂时取消当前的流程，然后在应用程序属性中添加 `main.datasource.studio.liquibase.exclude-prefixes`，再运行应用程序。示例：
++
+[source,properties]
+----
+main.datasource.studio.liquibase.exclude-prefixes = REPORT_
+----
+
+应用程序启动后，你应该可以登录并打开标准的用户管理视图。
+
+[[developing-views]]
+== 开发新视图
+
+此时，待迁移项目应该是一个基于 Jmix 1.5 Flow UI 能正常运行的应用程序了。但是用户界面仅包含新项目模板自带的一些视图：`LoginView`、`MainView`、`UserListView` 和 `UserDetailView`。
+
+后续步骤：
+
+. 使用 Studio xref:studio:project.adoc#upgrading-project[升级程序] 将项目升级至 Jmix {page-component-display-version}。
+
+. 使用 xref:studio:view-wizard.adoc[] 为数据模型实体创建 CRUD 视图。
+
+最后，你的应用程序包含原有的数据模型和后台业务逻辑，以及一些新 UI 的标准列表页和详情页。之后，你可以使用 xref:flow-ui:index.adoc[Flow UI] API 和组件进行进一步开发。
+
