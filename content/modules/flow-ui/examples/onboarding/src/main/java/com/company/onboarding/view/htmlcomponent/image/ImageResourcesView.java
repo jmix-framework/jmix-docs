@@ -22,7 +22,7 @@ public class ImageResourcesView extends StandardView {
     @Subscribe("staticBtn")
     public void onStaticBtnClick(final ClickEvent<JmixButton> event) {
         //tag::image-static[]
-        image.setSrc("/icons/icon.png");
+        image.setSrc("icons/icon.png");
         //end::image-static[]
     }
 
@@ -37,7 +37,7 @@ public class ImageResourcesView extends StandardView {
     public void onStreamBtnClick(final ClickEvent<JmixButton> event) {
         //tag::image-stream[]
         StreamResource streamResource = new StreamResource("icon",
-                ()-> getClass().getResourceAsStream("/META-INF/resources/icons/icon.png"));
+                ()-> getClass().getResourceAsStream("META-INF/resources/icons/icon.png"));
         image.setSrc(streamResource);
         //end::image-stream[]
     }
