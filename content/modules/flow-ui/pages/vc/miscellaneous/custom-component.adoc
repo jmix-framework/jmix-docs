@@ -1,0 +1,127 @@
+= Custom Component
+
+//todo add actual link
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+When working on real projects, it's often necessary to create custom UI components. Jmix Flow UI greatly simplifies the process of creating unique UI elements specific to a project. Custom components allow developers to bundle multiple UI elements together, making it easier to manage and reuse them across various screens. These components can also host other components, enabling the creation and maintenance of complex UI structures efficiently.
+
+Custom components not only display UI elements but can also perform various tasks like loading data and connecting to data containers. This capability enhances the component's functionality, enabling it to interact with data sources and provide dynamic content to the user. By using custom components, developers can create and maintain consistent UI designs throughout their projects, saving time and effort by reducing code duplication and promoting efficient development practices.
+
+== Problem Statement
+
+Imagine we have an embeddable entity named `Address`. It includes fields like `zipCode`, `country`, `city`, and `addressLine`.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/entity/Address.java[tags=address-embeddable-entity]
+----
+
+This entity is used in various other entities in our project, such as `Employee`, `Customer`, `Manager`, etc. For example:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/entity/Employee.java[tags=employee-entity]
+----
+
+Currently, to display all the fields of the embedded entity, we need to declare four corresponding components (two TextFields and two EntityComboBoxes) on each screen where we want to display address information. It would be ideal if we could combine these components into one and reuse them whenever needed.
+
+Now, let's see how we can achieve this.
+
+== Solution Overview
+
+To achieve our goal, we need to:
+
+1. Describe the Java class representing our component.
+2. Create an XSD file for our component to allow declarative declaration in an XML file.
+3. Write a component loader.
+
+=== Java Descriptor for the Custom Component
+
+We'll create a Java class called `AddressComponent` that inherits from the Vaadin class `Composite`. Its type will be `FormLayout` since the elements will be arranged as a form. We'll also declare the field of type `UiComponents` to create nested components (like text fields and entity combo boxes). Also, we'll need the `DataComponents` and `DataManager` beans to load required entries from the database.
+Also, we will need a field of type `InstanceContainer` to get information about the address.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponent.java[tags=address-component]
+----
+
+Next, we need to design the appearance of our component by overriding the `initContent` method inherited from the `Composite` class.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponent.java[tags=init-content]
+----
+
+To link the component with actual data, let's create a public method named `setDataContainer` that takes a single parameter of type `InstanceContainer<Address>`. Also, to connect the embedded components to the entity's fields, we'll implement a few auxiliary private methods:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponent.java[tags=assign-data-to-components]
+----
+
+The Java part of our component is now ready! Let's move on to writing an XSD file that describes how our component can be used in XML files.
+
+=== XSD Descriptor Configuration
+
+We'll name our component `address`. To provide basic functionality to our component, we'll inherit it from `baseComponent`. This will grant it basic attributes like `id` and `visibility`. Moreover, we need to declare the `dataContainer` attribute to link the component and with data.
+
+[source,xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/customcomponent/address-component.xsd[tags=]
+----
+
+In the loader, we'll receive the `id` of the data container and pass it to our component.
+
+=== Component Loader Implementation
+
+Component loader is used to create a component and connect it with the data.  We'll name the loader `AddressComponentLoader`. The loader should inherit `AbstractComponentLoader`, specifying `AddressComponent` as the type.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponentLoader.java[tags=address-component-loader]
+----
+
+To load the component properly, we need to override two methods: `createComponent` and `loadComponent`.
+
+In the `createComponent` method, we create the component using field `factory` of type `UiComponents` inherited from `AbstractComponentLoader`.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponentLoader.java[tags=create-component]
+----
+
+The `loadComponent` method includes slightly more complex logic. It delegates the execution to the `loadDataContainer` method. In this method, we retrieve the value from the `dataContainer` attribute, make sure that the container `id` is correctly set, and assign it to our component.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/AddressComponentLoader.java[tags=load-component]
+----
+
+=== Registering the Custom Component
+
+Our component is almost ready to be used. The final step is to register it in our application. For example, we can do it as follows:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/CustomComponentConfiguration.java[tags=]
+----
+
+== Achieved Results
+
+Using the created component is extremely simple. All we need to do is obtain the instance container for the address field from the entity that has such a field and set its `id` as the value for the `dataContainer` attribute of our component. For instance, if we are dealing with the `Employee` entity, the screen descriptor would appear as follows:
+
+[source,xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/customcomponent/custom-component.xml[tags=]
+----
+
+Like any other component, our custom component can be declared not only declaratively in an XML screen descriptor but also programmatically in its controller. Here is an example of how this can be done.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/customcomponent/CustomComponentView.java[tags=screen-controller]
+----
