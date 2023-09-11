@@ -1,4 +1,4 @@
-package com.company.onboarding.view.component.customcomponent;
+package com.company.onboarding.view.component.compositecomponent;
 
 import com.company.onboarding.entity.Address;
 import io.jmix.flowui.exception.GuiDevelopmentException;

@@ -15,6 +15,6 @@
  */
 
 @NonNullApi
-package com.company.onboarding.view.component.customcomponent;
+package com.company.onboarding.view.component.compositecomponent;
 
 import org.springframework.lang.NonNullApi;

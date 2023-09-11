@@ -1,4 +1,4 @@
-package com.company.onboarding.view.component.customcomponent;
+package com.company.onboarding.view.component.compositecomponent;
 
 import com.company.onboarding.entity.Address;
 import com.company.onboarding.entity.Employee;
@@ -11,9 +11,9 @@ import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 // tag::screen-controller[]
-@ViewController("custom-component")
-@ViewDescriptor("custom-component.xml")
-public class CustomComponentView extends StandardView {
+@ViewController("composite-component")
+@ViewDescriptor("composite-component.xml")
+public class CompositeComponentView extends StandardView {
 
     @ViewComponent
     protected InstanceContainer<Address> addressDc;

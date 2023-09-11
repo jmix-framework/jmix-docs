@@ -1,4 +1,4 @@
-package com.company.onboarding.view.component.customcomponent;
+package com.company.onboarding.view.component.compositecomponent;
 
 import io.jmix.flowui.sys.registration.ComponentRegistration;
 import io.jmix.flowui.sys.registration.ComponentRegistrationBuilder;
@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class CustomComponentConfiguration {
+public class CompositeComponentConfiguration {
 
     @Bean
     public ComponentRegistration address() {
