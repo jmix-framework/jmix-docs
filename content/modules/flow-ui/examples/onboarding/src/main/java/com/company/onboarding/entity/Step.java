@@ -3,9 +3,10 @@ package com.company.onboarding.entity;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
-
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @JmixEntity
@@ -16,6 +17,9 @@ public class Step {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    @Column(name = "FACTOR", precision = 19, scale = 2)
+    private BigDecimal factor;
 
     @Column(name = "VERSION", nullable = false)
     @Version
@@ -33,6 +37,14 @@ public class Step {
     @Column(name = "SORT_VALUE", nullable = false)
     @NotNull
     private Integer sortValue;
+
+    public BigDecimal getFactor() {
+        return factor;
+    }
+
+    public void setFactor(BigDecimal factor) {
+        this.factor = factor;
+    }
 
     public Integer getSortValue() {
         return sortValue;
