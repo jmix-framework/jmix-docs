@@ -4,6 +4,7 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 
 import java.util.UUID;
 
@@ -41,6 +42,7 @@ public class Customer {
     @Column(name = "LAST_NAME")
     private String lastName;
 
+    @Email
     @Column(name = "EMAIL")
     private String email;
 
