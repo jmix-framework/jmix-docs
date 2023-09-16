@@ -2,9 +2,9 @@
 
 `DataContext` is an interface for tracking changes in entities loaded to the UI layer. Tracked entities are marked as "dirty" on any modification of their attributes, and `DataContext` saves dirty entities when its `save()` method is invoked.
 
-Within `DataContext`, an entity with the given identifier is represented by a single object instance, no matter where and how many times it is used in object graphs.
+Within `DataContext`, an entity with the given identifier is represented by a single object instance, no matter where and how many times it is used in graphs of entities contained in this context.
 
-In order to be tracked, an entity must be put into `DataContext` using its `merge()` method. If the context does not contain the entity with the same id, the context creates a new instance, copies the state of the passed instance to the new one and returns it. If the context already contains an instance with the same id, it copies the state of the passed instance to the existing one and returns it. This mechanism allows the context to always have only one instance of an entity with a particular identifier.
+In order to be tracked, an entity must be put into `DataContext` using its `merge()` method. If the context does not contain the entity with the same id, the context creates a new instance, copies the state of the passed instance to the new one and returns it. If the context already contains an instance with the same id, it copies the state of the passed instance to the existing one and returns the existing instance. This mechanism allows the context to always have only one instance of an entity with a particular identifier.
 
 When you merge an entity, the whole object graph with the root in this entity will be merged. That is all referenced entities (including collections) will become tracked.
 
@@ -17,9 +17,9 @@ An example of merging an entity into `DataContext`:
 include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=data-context]
 ----
 
-A single instance of `DataContext` exists for a given view. It is created if the `<data>` element exists in the view XML descriptor.
+A single instance of `DataContext` exists for a given view. It is created if there is `<data>` element in the view XML descriptor.
 
-The `<data>` element can have `readOnly="true"` attribute, in that case, a special "no-op" implementation is used that actually doesn’t track entities and hence doesn’t affect performance. By default, entity list views scaffolded by Studio have the read-only data context, so if you need to track changes and save dirty entities in a list view, remove the `readOnly="true"` XML attribute.
+The `<data>` element can have `readOnly="true"` attribute, in that case, a special "no-op" implementation of the `DataContext` interface is used that actually doesn’t track entities and hence doesn’t affect performance. By default, entity list views scaffolded by Studio have the read-only data context, so if you need to track changes and save dirty entities in a list view, remove the `readOnly="true"` XML attribute.
 
 CAUTION: If a referenced entity is not included in the xref:data-access:fetching.adoc#fetch-plan[fetch plan] of the view but loaded by xref:data-access:fetching.adoc#lazy-loading[lazy loading], it is not merged into the view's `DataContext` and hence not tracked for changes. Make sure all entities edited on the view are loaded eagerly by including references to them in the fetch plan.
 
@@ -43,11 +43,11 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 [[parent-data-context]]
 == Parent DataContext
 
-DataContext instances can form parent-child relationships. If a `DataContext` instance has parent context, it saves changed entities to the parent instead of saving them to the data store. This feature enables editing compositions when detail entities are saved only together with the master entity. If an entity attribute is annotated with xref:data-model:entities.adoc#composition[@Composition], the framework automatically sets parent context in the attribute detail view, so the changed attribute entity will be saved to the data context of the master entity.
+DataContext instances can form parent-child relationships. If a `DataContext` instance has parent context, it saves changed entities to the parent instead of saving them to the data store. This feature enables editing compositions (aggregates) when detail entities are saved only together with the master entity. If an entity attribute is annotated with xref:data-model:entities.adoc#composition[@Composition], the framework automatically sets parent context in the attribute detail view, so the changed attribute entity will be saved to the data context of the master entity.
 
 You can easily provide the same behavior for any entities and views.
 
-If you open a detail view that should save data to the current view’s data context, use the `withParentDataContext()` method of the builder:
+If you open a detail view that should save data to the current view’s data context, use the `withParentDataContext()` method:
 
 [source,java,indent=0]
 ----
@@ -59,7 +59,7 @@ CAUTION: Make sure that the parent data context is not defined with `readOnly="t
 [[data-context-events]]
 == Events and Handlers
 
-This section describes the DataContext lifecycle events that can be handled in view controllers.
+This section describes the `DataContext` lifecycle events that can be handled in view controllers.
 
 include::events-handlers-generation-data-tip.adoc[]
 
