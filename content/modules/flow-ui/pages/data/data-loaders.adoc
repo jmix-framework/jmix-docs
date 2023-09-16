@@ -1,54 +1,54 @@
-= Data Loaders
+= Загрузчики данных
 
-Loaders are designed to load data to xref:flow-ui:data/data-containers.adoc[containers].
+Загрузчики предназначены для загрузки данных в xref:flow-ui:data/data-containers.adoc[контейнеры данных].
 
-There are slightly different interfaces of loaders depending on containers they work with:
+Интерфейсы загрузчиков немного отличаются в зависимости от типа контейнера, с которым они работают:
 
-* `InstanceLoader` loads a single instance to `InstanceContainer` by an entity id or JPQL query.
-* `CollectionLoader` loads a collection of entities to `CollectionContainer` by a JPQL query. You can specify paging, sorting and other optional parameters.
-* `KeyValueCollectionLoader` loads a collection of `KeyValueEntity` instances to `KeyValueCollectionContainer`. In addition to `CollectionLoader` parameters, you can specify a data store name.
+* `InstanceLoader` загружает единственный экземпляр сущности в контейнер `InstanceContainer` по идентификатору сущности или с помощью JPQL-запроса.
+* `CollectionLoader` загружает коллекцию сущностей в `CollectionContainer` с помощью JPQL-запроса. Для этого загрузчика можно настроить пейджинг, сортировку и другие дополнительные параметры.
+* `KeyValueCollectionLoader` загружает коллекцию экземпляров `KeyValueEntity` в контейнер `KeyValueCollectionContainer`. Кроме параметров, доступных для `CollectionLoader`, вы также можете указать имя хранилища данных.
 
-In view XML descriptors, all loaders are defined by the same `<loader>` element and the type of a loader is determined by what container it is enclosed in.
+В XML-дескрипторах экрана загрузчики объявляются с помощью элемента `<loader>`, и тип загрузчика будет определяться типом контейнера, в который он вложен.
 
-Loaders are optional because you can just load data using `DataManager` or your custom service and set it directly to containers, but they simplify this process in declaratively defined views.
+Использование загрузчиков необязательно, так как вы можете загружать данные с помощью `DataManager` или собственного сервиса и самостоятельно добавлять их в контейнеры, однако загрузчики облегчают этот процесс для экранов, описываемых декларативно.
 
-Usually, a collection loader obtains a JPQL query from the view XML descriptor, creates `LoadContext` and invokes `DataManager` to load entities. So the typical XML descriptor looks like this:
+Обычно загрузчик коллекций получает запрос JPQL из XML-дескриптора экрана, создает объект `LoadContext` и вызывает `DataManager` для загрузки сущностей. В итоге типичный XML-дескриптор выглядит подобным образом:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=collection-container]
 ----
 
-In an entity detail view, the loader XML element is usually empty, because the instance loader requires an entity identifier that is specified programmatically by the `StandardDetailView` base class:
+В экране деталей сущности XML-элемент `loader` обычно пуст, так как для загрузки единственного экземпляра сущности требуется ее идентификатор, который устанавливается программно классом `StandardDetailView`:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-detail-view.xml[tags=instance-container]
 ----
 
-When xref:flow-ui:data/data-context.adoc[DataContext] is set for a loader (which is always the case when the loader is defined in XML descriptor), all loaded entities are automatically merged into the data context.
+Если для загрузчика установлен xref:flow-ui:data/data-context.adoc[DataContext] (как всегда бывает в случае, если загрузчик задан в XML-дескрипторе), все загруженные сущности будут автоматически помещены в data context.
 
 [[data-context-events]]
-== Events and Handlers
+== События и обработчики
 
-This section describes the data loader lifecycle events that can be handled in view controllers.
+В данном разделе описываются события жизненного цикла загрузчиков данных, на которые можно подписаться в контроллерах экранов.
 
 include::events-handlers-generation-data-tip.adoc[]
 
 [[load-delegate]]
 === loadDelegate
 
-Loaders can delegate actual loading to a method of the view controller, where you can call a custom service instead of `DataManager` used by default. For example:
+Загрузчики могут делегировать фактическую загрузку методу контроллера экрана, в котором можно вызвать какой-либо сервис вместо используемого по умолчанию `DataManager`. Например:
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=delegate]
 ----
-<1> The `departmentsDlLoadDelegate()` method will be used by the `departmentsDl` loader to load the list of `Department` entities.
-<2> The method accepts `LoadContext` that will be created by the loader based on its parameters: query, conditions (if any), etc.
-<3> The loading is done via `DepartmentService.loadDepartments()` method which accepts the filtering conditions, sorting and pagination set to the loader by visual components of the view.
+<1> Метод `departmentsDlLoadDelegate()` используется загрузчиком `departmentsDl` для получения списка экземпляров сущности `Department`.
+<2> Метод принимает `LoadContext`, который будет создан загрузчиком на основе его параметров: запрос, условия (при наличии) и т.д.
+<3> Загрузка осуществляется методом `DepartmentService.loadDepartments()`, который принимает условия фильтрации, сортировку и пейджинг, установленные загрузчику визуальными компонентами экрана.
 
-Apart from invoking a custom service, the load delegate allows you to perform any post-processing of the loaded entities.
+Помимо вызова собственных сервисов, в делегате можно выполнить пост-обработку загруженных сущностей.
 
 // todo pagination
 // If you declare custom data loading with a delegate, and you display the loaded data in the DataGrid with a pagination component, then you may also need to define the custom logic to count total number of rows. Take a look at xref:vc/components/pagination.adoc#total-count-delegate[TotalCountDelegate] handler for the pagination component associated with the table.
@@ -56,19 +56,19 @@ Apart from invoking a custom service, the load delegate allows you to perform an
 [[pre-load-event]]
 === PreLoadEvent
 
-This event is sent before loading entities.
+Это событие отправляется перед загрузкой сущностей.
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=pre-load]
 ----
 
-You can prevent load using the `preventLoad()` method of the event.
+Загрузку можно предотвратить, используя метод события `preventLoad()`.
 
 [[post-load-event]]
 === PostLoadEvent
 
-This event is sent after successful loading of entities, merging them into `DataContext` and setting to the container.
+Это событие отправляется после того, как сущности успешно загружены, помещены в `DataContext` и установлены в контейнер данных.
 
 [source,java,indent=0]
 ----
@@ -76,54 +76,56 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 ----
 
 [[query-conditions]]
-== Query Conditions
+== Условия запросов
 
-Sometimes you need to modify a data loader query at runtime to filter the loaded data at the database level. The simplest way to provide filtering based on parameters entered by users is to connect the `PropertyFilter` or `GenericFilter` visual component to the data loader.
+Иногда необходимо изменить запрос загрузчика данных во время выполнения программы для того, чтобы отфильтровать загружаемые данные на уровне БД. Простейший способ фильтрации в зависимости от параметров, вводимых пользователем – это подключить к загрузчику визуальные компоненты xref:flow-ui:vc/components/propertyFilter.adoc[] или xref:flow-ui:vc/components/genericFilter.adoc[].
 
-Instead of the universal filter or in addition to it, you can create a set of conditions for the loader query. A condition is a set of query fragments with parameters. These fragments are added to the resulting query text only when all parameters used in the fragments are set for the query. Conditions are processed on the data store level, so they can contain fragments of different query languages supported by data stores. The framework provides conditions for JPQL.
+Вместо использования специальных компонентов-фильтров, или в дополнение к ним, для запроса в загрузчике можно задать набор условий. Условие представляет собой набор фрагментов запросов с параметрами. Эти фрагменты будут добавлены в результирующий запрос, только если все параметры, используемые во фрагментах, заданы для запроса (не null).
 
-Let’s consider creating a set of conditions for filtering the `Department` entity by its `name` and `hrManager` attributes.
+Условия обрабатываются на уровне хранилищ данных, поэтому они могут содержать фрагменты различных языков запросов, поддерживаемых хранилищами. Фреймворк "из коробки" предоставляет возможность описывать условия на языке JPQL.
 
-Loader query conditions can be defined either declaratively in the `<condition>` XML element, or programmatically using the `setCondition()` method. Below is an example of configuring the conditions in descriptor:
+Рассмотрим создание условий для фильтрации сущности `Department` по ее атрибутам `name` и `hrManager`.
+
+Условия запроса для загрузчика могут быть заданы либо декларативно в XML-элементе `<condition>`, либо программно методом `setCondition()`. Ниже приведен пример описания условий в XML:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=condition-data]
 ----
-<1> Adds the JPQL conditions namespace.
-<2> Defines the `condition` element inside the query.
-<3> If you have more than one condition, add `and` or `or` element
-<4> Defines a JPQL condition with optional `join` element and mandatory `where` element.
+<1> Добавление namespace для JPQL-условий.
+<2> Добавление элемента `condition` внутри `query`.
+<3> Если необходимо задать более одного условия, добавляется элемент `and` или `or`.
+<4> Задание JPQL-условие с опциональным элементом `join` и обязательным `where`.
 
-Suppose that the view has `nameFilterField` text field and `hrManagerFilterField` combo box for entering the condition parameters:
+Предположим, что в экране имеется два UI-компонента для ввода параметров условий: текстовое поле `nameFilterField` и выпадающий список `hrManagerFilterField`:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=field]
 ----
 
-In order to refresh the data when a user changes their values, add the following event listeners to the view controller:
+Для того чтобы обновить данные, когда пользователь изменяет значения в этих компонентах, добавим следующие подписки на события в контроллере экрана:
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=condition]
 ----
 
-As mentioned above, a condition is included in the query only when its parameters are set. So the resulting query executed on the database will depend on what is entered in the UI components:
+Как было упомянуто выше, условие включается в запрос только когда его параметры установлены. Поэтому результирующий запрос, выполняемый БД, будет зависеть от того, что введено в UI-компонентах:
 
-.Only nameFilterField has a value
+.Только для nameFilterField установлено значение
 [source,jpql,indent=0]
 ----
 select e from Department e where e.name like :name
 ----
 
-.Only hrManagerFilterField has a value
+.Только для hrManagerFilterField установлено значение
 [source,jpql,indent=0]
 ----
 select e from Department e where e.hrManager = :hrManager
 ----
 
-.Both nameFilterField and hrManagerFilterField have values
+.И для nameFilterField, и для hrManagerFilterField установлены значения
 [source,jpql,indent=0]
 ----
 select e from Department e where (e.name like :name) and (e.hrManager = :hrManager)
