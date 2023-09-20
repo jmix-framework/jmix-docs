@@ -47,14 +47,14 @@ public class Customer {
     private String email;
 
     @Column(name = "REWARD_POINTS")
-    private String rewardPoints;
+    private Integer rewardPoints;
 
-    public String getRewardPoints() {
-        return rewardPoints;
+    public void setRewardPoints(Integer rewardPoints) {
+        this.rewardPoints = rewardPoints;
     }
 
-    public void setRewardPoints(String rewardPoints) {
-        this.rewardPoints = rewardPoints;
+    public Integer getRewardPoints() {
+        return rewardPoints;
     }
 
     public String getEmail() {
