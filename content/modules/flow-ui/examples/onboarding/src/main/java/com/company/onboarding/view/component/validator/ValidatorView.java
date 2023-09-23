@@ -74,10 +74,11 @@ public class ValidatorView extends StandardView {
     @Subscribe
     public void onInit(final InitEvent event) {
         // tag::validator[]
-        PositiveValidator validator = applicationContext.getBean(PositiveValidator.class);
+        DecimalMaxValidator maxValidator = applicationContext
+                .getBean(DecimalMaxValidator.class, new BigDecimal(1000));
         // end::validator[]
         // tag::addValidator[]
-        integerField.addValidator(applicationContext.getBean(PositiveValidator.class));
+        numberField.addValidator(maxValidator);
         // end::addValidator[]
 
         addCustomValidator();
