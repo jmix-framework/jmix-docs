@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 // tag::ZipValidator[]
-@Component("ZipValidator")
+@Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class ZipValidator implements Validator<String> {
     @Override
