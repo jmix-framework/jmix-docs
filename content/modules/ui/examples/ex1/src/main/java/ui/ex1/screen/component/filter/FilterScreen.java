@@ -296,13 +296,6 @@ public class FilterScreen extends Screen {
                 jpqlFilterNoParams.getValue());
 
         javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
-
-        jpqlFilterNoParams.setValue(true);
-        javaConfiguration.setFilterComponentDefaultValue(
-                jpqlFilterNoParams.getParameterName(),
-                jpqlFilterNoParams.getValue());
-
-        javaConfiguration.getRootLogicalFilterComponent().add(jpqlFilterNoParams);
         // end::parameterless-filter-design-time[]
 
         // tag::on-init-end[]
