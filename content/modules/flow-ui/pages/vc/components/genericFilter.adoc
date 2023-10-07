@@ -6,9 +6,9 @@
 </div>
 ++++
 
-`genericFilter` 组件是一个可对数据进行过滤的多功能工具。
+`genericFilter` 组件是一个可对数据进行动态过滤的多功能工具。
 
-这个组件支持按照任意条件对数据进行 <<quick-filtering,快速过滤>>，同时也支持创建可重复使用的过滤器配置。
+这个组件支持按照一组临时条件对数据进行 <<quick-filter-example,快速过滤>>，同时也支持创建可重复使用的过滤器 <<configuration, 配置>>。
 
 * XML 元素：`genericFilter`
 
@@ -16,20 +16,7 @@
 
 == 基本用法
 
-`genericFilter` 需要连接到一个独立的 `CollectionContainer` 或 `KeyValueCollectionContainer` 中定义的数据加载器。过滤器生成一个 `Condition` 对象，后续加载器使用这个条件从 xref:data-model:data-stores.adoc[数据存储] 加载数据。对于 xref:data-model:entities.adoc#jpa[JPA 实体]，数据存储会修改生成的 JPQL 查询语句，因此数据过滤是在数据库级别完成的，从数据库仅加载了过滤后的数据至应用程序内存。
-
-默认情况下，实体的 xref:flow-ui:views.adoc#standard-list-view[列表视图] 会自动添加 `genericFilter` 组件。
-
-在 XML 描述中声明 `genericFilter` 的例子如下：
-
-[source, xml,indent=0]
-----
-include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=data;customerDc;layout;generic-filter;customersTable]
-----
-
-上面例子中，数据容器包含了 `Customer` 实体实例的集合。数据加载用 JPQL 查询语句加载集合。`genericFilter` 组件通过 `dataLoader` 属性连接至数据加载器。数据通过与数据容器连接的 xref:flow-ui:vc/components/dataGrid.adoc[`dataGrid`] 组件展示。
-
-一个典型的过滤器是这样的：
+`genericFilter` 默认会添加在某些标准视图中，例如实体的 xref:flow-ui:views.adoc#standard-list-view[列表视图]。下图是一个典型的过滤器：
 
 image::flow-ui:visual-components/components/generic-filter-anatomy.png[align="center", width="768"]
 
@@ -37,14 +24,27 @@ image::flow-ui:visual-components/components/generic-filter-anatomy.png[align="ce
 . [[operator-selector]] 比较操作符选择器。
 . [[filter-settings-button]] *Filter Settings（过滤器设置）* 按钮。
 . [[refresh-drop-down-menu]] 保存的过滤器和配置列表。
-. [[condition-fields]] 条件的值字段。
+. [[condition-field]] 条件的值字段。
 . [[add-condition-link]] *Add search condition（添加搜索条件）* 链接按钮。
 
-[[quick-filtering]]
-默认情况下，这个组件使用快速过滤模式。用户可以添加一组过滤条件进行一次数据搜索，一旦关闭视图，设置的过滤条件也就没了。
+`genericFilter` 需要连接到一个独立的 `CollectionContainer` 或 `KeyValueCollectionContainer` 中定义的数据加载器。过滤器生成一个 `Condition` 对象，后续加载器使用这个条件从 xref:data-model:data-stores.adoc[数据存储] 加载数据。对于 xref:data-model:entities.adoc#jpa[JPA 实体]，数据存储会修改生成的 JPQL 查询语句，因此数据过滤是在数据库级别完成的，从数据库仅加载了过滤后的数据至应用程序内存。
+
+下面的例子展示了基本的 `genericFilter` 和一些相关的组件：
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=data;customerDc;layout;generic-filter;customersTable]
+----
+
+<1> 数据容器包含了 `Customer` 实体实例的集合。
+<2> 数据加载器用 JPQL 查询语句加载 `Customer` 的所有实例。
+<3> `genericFilter` 组件通过 `dataLoader` 属性连接至数据加载器。
+<4> 数据通过与数据容器连接的 xref:flow-ui:vc/components/dataGrid.adoc[`dataGrid`] 组件展示。展示的数据会随着过滤器的变化而变化。
 
 [[quick-filter-example]]
 == 快速过滤示例
+
+默认情况下，过滤器组件使用快速过滤模式。即，用户可以在使用是添加一组临时的过滤条件，仅在当前页面会话中有效。当页面关闭后，过滤条件就没有了。
 
 假设我们有 `Customer` 实体，并想实现下列功能：
 
@@ -55,21 +55,378 @@ image::flow-ui:visual-components/components/generic-filter-anatomy.png[align="ce
 
 * 点击 <<add-condition-link,*Add search condition（添加搜索条件）*>>。
 * 选择要进行过滤的属性。例如，*Age* 和 *Hobby*。
-+
-选择的条件在过滤器面板顶部展示。
 * 修改条件值字段和运算符：
 
 image::flow-ui:visual-components/components/generic-filter-quick.png[align="center", width="860"]
 
-=== 保存过滤器
+=== 保存配置
 
-* 点击 <<filter-settings-button,*Filter Settings（过滤器设置）*>> 按钮，然后选择 *Save with values（带值保存）*。
-* 为过滤器配置设置名称然后点击 *OK* 进行保存：
+* 点击 image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"]-> *Save with values（带值保存）*。
+* 为过滤器配置设置名称然后点击 *OK* 保存：
 +
 image::flow-ui:visual-components/components/generic-filter-save.png[align="center", width="562"]
 
-之后，过滤器会保存并展示在 <<refresh-button,*Refresh（刷新）*>> 按钮的下拉列表中。
+之后，可在下拉列表中选择该配置。
 
 image::flow-ui:visual-components/components/generic-filter-refresh.png[align="center", width="390"]
 
-*<Reset filter>（重置过滤器）* 菜单项可以用来重置当前已应用的搜索条件。
+使用顶部的 *<Reset filter>（重置过滤器）* 菜单可以重置当前使用的过滤条件。
+
+[[adding-conditions]]
+== 添加条件
+
+点击 *Add search condition（添加搜索条件）* 链接 [<<add-condition-link, 6>>] 打开 *Add condition（添加条件）* 对话框：
+
+image::flow-ui:visual-components/components/generic-filter-add-condition-dialog.png[align="center", width="402"]
+
+[[condition-types]]
+下列是可用的过滤条件类型：
+
+* *Properties（属性）* -- 实体和关联实体的属性作为过滤条件。这些属性按照 <<properties-element,properties>> 元素定义的顺序展示。
+//todo: add info about dynamic properties after they appear.
+//and may include both persistent and [dynamic] entity attributes.
++
+* *Predefined conditions（预定义条件）* -- 是开发者在 XML 描述的 <<conditions-element,conditions>> 元素中定义的条件。
++
+* *Configurations（过滤器配置）* -- 已有的过滤器配置。可以在 <<design-time-configuration, 设计时>> 由开发者创建或 <<run-time-configuration,运行时>> 由用户创建。
+
+添加的过滤条件会在条件区域显示。可以通过条件旁边的 image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] 删除已选条件。
+
+[[creating-conditions]]
+== 创建条件
+
+如果还没有合适的条件可供选择，也可以自己创建条件。
+*Create* 按钮的下拉菜单中有对所有 xref:vc/components/genericFilter-components.adoc#filter-compponent-registration[注册] 了的过滤器组件进行新建的操作。
+
+image::flow-ui:visual-components/components/generic-filter-create-button.png[align="center", width="402"]
+
+默认支持三种此类组件：xref:vc/components/genericFilter-components.adoc#property-filter[propertyFilter]、xref:vc/components/genericFilter-components.adoc#jpql-filter[jpqlFilter] 和 xref:vc/components/genericFilter-components.adoc#group-filter[groupFilter]。
+
+点击相应的创建按钮打开条件编辑器：
+
+* <<property-conditions, 属性条件>> 编辑器
+* <<jpql-conditions, JPQL 条件>> 编辑器
+* <<group-conditions, 组合条件>> 编辑器
+
+//todo: Add the following tip when Search add-on is ready.
+//TIP: Advanced [Full-text] condition is available as a part the [Search] add-on.
+
+[[property-conditions]]
+=== 属性条件
+
+使用 *Property condition editor（属性条件编辑器）* 可以将实体的一个属性作为过滤器参数并针对其进行过滤。通过 *Add search condition（添加搜索条件）* -> *+ Create* -> *Create Property condition（新建属性条件）* 打开编辑器。
+
+image::flow-ui:visual-components/components/generic-filter-property-condition-editor.png[align="center", width="514"]
+
+编辑器有以下控件和字段：
+
+* *Property（属性）* -- 选择实体属性。
+* *Operation（运算符）* -- 设置比较运算符。列表中仅显示与当前属性兼容的运算符。
+* *Parameter name（参数名）* -- 设置查询语句参数的名称。可以用这个名称引入同一个配置中不同条件之间的依赖。如果未设置，则随机生成参数名。
+* *Label（标题）* -- 为该条件设置一个自定义的标签，用于在面板和编辑器展示。
+* *Default value（默认值）* -- 设置默认值。
+* *Operation editable（运算符可编辑）* -- 支持用户选择运算类型。
+* *Operation text visible（运算符标题可见）* -- 定义运算符文本的可见性。
+* *Visible（可见性）* -- 定义该条件的可见性。
+
+[[jpql-conditions]]
+=== JPQL 条件
+
+*JPQL condition editor（JPQL 条件编辑器）* 支持用户创建基于 JPQL 表达式的条件。通过 *Add search condition（添加搜索条件）* -> *+ Create* -> *Create JPQL condition（新建 JPQL 条件）* 打开编辑器。
+
+image::flow-ui:visual-components/components/generic-filter-jpql-condition-editor.png[align="center", width="674"]
+
+编辑器有以下控件和字段：
+
+* *Parameter type（参数类型）* -- 选择条件参数的 Java 类。这里也可以选择 `No parameter（无参数）` 创建无参数的条件。
++
+image::flow-ui:visual-components/components/generic-filter-jpql-condition-editor-no-parameter.png[align="center", width="674"]
++
+无参数的条件与数据打标签有点类似，基于预定义的不可变规则过滤数据。
++
+* *Label（标题）* -- 为该条件设置一个自定义的标签，用于在面板和编辑器展示。
+* *Parameter name（参数名）* -- 设置查询语句参数的名称。可以用这个名称引入同一个配置中不同条件之间的依赖。如果未设置，则随机生成参数名。
+* *Default value（默认值）* -- 设置条件的默认值。该组件在展示时，会根据 *Parameter type* 的设置选择兼容的组件。
+//todo: improve IN expression description upon completing jmix ticket #1442
+* *Has IN expression（有 IN 表达式）* -- 定义 JPQL 表达式是否需要解析某个集合并支持 `IN` 表达式。
+* *Visible（可见性）* -- 定义该条件的可见性。
+* *Join* -- 指定一个可选的 `join` 表达式，该表达式会被添加在数据加载器查询语句的 `from` 部分。如果要依赖关联实体集合的属性来创建一个复杂的过滤条件，可以用这个属性。
++
+编写该语句时：
+
+** 以 `join` 或 `left join` 关键字开头。
+** 用 `\{E}` 占位符表示选择实体。
++
+示例：
++
+----
+join {E}.city c
+----
+* *Where* -- 指定 `where` 子句，该子句会添加到数据加载器的 `select` 查询语句中。
++
+编写该语句时：
++
+** 用 `\{E}` 占位符表示选择实体。
+** 用 `?` 作为参数的占位符，需要用户输入。一个条件中最多只能有一个参数。另外，还可以有任意数量的 xref:data-access:jpql-extensions.adoc#session-and-user-attributes[会话和用户属性] 参数。
++
+示例：
++
+----
+{E}.code = ? and {E}.area = :session_area
+----
+
+[[group-conditions]]
+=== 组合条件
+
+*Group condition editor（组合条件编辑器）* 支持用户将多个条件组合成一个逻辑组合条件。通过 *Add search condition（添加搜索条件）* -> *+ Create* -> *Create Group condition（新建组合条件）* 打开编辑器。
+
+image::flow-ui:visual-components/components/generic-filter-group-condition-editor.png[align="center", width="1025"]
+
+这个编辑器有两个区域 -- 一个用来配置组合的基本信息，另一个用来展示目前组合内已有的条件，并添加新条件。区域内的控件如下：
+
+==== 组合条件
+
+* *Operation（运算符）* -- 连接组合内条件的逻辑运算符。支持：*AND*、*OR*。
+* *Label（标题）* -- 为该条件设置一个自定义的标签，用于在面板和编辑器展示。如果没设置，则显示运算符的名称（*AND* 或 *OR*）。
+* *Operation text visible（运算符标题可见）* -- 定义运算符文本的可见性。
+* *Visible（可见性）* --定义该组合条件的可见性。
+
+==== 条件
+
+组合内的条件以树的形式展示。可以使用下列操作进行管理。
+
+* *Add* -- 打开 *Add condition（添加条件）* 对话框，可以选择需要添加的条件。
+* *Edit* -- 为选中的树节点条件打开编辑器。
+* *Remove* -- 删除树节点中选中的所有条件。
+* image:flow-ui:visual-components/components/generic-filter-move-up.png[align="center", width="42"]/image:flow-ui:visual-components/components/generic-filter-move-down.png[align="center", width="42"]  -- 修改树节点中条件位置的按钮。
+
+[[configuration]]
+== 过滤器配置
+
+配置（Configuration）是一组预先保存的过滤器条件。可以包含任何类型的条件以及其他配置。
+
+配置可以在 <<design-time-configuration,设计时>> 由开发者创建，或在 <<run-time-configuration,运行时>> 由用户创建。
+
+[[design-time-configuration]]
+=== 设计时配置
+
+设计时配置是视图 XML 中 `genericFilter` 的一组 <<elements, 内部元素>>。
+
+下面的示例中，声明了带有两个设计时配置的 `genericFilter`：
+
+[source, xml, indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=design-time-configurations]
+----
+
+<1> 每个配置都需要指定一个 `id` 属性，并且 id 的值需要在 `genericFilter` 的范围内唯一。如果未指定 `name` 属性，那么 `id` 将作为 xref:localization:message-bundles.adoc[消息包] 中的键值使用。
+<2> 用 `default` 属性为过滤器设置默认的配置。
+
+TIP: 如需在 Jmix Studio 中添加设计时配置，可以在界面 XML 或者组件层级面板中选择 `genericFilter` 组件，然后点击 *Component Inspector* 面板的 xref:studio:view-designer.adoc#component-inspector-add-button[Add] -> *Configurations* -> *Design-time configuration* 按钮。
+
+设计时的配置不能在运行时修改。但是，用户仍然可以创建与设计时配置相同的运行时配置并修改其参数。这个操作通过 image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Copy* 实现。
+
+当应用程序运行时，设计时配置与其他配置一同展示在下拉菜单 [<<refresh-drop-down-menu, 4>>] 中。
+
+image::flow-ui:visual-components/components/generic-filter-design-time-items.png[align="center", width="440"]
+
+[[run-time-configuration]]
+=== 运行时配置
+
+过滤器配置可以在运行时通过 *Configuration editor（配置编辑器）* 进行创建。点击 image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit* 可以打开编辑器。
+
+NOTE: 如需创建、编辑、删除运行时配置，用户需要有 `ui.genericfilter.modifyJpqlCondition` 权限。
+
+image::flow-ui:visual-components/components/generic-filter-run-time-configuration.png[align="center", width="1026"]
+
+创建运行时配置：
+
+* 指定一个配置名称。名称展示在下拉列表 [<<refresh-drop-down-menu, 4>>] 和配置编辑器中。
+[[available-for-all-users]]
+* 勾选 *Available for all users（所有用户可用）* 复选框设置所有用户都能使用。有 [ui.filter.modifyGlobalConfiguration] 权限的用户才能使用该复选框。
+* 勾选 *Default for all users（所有用户默认）* 复选框设置当用户打开界面时，是否默认选择创建的配置。仅在 *Available for all users（所有用户可用）* 勾选时可用。
+* 配置组合运算符并添加过滤条件。参阅 <<group-conditions,组合条件>>。
+
+== 权限
+
+过滤器的高级管理功能需要特定的许可：
+
+* 如需新建、修改、删除过滤器配置，用户需要有 `ui.genericfilter.modifyConfiguration` 权限。
+* 如需新建、修改、删除全局（<<available-for-all-users, 所有用户可用>>）过滤器配置，用户需要有 `ui.genericfilter.modifyGlobalConfiguration` 权限。
+* 如需新建、修改运行时 <<jpql-conditions,JPQL 条件>>，用户需要有 `ui.genericfilter.modifyJpqlCondition` 权限。
+
+== 应用程序级别属性
+
+以下应用程序属性会影响过滤器行为：
+
+* xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply]
+* xref:ui-properties.adoc#jmix.ui.component.filter-properties-hierarchy-depth[jmix.ui.component.filter-properties-hierarchy-depth]
+* xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
+
+== 编程式创建过滤器
+
+下面示例演示如何通过编程的方式创建 `genericFilter` 过滤器配置。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+----
+
+<1> 用 `uiComponents` 工厂创建 `genericFilter`。
+<2> 添加设计时配置，方法接收两个参数：配置 id 和配置名称。
+<3> 创建一个 `PropertyFilter` 并设置其属性。
+<4> 通过给定的 metaClass、实体属性和运算符生成过滤器值组件。
+<5> 将过滤器添加至配置中。`LogicalFilterComponent` 是配置的根元素。
+<6> 设置为当前配置。
+<7> 将 `genericFilter` 放入视图的 `vbox` 布局中。这个布局是在视图描述中声明并注入控制器。
+
+== XML 属性
+
+xref:vc/common-attributes.adoc#id[id] -
+<<autoApply, autoApply>> -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+<<dataLoader, dataLoader>> -
+xref:vc/common-attributes.adoc#enabled[enabled] -
+xref:vc/common-attributes.adoc#height[height] -
+xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:vc/common-attributes.adoc#minWidth[minWidth] -
+<<opened, opened>> -
+<<summaryText, summaryText>> -
+xref:vc/common-attributes.adoc#themeNames[themeNames] -
+xref:vc/common-attributes.adoc#visible[visible] -
+xref:vc/common-attributes.adoc#width[width]
+
+[[autoApply]]
+=== autoApply
+
+指定过滤器是否自动应用。
+
+* 如果属性为 `false`，过滤器只有在每次点击 *Refresh（刷新）* 按钮时应用。
+* 如果属性为 `true`，则每次修改过滤器条件时会自动应用。
+
+默认值通过 xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply] 属性定义。
+
+[[dataLoader]]
+=== dataLoader
+
+为过滤器设置一个 xref:flow-ui:data-components.adoc[数据加载器]，基于过滤条件加载数据。
+
+[[opened]]
+=== opened
+
+设置是否默认展示条件面板。
+
+[[summaryText]]
+=== summaryText
+
+设置显示在过滤器控制面板上方的简短摘要。默认值为 `Filter`。
+
+== 事件和处理器
+
+xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+<<ConfigurationChangeEvent, ConfigurationChangeEvent>> -
+<<ConfigurationRefreshEvent, ConfigurationRefreshEvent>> -
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
+<<OpenedChangeEvent, OpenedChangeEvent>> -
+<<propertyFiltersPredicate, propertyFiltersPredicate>>
+
+[[ConfigurationChangeEvent]]
+=== ConfigurationChangeEvent
+
+`ConfigurationChangeEvent` 当过滤器配置修改时发送。包括在没有使用配置时选择了配置，或者重置了过滤器配置。
+
+[[ConfigurationRefreshEvent]]
+=== ConfigurationRefreshEvent
+
+`ConfigurationRefreshEvent` 当每次编辑过滤器配置时发送。
+
+[[OpenedChangeEvent]]
+=== OpenedChangeEvent
+
+`OpenedChangeEvent` 当组件的 <<opened, opened>> 属性变化时发送。
+
+[[propertyFiltersPredicate]]
+=== propertyFiltersPredicate
+
+以编程的方式包含或排除用户可以选择作为过滤条件的属性。
+
+例如，下列代码使得用户无法选择 `hobby` 属性：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFiltersPredicate]
+----
+
+[[elements]]
+== XML 内部元素
+
+<<actions-element, actions>> -
+<<conditions-element, conditions>> -
+<<configurations-element, configurations>> -
+<<properties-element, properties>> -
+xref:vc/components/tooltip.adoc[tooltip]
+
+[[actions-element]]
+=== actions
+
+定义过滤器管理的操作列表。框架在 *Filter Settings（过滤器设置）* image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] 中提供下列默认操作：
+
+* *Save（保存）* -- 保存当前对过滤器配置的修改。由 `FilterSaveAction` 实现（XML 中 `type="genericFilter_save"`）。
+* *Save with values（带值保存）* -- 保存当前对过滤器配置的修改。，且使用条件字段 [<<condition-field, 5>>] 中的值作为过滤器的默认值。
+* *Save as（另存为）* -- 将当前过滤器配置另存为新名称。由 `FilterSaveAsAction` 实现（XML 中 `type="genericFilter_saveAs"`）。
+* *Edit（编辑）* -- 打开编辑器编辑当前 <<run-time-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterEditAction` 实现（XML 中 `type="genericFilter_edit"`）。
+* *Remove（删除）* -- 删除当前 <<run-time-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterRemoveAction` 实现（XML 中 `type="genericFilter_remove"`）。
+* *Copy（复制）* -- 将当前配置的所有条件复制到一个新的 <<run-time-configuration,运行时>> 配置。由 `FilterCopyAction` 实现（XML 中 `type="genericFilter_copy"`）。
+* *Clear values（清空值）* -- 清空过滤器条件值 [<<condition-field, 5>>]。由 `FilterClearValuesAction` 实现（XML 中 `type="genericFilter_clearValues"`）。
+* *Add（添加）* -- 为当前过滤器配置增加条件。由 `FilterAddConditionAction` 实现（XML 中 `type="genericFilter_addCondition"`）。
+* *Reset（重置）* -- 重置过滤器。由 `FilterResetAction` 实现（XML 中 `type="genericFilter_reset"`）。
+
+开发者可以覆盖 image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] 菜单内的操作：
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-actions]
+----
+
+上面的示例创建了一个带 2 个操作的过滤器：
+
+image::flow-ui:visual-components/components/generic-filter-settings-menu-actions.png[align="center", width="242"]
+
+[[conditions-element]]
+=== conditions
+
+用来声明 <<condition-types, 预定义条件>>。
+
+示例：
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-condition]
+----
+
+[[configurations-element]]
+=== configurations
+
+用来声明 <<design-time-configuration, 设计时配置>>。
+
+[[properties-element]]
+=== properties
+
+定义哪些实体属性可以用于过滤条件。该元素有下列属性：
+
+* `include` -- 设置一个正则表达式，该表达式匹配的实体属性将被包含在可选属性中。
+* `exclude` -- 设置一个正则表达式，该表达式匹配的实体属性将被排除在可选属性之外。
+* `excludeProperties` -- 设置一个英文逗号分隔的应该被排除掉的属性或属性路径列表。示例：`customer.name`。
+* `excludeRecursively` -- 设置 `excludeProperties` 里面定义的属性是否需要在对象图中递归地排除掉。如果设置的 true，那么属性和它的子属性都会被排除掉。
+
+示例：
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-properties]
+----
+
+//todo: Jmix 1.5 `filter` could include dynamic attributes too. This should be described here as they appear in 2.0.

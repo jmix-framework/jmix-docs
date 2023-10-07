@@ -4,6 +4,7 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 
 import java.util.UUID;
 
@@ -41,18 +42,19 @@ public class Customer {
     @Column(name = "LAST_NAME")
     private String lastName;
 
+    @Email
     @Column(name = "EMAIL")
     private String email;
 
     @Column(name = "REWARD_POINTS")
-    private String rewardPoints;
+    private Integer rewardPoints;
 
-    public String getRewardPoints() {
-        return rewardPoints;
+    public void setRewardPoints(Integer rewardPoints) {
+        this.rewardPoints = rewardPoints;
     }
 
-    public void setRewardPoints(String rewardPoints) {
-        this.rewardPoints = rewardPoints;
+    public Integer getRewardPoints() {
+        return rewardPoints;
     }
 
     public String getEmail() {

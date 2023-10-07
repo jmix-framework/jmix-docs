@@ -8,8 +8,9 @@ import io.jmix.flowui.view.*;
 import io.jmix.flowui.exception.ValidationException;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDate;
 import java.util.Date;
-import java.util.Locale;
 
 @Route(value = "DatePickerView", layout = MainView.class)
 @ViewController("DatePickerView")
@@ -26,13 +27,14 @@ public class DatePickerView extends StandardView {
     @Autowired
     private TimeSource timeSource;
 
-    @Subscribe
     //tag::onInit[]
-    public void onInit(final InitEvent event) {
+    @Subscribe
+    public void onInit(InitEvent event) {
         //end::onInit[]
-        //tag::locale[]
-        datePicker.setLocale(Locale.US);
-        //end::locale[]
+        //tag::date-range[]
+        datePicker.setMin(LocalDate.now());
+        datePicker.setMax(LocalDate.now().plusDays(7));
+        //end::date-range[]
         //tag::onInit[]
     }
     //end::onInit[]
