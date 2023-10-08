@@ -10,7 +10,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 // tag::CurrencyFormatter[]
-@Component("CurrencyFormatter")
+@Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class CurrencyFormatter implements Formatter<BigDecimal> {
 
