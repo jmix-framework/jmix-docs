@@ -28,12 +28,656 @@ See also the full list of <<breaking-changes,breaking changes>> that can affect 
 
 The following add-ons are now available for projects with Flow UI:
 
+* xref:bulk-edit:index.adoc[]
+* xref:dyn-attr:index.adoc[]
+* xref:jmx-console:index.adoc[]
+* xref:maps:index.adoc[] (preview)
+* xref:notifications:index.adoc[]
+* xref:search:index.adoc[]
+* xref:webdav:index.adoc[]
 
-// [[preview]]
-// == Preview Features
+[[bpm-improvements]]
+=== BPM Improvements
+
+* xref:bpm:dmn.adoc[DMN tables editor] has been ported to Flow UI.
+
+* BPM Modeler now supports https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#external-worker-task[External Worker Tasks^].
+
+[[datagrid-improvements]]
+=== DataGrid Improvements
+
+[[column-renderers]]
+==== Column Renderers
+
+You can now assign renderers to `dataGrid` columns declaratively.
+
+There are a few pre-built renderers that can be assigned to a column in XML: `numberRenderer`, `localDateRenderer` and `localDateTimeRenderer`. They accept a format string. For example:
+
+[source,xml]
+----
+<column property="dueDate">
+    <localDateRenderer format="MMM dd, yyyy"/>
+</column>
+----
+
+A custom renderer can be assigned to a column using the `renderer` handler which is now available on the *Handlers* tab of the *Jmix UI* inspector for any `column` element. Besides, the `column` element can be defined without the `property` attribute, that is without direct binding to an entity attribute. In this case, the `column` element must have the `key` attribute with a unique value.
+
+The example below shows how to define a column with custom renderer which displays a checkbox:
+
+[source,xml]
+----
+<column key="completed" width="4em" flexGrow="0"/>
+----
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
+        Checkbox checkbox = uiComponents.create(Checkbox.class);
+        checkbox.setValue(userStep.getCompletedDate() != null);
+        checkbox.addValueChangeListener(e -> {
+            // ...
+        });
+        return checkbox;
+    });
+}
+----
+
+You can use different implementations of the `com.vaadin.flow.data.renderer.Renderer` interface. In the example below, a custom text is displayed in the column:
+
+[source,xml]
+----
+<column key="status" header="Status"/>
+----
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.status", subject = "renderer")
+private Renderer<UserStep> stepsDataGridStatusRenderer() {
+    return new TextRenderer<>(userStep ->
+            isOverdue(userStep) ? "Overdue!" : "");
+}
+----
+
+[[sorting-by-multiple-columns]]
+==== Sorting by Multiple Columns
+
+`dataGrid` now supports sorting by multiple columns. You can configure it using the following XML attributes:
+
+* `multiSort` - enables sorting by multiple columns.
+* `multiSortOnShiftClickOnly` - if true, multi-sorting occurs only when clicking on the column header when the Shift key is pressed. False by default.
+* `multiSortPriority` - if set to `APPEND`, the clicked column is added to the end of the list of sorted columns. If `PREPEND` (which is the default), the clicked column is added to the beginning of the list.
+
+For example:
+
+[source,xml]
+----
+<dataGrid id="usersDataGrid" dataContainer="usersDc"
+        multiSort="true"
+        multiSortOnShiftClickOnly="true"
+        multiSortPriority="APPEND">
+----
+
+[[aggregation]]
+==== Aggregation
+
+`dataGrid` now supports aggregation of values in rows. To enable aggregation, set the `aggregatable` attribute to true, add the `aggregation` element to aggregated columns and select the aggregation type.
+
+For example:
+
+[source,xml]
+----
+<dataGrid id="ordersDataGrid" dataContainer="ordersDc"
+        aggregatable="true">
+    <columns>
+        <column property="num"/>
+        <column property="date"/>
+        <column property="amount">
+            <aggregation type="SUM" cellTitle="Total amount"/>
+        </column>
+    </columns>
+</dataGrid>
+----
+
+[[filter-in-column-headers]]
+==== Filter in DataGrid Column Headers
+
+CAUTION: This is a preview feature. Its look and feel, as well as implementation details, may change significantly in future releases.
+
+Data in `dataGrid` can now be filtered using xref:flow-ui:vc/components/propertyFilter.adoc[property filters] embedded into column headers.
+
+You can define which columns should have a filter using the `filterable` XML attribute. Filterable columns have the "funnel" icon (image:funnel.svg[]) in their headers. If the user clicks this icon, a dialog with the property filter condition appears. If a condition is set, the icon in that column is highlighted.
+
+To make sure the filter icon is always visible, set an appropriate width for the column using the `width` or `autoWidth` attribute. Don't make the column resizable, otherwise users will be able to shrink the column width and lose the filter icon.
+
+For example:
+
+[source,xml]
+----
+<columns>
+    <column property="username" filterable="true" width="20em"/>
+    <column property="firstName" filterable="true" autoWidth="true"/>
+    <column property="lastName" filterable="true" autoWidth="true"/>
+    <column property="email"/>
+</columns>
+----
+
+Property filters in column headers work in the same way as standalone property filters and xref:flow-ui:vc/components/genericFilter.adoc[] - they add conditions to the xref:flow-ui:data/data-loaders.adoc[data loader]. In the standard flow, the conditions are translated to the JPQL query and filter data on the database level.
+
+Filterable columns can be used together with `propertyFilter` and `genericFilter` components. Conditions of all filters are combined by logical AND.
+
+Currently, column filter conditions are not bound to the page URL. It means that if a user applies a filter and then navigates to a detail view and back, the filter will be cleared. We are going to implement integration with the xref:flow-ui:facets/urlQueryParameters.adoc[] facet in the next release.
+
+[[virtuallist-component]]
+=== VirtualList Component
+
+The `virtualList` component is designed for displaying lists of items with a complex content. Only the visible portion of items is rendered at a time.
+
+`virtualList` is connected to a data container and by default displays the instance name of the entity located in the container. An arbitrary content can be displayed using the `renderer` handler.
+
+Below is an example of using `virtualList` in a list view instead of `dataGrid`:
+
+[source,xml]
+----
+<data readOnly="true">
+    <collection id="stepsDc" class="com.company.onboarding.entity.Step">
+...
+<layout>
+    <genericFilter id="genericFilter" ...>
+    <hbox id="buttonsPanel" ...>
+        <button id="createBtn" text="Create" themeNames="primary"/>
+        <simplePagination id="pagination" dataLoader="stepsDl"/>
+    </hbox>
+    <virtualList id="stepsVirtualList" itemsContainer="stepsDc"/>
+----
+
+[source,java]
+----
+@Autowired
+private UiComponents uiComponents;
+
+@Supply(to = "stepsVirtualList", subject = "renderer")
+private Renderer<Step> stepsVirtualListRenderer() {
+    return new ComponentRenderer<>(step -> {
+        HorizontalLayout hbox = uiComponents.create(HorizontalLayout.class);
+        // create content of the list item
+        return hbox;
+    });
+}
+----
+
+Note that items in `virtualList` are not selectable and cannot be navigated by the keyboard. The standard xref:flow-ui:actions/list-actions.adoc[] will not work with `virtualList`, so you should define your own actions for CRUD operations if needed.
+
+[[html-component]]
+=== Html Component
+
+The `html` component allows you to insert arbitrary HTML content into views.
+
+The content can be defined inline in the nested `content` element, in a file located in the project resources, or in the message bundle. In the latter case, the content can be easily internationalized. For example:
+
+.com/company/onboarding/view/sample/sample-view.xml
+[source,xml]
+----
+<html content="msg://helloWorld"/>
+----
+
+.messages_en.properties
+[source,properties]
+----
+com.company.onboarding.view.sample/helloWorld=<h2>Hello World</h2>
+----
+
+[[settings-facet]]
+=== Settings Facet
+
+The `settings` facet saves and restores settings of visual components for the current user. At the moment the following components are supported:
+
+* `dataGrid`, `treeDataGrid` - the facet saves order and width of columns, sorting parameters.
+* `details` - the facet saves the `opened` state.
+* `simplePagination` - the facet saves the selected page size if `itemsPerPageVisible` is true.
+
+To use the facet, make sure your project has the following dependency:
+
+[source,groovy]
+----
+implementation 'io.jmix.flowui:jmix-flowui-data-starter'
+----
+
+To save and restore settings for all supported components of a view, add the facet with the `auto` attribute:
+
+When added to a view with the `auto="true"` attribute, the facet manages settings of all supported components of the view that have identifiers:
+
+[source,xml]
+----
+<facets>
+    <settings auto="true"/>
+----
+
+To manage settings of a particular component, use the nested `component` elements, for example:
+
+[source,xml]
+----
+<facets>
+    <settings>
+        <component id="customersDataGrid"/>
+    </settings>
+----
+
+To exclude some component, use `auto="true"` for the facet and `enabled="false"` for the component:
+
+[source,xml]
+----
+<facets>
+    <settings auto="true">
+        <component id="customersDataGrid" enabled="false"/>
+    </settings>
+----
+
+The facet provides handlers that allow you to save and restore any properties of the view and its components. The following example shows how to save the value of a checkbox:
+
+[source,java]
+----
+@ViewComponent
+private SettingsFacet settings;
+@ViewComponent
+private JmixCheckbox testCheckbox;
+
+@Install(to = "settings", subject = "applySettingsDelegate")
+private void settingsApplySettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
+    settings.applySettings();
+    Optional<Boolean> value = settingsContext.getViewSettings().getBoolean("testCheckbox", "value");
+    testCheckbox.setValue(value.orElse(Boolean.FALSE));
+}
+
+@Install(to = "settings", subject = "saveSettingsDelegate")
+private void settingsSaveSettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
+    settingsContext.getViewSettings().put("testCheckbox", "value", testCheckbox.getValue());
+    settings.saveSettings();
+}
+----
+
+There are two handlers for restoring settings:
+
+* `applySettingsDelegate` is invoked before the view `ReadyEvent` handler
+* `applyDataLoadingSettingsDelegate` is invoked before the view `BeforeShowEvent` handler and allows you to restore settings related to data loading.
+
+The `saveSettingsDelegate` handler is invoked before the view `DetachEvent` handler.
+
+The settings are stored in the main data store in the `FLOWUI_USER_SETTINGS` table in JSON format. You can manage the saved settings by opening the `flowui_UserSettingsItem` entity in xref:data-tools:entity-inspector.adoc[Entity Inspector].
+
+[[timer-facet]]
+=== Timer Facet
+
+The new `timer` facet is designed to run some view code at specified time intervals. It works in a thread that handles user interface events and can update view components. Timer stops working when a view it was created for is closed.
+
+For example, the following timer will automatically fire in 2 sec after the view is opened and will continue firing with the same interval:
+[source,xml]
+----
+<facets>
+    <timer id="timer" delay="2000" autostart="true" repeating="true"/>
+----
+
+It will invoke the following handler in the view:
+[source,java]
+----
+@Subscribe("timer")
+public void onTimerTimerAction(final Timer.TimerActionEvent event) {
+    // ...
+}
+----
+
+[[ui-elements-and-attributes]]
+=== UI Elements and Attributes
+
+[[prefix-and-suffix-components]]
+==== Prefix and Suffix Components
+
+Prefix and suffix components can now be added in XML to the components implementing `HasPrefix` and `HasSuffix` interfaces. For example:
+
+[source,xml]
+----
+<textField id="nameField" property="name">
+    <prefix>
+        <icon icon="ASTERISK"/>
+    </prefix>
+    <suffix>
+        <button id="setNameBtn" text="Set name"/>
+    </suffix>
+</textField>
+----
+
+[[inline-css-attribute]]
+==== Inline CSS Attribute
+
+Now you can use `css` attribute to provide inline CSS for any component. For example:
+
+[source,xml]
+----
+<button id="editBtn" action="usersDataGrid.edit" css="color: red;"/>
+----
+
+[[align-self-attribute]]
+==== alignSelf Attribute
+
+The new `alignSelf` attribute enables overriding of the `alignItems` value of the enclosing container in individual components. For example:
+
+[source,xml]
+----
+<hbox alignItems="CENTER" height="10em">
+    <span id="totalLabel" text="Total"/>
+    <span id="completedLabel" text="Completed" alignSelf="END"/>
+    <span id="overdueLabel" text="Overdue"/>
+</hbox>
+----
+
+The attribute is available for all components. It corresponds to the https://developer.mozilla.org/en-US/docs/Web/CSS/align-self[align-self^] CSS property.
+
+[[fetching-items-in-dropdowns]]
+=== Fetching Items in Dropdowns
+
+The UI components with dropdown lists (xref:flow-ui:vc/components/comboBox.adoc[], xref:flow-ui:vc/components/entityComboBox.adoc[], xref:flow-ui:vc/components/multiSelectComboBox.adoc[], `multiSelectComboBoxPicker`) now can load items in batches in response to user input. For example, when the user enters `foo`, the component loads from the database at most 50 items having `foo` in the name and shows them the dropdown. When the user scrolls down the list, the component fetches the next batch of 50 items with the same query and adds them to the list.
+
+To implement this behavior, define the `itemsQuery` nested element instead of connecting the component to a collection container with the `itemsContainer` attribute. The `itemsQuery` element should contain the query text in the body and a few additional attributes specifying what and how to load data.
+
+Example of `itemsQuery` in `entityComboBox`:
+
+[source,xml]
+----
+<entityComboBox id="departmentField" property="department" pageSize="30">
+    <itemsQuery class="com.company.onboarding.entity.Department" fetchPlan="_instance_name"
+                searchStringFormat="(?i)%${inputString}%">
+        <![CDATA[select e from Department e where e.name like :searchString order by e.name]]>
+    </itemsQuery>
+</entityComboBox>
+----
+
+Example of `itemsQuery` in `comboBox`:
+
+[source,xml]
+----
+<comboBox id="departmentField" pageSize="30" >
+    <itemsQuery searchStringFormat="(?i)%${inputString}%">
+        <![CDATA[select e.name from Department e where e.name like :searchString order by e.name]]>
+    </itemsQuery>
+</comboBox>
+----
+
+As you can see, `itemsQuery` in `comboBox` does not need `class` and `fetchPlan` attributes because the query is supposed to return the list of scalar values.
+
+The `pageSize` attribute of the component defines the batch size when loading data from the database. It is 50 by default.
+
+Items fetching can also be defined programmatically using the `itemsFetchCallback` handler. For example:
+
+[source,xml]
+----
+<entityComboBox id="departmentField" property="department"/>
+----
+
+[source,java]
+----
+@Install(to = "departmentField", subject = "itemsFetchCallback")
+private Stream<Department> departmentFieldItemsFetchCallback(final Query<Department, String> query) {
+    String param = query.getFilter().orElse("");
+    return dataManager.load(Department.class)
+            .condition(PropertyCondition.contains("name", param))
+            .firstResult(query.getOffset())
+            .maxResults(query.getLimit())
+            .list()
+            .stream();
+}
+----
+
+In this example, data is fetched using `DataManager`, but you can use this approach to load from a custom service as well.
+
+[[read-only-data-loaders]]
+=== Read-only Data Loaders
+
+`loader` XML elements defining xref:flow-ui:data/data-loaders.adoc[data loaders] now have the `readOnly` attribute. If it's set to true, the loader doesn't get a reference to xref:flow-ui:data/data-context.adoc[DataContext] and doesn't merge entities after load. As a result, entities loaded with this loader are not tracked by `DataContext` and not saved automatically even if changed.
+
+This attribute is now used in list view templates instead of `readOnly="true"` on the root `data` element (which selected a no-op implementation of the whole `DataContext`). Both are intended to improve performance by bypassing `DataContext` for read-only data, but the `readOnly` attribute on loaders enables more fine-grained control: you can have the normal `DataContext` to save an edited entity and at the same time load read-only entities, for example for dropdowns.
+
+Studio now generates collection loaders with `readOnly="true"` by default.
+
+In the following example the loaded `User` entity is merged into `DataContext`, while the collection of `Department` entities is not:
+
+[source,xml]
+----
+<data>
+    <instance id="userDc" class="com.company.onboarding.entity.User">
+        <fetchPlan extends="_base"/>
+        <loader/>
+        <collection id="stepsDc" property="steps"/>
+    </instance>
+
+    <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
+        <fetchPlan extends="_base"/>
+        <loader id="departmentsDl" readOnly="true">
+            <query>
+                <![CDATA[select e from Department e order by e.name]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+
+[[master-detail-view-template]]
+=== Master-Detail View Template
+
+The new `Master-detail view` template allows you to create CRUD views with the list of entities on the left and details of a selected entities on the right.
+
+[[user-substitution]]
+=== User Substitution
+
+The xref:security:users.adoc#user-substitution[user substitution] views have been implemented in Flow UI.
+
+When you create a new project, the user list view already contains the *User substitutions* item in the *Additional* dropdown. To show this item in an existing project, open `user-list-view.xml` and add `sec_showUserSubstitutions` action to the `dataGrid` and corresponding item to the `dropdownButton` as follows:
+
+[source,xml]
+----
+<dropdownButton id="additionalBtn" ...>
+    <items>
+        <actionItem id="showUserSubstitutionsItem" ref="usersDataGrid.showUserSubstitutions"/>
+...
+<dataGrid id="usersDataGrid" ...>
+    <actions>
+        <action id="showUserSubstitutions" type="sec_showUserSubstitutions"/>
+----
+
+[[injection-by-code-completion]]
+=== Injection by Code Completion
+
+Studio now offers a new way of injecting dependencies into Spring beans and view controllers.
+
+As soon as you enter a few characters inside a method body, you will get a code completion dropdown filled with available beans and UI components in addition to the existing local variables and class fields. The beans and UI components not yet injected into the class will be marked with italic font. If you select such an item, it will be injected into the constructor or into a field with the proper annotation (`@Autowired` or `@ViewComponent`) and the filed will be available for usage immediately at the cursor position.
+
+You can set the minimum number of characters to enter or completely turn off this feature on the *Coding Assistance* tab of the xref:studio:plugin-settings.adoc[Jmix Plugin Settings].
+
+[[support-for-data-repositories]]
+=== Support for Data Repositories
+
+Studio now has full support for creating and managing xref:data-access:data-repositories.adoc[data repositories].
+
+To create a repository, click *New* -> *Data Repository* in *Jmix* tool window toolbar. In the *New Jmix Data Repository* dialog, select an entity and click *OK*. Studio will create the repository interface extending `JmixDataRepository` and add `@EnableJmixDataRepositories` to the main application class.
+
+When a data repository is opened in the editor, Studio shows the actions panel on top with two buttons. The *Add Derived Method* button allows you to create a method whose query will be derived from the method name. The *Add Query Method* creates a method with explicitly specified JPQL query. Both methods open special dialogs where you can define the query and its parameters.
+
+For all existing methods of a repository, Studio displays a "gear" gutter icon. It allows you to adjust the method parameters, for example add sorting or fetch plan. You can also extract the query into the `@Query` annotation and change the method name as you like.
+
+Data repositories created for a particular entity are displayed in *Jmix* tool window in the *Data Repositories* section inside the entity section.
+
+[[commenting-database-schema]]
+=== Commenting Data Model
+
+Now you can add comments to entities and their attributes using the `@io.jmix.core.metamodel.annotation.Comment` annotation, for example:
+
+[source,java]
+----
+@Comment("""
+        Stores information about books.
+        Has reference to Genre.""")
+@JmixEntity
+@Table(name = "BOOK")
+@Entity
+public class Book {
+    // ...
+
+    @Comment("Book title")
+    @Column(name = "TITLE")
+    private String title;
+----
+
+For all databases except HSQL, Studio generates `setTableRemarks` and `setColumnRemarks` Liquibase changelog operations to store the comments in the database schema. So the comments become available through any database inspection tool.
+
+You can also extract comments from metadata (or directly from class annotations) to display in the application UI or generate a documentation. Use `MetadataTools.getMetaAnnotationValue()` methods for convenience.
+
+Studio supports creating comments in the xref:studio:entity-designer.adoc[]: see *Comment* edit links in the lists of entity and attribute parameters. When a comment is set, the link shows its first few words.
+
+[[view-designer-improvements]]
+=== View Designer Improvements
+
+Now the *Jmix UI* tool window is displayed for both view XML descriptors and controllers. It allows you to see the components tree, change component properties or even add new components to the view while working with Java code in the controller. You can also inject components to the controller by dragging and dropping them from the hierarchy to the code editor.
+
+The *Preview* panel requires building the frontend and starting Vaadin Development Mode Server, which can take a long time. To save time on the project opening, the *Preview* panel is now opened only when you click *Start Preview* button in the top panel of the XML editor. After that, the preview will be active for all subsequently opened views of the project. You can also deactivate the preview by clicking *Stop Preview*.
+
+[[profile-specific-properties]]
+=== Profile-Specific Properties
+
+Studio can now read application properties from profile-specific files, if `spring.profiles.active` property is set in the main `application.properties` file. It allows you to have a separate profile for development environment.
+
+The example below shows how to create a `dev` profile defining properties for the database connection and use it as a default for your development environment.
+
+.application.properties
+[source,properties]
+----
+spring.profiles.active = dev
+
+# ...
+----
+
+.application-dev.properties
+[source,properties]
+----
+main.datasource.url = jdbc:postgresql://localhost/onboarding-21
+main.datasource.username = root
+main.datasource.password = root
+----
+
+After making these changes, the xref:studio:data-stores.adoc[Data Store Properties] editor in Studio will read and write properties from and to `application-dev.properties` file instead of `application.properties`.
+
+You can exclude the `application-dev.properties` file from VCS to not share the connection settings. When running the application in production, a different profile can be specified using a command-line argument or an environment variable.
+
+[[connecting-to-unsupported-databases]]
+=== Connecting to Unsupported Databases
+
+Now you can define an xref:studio:data-stores.adoc#additional-data-store[additional data store] connected to a database not supported by Jmix natively.
+
+This feature is currently in the preview state and disabled by default. To enable it, press Shift twice, in the opened list select the *Jmix Features* item and tick the *Generic Database Support for Additional Data Store* checkbox.
+
+After that, when you create an additional data store, you will see the `Generic DB` item in the *Database type* dropdown. If you select this type, Studio will allow you to enter the following parameters:
+
+* *DBMS type* - an arbitrary identifier of the database type used also as a prefix for the database-specific classes (explained below). Enter a short string containing only alphanumeric lowercase characters, for example `foo`.
+
+* *Database URL* - the full JDBC connection URL, for example `jdbc:foosql://localhost/database`
+
+* *Driver class name* - class name of the JDBC driver, for example `org.foosql.Driver`.
+
+* *Driver artifact* - JDBC driver artifact coordinates, for example `org.foosql:foosql:1.0.0`.
+
+* *Connection test query* - an SQL query for testing connection, for example `select 1`.
+
+* *Database platform* - a class extending `org.eclipse.persistence.platform.database.DatabasePlatform` which describes the database for the EclipseLink ORM framework. You can select an existing class if it suits your database or keep the `Create DatabasePlatform class` to create a new class.
+
+Click *OK*.
+
+Studio will create the usual `Myds1StoreConfiguration` class with required beans in the base package. In addition, it will create the following stubs in the `<base-package>/dbms` package:
+
+* `FooPlatform` - the class extending `DatabasePlatform`. It describes the database for the EclipseLink ORM framework.
+
+* `FooDbmsFeatures` - the class implementing `DbmsFeatures` interface. It describes the database for Jmix framework.
+
+* `FooSequenceSupport` - the class implementing `SequenceSupport` interface. It describes how sequences should be handled in this database.
+
+* `FooDbTypeConverter` - the class implementing `DbTypeConverter` interface. It defines methods to convert data between Java objects and JDBC parameters and results.
+
+Studio will also add `implementation 'org.foosql:foosql:1.0.0'` dependency to `build.gradle`.
+
+Now you should implement the methods in the generated stubs appropriately. Use the framework classes like `JmixPostgreSQLPlatform`, `PostgresqlDbmsFeatures` and so on as an example.
 
 [[breaking-changes]]
 == Breaking Changes
+
+[[representation-of-roles-in-authentication-object]]
+=== Representation of Roles in Authentication Object
+
+Now the roles of the current user are represented by the Spring Security `SimpleGrantedAuthority` class which effectively contains only a string denoting a role. The string has the following format:
+
+* For resource roles: `ROLE_<role-code>`, for example `ROLE_system-full-access`.
+* For row-level roles: `ROW_LEVEL_ROLE_<role-code>`, for example `ROW_LEVEL_ROLE_my-role`.
+
+Granted authorities of the appropriate class and content can be created from role codes using the `RoleGrantedAuthorityUtils` class.
+
+The following starter must be added to `build.gradle`:
+
+[source, groovy]
+----
+implementation 'io.jmix.security:jmix-security-starter'
+----
+
+The `RoleGrantedAuthority` class which previously represented roles in the `Authentication` object has been removed.
+
+See https://github.com/jmix-framework/jmix/issues/233[#233^] for more information.
+
+[[labels-position-in-formlayout]]
+=== Labels Position in FormLayout
+
+If labels of components inside xref:flow-ui:vc/layouts/formLayout.adoc[formLayout] are placed to the side, then each field must be wrapped in the `formItem` element.
+
+In the following example, the labels are on the side regardless of the layout width:
+
+[source,xml]
+----
+<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
+    <formItem>
+        <textField id="usernameField" property="username" readOnly="true"/>
+    </formItem>
+    <formItem>
+        <textField id="firstNameField" property="firstName"/>
+    </formItem>
+    <formItem>
+        <textField id="lastNameField" property="lastName"/>
+    </formItem>
+    <formItem>
+        <checkbox id="activeField" property="active"/>
+    </formItem>
+</formLayout>
+----
+
+The same requirement applies if `labelsPosition="ASIDE"` is defined for certain responsive steps:
+
+[source,xml]
+----
+<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
+    <responsiveSteps>
+        <responsiveStep minWidth="0" columns="1" labelsPosition="TOP"/>
+        <responsiveStep minWidth="40em" columns="1" labelsPosition="ASIDE"/>
+        <responsiveStep minWidth="50em" columns="2" labelsPosition="TOP"/>
+        <responsiveStep minWidth="65em" columns="2" labelsPosition="ASIDE"/>
+    </responsiveSteps>
+    <formItem>
+        <textField id="usernameField" property="username" readOnly="true"/>
+    </formItem>
+    <formItem>
+        <textField id="firstNameField" property="firstName"/>
+    </formItem>
+    <formItem>
+        <textField id="lastNameField" property="lastName"/>
+    </formItem>
+    <formItem>
+        <checkbox id="activeField" property="active"/>
+    </formItem>
+</formLayout>
+----
 
 [[changelog]]
 == Changelog
