@@ -106,6 +106,14 @@ image::images/form-2.png[align="center"]
 
 Давайте создадим колонку для отображения изображения в таблице экрана `User.list`.
 
+Откройте `user-list-view.xml` и добавьте следующую колонку в `usersDataGrid`:
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
 Добавьте следующие поля в класс `UserListView`:
 
 [source,java]
@@ -122,16 +130,16 @@ private FileStorage fileStorage;
 
 TIP: Вы можете использовать кнопку *Inject* в верхней панели действий редактора, чтобы инжектировать зависимости в контроллеры экрана и бины Spring.
 
-Сгенерируйте обработчик события `InitEvent` используя команду  *Generate Handler* и реализуйте его следующим образом:
+Выберите колонку `picture` в иерархии, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `renderer. Реализуйте его следующим образом:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<User> pictureColumn = usersDataGrid.addComponentColumn(user -> { // <1>
+@Supply(to = "usersDataGrid.picture", subject = "renderer")
+private Renderer<User> usersDataGridPictureRenderer() {
+    return new ComponentRenderer<>(user -> { // <1>
         FileRef fileRef = user.getPicture();
         if (fileRef != null) {
-            Image image = uiComponents.create(Image.class); // <2>
+            Image image = uiComponents.create(Image.class);  // <2>
             image.setWidth("30px");
             image.setHeight("30px");
             StreamResource streamResource = new StreamResource(
@@ -142,20 +150,15 @@ public void onInit(final InitEvent event) {
 
             return image; // <4>
         } else {
-            return new Span();
+            return null;
         }
     });
-    pictureColumn.setFlexGrow(0); // <5>
-    pictureColumn.setWidth("40px");
-    usersDataGrid.setColumnPosition(pictureColumn, 0); // <6>
 }
 ----
-<1> Метод `addComponentColumn()` принимает лямбду, которая создает UI-компонент, отображаемый в ячейках колонки. Лямбда принимает экземпляр сущности данной строки.
+<1> Метод возвращает объект `Renderer`, создающий UI-компонент, отображаемый в ячейках колонки. Рендерер принимает экземпляр сущности данной строки.
 <2> Экземпляр компонента `Image` создается с помощью фабрики компонентов `UiComponents`.
 <3> Компонент изображения получает свое содержимое из файлового хранилища по ссылке, хранящейся в атрибуте `picture` сущности `User`.
-<4> Лямбда возвращает визуальный компонент, который будет отображаться в ячейках колонки.
-<5> Установка ширины созданной колонки.
-<6> Установка позиции созданной колонки
+<4> Рендерер возвращает визуальный компонент, который будет отображаться в ячейках колонки.
 
 
 Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран списка пользователей. Вы увидите изображение пользователя в первой колонке таблицы:

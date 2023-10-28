@@ -51,7 +51,7 @@ Studio добавит атрибут `department` в компонент `dataGri
 
 [source,xml]
 ----
-<data readOnly="true">
+<data>
     <collection id="usersDc"
                 class="com.company.onboarding.entity.User">
         <fetchPlan extends="_base">
@@ -142,7 +142,7 @@ image::data-in-ui/options-container-1.gif[align="center"]
     ...
     <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
         <fetchPlan extends="_base"/>
-        <loader id="departmentsDl">
+        <loader id="departmentsDl" readOnly="true">
             <query>
                 <![CDATA[select e from Department e]]>
             </query>
@@ -171,7 +171,7 @@ image::data-in-ui/options-container-3.png[align="center"]
     ...
     <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
         <fetchPlan extends="_base"/>
-        <loader id="departmentsDl">
+        <loader id="departmentsDl" readOnly="true">
             <query>
                 <![CDATA[select e from Department e
                 order by e.name asc]]>
@@ -396,7 +396,7 @@ Studio сгенерирует Liquibase changelog для добавления с
 </dataGrid>
 ----
 
-Затем выберите `hbox` в панели иерархии *Jmix UI* и нажмите на кнопку *Add Component* в контекстном меню узла. Выберите  компонент `Button` в палитре и добавьте его в экран двойным кликом. Затем выберите созданный элемент `button` и в панели инспектора укажите свойству `id` значение `generateButton`, а свойству `text` - значение `Generate`. После этого перейдите на вкладку *Handlers* и создайте метод обработчика `ClickEvent`:
+Затем выберите `buttonsPanel` в панели иерархии *Jmix UI* и нажмите на кнопку *Add Component* в контекстном меню узла. Выберите  компонент `Button` в палитре и добавьте его в экран двойным кликом. Затем выберите созданный элемент `button` и в панели инспектора укажите свойству `id` значение `generateButton`, а свойству `text` - значение `Generate`. После этого перейдите на вкладку *Handlers* и создайте метод обработчика `ClickEvent`:
 
 image::data-in-ui/button-1.gif[]
 
@@ -427,6 +427,11 @@ public class UserDetailView extends StandardDetailView<User> {
     @ViewComponent
     private CollectionPropertyContainer<UserStep> stepsDc;
 ----
+
+[TIP]
+====
+If you copy the fields above and paste them to the source code, IDE will highlight them as errors because you also need to add `import` statements for the classes. Place the cursor on each error and the IDE will suggest you an appropriate import. If it doesn't, close the editor tab, then open `UserDetailView.java` again.
+====
 
 [TIP]
 ====
@@ -597,6 +602,27 @@ image::data-in-ui/columns-6.png[align="center"]
 
 В этом разделе вы реализуете возможность отмечать выполненный пользователем шаг, устанавливая флажок в строке таблицы. Флажок будет отображаться в дополнительной левой колонке таблицы.
 
+Добавьте новую колонку в `stepsDataGrid`:
+
+[source,xml]
+----
+<dataGrid id="stepsDataGrid" ...>
+    <columns>
+        <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+Эта колонка не связана ни с каким атрибутом сущности, поэтому для нее указан атрибут `key` вместо `property`.
+
+Выберите колонку `completed` в иерархии, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `renderer`:
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return null;
+}
+----
+
 Инжектируйте объект `UiComponents` в класс контроллера:
 
 [source,java]
@@ -607,15 +633,13 @@ private UiComponents uiComponents;
 
 TIP: Вы можете использовать кнопку *Inject* на верхней панели действий дизайнера, чтобы инжектировать зависимости в контроллеры экранов и бины Spring.
 
-Добавьте следующий код в обработчика события `InitEvent`:
+Реализуйте метод `stepsDataGridCompletedRenderer`:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    timeZoneField.setItems(List.of(TimeZone.getAvailableIDs()));
-
-    Grid.Column<UserStep> completedColumn = stepsDataGrid.addComponentColumn(userStep -> { // <1>
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> { // <1>
         Checkbox checkbox = uiComponents.create(Checkbox.class); // <2>
         checkbox.setValue(userStep.getCompletedDate() != null);
         checkbox.addValueChangeListener(e -> { // <3>
@@ -627,17 +651,12 @@ public void onInit(final InitEvent event) {
         });
         return checkbox; // <4>
     });
-    completedColumn.setFlexGrow(0); // <5>
-    completedColumn.setWidth("4em");
-    stepsDataGrid.setColumnPosition(completedColumn, 0); // <6>
 }
 ----
-<1> Метод `addComponentColumn()` принимает лямбду, которая создает UI-компонент, который должен быть отображен в ячейках колонки. Лямбда принимает экземпляр сущности для данной строки.
+<1> Метод возвращает объект `Renderer`, создающий UI-компонент, который должен быть отображен в ячейках колонки. Рендерер принимает экземпляр сущности для данной строки.
 <2> Экземпляр компонента `CheckBox` создается с помощью фабрики компонентов `UiComponents`.
 <3> Когда вы нажимаете на флажок, его значение изменяется, и флажок вызывает свой слушатель `ValueChangeEvent`. Слушатель устанавливает атрибут `completedDate` у сущности `UserStep`.
-<4> Лямбда возвращает визуальный компонент, который будет отображаться в ячейках колонки.
-<5> Установка ширины созданной колонки.
-<6> Установка позиции созданной колонки.
+<4> Рендерер возвращает визуальный компонент, который будет отображаться в ячейках колонки.
 
 Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей  пользователя и установите флажки для некоторых строк. Колонка *Completed date* изменится соответствующим образом:
 

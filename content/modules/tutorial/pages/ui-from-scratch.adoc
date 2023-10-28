@@ -70,10 +70,9 @@ image::ui-from-scratch/data-container-1.gif[]
 [source,xml]
 ----
 <data>
-    <collection id="userStepsDc"
-                class="com.company.onboarding.entity.UserStep">
+    <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
         <fetchPlan extends="_base"/>
-        <loader id="userStepsDl">
+        <loader id="userStepsDl" readOnly="true">
             <query>
                 <![CDATA[select e from UserStep e]]>
             </query>
@@ -84,6 +83,17 @@ image::ui-from-scratch/data-container-1.gif[]
 
 [[load-data]]
 === Загрузка данных
+
+Прежде всего, удалите атрибут `readOnly="true"` у сгенерированного загрузчика, потому что объекты, отображаемые в этом экране, нужно будет изменять и сохранять. Вы можете сделать это в инспекторе компонентов или прямо в XML:
+
+[source,xml]
+----
+<loader id="userStepsDl">
+    <query>
+        <![CDATA[select e from UserStep e]]>
+    </query>
+</loader>
+----
 
 Запрос по умолчанию загрузит все экземпляры `UserStep`, но вам нужно выбрать только шаги текущего пользователя и в определенном порядке. Давайте изменим запрос с помощью конструктора JPQL. Выберите контейнер `userStepsDc` на панели иерархии *Jmix UI* и щелкните на значение атрибута `query`. Затем добавьте условие `where` по атрибуту `user` с параметром `:user`, и выражение `order by` по атрибуту `sortValue`.
 
@@ -193,14 +203,15 @@ image::ui-from-scratch/table-2.gif[align="center"]
 <view xmlns="http://jmix.io/schema/flowui/view"
       title="msg://myOnboardingView.title">
     <data>
-        <collection id="userStepsDc"
-                    class="com.company.onboarding.entity.UserStep">
+        <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
             <fetchPlan extends="_base">
                 <property name="step" fetchPlan="_base"/>
             </fetchPlan>
             <loader id="userStepsDl">
                 <query>
-                    <![CDATA[select e from UserStep e]]>
+                    <![CDATA[select e from UserStep e
+                    where e.user = :user
+                    order by e.sortValue asc]]>
                 </query>
             </loader>
         </collection>
@@ -226,19 +237,24 @@ image::ui-from-scratch/table-3.png[align="center"]
 
 В этом разделе вы добавите колонку с флажками, чтобы отметить выполненные шаги по онбордингу. Вы уже делали это xref:data-in-ui.adoc#component-column[раньше] для таблицы UserSteps на экране деталей пользователя.
 
-В контроллере инжектируйте фабрику `UiComponents` и компонент `userStepsDataGrid`. Сгенерируйте обработчик события `InitEvent` и реализуйте его следующим образом:
+В XML-дескрипторе добавьте колонку `completed`:
+
+[source,xml]
+----
+<columns>
+    <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+В контроллере инжектируйте фабрику `UiComponents`. Сгенерируйте для колонки `completed` обработчик `renderer` и реализуйте его следующим образом:
 
 [source,java]
 ----
 @Autowired
 private UiComponents uiComponents;
 
-@ViewComponent
-private DataGrid<UserStep> userStepsDataGrid;
-
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<UserStep> completedColumn = userStepsDataGrid.addComponentColumn(userStep -> {
+@Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
         Checkbox checkbox = uiComponents.create(Checkbox.class);
         checkbox.setValue(userStep.getCompletedDate() != null);
         checkbox.addValueChangeListener(e -> {
@@ -250,9 +266,6 @@ public void onInit(final InitEvent event) {
         });
         return checkbox;
     });
-    completedColumn.setFlexGrow(0);
-    completedColumn.setWidth("4em");
-    userStepsDataGrid.setColumnPosition(completedColumn, 0);
 }
 ----
 
@@ -341,6 +354,7 @@ public void onBeforeShow(final BeforeShowEvent event) {
 image::ui-from-scratch/label-2.png[align="center"]
 +
 . Вызовите метод `updateLabels()` из обработчика, который вы только что сгенерировали:
++
 [source,java]
 ----
 @Subscribe(id = "userStepsDc", target = Target.DATA_CONTAINER)
@@ -374,8 +388,6 @@ image::ui-from-scratch/label-3.png[align="center"]
 
 Сгенерируйте обработчики нажатия кнопок с помощью вкладки *Handlers* панели инспектора *Jmix UI*:
 
-image::ui-from-scratch/buttons-2.png[align="center",width="290"]
-
 Инжектируйте `DataContext` в класс контроллера и реализуйте обработчики нажатия кнопок:
 
 [source,java]
@@ -383,14 +395,14 @@ image::ui-from-scratch/buttons-2.png[align="center",width="290"]
 @ViewComponent
 private DataContext dataContext;
 
-@Subscribe("saveButton")
-public void onSaveButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "saveButton", subject = "clickListener")
+public void onSaveButtonClick(final ClickEvent<JmixButton> event) {
     dataContext.save(); // <1>
     close(StandardOutcome.SAVE); // <2>
 }
 
-@Subscribe("discardButton")
-public void onDiscardButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "discardButton", subject = "clickListener")
+public void onDiscardButtonClick(final ClickEvent<JmixButton> event) {
     close(StandardOutcome.DISCARD); // <2>
 }
 ----
@@ -410,22 +422,16 @@ image::ui-from-scratch/buttons-3.png[align="center"]
 
 image::ui-from-scratch/theme-1.png[align="center", width="282"]
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-Затем найдите в контроллере метод `onInit` и добавьте в него следующие строки:
+Выберите колонку `dueDate`, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `partNameGenerator`. Реализуйте его следующим образом:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    // ...
-
-    Grid.Column<UserStep> dueDate = userStepsDataGrid.getColumnByKey("dueDate"); // <1>
-    dueDate.setPartNameGenerator(userStep ->
-            isOverdue(userStep) ? "overdue-step" : null); // <2>
+@Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+    return isOverdue(userStep) ? "overdue-step" : null;
 }
 ----
-<1> Получаем объект колонки dueDate.
-<2> Устанавливаеи колонке генератор part name. Генератор - это лямбда, принимающая экземпляр UserStep отображаемой строки. Она возвращает имя для использования в специальном CSS-селекторе для этой колонки.
+Обработчик принимает экземпляр UserStep отображаемой строки и возвращает имя для использования в специальном CSS-селекторе для этой колонки.
 
 Наконец, откройте файл `onboarding.css` из раздела *User Interface* -> *Themes* и добавьте следующий код CSS:
 
@@ -463,8 +469,7 @@ image::ui-from-scratch/theme-4.png[align="center"]
 
 * CSS-файл, находящийся в проекте может определять стили визуальных компонентов.
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-// * The `partNameGenerator` handler should be used to change the style of a table cell.
+* The `partNameGenerator` handler should be used to change the style of a table cell.
 
 * Палитру xref:studio:code-snippets.adoc[Code Snippets] можно использовать для быстрого поиска и генерации кода, работающего с API фреймворка.
 
