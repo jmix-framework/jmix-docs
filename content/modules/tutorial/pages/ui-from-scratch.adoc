@@ -70,10 +70,9 @@ Studio will create the collection container:
 [source,xml]
 ----
 <data>
-    <collection id="userStepsDc"
-                class="com.company.onboarding.entity.UserStep">
+    <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
         <fetchPlan extends="_base"/>
-        <loader id="userStepsDl">
+        <loader id="userStepsDl" readOnly="true">
             <query>
                 <![CDATA[select e from UserStep e]]>
             </query>
@@ -84,6 +83,17 @@ Studio will create the collection container:
 
 [[load-data]]
 === Loading Data
+
+First of all, remove the `readOnly="true"` attribute from the generated loader, because we are going to modify the entities shown in this view. You can do it in the component inspector or right in the XML:
+
+[source,xml]
+----
+<loader id="userStepsDl">
+    <query>
+        <![CDATA[select e from UserStep e]]>
+    </query>
+</loader>
+----
 
 The default query will load all `UserStep` instances, but you need to select only steps of the current user and in a particular order. Let's modify the query using JPQL Query Designer. Select `userStepsDc` container in the *Jmix UI* hierarchy panel and click the value of the `query` attribute. Then add a `where` clause by `user` attribute with the `:user` parameter and an `order by` clause by `sortValue` attribute.
 
@@ -193,14 +203,15 @@ At this stage, the view XML should be as below:
 <view xmlns="http://jmix.io/schema/flowui/view"
       title="msg://myOnboardingView.title">
     <data>
-        <collection id="userStepsDc"
-                    class="com.company.onboarding.entity.UserStep">
+        <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
             <fetchPlan extends="_base">
                 <property name="step" fetchPlan="_base"/>
             </fetchPlan>
             <loader id="userStepsDl">
                 <query>
-                    <![CDATA[select e from UserStep e]]>
+                    <![CDATA[select e from UserStep e
+                    where e.user = :user
+                    order by e.sortValue asc]]>
                 </query>
             </loader>
         </collection>
@@ -226,19 +237,24 @@ image::ui-from-scratch/table-3.png[align="center"]
 
 In this section, you will add a column with checkboxes to mark onboarding steps done. You already did this xref:data-in-ui.adoc#component-column[before] for the UserSteps table in the User edit screen.
 
-In the controller, inject the `UiComponents` factory and `userStepsDataGrid` component. Generate `InitEvent` handler and implement it as follows:
+In the XML descriptor, add the `completed` column:
+
+[source,xml]
+----
+<columns>
+    <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+In the controller, inject the `UiComponents` factory. Generate `renderer` handler for the `completed` column and implement it as follows:
 
 [source,java]
 ----
 @Autowired
 private UiComponents uiComponents;
 
-@ViewComponent
-private DataGrid<UserStep> userStepsDataGrid;
-
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<UserStep> completedColumn = userStepsDataGrid.addComponentColumn(userStep -> {
+@Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
         Checkbox checkbox = uiComponents.create(Checkbox.class);
         checkbox.setValue(userStep.getCompletedDate() != null);
         checkbox.addValueChangeListener(e -> {
@@ -250,9 +266,6 @@ public void onInit(final InitEvent event) {
         });
         return checkbox;
     });
-    completedColumn.setFlexGrow(0);
-    completedColumn.setWidth("4em");
-    userStepsDataGrid.setColumnPosition(completedColumn, 0);
 }
 ----
 
@@ -341,6 +354,7 @@ So the labels will be updated on screen opening.
 image::ui-from-scratch/label-2.png[align="center"]
 +
 . Invoke the `updateLabels()` method from the handler you just generated:
++
 [source,java]
 ----
 @Subscribe(id = "userStepsDc", target = Target.DATA_CONTAINER)
@@ -372,9 +386,7 @@ Set the button ids and titles as shown below. For the `Save` button, set `primar
 </hbox>
 ----
 
-Generate button click handlers using the *Jmix UI* inspector panel -> *Handlers* tab:
-
-image::ui-from-scratch/buttons-2.png[align="center",width="290"]
+Generate button click handlers using the *Jmix UI* inspector panel -> *Handlers* tab.
 
 Inject `DataContext` into controller class and implement click handlers:
 
@@ -383,14 +395,14 @@ Inject `DataContext` into controller class and implement click handlers:
 @ViewComponent
 private DataContext dataContext;
 
-@Subscribe("saveButton")
-public void onSaveButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "saveButton", subject = "clickListener")
+public void onSaveButtonClick(final ClickEvent<JmixButton> event) {
     dataContext.save(); // <1>
     close(StandardOutcome.SAVE); // <2>
 }
 
-@Subscribe("discardButton")
-public void onDiscardButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "discardButton", subject = "clickListener")
+public void onDiscardButtonClick(final ClickEvent<JmixButton> event) {
     close(StandardOutcome.DISCARD); // <2>
 }
 ----
@@ -410,22 +422,16 @@ First, assign the `onboarding-steps` class to the data grid by adding it to the 
 
 image::ui-from-scratch/theme-1.png[align="center", width="282"]
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-Then find the `onInit` method in the controller and add the following lines:
+Then select `dueDate` column, switch to *Handlers* tab of the component inspector and generate the `partNameGenerator` handler for the column. Implement it as follows:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    // ...
-
-    Grid.Column<UserStep> dueDate = userStepsDataGrid.getColumnByKey("dueDate"); // <1>
-    dueDate.setPartNameGenerator(userStep ->
-            isOverdue(userStep) ? "overdue-step" : null); // <2>
+@Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+    return isOverdue(userStep) ? "overdue-step" : null;
 }
 ----
-<1> Get the dueDate column object.
-<2> Set the part name generator for the column. The generator is a lambda that accepts the UserStep instance of the rendered row and returns a name to use in a CSS selector for this column.
+The handler accepts UserStep instance of the rendered row and returns a name to use in a CSS selector for this column.
 
 Finally, open `onboarding.css` file from the *User Interface* -> *Themes* section of the *Jmix* tool window and add the following CSS code:
 
@@ -461,8 +467,7 @@ You have learned that:
 
 * The CSS file located in the project theme can define styles to be used by UI components.
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-// * The `partNameGenerator` handler should be used to change the style of a table cell.
+* The `partNameGenerator` handler should be used to change the style of a table cell.
 
 * The xref:studio:code-snippets.adoc[] palette can be used to quickly find and generate code working with the framework API.
 

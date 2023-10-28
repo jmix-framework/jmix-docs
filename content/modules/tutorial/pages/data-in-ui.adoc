@@ -48,7 +48,7 @@ You may also notice the following code added by Studio automatically to `user-li
 
 [source,xml]
 ----
-<data readOnly="true">
+<data>
     <collection id="usersDc"
                 class="com.company.onboarding.entity.User">
         <fetchPlan extends="_base">
@@ -70,7 +70,7 @@ And to `user-detail-view.xml`:
 
 With this code, the referenced Department will be loaded together with the User in the same database query.
 
-TIP: The screens would work without including `department` in the fetch plans due to the _lazy loading_ of references. But in this case, the references would be loaded by separate requests to the database. Lazy loading can affect performance of the browse screen, because then it loads a list of Users with a first request, and after that, executes separate requests for loading a Department of each User in the list (N+1 query problem).
+TIP: The views would work without including `department` in the fetch plans due to the _lazy loading_ of references. But in this case, the references would be loaded by separate requests to the database. Lazy loading can affect performance of the list view, because then it loads a list of Users with a first request, and after that, executes separate requests for loading a Department of each User in the list (N+1 query problem).
 
 Let's run the application and see the new attribute in action.
 
@@ -139,7 +139,7 @@ The new `collection` element with `departmentsDc` id will be created under the `
     ...
     <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
         <fetchPlan extends="_base"/>
-        <loader id="departmentsDl">
+        <loader id="departmentsDl" readOnly="true">
             <query>
                 <![CDATA[select e from Department e]]>
             </query>
@@ -168,7 +168,7 @@ The resulting query in XML will look like this:
     ...
     <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
         <fetchPlan extends="_base"/>
-        <loader id="departmentsDl">
+        <loader id="departmentsDl" readOnly="true">
             <query>
                 <![CDATA[select e from Department e
                 order by e.name asc]]>
@@ -393,7 +393,7 @@ Open `user-detail-view.xml` and remove all `button` elements from `hbox` and the
 </dataGrid>
 ----
 
-Then select `hbox` in the *Jmix UI* hierarchy panel and click *Add Component* in the context menu of the node. Set the `id` of the created `button` element to `generateButton` and `text` to `Generate` in the *Jmix UI* inspector panel. After that, switch to the *Handlers* tab and create a `ClickEvent` handler method:
+Then select `buttonsPanel` in the *Jmix UI* hierarchy panel and click *Add Component* in the context menu of the node. Find `Components -> Button` in the palette and double-click it. Set the `id` of the created `button` element to `generateButton` and `text` to `Generate` in the *Jmix UI* inspector panel. After that, switch to the *Handlers* tab and create a `ClickEvent` handler method:
 
 image::data-in-ui/button-1.gif[]
 
@@ -424,6 +424,11 @@ public class UserDetailView extends StandardDetailView<User> {
     @ViewComponent
     private CollectionPropertyContainer<UserStep> stepsDc;
 ----
+
+[TIP]
+====
+If you copy the fields above and paste them to the source code, IDE will highlight them as errors because you also need to add `import` statements for the classes. Place the cursor on each error and the IDE will suggest you an appropriate import. If it doesn't, close the editor tab, then open `UserDetailView.java` again.
+====
 
 [TIP]
 ====
@@ -594,6 +599,27 @@ image::data-in-ui/columns-6.png[align="center"]
 
 In this section, you will implement an ability to mark a UserStep completed by clicking a checkbox in the data grid row. The checkbox will be rendered in the additional column on the left side of the data grid.
 
+Add a new column to `stepsDataGrid`:
+
+[source,xml]
+----
+<dataGrid id="stepsDataGrid" ...>
+    <columns>
+        <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+This column is not bound to an entity attribute, so it has the `key` attribute instead of `property`.
+
+Select the `completed` column in component inspector, switch to the *Handlers* tab and create the `renderer` handler method:
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return null;
+}
+----
+
 Inject `UiComponents` object into controller class:
 
 [source,java]
@@ -604,15 +630,13 @@ private UiComponents uiComponents;
 
 TIP: You can use *Inject* button in the top actions panel of the editor to inject dependencies into view controllers and Spring beans.
 
-Add the following code to the `InitEvent` handler method:
+Implement the `stepsDataGridCompletedRenderer` method:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    timeZoneField.setItems(List.of(TimeZone.getAvailableIDs()));
-
-    Grid.Column<UserStep> completedColumn = stepsDataGrid.addComponentColumn(userStep -> { // <1>
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> { // <1>
         Checkbox checkbox = uiComponents.create(Checkbox.class); // <2>
         checkbox.setValue(userStep.getCompletedDate() != null);
         checkbox.addValueChangeListener(e -> { // <3>
@@ -624,17 +648,12 @@ public void onInit(final InitEvent event) {
         });
         return checkbox; // <4>
     });
-    completedColumn.setFlexGrow(0); // <5>
-    completedColumn.setWidth("4em");
-    stepsDataGrid.setColumnPosition(completedColumn, 0); // <6>
 }
 ----
-<1> The `addComponentColumn()` method accepts a lambda which creates a UI component to be rendered in the column. The lambda receives an entity instance for the current row.
+<1> The method returns a `Renderer` object that creates a UI component to be rendered in the column. The renderer receives an entity instance for the current row.
 <2> The `Checkbox` component instance is created using the `UiComponents` factory.
 <3> When you click the checkbox, its value changes and the checkbox calls its `ValueChangeEvent` listener. The listener sets the `completedDate` attribute of the `UserStep` entity.
-<4> The lambda returns the visual component to be shown in the column cells.
-<5> Setting the width of the created column.
-<6> Setting the position of the created column.
+<4> The renderer returns the visual component to be shown in the column cells.
 
 Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User detail view and click checkboxes for some rows. The *Completed date* column will change accordingly:
 

@@ -106,6 +106,14 @@ image::images/form-2.png[align="center"]
 
 Let's create the column to render the image in the data grid of the `User.list` view.
 
+Open `user-list-view.xml` and add the following column to `usersDataGrid`:
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
 Add the following fields to the `UserListView` class:
 
 [source,java]
@@ -122,16 +130,16 @@ private FileStorage fileStorage;
 
 TIP: You can use *Inject* button in the top actions panel of the editor to inject dependencies into view controllers and Spring beans.
 
-Generate the `InitEvent` handler using the *Generate Handler* action and implement it as follows:
+Select the `picture` column in component inspector, switch to the *Handlers* tab and create the `renderer` handler method. Implement the method as follows:
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<User> pictureColumn = usersDataGrid.addComponentColumn(user -> { // <1>
+@Supply(to = "usersDataGrid.picture", subject = "renderer")
+private Renderer<User> usersDataGridPictureRenderer() {
+    return new ComponentRenderer<>(user -> { // <1>
         FileRef fileRef = user.getPicture();
         if (fileRef != null) {
-            Image image = uiComponents.create(Image.class); // <2>
+            Image image = uiComponents.create(Image.class);  // <2>
             image.setWidth("30px");
             image.setHeight("30px");
             StreamResource streamResource = new StreamResource(
@@ -142,20 +150,15 @@ public void onInit(final InitEvent event) {
 
             return image; // <4>
         } else {
-            return new Span();
+            return null;
         }
     });
-    pictureColumn.setFlexGrow(0); // <5>
-    pictureColumn.setWidth("40px");
-    usersDataGrid.setColumnPosition(pictureColumn, 0); // <6>
 }
 ----
-<1> The `addComponentColumn()` method accepts a lambda which creates a UI component to be rendered in the column. The lambda receives an entity instance for the current row.
+<1> The method returns a `Renderer` object that creates a UI component to be rendered in the column. The renderer receives an entity instance for the current row.
 <2> The `Image` component instance is created using the `UiComponents` factory.
 <3> The image component gets its content from the file storage by the reference stored in the `picture` attribute of the `User` entity.
-<4> The lambda returns the visual component to be shown in the column cells.
-<5> Setting the width of the created column.
-<6> Setting the position of the created column.
+<4> The renderer returns the visual component to be shown in the column cells.
 
 Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User list view. You will see the user's picture in the first table column:
 
