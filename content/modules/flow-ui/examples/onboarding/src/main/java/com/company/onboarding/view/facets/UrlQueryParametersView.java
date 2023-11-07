@@ -7,6 +7,7 @@ import com.company.onboarding.view.main.MainView;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.sun.jna.platform.win32.Advapi32Util;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.component.details.JmixDetails;
@@ -68,6 +69,11 @@ public class UrlQueryParametersView extends StandardListView<Department> {
             if (textStrings != null && !textStrings.isEmpty()) {
                 sampleTextField.setValue(textStrings.get(0));
             }
+        }
+
+        @Override
+        public Component getComponent() {
+            return null;
         }
     }
 
