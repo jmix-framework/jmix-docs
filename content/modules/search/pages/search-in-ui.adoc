@@ -1,0 +1,128 @@
+= 使用 UI 中的搜索
+
+[[visual-components]]
+== 可视化组件
+
+搜索扩展组件提供两个 UI 组件：`SearchField` 和 `FullTextFilter`。如需在界面中使用这些组件，需要在界面 XML 描述的根元素声明 `search` 命名空间：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=namespace]
+----
+
+[[search-fields]]
+=== SearchField
+
+`SearchField` 组件提供一个文本框和一个执行搜索的按钮。
+
+界面中使用 `SearchField` 的示例：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=search-field]
+----
+
+`SearchField` 的属性：
+
+* `searchStrategy` - 搜索策略。如未定义，则使用默认策略。
+* `entities` - 在指定的实体内进行搜索。多个实体可用逗号分隔：
++
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen-handler2.xml[tags=entities]
+----
+
+默认情况下，`searchField` 打开内置的 `SearchResultsScreen` 界面展示搜索结果列表。如需自定义该行为，可以设置 `SearchCompletedHandler`：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/screen/search/SearchScreenHandler2.java[tags=my-search-field;screen-builders;handler]
+----
+
+另外，也可以使用组件的 `setSearchCompletedHandler()` 方法设置。
+
+[[full-text-filter]]
+=== FullTextFilter
+
+`FullTextFilter` 组件与 xref:flow-ui:vc/components/propertyFilter.adoc[] 类似。
+
+界面中使用 `fullTextFilter` 的示例：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/filter-screen.xml[tags=filter1;filter2]
+----
+
+`FullTextFilter` 的属性：
+
+* `dataLoader` - 需要过滤的 `DataLoader`。
+* `searchStrategy` - 搜索策略。如未定义，则使用默认策略。
+* `autoApply` - 如果设置为 `true`，则在组件值发生变更时 `filter` 组件自动对 `DataLoader` 使用过滤。
+
+`FullTextFilter` 的工作流程：首先使用全文搜索找到实体的 id，然后在数据加载器中添加带这些 ID 的过滤条件。最后，关联至同一个加载器的 `Table` 或 `DataGrid` 只展示符合全文搜索条件的记录，如果列表组件有其他过滤器，也会生效。
+
+[[search-strategies]]
+=== 搜索策略
+
+搜索策略定义如何处理搜索词。
+
+`SearchField` 和 `FullTextFilter` 组件支持下列搜索策略：
+
+* `anyTermAnyField` - 文档的任何索引字段匹配至少一个输入词。
+
+* `allTermsAnyField` - 文档的任何索引字段以任何顺序匹配上所有的输入词。这是默认策略。
+
+* `allTermsSingleField` - 文档至少有一个字段包含任意顺序的所有输入词。
+
+* `phrase` - 文档至少有一个字段包含输入顺序的所有输入词。
+
+可以使用 `strategy` 属性设置合适的搜索策略，示例：
+
+[source,xml,indent=0]
+----
+include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen-handler1.xml[tags=strategy]
+----
+
+如需覆盖默认策略，在 `application.properties` 文件添加下列应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=default-strategy]
+----
+
+另外，也可以创建自己的搜索策略。为此，首先创建一个继承自 `io.jmix.search.searching.SearchStrategy` 的 bean，实现下列方法：
+
+* `String getName()` - 返回策略的唯一名称。
+
+* `void configureRequest(SearchRequest searchRequest, SearchContext searchContext)` - 根据需要配置传入的 `SearchRequest`。
+
+然后，可以在 `SearchField` 或 `FullTextFilter` 组件使用策略名称设置策略。
+
+[[fts-condition-in-filter-component]]
+== 过滤器组件中的全文搜索条件
+
+当项目中添加了搜索扩展组件后，`Filter` 组件的 *Add condition（添加条件）* 窗口会出现一个新的条件：
+
+image:search:add_condition.png[Add Condition to Filter, align="center"]
+
+在 *Full-text filter condition editor（全文过滤条件编辑）* 窗口，你可以为全文过滤器设置标题并选择一个搜索策略。如果未设置，则使用默认策略。
+
+image:search:condition_editor.png[Condition Editor, align="center"]
+
+与过滤器关联的列表组件中的记录会基于全文搜索结果过滤。
+
+[[using-search-api-in-screens]]
+== 界面中使用搜索 API
+
+界面控制器中可以使用搜索 API，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/search/ex1/screen/search/UsingApiScreen.java[tags=entity-searcher;search-result-processor;click-event]
+----
+<1> 点击按钮时，从界面控制器调用 API。
+<2> 定义搜索字符串，这一步是必须的，会搜索所有的索引字段，并找出其中是否包含 `"silver"`。
+<3> 设置返回结果集中包含的记录数量。默认值为 `10`。
+<4> 设置搜索的实体。默认会搜素全部的索引实体。
+<5> 使用 `EntitySearcher` 服务启动搜索。
+<6> 使用 `SearchResultProcessor` 从搜索结果中获取实体。

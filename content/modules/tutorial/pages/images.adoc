@@ -106,6 +106,14 @@ image::images/form-2.png[align="center"]
 
 我们在 `User.list` 视图中的数据网格中添加一列用来展示图片。
 
+打开 `user-list-view.xml` 并在 `usersDataGrid` 添加一列：
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
 在 `UserListView` 类添加以下字段：
 
 [source,java]
@@ -122,16 +130,16 @@ private FileStorage fileStorage;
 
 TIP: 可以使用编辑器顶部操作面板内的 *Inject* 按钮为视图控制器注入依赖和 Spring bean。
 
-用 *Generate Handler* 操作生成 `InitEvent` 的处理方法并按下面内容实现：
+选中 `picture` 列，在组件属性面板的 *Handlers* 标签页创建 `renderer` 处理方法，实现如下：
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<User> pictureColumn = usersDataGrid.addComponentColumn(user -> { // <1>
+@Supply(to = "usersDataGrid.picture", subject = "renderer")
+private Renderer<User> usersDataGridPictureRenderer() {
+    return new ComponentRenderer<>(user -> { // <1>
         FileRef fileRef = user.getPicture();
         if (fileRef != null) {
-            Image image = uiComponents.create(Image.class); // <2>
+            Image image = uiComponents.create(Image.class);  // <2>
             image.setWidth("30px");
             image.setHeight("30px");
             StreamResource streamResource = new StreamResource(
@@ -142,20 +150,15 @@ public void onInit(final InitEvent event) {
 
             return image; // <4>
         } else {
-            return new Span();
+            return null;
         }
     });
-    pictureColumn.setFlexGrow(0); // <5>
-    pictureColumn.setWidth("40px");
-    usersDataGrid.setColumnPosition(pictureColumn, 0); // <6>
 }
 ----
-<1> `addComponentColumn()` 方法使接收一个 lambda 函数用于创建 UI 组件并显示在列中。Lambda 函数的参数是当前行的实体。
+<1> 方法返回一个 `Renderer` 对象，用于创建一个可以在列中渲染的 UI 组件。参数为当前行对应的实体实例。
 <2> 使用 `UiComponents` 工厂创建 `Image` 组件实例。
 <3> 图片组件从 `User` 的 `picture` 字段获取文件地址，然后从文件存储中获取内容。
-<4> lambda 函数返回可视化组件。
-<5> 设置新列的宽度。
-<6> 设置新列在数据网格中的位置。
+<4> 返回列单元格中显示的组件。
 
 按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新用户列表视图。可以在第一列看到用户的图片：
 

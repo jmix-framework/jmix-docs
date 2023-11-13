@@ -22,17 +22,17 @@ public class CustomCollectionContainerSorter extends CollectionContainerSorter {
     }
 
     @Override
-    protected Comparator<?> createComparator(Sort sort, MetaClass metaClass) {
+    protected Comparator<?> createComparator(Sort.Order sortOrder, MetaClass metaClass) {
         MetaPropertyPath metaPropertyPath = Objects.requireNonNull(
-                metaClass.getPropertyPath(sort.getOrders().get(0).getProperty()));
+                metaClass.getPropertyPath(sortOrder.getProperty()));
 
         if (metaPropertyPath.getMetaClass().getJavaClass().equals(Department.class)
                 && "num".equals(metaPropertyPath.toPathString())) {
-            boolean isAsc = sort.getOrders().get(0).getDirection() == Sort.Direction.ASC;
+            boolean isAsc = sortOrder.getDirection() == Sort.Direction.ASC;
             return Comparator.comparing((Department e) ->
                             e.getNum() == null ? null : Integer.valueOf(e.getNum()),
                     new EntityValuesComparator<>(isAsc, metaClass, beanFactory));
         }
-        return super.createComparator(sort, metaClass);
+        return super.createComparator(sortOrder, metaClass);
     }
 }

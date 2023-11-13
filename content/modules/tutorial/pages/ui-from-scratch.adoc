@@ -70,10 +70,9 @@ Studio 会创建集合数据容器：
 [source,xml]
 ----
 <data>
-    <collection id="userStepsDc"
-                class="com.company.onboarding.entity.UserStep">
+    <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
         <fetchPlan extends="_base"/>
-        <loader id="userStepsDl">
+        <loader id="userStepsDl" readOnly="true">
             <query>
                 <![CDATA[select e from UserStep e]]>
             </query>
@@ -84,6 +83,17 @@ Studio 会创建集合数据容器：
 
 [[load-data]]
 === 加载数据
+
+首先，删除自动生成的数据加载器的 `readOnly="true"` 属性，因为我们需要修改并保存当前视图中的实体。可以在组件属性面板修改或者在 XML 中直接编辑：
+
+[source,xml]
+----
+<loader id="userStepsDl">
+    <query>
+        <![CDATA[select e from UserStep e]]>
+    </query>
+</loader>
+----
 
 默认的查询语句会加载所有的 `UserStep` 实例，但是这里我们仅需要加载当前用户的入职步骤，且有特定的顺序。我们用 JPQL 设计器修改这个查询语句。在 *Jmix UI* 层级面板中选择 `userStepsDc` 容器，然后点击 `query` 属性的值。然后添加一个使用 `:user` 参数的 `where` 子句，以及一个使用 `sortValue` 排序的 `order by` 子句：
 
@@ -194,14 +204,15 @@ image::ui-from-scratch/table-2.gif[align="center"]
 <view xmlns="http://jmix.io/schema/flowui/view"
       title="msg://myOnboardingView.title">
     <data>
-        <collection id="userStepsDc"
-                    class="com.company.onboarding.entity.UserStep">
+        <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
             <fetchPlan extends="_base">
                 <property name="step" fetchPlan="_base"/>
             </fetchPlan>
             <loader id="userStepsDl">
                 <query>
-                    <![CDATA[select e from UserStep e]]>
+                    <![CDATA[select e from UserStep e
+                    where e.user = :user
+                    order by e.sortValue asc]]>
                 </query>
             </loader>
         </collection>
@@ -227,19 +238,24 @@ image::ui-from-scratch/table-3.png[align="center"]
 
 本小节中，我们将为表格添加一个带有复选框的列，用于标记入职步骤已完成。xref:data-in-ui.adoc#component-column[之前章节] 中，我们为用户详情视图的 UserSteps 数据网格完成了类似的任务。
 
-在控制器中，注入 `UiComponents` 工厂和 `userStepsDataGrid` 组件。并生成 `InitEvent` 处理方法，实现如下：
+在 XML 中，添加 `completed` 列：
+
+[source,xml]
+----
+<columns>
+    <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+在控制器中，注入 `UiComponents` 工厂。为 `completed` 列生成 `renderer` 处理方法，并实现：
 
 [source,java]
 ----
 @Autowired
 private UiComponents uiComponents;
 
-@ViewComponent
-private DataGrid<UserStep> userStepsDataGrid;
-
-@Subscribe
-public void onInit(final InitEvent event) {
-    Grid.Column<UserStep> completedColumn = userStepsDataGrid.addComponentColumn(userStep -> {
+@Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
         Checkbox checkbox = uiComponents.create(Checkbox.class);
         checkbox.setValue(userStep.getCompletedDate() != null);
         checkbox.addValueChangeListener(e -> {
@@ -251,9 +267,6 @@ public void onInit(final InitEvent event) {
         });
         return checkbox;
     });
-    completedColumn.setFlexGrow(0);
-    completedColumn.setWidth("4em");
-    userStepsDataGrid.setColumnPosition(completedColumn, 0);
 }
 ----
 
@@ -342,6 +355,7 @@ public void onBeforeShow(final BeforeShowEvent event) {
 image::ui-from-scratch/label-2.png[align="center"]
 +
 . 在生成的处理器中调用 `updateLabels()` 方法：
++
 [source,java]
 ----
 @Subscribe(id = "userStepsDc", target = Target.DATA_CONTAINER)
@@ -373,9 +387,7 @@ image::ui-from-scratch/label-3.png[align="center"]
 </hbox>
 ----
 
-通过 *Jmix UI* 组件面板 -> *Handlers* 生成按钮点击事件的处理方法：
-
-image::ui-from-scratch/buttons-2.png[align="center",width="290"]
+通过 *Jmix UI* 组件面板 -> *Handlers* 生成按钮点击事件的处理方法。
 
 在控制器类中注入 `DataContext` 并实现点击处理方法：
 
@@ -384,14 +396,14 @@ image::ui-from-scratch/buttons-2.png[align="center",width="290"]
 @ViewComponent
 private DataContext dataContext;
 
-@Subscribe("saveButton")
-public void onSaveButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "saveButton", subject = "clickListener")
+public void onSaveButtonClick(final ClickEvent<JmixButton> event) {
     dataContext.save(); // <1>
     close(StandardOutcome.SAVE); // <2>
 }
 
-@Subscribe("discardButton")
-public void onDiscardButtonClick(final ClickEvent<Button> event) {
+@Subscribe(id = "discardButton", subject = "clickListener")
+public void onDiscardButtonClick(final ClickEvent<JmixButton> event) {
     close(StandardOutcome.DISCARD); // <2>
 }
 ----
@@ -411,21 +423,16 @@ image::ui-from-scratch/buttons-3.png[align="center"]
 
 image::ui-from-scratch/theme-1.png[align="center", width="282"]
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-然后在控制器的 `onInit` 方法中添加下列代码：
+然后选择 `dueDate` 列，在组件属性面板切换至 *Handlers* 标签页，生成 `partNameGenerator` 处理方法。实现如下：
 
 [source,java]
 ----
-@Subscribe
-public void onInit(final InitEvent event) {
-    // ...
-    Grid.Column<UserStep> dueDate = userStepsDataGrid.getColumnByKey("dueDate"); // <1>
-    dueDate.setPartNameGenerator(userStep ->
-            isOverdue(userStep) ? "overdue-step" : null); // <2>
+@Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+    return isOverdue(userStep) ? "overdue-step" : null;
 }
 ----
-<1> 获取列对象。
-<2> 为列设置 part name 生成器。生成器是一个 lambda 函数，以当前行的 UserStep 实例作为参数，返回一个 part name，用作列的 CSS 选择器。
+处理方法的参数为当前渲染行的 UserStep 实例，返回当前列的 CSS 选择器使用的名称。
 
 最后，从 *Jmix* 工具窗口的 *User Interface* -> *Themes* 部分打开 `onboarding.css` 文件，添加下列 CSS 代码：
 
@@ -461,8 +468,7 @@ image::ui-from-scratch/theme-4.png[align="center"]
 
 * 项目主题中的 CSS 文件可以定义 UI 组件的样式。
 
-// todo flowui https://github.com/jmix-framework/jmix/issues/1857
-// * The `partNameGenerator` handler should be used to change the style of a table cell.
+* 使用 `partNameGenerator` 处理方法修改表中单元格的样式。
 
 * xref:studio:code-snippets.adoc[] 工具箱可以用来快速查找和生成使用框架 API 的代码。
 
