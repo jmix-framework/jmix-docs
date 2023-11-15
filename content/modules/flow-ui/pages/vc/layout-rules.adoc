@@ -1,0 +1,676 @@
+= Правила компоновки
+
+Этот раздел объясняет методы позиционирования визуальных компонентов и контейнеров в экранах.
+
+[[component-sizes]]
+== Размеры компонентов
+
+Компоненты, реализующие `com.vaadin.flow.component.HasSize` (например, xref:vc/components/button.adoc[], xref:vc/components/button.adoc[textField], xref:vc/components/button.adoc[dataGrid], xref:vc/components/button.adoc[vbox], etc.) имеют следующие общие атрибуты: xref:vc/common-attributes.adoc#width[width], xref:vc/common-attributes.adoc#minWidth[minWidth], xref:vc/common-attributes.adoc#maxWidth[maxWidth], xref:vc/common-attributes.adoc#height[height], xref:vc/common-attributes.adoc#minHeight[minHeight], xref:vc/common-attributes.adoc#maxHeight[maxHeight]. Эти атрибуты прямо соответствуют соответствующим по имени свойствам CSS.
+
+TIP: Атрибуты min/max размеров помогают в создании адаптивного дизайна, когда компоненты должны приспосабливаться к разным размерам экрана. Эти атрибуты также могут использоваться для предотвращения переполнения компонентов или их слишком большого размера. См. практический пример <<tips-and-tricks, ниже>>.
+
+Размеры компонентов могут быть следующих типов:
+
+* Основанные на содержимом - `AUTO`
+* Фиксированные, например, `25em`
+* Относительные (в процентах) к родительскому контейнеру, например, `100%`
+
+image::layout-rules/size-types.png[]
+
+IMPORTANT: Значение размера должно быть корректной для CSS строкой размера.
+
+[[content-based-size]]
+=== Размер, основанный на содержимом
+
+Компонент займет достаточно места, чтобы вместить свое содержимое.
+
+Примеры:
+
+* Для `button` размер определяется длиной значения атрибута `text`.
+* Для контейнеров (layouts) размер определяется суммой всех размеров компонентов внутри контейнера.
+
+.XML
+[source,xml]
+----
+<button text="Button" width="AUTO"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("AUTO");
+----
+
+Компоненты с размером, основанным на содержимом, будут автоматически изменять свои размеры при инициализации экрана или при изменении размера содержимого.
+
+image::layout-rules/content-based-size.png[]
+
+[[fixed-size]]
+=== Фиксированный размер
+
+Фиксированный размер подразумевает, что размеры компонента не будут изменяться во время выполнения.
+
+.XML
+[source,xml]
+----
+<vbox width="20em" height="15em"/>
+----
+
+.Java
+[source,java]
+----
+vBox.setWidth("20em");
+vBox.setHeight("15em");
+----
+
+image::layout-rules/fixed-size.png[]
+
+Размер можно установить, используя абсолютные (например, `px`) или относительные (например, `em`) единицы длины. Все экраны и компоненты платформы используют относительные единицы длины, такие как `em` и `rem`, поэтому можно изменить размер всего приложения.
+
+TIP: `em` - это единица измерения размера, относительная размера шрифта родителя. По умолчанию размер шрифта - `16px`. Для информации о единицах измерения см. https://developer.mozilla.org/en-US/docs/Learn/CSS/Building_blocks/Values_and_units[CSS values and units^].
+
+[[relative-size]]
+=== Относительный размер
+
+Относительный размер указывает процент доступного пространства, которое будет занимать компонент.
+
+.XML
+[source,xml]
+----
+<button text="Button" width="50%"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("50%");
+----
+
+Компоненты с относительным размером будут реагировать на изменения доступного пространства и автоматически изменять свой фактический размер на экране.
+
+image::layout-rules/relative-size.png[]
+
+[[layout-specifics]]
+=== Специфика контейнеров
+
+* Корневой элемент `layout` - это вертикальный контейнер (`vbox`), который по умолчанию имеет ширину и высоту 100%.
+* `scroller` должен иметь фиксированную или относительную (но не `AUTO`) ширину и высоту. Компоненты внутри `scroller`, расположенные в направлении прокрутки, не должны иметь относительного размера.
+
+[[component-specifics]]
+=== Специфика компонентов
+
+* Для `dataGrid` не требуется явно присваивать `height="100%"` или <<expand,расширять>> его внутри `vbox` или корневого элемента `layout`, потому что его CSS-свойство https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] установлено в 1, что означает, что по умолчанию компонент уже расширен в родительском контейнере. Тем не менее, для `dataGrid` рекомендуется установить атрибут `minHeight`, чтобы предотвратить коллапс компонента, если вертикального пространства недостаточно.
+
+[[expand]]
+=== Расширение компонентов
+
+Компоненты могут быть настроены на расширение и занятие всего дополнительного пространства, которое есть у контейнера.
+
+[source,xml]
+----
+<hbox expand="btn" padding="true" width="100%">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с расширением
+image::layout-rules/hbox-expand.png[]
+
+[source,xml]
+----
+<vbox expand="btn" width="100%" minHeight="20em">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с расширением
+image::layout-rules/vbox-expand.png[]
+
+NOTE: Расширение компонента фактически означает, что его CSS-свойство https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] установлено в `1`.
+
+[[spacing-margin-padding]]
+== Интервалы и отступы
+
+С помощью атрибутов `spacing`, `margin` и `padding` можно определить пустое пространство вокруг компонентов и внутри них.
+
+[[spacing]]
+=== Spacing
+
+Атрибут `spacing` переключает для компонента настройку `spacing` темы. Если тема поддерживает этот атрибут, то для компонента применятся или удалятся интервалы.
+
+.Горизонтальный контейнер без интервалов
+image::layout-rules/hbox-no-spacing.png[]
+
+.Горизонтальный контейнер с интервалом по умолчанию
+image::layout-rules/hbox-spacing.png[]
+
+.Вертикальный контейнер с интервалом по умолчанию
+image::layout-rules/vbox-spacing.png[]
+
+Интервал включен по умолчанию для компонентов `vbox` и `hbox`.
+
+[[spacing-variants]]
+==== Варианты интервалов
+
+Атрибут `spacing` неявно добавляет средний интервал к теме компонента, что эквивалентно определению `themeNames="spacing"`. Для установки других вариантов используйте атрибут `themeNames` явно. Доступно пять различных вариантов интервалов:
+
+[cols="1,1"]
+|===
+|Вариант темы |Рекомендации по использованию
+
+|spacing-xs
+| Очень маленький интервал между элементами
+
+|spacing-s
+| Небольшой интервал между элементами
+
+|spacing
+| Средний интервал между элементами
+
+|spacing-l
+| Большой интервал между элементами
+
+|spacing-xl
+| Очень большой интервал между элементами
+|===
+
+Пример добавления интервала `spacing-xl`:
+
+[source,xml]
+----
+<vbox themeNames="spacing-xl" alignItems="STRETCH">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с интервалом spacing-xl
+image::layout-rules/vbox-spacing-xl.png[]
+
+[[padding]]
+=== Padding
+
+Атрибут `padding` позволяет задавать пространство между границами контейнера и вложенными компонентами.
+
+.Вертикальный контейнер с padding
+image::layout-rules/vbox-padding.png[]
+
+По умолчанию `padding` включен для `vbox`. Его можно отключить, установив атрибут `padding` в `false`. Для `hbox` по умолчанию `padding` отключен и его можно включить, установив атрибут `padding` в `true`.
+
+[[margin]]
+=== Margin
+
+Margin - это пространство вокруг границ контейнера.
+
+.Вертикальный контейнер с margin
+image::layout-rules/vbox-margin.png[]
+
+По умолчанию margin отключен. Его можно включить, используя атрибут `margin`.
+
+[[alignment]]
+== Выравнивание
+
+[[justify-content-mode]]
+=== Режим JustifyContent
+
+Атрибут `justifyContent` соответствует CSS-свойству https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content[justify-content^], которое определяет, как браузер распределяет пространство между и вокруг элементов контента вдоль *главной оси* flex-контейнера.
+
+[cols="1,1"]
+|===
+|Значение |Описание
+
+|`START` (по умолчанию)
+|Элементы размещаются в начале контейнера.
+
+|`CENTER`
+|Элементы размещаются в центре контейнера.
+
+|`END`
+|Элементы размещаются в конце контейнера.
+
+|`BETWEEN`
+|Элементы размещаются с пространством между строками; первый элемент на начальной линии, последний элемент на конечной линии.
+
+|`AROUND`
+|Элементы равномерно размещаются в линии с равным пространством вокруг них. Обратите внимание, что промежутки в начале и конце равны половине размера пространства между каждым элементом.
+
+|`EVENLY`
+|Элементы размещаются так, чтобы пространство между любыми двумя элементами (и пространство до краев) было равным.
+|===
+
+Для `vbox` и `flexLayout` с `flexDirection="COLUMN"` (то есть при `flex-direction: column`) атрибут `justifyContent` работает следующим образом:
+
+[source,xml]
+----
+<vbox justifyContent="START" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="START"`
+image::layout-rules/vbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<vbox justifyContent="CENTER" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="CENTER"`
+image::layout-rules/vbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<vbox justifyContent="END" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="END"`
+image::layout-rules/vbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<vbox justifyContent="BETWEEN" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="BETWEEN"`
+image::layout-rules/vbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<vbox justifyContent="AROUND" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="AROUND"`
+image::layout-rules/vbox-justifyContent-around.png[]
+
+[source,xml]
+----
+
+<vbox justifyContent="EVENLY" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `justifyContent="EVENLY"`
+image::layout-rules/vbox-justifyContent-evenly.png[]
+
+
+Для `hbox` и `flexLayout` с `flexDirection="ROW"` (то есть при `flex-direction: row`) атрибут `justifyContent` работает следующим образом:
+
+[source,xml]
+----
+<hbox justifyContent="START" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="START"`
+image::layout-rules/hbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<hbox justifyContent="CENTER" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="CENTER"`
+image::layout-rules/hbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<hbox justifyContent="END" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="END"`
+image::layout-rules/hbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<hbox justifyContent="BETWEEN" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="BETWEEN"`
+image::layout-rules/hbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<hbox justifyContent="AROUND" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="AROUND"`
+image::layout-rules/hbox-justifyContent-around.png[]
+
+[source,xml]
+----
+<hbox justifyContent="EVENLY" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `justifyContent="EVENLY"`
+image::layout-rules/hbox-justifyContent-evenly.png[]
+
+[[align-items]]
+=== AlignItems
+
+Атрибут `alignItems` соответствует CSS-свойству https://developer.mozilla.org/en-US/docs/Web/CSS/align-items[align-items^], которое определяет поведение по умолчанию для размещения элементов flex-контейнера вдоль поперечной оси на текущей линии. Можно рассматривать его как версию `justify-content` для *поперечной оси* (перпендикулярной *главной оси*).
+
+[cols="1,1"]
+|===
+|Значение |Описание
+
+|`START`
+|Элементы размещаются в начале поперечной оси.
+
+|`CENTER`
+|Элементы центрируются в поперечной оси.
+
+|`END`
+|Элементы размещаются в конце поперечной оси.
+
+|`STRETCH`
+|Элементы с *неопределенным размером вдоль поперечной оси* растягиваются, чтобы соответствовать контейнеру.
+
+|`BASELINE`
+|Элементы размещаются на базовой линии контейнера. Работает только для `flex-direction: row`.
+
+|`AUTO`
+|Элемент наследует свойство align-items своего родительского контейнера или "stretch", если у него нет родительского контейнера.
+|===
+
+Для `vbox` и `flexLayout` с `flexDirection="COLUMN"` (когда `flex-direction: column`), атрибут `alignItems` работает следующим образом:
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `alignItems="START"`
+image::layout-rules/vbox-alignItems-start.png[]
+
+[source,xml]
+----
+<vbox alignItems="CENTER">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `alignItems="CENTER"`
+image::layout-rules/vbox-alignItems-center.png[]
+
+[source,xml]
+----
+<vbox alignItems="END">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `alignItems="END"`
+image::layout-rules/vbox-alignItems-end.png[]
+
+[source,xml]
+----
+<vbox alignItems="STRETCH">
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `alignItems="STRETCH"`
+image::layout-rules/vbox-alignItems-stretch.png[]
+
+
+Для `hbox` и `flexLayout` с `flexDirection="ROW"` (когда `flex-direction: row`), атрибут `alignItems` работает следующим образом:
+
+[source,xml]
+----
+<hbox alignItems="START" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="START"`
+image::layout-rules/hbox-alignItems-start.png[]
+
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="CENTER"`
+image::layout-rules/hbox-alignItems-center.png[]
+
+[source,xml]
+----
+<hbox alignItems="END" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="END"`
+image::layout-rules/hbox-alignItems-end.png[]
+
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="STRETCH"`
+image::layout-rules/hbox-alignItems-stretch.png[]
+
+[source,xml]
+----
+<hbox alignItems="BASELINE" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="BASELINE"`
+image::layout-rules/hbox-alignItems-baseline.png[]
+
+[[align-self]]
+=== AlignSelf
+
+Атрибут `alignSelf` соответствует CSS-свойству https://developer.mozilla.org/en-US/docs/Web/CSS/align-self[align-self], которое определяет выравнивание отдельных компонентов внутри контейнера. Это индивидуальное выравнивание компонента переопределяет любое выравнивание, установленное с помощью <<align-items,alignItems>>.
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</vbox>
+----
+
+.Вертикальный контейнер с `alignItems="START"` и разным `alignSelf` для вложенных компонентов
+image::layout-rules/vbox-alignSelf.png[]
+
+[source,xml]
+----
+<hbox alignItems="START" justifyContent="BETWEEN" padding="true" width="100%" minHeight="10em">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</hbox>
+----
+
+.Горизонтальный контейнер с `alignItems="START"` и разным `alignSelf` для вложенных компонентов
+image::layout-rules/hbox-alignSelf.png[]
+
+[[common-layout-mistakes]]
+== Распространенные ошибки компоновки
+
+*Ошибка 1. Установка относительного размера для компонента в контейнере с размером, основанным на содержимом*
+
+.Пример неправильного контейнера:
+[source,xml]
+----
+<vbox>
+    <dataGrid id="usersDataGrid" dataContainer="usersDc"
+              width="100%" height="100%">
+        <actions/>
+        <columns>
+            <column property="firstName"/>
+            <column property="lastName"/>
+            <column property="username"/>
+        </columns>
+    </dataGrid>
+</vbox>
+----
+
+В этом примере `dataGrid` имеет высоту 100%, в то время как высота по умолчанию для `vbox` - `AUTO`, т.е. основана на содержимом. В результате `dataGrid` коллапсирует.
+
+.Пример относительного размера для компонента в контейнере с размером, основанным на содержимом
+image::layout-rules/dataGrid-relative-size.png[]
+
+*Ошибка 2. Не отключенный отступ для вложенных контейнеров `vbox`*
+
+.Пример неправильного контейнера:
+[source,xml]
+----
+<layout>
+    <genericFilter ...>
+        ...
+    </genericFilter>
+
+    <vbox width="100%">
+        <hbox id="buttonsPanel" classNames="buttons-panel">
+            ...
+        </hbox>
+        <dataGrid id="usersDataGrid" ...>
+            ...
+        </dataGrid>
+    </vbox>
+    <hbox>
+        ...
+    </hbox>
+</layout>
+----
+
+В этом примере `dataGrid` и `hbox` размещены внутри `vbox`, который по умолчанию имеет включенный отступ. В результате компоненты внутри `vbox` не выравниваются с компонентами снаружи.
+
+.Пример вложенного вертикального контейнера с включенным отступом
+image::layout-rules/vbox-incorrect-padding.png[]
+
+*Ошибка 3. Выравнивание компонентов с относительным размером*
+
+.Пример неправильного контейнера:
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <span text="Span" height="100%"/>
+</hbox>
+----
+
+В этом примере `span` имеет высоту 100% в контейнере `hbox`, который определяет `alignItems="CENTER"`. В результате текст размещается в верхнем левом углу.
+
+.Пример выравнивания компонентов с относительным размером
+image::layout-rules/relative-size-alignment.png[]
+
+*Ошибка 4. Растягивание компонентов с фиксированным размером*
+
+.Пример неправильного контейнера:
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+В этом примере кнопки имеют высоту, заданную в стилях по умолчанию. В результате кнопки не растягиваются по вертикали.
+
+.Пример растягивания компонентов с фиксированным размером
+image::layout-rules/fixed-size-stretching.png[]
+
+*Ошибка 5. Установка размера без единиц измерения*
+
+.Пример неправильного указания размера:
+[source,xml]
+----
+<textField width="400"/>
+----
+
+В этом примере у `textField` не указаны единицы измерения размера. В результате значение размера игнорируется.
+
+[[tips-and-tricks]]
+== Советы и хитрости
+
+Пример определения адаптивного текстового поля с фиксированным размером на больших экранах и шириной 100% на маленьких:
+
+[source,xml]
+----
+<hbox width="100%">
+    <textField width="100%" maxWidth="40em"/>
+    <button text="Button"/>
+</hbox>
+----
+
+image::layout-rules/responsive-text-field.gif[]
