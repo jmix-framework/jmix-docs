@@ -154,7 +154,7 @@ public class OrderService {
         for (int i = 0; i < entities.size(); i++) {
             saveContext.saving(entities.get(i));
             // save by 100 instances
-            if (i > 0 && (i % 100 == 0 || i == entities.size() - 1)) {
+            if (i >= 0 && (i % 100 == 0 || i == entities.size() - 1)) {
                 dataManager.save(saveContext);
                 saveContext = new SaveContext().setDiscardSaved(true);
             }
