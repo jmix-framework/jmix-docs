@@ -11,7 +11,7 @@
 
 . Sonatype *Nexus* OSS версии 3.x: https://help.sonatype.com/repomanager3/product-information/download/download-archives---repository-manager-3[^]
 
-. *JDK 8* (необходим для запуска Nexus) и *JDK 11* или 17 (необходим для разработки приложений): https://bell-sw.com/pages/downloads[^]
+. *JDK 8* (необходим для запуска Nexus) и *JDK 11* или *17* (необходим для разработки приложений): https://bell-sw.com/pages/downloads[^]
 
 . Утилиту *Jmix Dependencies Tool*: https://github.com/jmix-framework/jmix-dependencies-tool/releases[^]
 +
@@ -23,6 +23,8 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 * Вычисляет и загружает артефакты зависимостей, необходимые для запуска Jmix, в кэш Gradle.
 * Вычисляет и загружает артефакты, используемые любой отдельной библиотекой.
 * Экспортирует загруженные артефакты в формате репозитория Maven.
+* Вычисляет npm-зависимости в виде `package-lock.json`.
+* Экспортирует npn-зависимости в виде tgz-архивов.
 * Импортирует артефакты в собственный Nexus.
 
 Полная документация по утилите находится в файле https://github.com/jmix-framework/jmix-dependencies-tool#readme[README^].
@@ -38,6 +40,9 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 
 |1.5.0
 |7.6
+
+|2.x
+|8.2
 |===
 
 . *IntelliJ IDEA Community Edition*: https://www.jetbrains.com/idea/download[^]
@@ -51,10 +56,10 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 [source,plain]
 ----
 ~/work/
-├── deptool-1.0.0-M1
-├── gradle-7.5.1
-├── idea-IC-223
-├── jdk-11.0.18
+├── deptool-2.0.0
+├── gradle-8.2
+├── idea-IC-232
+├── jdk-17.0.9
 ├── jdk8u362
 └── nexus
 ----
@@ -76,8 +81,8 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 [source,bash]
 ----
 ./deptool resolve-jmix \
-  --jmix-version 1.4.4 \
-  --jmix-plugin-version 1.4.3 \
+  --jmix-version 2.1.0 \
+  --jmix-plugin-version 2.1.0 \
   --resolve-commercial-addons \
   --jmix-license-key 123456123456-abcdefabcdef
 ----
@@ -105,6 +110,50 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 
 Перенесите содержимое архива зависимостей (загруженного либо сформированного с помощью `deptool`) на изолированный компьютер и распакуйте в каталог `~/work/dependencies`.
 
+==== Архив npm зависимостей
+
+Для Jmix версии 2.x+ на изолированный компьютер также нужно перенести архив с npm зависимостями, необходимыми для работы frontend'а.
+
+Вы можете скачать заранее подготовленный архив со всеми зависимостями со страницы https://www.jmix.ru/resources/jmix-dependencies[^].
+
+Либо вы можете собрать их самостоятельно, используя утилиту `deptool`:
+
+. На компьютер с доступом в интернет, помимо ранее установленной утилиты `deptool`, также необходимо установить Node.js с npm менеджером пакетов - инструкция по установке https://docs.npmjs.com/downloading-and-installing-node-js-and-npm.
+. Откройте терминал, перейдите в подкаталог bin утилиты и запустите команду: 
++
+--
+[source,bash]
+----
+./deptool resolve-npm \
+  --jmix-version 2.1.0 \
+  --jmix-plugin-version 2.1.0 \
+  --resolve-commercial-addons \
+  --jmix-license-key 123456123456-abcdefabcdef
+----
+
+где:
+
+** `--jmix-version` - версия фреймворка
+** `--jmix-plugin-version` - версия плагина Gradle, если она отличается от версии фреймворка
+** `--resolve-commercial-addons` - флаг для загрузки всех npm зависимостей для коммерческих дополнений
+** `--jmix-license-key` - ключ вашей Enterprise-подписки
+
+После завершения работы команды в подкаталоге npm-resolver утилиты будет сформирован файл `package-lock.json` с перечнем зависимостей.
+--
+
+. Запустите команду экспорта npm артефактов:
++
+--
+[source,bash]
+----
+./deptool export-npm
+----
+
+В подкаталоге `export-npm` утилиты будут собраны артефакты в виде tgz-архивов, разложенных по директориям, а также файл `package-lock.json` (он потребуется для запуска проекта). Заархивируйте данный каталог для переноса в изолированную сеть.
+--
+
+Перенесите содержимое архива npm зависимостей (загруженного либо сформированного с помощью `deptool`) на изолированный компьютер и распакуйте в каталог ~/work/dependencies-npm.
+
 [[env-variables]]
 == Настройка переменных окружения
 
@@ -113,9 +162,9 @@ Jmix Dependencies Tool (`deptool`) - это утилита командной с
 [source,bash]
 ----
 export INSTALL4J_JAVA_HOME=/home/$USER/work/jdk8u362
-export JAVA_HOME=/home/$USER/work/jdk-11.0.18
+export JAVA_HOME=/home/$USER/work/jdk-17.0.9
 
-PATH=$PATH:$JAVA_HOME/bin:/home/$USER/work/gradle-7.5.1/bin
+PATH=$PATH:$JAVA_HOME/bin:/home/$USER/work/gradle-8.2/bin
 ----
 
 Переменная `INSTALL4J_JAVA_HOME`, указывающая на каталог установки JDK 8, необходима для работы Nexus.
@@ -155,18 +204,30 @@ image::ROOT:nexus-repository.png[align="center"]
 
 * Выберите тип `maven2 hosted`.
 
-* Введите `jmix` в поле *Name*, выберите `Mixed` в полн *Version policy* и нажмите на кнопку *Create repository*:
+* Введите `jmix` в поле *Name*, выберите `Mixed` в поле *Version policy* и нажмите на кнопку *Create repository*:
 +
 image::ROOT:nexus-repository-create.png[align="center"]
 
 Будет создан новый пустой репозиторий артефактов, доступный по адресу `++http://localhost:8081/repository/jmix++`.
+
+Для хранения npm зависимостей также нужно создать npm репозиторий. Создается он аналогичным образом.
+
+* Перейдите в раздел администрирования и откройте меню *Repositories*.
+
+* Нажмите на кнопку *Create repository*.
+
+* Выберите тип `npm hosted`.
+
+* Введите `jmix-npm` в поле *Name* и нажмите на кнопку *Create repository*:
+
+Будет создан новый пустой npm репозиторий по адресу http://localhost:8081/repository/jmix-npm
 
 [[import-dependencies]]
 === Импорт зависимостей в Nexus
 
 Импорт артефактов зависимостей в репозиторий Nexus осуществляется командой `upload` утилиты `deptool`:
 
-Откройте терминал, перейдите в каталог `~/work/deptool-1.0.0-M1/bin` и запустите команду:
+Откройте терминал, перейдите в каталог `~/work/deptool-2.0.0/bin` и запустите команду:
 
 [source,bash]
 ----
@@ -184,10 +245,32 @@ image::ROOT:nexus-repository-create.png[align="center"]
 
 В результате выполнения данной операции репозиторий `jmix` локального Nexus будет заполнен необходимыми артефактами.
 
+==== Импорт npm зависимостей в Nexus
+
+Импорт npm зависимостей осуществляется командой `upload-npm` утилиты `deptool`
+
+Откройте терминал, перейдите в каталог `~/work/deptool-2.0.0/bin` и запустите команду:
+
+[source,bash]
+----
+./deptool upload-npm --nexus-url http://localhost:8081 \ //<1>
+--nexus-repository jmix-npm \ //<2>
+--nexus-username admin \ //<3>
+--nexus-password adminpass \ //<4>
+--artifacts-dir ../../dependencies-npm //<5>
+----
+<1> Адрес менеджера репозиториев Nexus.
+<2> Название репозитория.
+<3> Логин администратора Nexus.
+<4> Пароль администратора Nexus.
+<5> Каталог с npm артефактами, которые будут загружены в Nexus. Укажите каталог с распакованным <<dependencies-archive,архивом npm зависимостей>>.
+
+В результате выполнения данной операции репозиторий `jmix-npm` локального Nexus будет заполнен необходимыми артефактами.
+
 [[ide-setup]]
 == Настройка IDE
 
-Откройте терминал, перейдите в каталог `~/work/idea-IC-223/bin` и запустите команду:
+Откройте терминал, перейдите в каталог `~/work/idea-IC-232/bin` и запустите команду:
 
 [source,bash]
 ----
@@ -196,7 +279,7 @@ image::ROOT:nexus-repository-create.png[align="center"]
 
 В окне *Welcome to IntelliJ IDEA* перейдите на вкладку *Plugins*, нажмите на иконку шестеренки и выберите *Install Plugin from Disk*. Выберите ZIP-файл загруженного плагина Jmix. После установки плагина перезапустите IDE.
 
-Для работы плагина Jmix требуется наличие файла `sif.dat` в конфигурационном каталоге IDE. При работе онлайн он создается автоматически при активации Jmix Studio. В изолированной сети его необходимо перенести вручную в каталог `~/.config/JetBrains/IdeaIC2022.3` (соответствует версии вашей IntelliJ IDEA, см. подробнее в https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html[документации IntelliJ^]). Данный файл можно либо скопировать с компьютера с уже активированной Jmix Studio, либо получить по email, направив запрос по адресу `info@jmix.io`.
+Для работы плагина Jmix требуется наличие файла `sif.dat` в конфигурационном каталоге IDE. При работе онлайн он создается автоматически при активации Jmix Studio. В изолированной сети его необходимо перенести вручную в каталог `~/.config/JetBrains/IdeaIC2023.2` (соответствует версии вашей IntelliJ IDEA, см. подробнее в https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html[документации IntelliJ^]). Данный файл можно либо скопировать с компьютера с уже активированной Jmix Studio, либо получить по email, направив запрос по адресу `info@jmix.io`.
 
 [[create-jmix-project]]
 == Создание проекта Jmix
@@ -215,7 +298,7 @@ image::ROOT:new-project-repo.png[align="center",width="800"]
 +
 image::ROOT:gradle-location.png[align="center",width="1201"]
 
-* После сохранения настроек Gradle начнется импорт проекта и завершится с ошибкой вида `org.gradle.api.plugins.UnknownPluginException: Plugin [id: 'io.jmix', version: '1.4.3'] was not found ...`
+* После сохранения настроек Gradle начнется импорт проекта и завершится с ошибкой вида `org.gradle.api.plugins.UnknownPluginException: Plugin [id: 'io.jmix', version: '2.1.0'] was not found ...`
 +
 * Откройте на редактирование файл `settings.gradle` и добавьте следующие строки в его начало:
 +
@@ -251,6 +334,14 @@ repositories {
     }
 }
 ----
+
+* Для доступа к npm артефактам
+
+** Создайте в корне проекта файл `.npmrc` и добавьте строчку `registry=http://localhost:8081/repository/jmix-npm/`. Информацию о других возможных настройках этого файла можно найти в документации https://docs.npmjs.com/cli/v10/configuring-npm/npmrc.
+
+** Из архива с npm зависимостями скопируйте в корень проекта файл `package-lock.json`.
+
+** В `application.properties` проекта измените значение свойства `vaadin.pnpm.enable` на `false`.
 
 * В панели *Gradle* нажмите *Reload All Gradle Projects*, чтобы снова запустить импорт проекта.
 
