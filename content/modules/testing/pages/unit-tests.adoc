@@ -1,0 +1,108 @@
+= Unit Tests
+
+A unit test is the narrowest variant of an automated test.
+
+The term "unit test" is used to describe different concepts, including the automated testing in general. We will refer to a unit test as an automated test that verifies behaviour on a particular class or set of classes without dependencies (that is mainly without Spring context and database).
+
+Jmix automatically includes the https://junit.org/junit5/[JUnit 5^] test framework as well as https://site.mockito.org/[Mockito^] for mocking dependencies.
+
+[[testing-isolated-functionality]]
+== Testing Isolated Functionality
+
+To demonstrate the process of creating a unit test, let's consider the functionality of calculating a total for a given list of `OrderLine` instances associated with an `Order`.
+
+There is a dedicated class called `OrderAmountCalculation` that handles this calculation. It is not a Spring bean, but just a regular Java class:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/main/java/com/company/demo/app/OrderAmountCalculation.java[tags=order-amount-calculation]
+----
+
+An example unit test for this functionality:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/OrderAmountCalculationTest.java[tags=unit-test-total-amount-calculation]
+----
+<1> The `OrderAmountCalculation` class is instantiated via the constructor without using Spring.
+<2> Entities are created by calling the constructor (without the usage of Jmix `Metadata` APIs).
+<3> Assertion of the calculation result is done via AssertJ assertions.
+
+This test class does not contain any Spring Boot test annotations (like `@SpringBootTest`), so the test doesn't use the Spring context and therefore runs very fast. But the lack of the Spring context in the test also means that it is not possible to use `@Autowired` in the test class to get instances of Spring beans. If the class under test has any dependencies to Spring beans, those dependencies have to be instantiated manually.
+
+[[mocking-with-mockito]]
+== Mocking with Mockito
+
+For unit tests the limitation mentioned above is acceptable as the scope of the test case is normally an isolated functionality of a single class.
+
+Let's consider the following example: there is a class that invokes the Jmix `TimeSource` API to get the current date. It is used to count the number of bookings that have been placed in this year for a given customer.
+
+Here is the implementation of that class:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/main/java/com/company/demo/app/RecentOrdersCounter.java[tags=recent-order-counter]
+----
+
+The class is annotated with `@Component` to let Spring automatically instantiate it and inject the dependencies. But if you want to test this functionality in a unit test, you need to manually instantiate the `RecentOrdersCounter` class and provide an instance of `TimeSource` to its constructor.
+
+To test the `RecentOrdersCounter` functionality, you might want to check the following:
+
+> Assuming we have two orders: one from 2019 and one from 2020, when the current year is 2020 we expect to have a count of one.
+
+To achieve this, you need to control what `TimeSource` returns as now and simulate the fact that the current year is 2020.
+
+Mockito is a mocking library that supports this kind of emulation. It is available in Jmix projects by default.
+
+Here is an example on how this test case could look like:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/RecentOrdersCounterTest.java[tags=recent-order-counter-test]
+----
+<1> The `Mockito.mock()` method creates an emulated instance that you can use to control the behavior of the class.
+<2> Invocation of `Mockito.when()` defines that when the method `now()` is called on the `TimeSource`, it should return `2020-03-01` as `ZonedDateTime`.
+<3> When instantiating the counter class, the mock (emulated instance) of the `TimeSource` is passed to the constructor.
+
+TIP: If you want to test your Spring components in unit tests, use constructor based injection instead of `@Autowired` on the class fields.
+
+More information about using Mockito can be found in its https://site.mockito.org/[documentation^].
+
+[[verify-behavior-with-assertions]]
+== Verifying Behavior with Assertions
+
+Assertions can be expressed using the https://assertj.github.io/doc/[AssertJ^] library.
+
+The AssertJ DSL provides a fluent API to perform validations on results of the classes under test. The assertion methods (like `assertThat`) should be statically imported from `org.assertj.core.api.Assertions`, for example:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-import]
+----
+
+Here is a simple example of an AssertJ assertion for a String:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-string-assertion]
+----
+
+Note that it is possible to chain multiple assertions that belong to the same result object.
+
+In case of a failing test, JUnit / AssertJ will provide a proper error message about the difference between the expectation and the actual behaviour:
+
+----
+Expecting actual:
+  "Mike Myers"
+to end with:
+  "Murphy"
+----
+
+Depending on the type of the object, AssertJ provides different assertion methods to compare values. For example, when comparing lists, AssertJ provides `hasSize` and `contains` methods:
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-list-assertion]
+----
+
+For more information about assertions, read the https://assertj.github.io/doc/[AssertJ documentation^].
