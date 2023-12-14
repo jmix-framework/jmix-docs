@@ -1,6 +1,6 @@
 package com.company.onboardingmaps.user;
 
-import com.company.onboardingmaps.entity.User;
+import com.company.onboarding.entity.User;
 import com.company.onboardingmaps.test_support.AuthenticatedAsAdmin;
 import io.jmix.core.DataManager;
 import io.jmix.core.security.UserRepository;

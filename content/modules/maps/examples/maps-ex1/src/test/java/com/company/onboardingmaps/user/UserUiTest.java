@@ -1,9 +1,9 @@
 package com.company.onboardingmaps.user;
 
-import com.company.onboardingmaps.OnboardingMapsApplication;
-import com.company.onboardingmaps.entity.User;
-import com.company.onboardingmaps.view.user.UserDetailView;
-import com.company.onboardingmaps.view.user.UserListView;
+import com.company.onboarding.OnboardingMapsApplication;
+import com.company.onboarding.entity.User;
+import com.company.onboarding.view.user.UserDetailView;
+import com.company.onboarding.view.user.UserListView;
 import com.vaadin.flow.component.Component;
 import io.jmix.core.DataManager;
 import io.jmix.flowui.ViewNavigators;
