@@ -1,7 +1,7 @@
 package com.company.onboarding.view.component.textfield;
 
 import com.company.onboarding.view.main.MainView;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.component.SupportsStatusChangeHandler;
@@ -22,7 +22,7 @@ public class TextFieldView extends StandardView {
     // end::autowired-notifications[]
     // tag::infoLabel[]
     @ViewComponent
-    private Label infoLabel;
+    private Div infoLabel;
 
     // end::infoLabel[]
     // tag::typedValueChangeEvent[]
