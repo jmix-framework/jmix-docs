@@ -3,22 +3,18 @@ package com.company.onboarding.view.component.datetimepicker;
 
 import com.company.onboarding.entity.User;
 import com.company.onboarding.view.main.MainView;
-
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.Metadata;
-
-import io.jmix.core.TimeSource;
 import io.jmix.flowui.component.datetimepicker.TypedDateTimePicker;
 import io.jmix.flowui.exception.ValidationException;
 import io.jmix.flowui.model.InstanceContainer;
 import io.jmix.flowui.view.*;
-import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 
-import java.time.*;
-import java.util.Date;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Locale;
 
 @Route(value = "DateTimePickerView", layout = MainView.class)
@@ -26,7 +22,7 @@ import java.util.Locale;
 @ViewDescriptor("date-time-picker-view.xml")
 public class DateTimePickerView extends StandardView {
     @ViewComponent
-    private Label infoLabel;
+    private NativeLabel infoLabel;
     @Autowired
     private Metadata metadata;
     @ViewComponent
