@@ -2,10 +2,10 @@ package com.company.onboarding.view.component.tabs;
 
 
 import com.company.onboarding.view.main.MainView;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.view.*;
@@ -35,7 +35,7 @@ public class TabsView extends StandardView {
     // tag::SetTabContent[]
     private void setTabContent(Tab tab) {
         content.removeAll();
-        Label tabLabel = uiComponents.create(Label.class);
+        Div tabLabel = uiComponents.create(Div.class);
         if ("tab1".equals(tab.getId().orElse(null))) {
             tabLabel.setText("Tab One is selected");
             content.add(tabLabel);
