@@ -1,0 +1,73 @@
+= Exception Handlers
+
+Unhandled exceptions thrown in the HTTP request thread are passed to the Jmix exception handling mechanism. It contains a list of handlers, each of which is capable of handling the exception or choosing not to. If the exception is hot handled by any specific handler, it is passed to `DefaultUiExceptionHandler` which shows a dialog with the exception message and the stack trace. You can customize the dialog as explained <<customizing-default-handler,below>>.
+
+[[application-exception-handlers]]
+== Application Exception Handlers
+
+You can provide own handlers for any exceptions. The simplest way to do it is to create a subclass of `AbstractUiExceptionHandler` and register it as a Spring bean.
+
+For example, if you have the following exception:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyException.java[]
+----
+
+You can define a handler for it as follows:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionHandler.java[]
+----
+<1> - Make the handler a Spring bean.
+<2> - Extend `AbstractUiExceptionHandler`.
+<3> - Inject any other Spring beans if needed.
+<4> - Pass the fully-qualified class name of the exception to the super constructor.
+<5> - Handle the exception in `doHandle()` method.
+
+Your exception handler will be automatically added to the list of handlers by the framework. You can adjust the position of your handler in the list by adding the `@Order` annotation to your bean. For example, if you set the order as `@Order(JmixOrder.HIGHEST_PRECEDENCE - 10)`, your handler will have a priority over a framework's handler for the same exception.
+
+If you need more control over determining what exceptions should be processed by your handler, either override the `canHandle()` method of the `AbstractUiExceptionHandler` base class, or don't use `AbstractUiExceptionHandler` at all and implement the `UiExceptionHandler` interface directly. See also https://vaadin.com/docs/latest/advanced/custom-error-handler[Vaadin documentation^] for how to handle UI exceptions on the lower level.
+
+[[unique-constraint-violation-handler]]
+== Unique Constraint Violation Handler
+
+Jmix provides a built-in handler for database unique constraint violation errors: `UniqueConstraintViolationHandler`. It can be easily customized in two aspects.
+
+First, you can modify the message that is shown to the user in response to the error. The message is set in the message bundle with the key in the `databaseUniqueConstraintViolation.<DB_CONSTRAINT_NAME>` format, for example:
+
+[source, properties]
+.messages_en.properties
+----
+databaseUniqueConstraintViolation.IDX_DEPARTMENT_UNQ_NAME=A department with the same name already exists
+----
+
+Second, you can provide your own pattern for recognizing unique constraint violations. The framework contains default patterns for each database type, for example for PostgreSQL it is `ERROR: duplicate key value violates unique constraint "(.+)"`. You can see the default patterns in the implementations of the `DbmsFeatures` interface. If a default pattern doesn't work for you (it may happen because of a database localization), provide your pattern in the xref:data-access:data-properties.adoc#jmix.data.unique-constraint-violation-pattern[jmix.data.unique-constraint-violation-pattern] property.
+
+[[customizing-default-handler]]
+== Customizing Default Handler
+
+You can customize the dialog shown by the default exception handler. The example below explains how to add a button that allows users to report the exception to a system administrator.
+
+First, create your dialog class based on `ExceptionDialog` and override appropriate methods:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionDialog.java[]
+----
+<1> - Register the class as a prototype bean.
+<2> - Extend `ExceptionDialog`.
+<3> - Override appropriate methods to customize the standard dialog.
+
+Then create a provider class:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionDialogProvider.java[]
+----
+<1> - Use `ObjectProvider` because `MyExceptionDialog` is a prototype bean.
+<2> - You can instruct the provider to take effect only for specific exceptions. Return `true` if you want it to work for all exception types.
+<3> - Return new instance of `MyExceptionDialog`.
+
+The framework will pick up your provider and use the returned dialog for unhandled exceptions.
