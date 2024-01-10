@@ -1,0 +1,307 @@
+= OpenID Connect
+
+[[overview]]
+== Overview
+
+The Jmix OpenID Connect add-on provides predefined Spring Security configurations and a set of services that will simplify the following operations:
+
+* User authentication using an external OpenID Provider (e.g., Keycloak).
+* Mapping user attributes and roles from the OpenID Provider user to Jmix user.
+* Persisting user entity and role assignments after the user is successfully authenticated at the OpenID Provider.
+
+The add-on leverages Spring Security support for OAuth2 and OpenID Connect 1.0. You may read about it in {spring-security-doc}/servlet/oauth2/index.html[Spring Security documentation^].
+
+The add-on applies `OidcAutoConfiguration` unless it is explicitly disabled by setting the `jmix.oidc.use-default-configuration=false` application property. The configuration enables OpenID Connect authentication for UI and REST API URLs.
+
+[[installation]]
+== Installation
+
+For automatic installation through Jmix Marketplace, follow instructions in the xref:ROOT:add-ons.adoc#installation[Add-ons] section.
+
+For manual installation, add the following dependency to your `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::example$/oidc-ex1/build.gradle[tags=dependencies]
+----
+
+[[client-configuration]]
+== Client Configuration
+
+After including the add-on in your project and before starting the application, you should configure the "client", which is a Jmix application that requires end-user authentication from the OpenID Provider.
+
+Use the standard Spring Security approach to configure the client. You can do it by adding the following properties to the `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$oidc-ex1/src/main/resources/application-doc1.properties[tags=client-properties]
+----
+
+`keycloak` in the property key is the provider id. It may have any value, for example `okta`, so the property will be `spring.security.oauth2.client.registration.okta.client-id`.
+
+Client ID and client secret values must be taken from the OpenID provider.
+
+The `issuer-uri` property contains a path to the OpenID Provider https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig[Configuration Endpoint^].
+
+By default, the "sub" claim will be used as a Jmix user username. If you want to change it, use the following application property:
+
+[source,properties,indent=0]
+----
+include::example$oidc-ex1/src/main/resources/application-doc1.properties[tags=user-name-attribute]
+----
+
+[[using-default-addon-configuration]]
+== Using Default Add-on Configuration
+
+After including the add-on in the project, configuring the client and <<configuring-local-keycloak-instance,setting up Keycloak>>, you may start the application. In this case, the default add-on configuration will do the following:
+
+* Non-authenticated users will be redirected to OpenID Provider login page.
+* After the user has authenticated in the OpenID Provider, an instance of `DefaultJmixOidcUser` will be created and set to the security context. No user attributes will be mapped. The user won't be stored in the database.
+* Collection of user role codes will be taken from the "roles" claim of the ID Token, and then resource and row-level roles with given codes will be set to the user authentication.
+
+The `DefaultJmixOidcUser` class implements the `JmixOidcUser` interface. The user class must always implement this interface because Jmix applications require the `UserDetails` interface, and Spring Security works with the `OidcUser` interface. `JmixOidcUser` just extends both these interfaces.
+
+[[mapping-user-attributes-and-roles]]
+== Mapping User Attributes and Roles
+
+If you need to work with an in-memory user but want to fill some user attributes, create a class that extends `DefaultJmixOidcUser`. In the example below, it has the `position` attribute:
+
+[source,java,indent=0]
+----
+include::example$/oidc-ex1/src/main/java/examples/oidcex1/entity/MyUser.java[tags=my-user]
+----
+
+Then you need to register an instance of `OidcUserMapper` as a Spring bean. You can extend the `BaseOidcUserMapper` and override its methods:
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MyOidcUserMapper.java[tags=code]
+----
+
+Note that in the example above, the mapping of claims from OIDC user to Jmix granted authorities is delegated to the `ClaimsRolesMapper`. The default implementation of `ClaimsRolesMapper` is `DefaultClaimsRolesMapper`, which gets the claim with the "roles" name from the ID Token. This claim must contain a collection of role names. Then for each role from the claim value resource role and row-level role are searched in Jmix. If found, corresponding granted authorities will be added to the user. The roles claim name can be configured using the following application property:
+
+[source,properties,indent=0]
+----
+jmix.oidc.default-claims-roles-mapper.roles-claim-name=myRoles
+----
+
+If necessary, you can create your own mapper of claims to roles. The easiest way to do it is to extend the `BaseClaimsRolesMapper` and override its `getResourceRolesCodes()` and/or `getRowLevelRolesCodes()` methods. The example below demonstrates how to assign roles based on the "position" claim.
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MyClaimsRoleMapper.java[tags=code]
+----
+
+[[working-with-user-jpa-entity]]
+== Working with User JPA Entity
+
+In order to work with Jmix OIDC add-on, the `User` JPA entity must implement the `io.jmix.oidc.user.JmixOidcUser` interface that in turns implements `org.springframework.security.oauth2.core.oidc.user.OidcUser` required by Spring Security.
+
+The simplest way to make the `User` entity compatible with the OIDC add-on is to make this class a subclass of the `io.jmix.oidc.user.JmixOidcUserEntity` abstract class:
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/entity/User.java[tags=jpa-user-entity-start;jpa-user-entity-end]
+----
+
+To store users in the database after they are logged in using OpenID Provider, you'll need to register a user mapper that extends the `SynchronizingOidcUserMapper` class. This superclass contains the behavior that stores/updates the user in the database. Optionally you may also store information about role assignments in the database.
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MySynchronizingOidcUserMapper.java[tags=code;!profile]
+----
+
+[[protecting-api]]
+== Protecting API
+
+Jmix application may work as a resource server. To specify which authorization server to use, define the following application property:
+
+[source,properties,indent=0]
+----
+spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8180/realms/<realm>
+----
+
+The value of the property is the URL contained in the `iss` claim for JWT tokens that the authorization server will issue. See {spring-security-doc}/servlet/oauth2/resource-server/jwt.html#_specifying_the_authorization_server[Spring Security documentation^] for details.
+
+By default, the "sub" claim value is used as a username of Jmix user that is set to security context. If you want to change this, use the following application property:
+
+[source,properties,indent=0]
+----
+jmix.oidc.jwt-authentication-converter.username-claim=preferred_username
+----
+
+In most cases the property value should be aligned with the value of the `spring.security.oauth2.client.provider.keycloak.user-name-attribute` property.
+
+Access tokens obtained from OpenID Provider may be used for accessing protected endpoints provided by the REST API add-on.
+
+For local Keycloak instance access tokens may be obtained in the following way:
+
+[source,shell,indent=0]
+----
+curl -X POST http://localhost:8180/realms/sample1/protocol/openid-connect/token \
+--user <client-id>:<client-secret> \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-d "grant_type=password&scope=openid&username=<username>&password=<password>"
+----
+
+For example:
+
+[source,shell,indent=0]
+----
+curl -X POST http://localhost:8180/realms/sample1/protocol/openid-connect/token \
+--user jmix-app:UONXQZf6unxVuWsxXvhMAPv5IxFz5P7D \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-d "grant_type=password&&scope=openid&username=johndoe&password=mypass"
+----
+
+Now let's see how to protect custom MVC controllers using the following example controller:
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/controller/GreetingController.java[tags=code]
+----
+
+Imagine that you need all URLs starting with `/authenticated/` to be protected and all URLs starting with `/anonymous/` to be available for anonymous access. To achieve this, define an `AuthorizedUrlsProvider` bean in your main application class or in any Spring configuration class:
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/config/ProtectedApiConfiguration.java[tags=my-authorized-urls-provider]
+----
+
+[[oidc-properties]]
+== OIDC Properties
+
+[[jmix.oidc.use-default-configuration]]
+=== jmix.oidc.use-default-configuration
+
+Defines whether to apply the default auto-configuration. True by default. Set this property to false in case you want to have access to add-on beans and interfaces but don't want to use predefined Spring security configuration for protecting endpoints. In this case, you'll have to write your own security configuration.
+
+[source,properties]
+----
+jmix.oidc.use-default-configuration = false
+----
+
+[[jmix.oidc.default-claims-roles-mapper.roles-claim-name]]
+=== jmix.oidc.default-claims-roles-mapper.roles-claim-name
+
+Defines a name of the claim in the ID Token that contains a collection of role names. This property is used by `DefaultClaimsRolesMapper`. The default value is `roles`.
+
+[source,properties]
+----
+jmix.oidc.default-claims-roles-mapper.roles-claim-name = myRoles
+----
+
+[[configuring-local-keycloak-instance]]
+== Configuring Local Keycloak Instance
+
+One of the most popular OpenID Providers is https://www.keycloak.org/[Keycloak^]. To get familiar with the Jmix OIDC add-on you can run Keycloak locally using Docker.
+
+[[starting-keycloak-using-docker]]
+=== Starting Keycloak Using Docker
+
+Use the following comment to start Keycloak instance using Docker on the port 8180:
+
+[source,shell,indent=0]
+----
+docker run -p 8180:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin --name keycloak quay.io/keycloak/keycloak:22.0 start-dev
+----
+
+See https://www.keycloak.org/getting-started/getting-started-docker[Keycloak documentation^] for details.
+
+Keycloak URL: http://localhost:8180[^]
+
+Admin credentials:
+[source,text]
+----
+Username: admin
+Password: admin
+----
+
+You can read about configuring the Keycloak instance in the https://www.keycloak.org/docs/latest/server_admin/[Server Administration Guide^].
+
+[[creating-a-realm]]
+=== Creating a Realm
+
+Login to Keycloak admin console.
+
+Point to the top of the left pane.
+
+Click **Add Realm**.
+
+image::keycloak/create_realm_1.png[align="center"]
+
+Give a name to the new realm, e.g. "sample".
+
+image::keycloak/create_realm_2.png[align="center"]
+
+[[creating-client]]
+=== Creating a Client
+
+In order to connect a Jmix application to Keycloak, you need to create a new client **jmix-app** with the Client type **OpenID Connect**.
+
+image::keycloak/create_client_1.png[align="center"]
+
+Enable **Client authentication**.
+
+image::keycloak/create_client_2.png[align="center"]
+
+Enter Valid redirect URIs:
+
+[source,text]
+----
+http://localhost:8080/*
+----
+
+and Web origins:
+
+[source,text]
+----
+http://localhost:8080
+----
+
+image::keycloak/create_client_3.png[align="center"]
+
+Open the just created client and go to the **Credentials** tab. It displays the **Client Secret**, which you need in the Jmix project to set up a connection.
+
+image::keycloak/client_credentials.png[align="center"]
+
+Client parameters should be used in the `application.properties` file. See the <<client-configuration,Client Configuration>> section.
+
+[[creating-role]]
+=== Creating a Role
+
+Next you should create a new realm role. By default, the role name should match the Jmix role code. Create the **system-full-access** role:
+
+image::keycloak/create_role.png[align="center"]
+
+[[creating-user]]
+=== Creating a User
+
+Create a user with **johndoe** username:
+
+image::keycloak/create_user.png[align="center"]
+
+After the user is saved, the **Credentials** tab will appear. You may set the initial user password there.
+
+image::keycloak/create_user_credentials.png[align="center"]
+
+In the **Role Mappings** tab, assign the **system-full-access** role:
+
+image::keycloak/assign_role.png[align="center"]
+
+If you want to fill in user attributes (e.g. "position"), you can do that in **Attributes** tab in the user editor.
+
+[[creating-roles-mapper]]
+=== Creating a Roles Mapper
+
+In order to return the realm roles information in the ID Token you need to define a mapper for the **jmix-app** client. Open the client editor and switch to the **Client scopes** tab:
+
+image::keycloak/create_mapper_1.png[align="center"]
+
+Open the editor of the **jmix-app-dedicated** scope. Add a predefined mapper for the "realm roles" there:
+
+image::keycloak/create_mapper_2.png[align="center"]
+
+Edit the realm's **Token Claim Name** attribute value and select the **Add to userinfo** checkbox:
+
+image::keycloak/create_mapper_3.png[align="center"]
