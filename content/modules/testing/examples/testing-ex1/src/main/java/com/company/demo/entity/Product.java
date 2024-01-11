@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @JmixEntity
 @Table(name = "PRODUCT")
-@Entity(name = "sample_Product")
+@Entity
 public class Product {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)

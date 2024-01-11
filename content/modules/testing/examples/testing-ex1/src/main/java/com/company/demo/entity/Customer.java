@@ -4,14 +4,14 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.Composition;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
-
 import jakarta.persistence.*;
+
 import java.util.List;
 import java.util.UUID;
 
 @JmixEntity
 @Table(name = "CUSTOMER")
-@Entity(name = "sample_Customer")
+@Entity
 public class Customer {
 
     @JmixGeneratedValue

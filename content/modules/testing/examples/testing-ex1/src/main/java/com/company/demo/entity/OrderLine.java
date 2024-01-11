@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @JmixEntity
 @Table(name = "ORDER_LINE")
-@Entity(name = "sample_OrderLine")
+@Entity
 public class OrderLine {
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
