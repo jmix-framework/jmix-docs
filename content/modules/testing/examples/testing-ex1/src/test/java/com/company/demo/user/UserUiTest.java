@@ -4,7 +4,6 @@ import com.company.demo.DemoApplication;
 import com.company.demo.entity.User;
 import com.company.demo.view.user.UserDetailView;
 import com.company.demo.view.user.UserListView;
-import com.vaadin.flow.component.Component;
 import io.jmix.core.DataManager;
 import io.jmix.flowui.ViewNavigators;
 import io.jmix.flowui.component.UiComponentUtils;
@@ -23,30 +22,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.Optional;
-
 /**
  * Sample UI integration test for the User entity.
  */
-@UiTest
-@SpringBootTest(classes = {DemoApplication.class, FlowuiTestAssistConfiguration.class})
+@UiTest // <1>
+@SpringBootTest(classes = {DemoApplication.class, FlowuiTestAssistConfiguration.class}) // <2>
 public class UserUiTest {
 
     @Autowired
-    DataManager dataManager;
+    DataManager dataManager; // <3>
 
     @Autowired
     ViewNavigators viewNavigators;
 
-    @Test
+    @Test // <4>
     void test_createUser() {
         // Navigate to user list view
         viewNavigators.view(UserListView.class).navigate();
 
-        UserListView userListView = UiTestUtils.getCurrentView();
+        UserListView userListView = UiTestUtils.getCurrentView(); // <5>
 
         // click "Create" button
-        JmixButton createBtn = findComponent(userListView, "createBtn");
+        JmixButton createBtn = findComponent(userListView, "createBtn"); // <6>
         createBtn.click();
 
         // Get detail view
@@ -82,7 +79,7 @@ public class UserUiTest {
                 .orElseThrow();
     }
 
-    @AfterEach
+    @AfterEach // <7>
     void tearDown() {
         dataManager.load(User.class)
                 .query("e.username like ?1", "test-user-%")
@@ -90,14 +87,8 @@ public class UserUiTest {
                 .forEach(u -> dataManager.remove(u));
     }
 
-    /**
-     * Returns a component defined in the screen by the component id.
-     * Throws an exception if not found.
-     */
     @SuppressWarnings("unchecked")
-    private <T> T findComponent(View<?> view, String componentId) {
-        Optional<Component> component = UiComponentUtils.findComponent(view, componentId);
-        Assertions.assertTrue(component.isPresent());
-        return (T) component.get();
+    private static <T> T findComponent(View<?> view, String componentId) {
+        return (T) UiComponentUtils.getComponent(view, componentId);
     }
 }
