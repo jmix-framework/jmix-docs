@@ -16,7 +16,7 @@ import io.jmix.flowui.view.*;
 public class ImageResourcesView extends StandardView {
 
     @ViewComponent
-    private JmixImage image;
+    private JmixImage<?> image;
 
 
     @Subscribe("staticBtn")
@@ -37,7 +37,7 @@ public class ImageResourcesView extends StandardView {
     public void onStreamBtnClick(final ClickEvent<JmixButton> event) {
         //tag::image-stream[]
         StreamResource streamResource = new StreamResource("icon",
-                ()-> getClass().getResourceAsStream("META-INF/resources/icons/icon.png"));
+                ()-> getClass().getResourceAsStream("/META-INF/resources/icons/icon.png"));
         image.setSrc(streamResource);
         //end::image-stream[]
     }
