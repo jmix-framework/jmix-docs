@@ -2,9 +2,11 @@ package com.company.onboarding.view.dialogsandnotifications.notifications;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.Html;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.view.StandardView;
 import io.jmix.flowui.view.Subscribe;
@@ -35,4 +37,20 @@ public class NotificationSampleView extends StandardView {
                 .show();
         // end::notification-2[]
     }
+
+    private void showNotificationHtml() {
+        // tag::notification-html[]
+        notifications.show(new Html("<div>Hello<br>World</div>"));
+        // end::notification-html[]
+    }
+
+    private void showNotificationPre() {
+        // tag::notification-pre[]
+        notifications.create("First line\nSecond line")
+                .withClassName(LumoUtility.Whitespace.PRE_LINE)
+                .withDuration(5000)
+                .show();
+        // end::notification-pre[]
+    }
+
 }

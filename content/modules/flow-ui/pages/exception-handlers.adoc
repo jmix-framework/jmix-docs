@@ -1,0 +1,73 @@
+= 异常处理
+
+HTTP 请求线程中抛出的未处理异常会传递给 Jmix 异常处理机制。该机制包含一个 handler 列表，每个 handler 都可以处理异常或选择不处理异常。如果异常并未由任何特定的 handler 处理，则会将其传递给 `DefaultUiExceptionHandler`，这个处理器会显示一个对话框，包含异常和堆栈信息。<<customizing-default-handler,下面>> 有介绍如何自定义对话框的内容。
+
+[[application-exception-handlers]]
+== 应用程序异常处理
+
+开发者可以提供自定义的异常处理 handler。最简单的方法是创建 `AbstractUiExceptionHandler` 的子类，并注册为 Spring bean。
+
+例如，如果有如下异常：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyException.java[]
+----
+
+可以这么定义处理器：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionHandler.java[]
+----
+<1> - 定义为 Spring bean。
+<2> - 继承 `AbstractUiExceptionHandler`。
+<3> - 如果需要，可以注入其他 Spring bean。
+<4> - 将异常的全限定名传递给父类的构造器。
+<5> - 在 `doHandle()` 方法处理异常。
+
+自定义的异常处理器会被添加至框架定义的处理器列表中。可以通过为 bean 添加 `@Order` 注解调整自定义处理器在列表中的位置。例如，如果设置顺序为 `@Order(JmixOrder.HIGHEST_PRECEDENCE - 10)`，则自定义处理器的优先级会高于框架对同一异常定义的处理器。
+
+如需控制处理器能处理的异常类型，可以重写 `AbstractUiExceptionHandler` 基类的 `canHandle()` 方法，或者不使用 `AbstractUiExceptionHandler` 类，而是直接自定义实现 `UiExceptionHandler` 接口。参阅 https://vaadin.com/docs/latest/advanced/custom-error-handler[Vaadin 文档^] 了解如何在更低的级别处理 UI 异常。
+
+[[unique-constraint-violation-handler]]
+== 处理违反唯一性约束异常
+
+Jmix 提供了一个用于处理违反数据库唯一性约束异常的处理器：`UniqueConstraintViolationHandler`。支持两个方面的自定义配置。
+
+首先，可以修改展示给用户的异常消息。异常消息在消息包中通过 `databaseUniqueConstraintViolation.<DB_CONSTRAINT_NAME>` 格式的键值定义，示例：
+
+[source, properties]
+.messages_en.properties
+----
+databaseUniqueConstraintViolation.IDX_DEPARTMENT_UNQ_NAME=A department with the same name already exists
+----
+
+其次，还可以配置用于识别违反唯一性约束异常的正则表达式。框架为每种数据库类型提供了默认的表达式，例如对于 PostgresQL，表达式为 `ERROR: duplicate key value violates unique constraint "(.+)"`。在 `DbmsFeatures` 接口中的实现中可以查看各种默认表达式。如果默认的表达式不能满足你的要求（比如数据库经过本地化），那么可以通过 xref:data-access:data-properties.adoc#jmix.data.unique-constraint-violation-pattern[jmix.data.unique-constraint-violation-pattern] 配置自定义的表达式。
+
+[[customizing-default-handler]]
+== 自定义默认处理器
+
+默认异常处理器展示的对话框可以进行自定义。下面的示例展示了如何添加一个按钮，允许用户将异常报告给系统管理员。
+
+首先，基于 `ExceptionDialog` 创建自定义的对话框类，并重写特定的方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionDialog.java[]
+----
+<1> - 将类注册为 prototype bean。
+<2> - 继承 `ExceptionDialog`。
+<3> - 重写特定的方法自定义对话框。
+
+然后创建 provider 类：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/exception/MyExceptionDialogProvider.java[]
+----
+<1> - 使用 `ObjectProvider`，因为 `MyExceptionDialog` 是 prototype bean。
+<2> - 这里可以让 provider 仅对某些特定异常有效。直接返回 `true` 则对所有异常类型有效。
+<3> - 返回 `MyExceptionDialog` 的新实例。
+
+框架会自动使用这个 provider 并将其返回的对话框用于处理异常。

@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 // tag::listener-bean[]
@@ -106,4 +108,12 @@ public class CustomerEventListener {
         );
         // end::save-after-commit[]
     }
+
+    // tag::after-commit-tx[]
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // <1>
+    void onCustomerChangedAfterCommit(EntityChangedEvent<Customer> event) {
+        // ...
+    }
+    // end::after-commit-tx[]
 }

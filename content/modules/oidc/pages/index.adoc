@@ -1,0 +1,302 @@
+= OpenID 连接
+
+Jmix OpenID Connect（OIDC）扩展组件提供了预定义 Spring Security 配置和一组服务，用于支持以下功能：
+
+* 通过外部 OpenID 供应商进行用户认证（例如，Keycloak）。
+* 将 OpenID 供应商中用户的属性和角色映射至 Jmix 用户。
+* OpenID 供应商成功完成用户认证之后，持久化用户实体和用户角色表。
+
+扩展组件通过 Spring Security 支持 OAuth2 和 OpenID Connect 1.0。请参阅 {spring-security-doc}/servlet/oauth2/index.html[Spring Security 文档^]。
+
+扩展组件会使用 `OidcAutoConfiguration` 配置，可以通过 `jmix.oidc.use-default-configuration=false` 应用程序属性禁用。这个配置为 UI 和 REST API URL 启用 OIDC 认证。
+
+[[installation]]
+== 安装
+
+按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的说明进行安装。
+
+手动安装，需在 `build.gradle` 文件添加下列依赖：
+
+[source,groovy,indent=0]
+----
+include::example$/oidc-ex1/build.gradle[tags=dependencies]
+----
+
+[[client-configuration]]
+== 客户端配置
+
+为项目添加了依赖之后，需要先配置 “client”，这里的 client（客户端）指的是一个需要向 OpenID 供应商请求用户认证的 Jmix 应用程序。
+
+可以使用标准的 Spring Security 方式进行配置。在 `application.properties` 文件添加如下配置：
+
+[source,properties,indent=0]
+----
+include::example$oidc-ex1/src/main/resources/application-doc1.properties[tags=client-properties]
+----
+
+属性键值中的 `keycloak` 表示供应商的 ID。可以是任意值，例如， 对于 `okta`，这个属性就是 `spring.security.oauth2.client.registration.okta.client-id`。
+
+Client ID 和 client secret 的值必须从 OpenID 供应商获取。
+
+`issuer-uri` 属性配置 OpenID 供应商 https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig[配置端点^] 的路径。
+
+默认情况下，使用 "sub" claim 作为 Jmix 用户的用户名。如果需要更改，可以通过下面配置实现：
+
+[source,properties,indent=0]
+----
+include::example$oidc-ex1/src/main/resources/application-doc1.properties[tags=user-name-attribute]
+----
+
+[[using-default-addon-configuration]]
+== 使用默认组件配置
+
+在项目中引入组件且配置客户端和 <<configuring-local-keycloak-instance,设置 Keycloak>> 后，就可以启动应用程序了。此时，组件中默认的配置将执行以下操作：
+
+* 未经认证的用户将被重定向到 OpenID 供应商登录页面。
+* 用户在 OpenID 供应商中通过认证后，将创建一个 `DefaultJmixOidcUser` 实例并将其设置为安全上下文。此时不会映射任何用户属性。用户也不会存储在数据库中。
+* 用户的所有角色代码将从 ID Token 的 “roles” claim 中获取，然后将这些代码对应的资源和行级角色设置到用户认证对象中。
+
+`DefaultJmixOidcUser` 类实现了 `JmixOidcUser` 接口。用户类必须实现此接口，因为 Jmix 应用程序需要 `UserDetails`，而 Spring Security 使用 `OidcUser` 接口。而 `JmixOidcUser` 扩展了这两个接口。
+
+[[mapping-user-attributes-and-roles]]
+== 用户属性和角色的映射
+
+如果需要使用内存中的用户实例，并且希望这个实例能带一些用户属性，首先需要创建一个自定义的类，继承 `DefaultJmixOidcUser`。下面的示例中，增加了 `position` 属性：
+
+[source,java,indent=0]
+----
+include::example$/oidc-ex1/src/main/java/examples/oidcex1/entity/MyUser.java[tags=my-user]
+----
+
+然后，需要将一个 `OidcUserMapper` 的实现注册为 Spring bean。这里可以继承 `BaseOidcUserMapper` 并重写一些方法：
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MyOidcUserMapper.java[tags=code]
+----
+
+请注意，在上面的示例中，从 OIDC 用户的 claim 映射至 Jmix 权限的过程委托给了 `ClaimsRolesMapper` 接口。`ClaimsRolesMapper` 的默认实现是 `DefaultClaimsRolesMapper`，从 ID Token 中获取名为 “roles” 的 claim。这个 claim 必须包含角色名称的集合。然后，对于 claim 值中的每个角色，会在 Jmix 中搜索对应的资源角色和行级角色，如果找到，则分配给用户。可以使用下面的应用程序属性配置角色 claim 的名称：
+
+[source,properties,indent=0]
+----
+jmix.oidc.default-claims-roles-mapper.roles-claim-name=myRoles
+----
+
+如果需要，也可以创建自定义的 claim 与角色的 mapper。最简单的方式就是继承 `BaseClaimsRolesMapper` 并重写其中的 `getResourceRolesCodes()` 和/或 `getRowLevelRolesCodes()` 方法。下面的示例演示了如何根据 “position” claim 分配角色：
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MyClaimsRoleMapper.java[tags=code]
+----
+
+[[working-with-user-jpa-entity]]
+== 使用 User JPA 实体
+
+Jmix OIDC 组件能正常使用还需要 `User` JPA 实体实现 `io.jmix.oidc.user.JmixOidcUser` 接口。这个接口继承了 Spring Security 需要的 `org.springframework.security.oauth2.core.oidc.user.OidcUser` 接口。
+
+因此，`User` 实体兼容 OIDC 扩展组件的最简单方法就是让其继承 `io.jmix.oidc.user.JmixOidcUserEntity` 抽象类：
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/entity/User.java[tags=jpa-user-entity-start;jpa-user-entity-end]
+----
+
+若要在用户使用 OpenID 供应商登录后将其存储在数据库中，需要注册一个继承 `SynchronizingOidcUserMapper` 类的用户 mapper。此父类包含在数据库中存储/更新用户的行为。此外，还可以在数据库中存储角色分配的信息。
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/mapper/MySynchronizingOidcUserMapper.java[tags=code;!profile]
+----
+
+[[protecting-api]]
+== API 保护
+
+Jmix 应用程序也可以作为资源服务器使用。通过下列应用程序属性指定使用哪个授权服务：
+
+[source,properties,indent=0]
+----
+spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8180/realms/<realm>
+----
+
+该属性的值是授权服务器将要颁发 JWT token 的 “iss” claim 中包含的 URL。参阅 {spring-security-doc}/servlet/oauth2/resource-server/jwt.html#_specifying_the_authorization_server[Spring Security 文档^] 了解更多信息。
+
+默认情况下，使用 "sub" claim 的值作为 Jmix 用户的用户名并设置到安全上下文。如果需要更改，可以通过下面配置实现：
+
+[source,properties,indent=0]
+----
+jmix.oidc.jwt-authentication-converter.username-claim=preferred_username
+----
+
+大多数情况下，这个配置的值应当与 `spring.security.oauth2.client.provider.keycloak.user-name-attribute` 配置的值相同。
+
+从 OpenID 供应商获取的 access token 可用于访问 REST API 扩展组件提供的受保护端点。
+
+对于本地 Keycloak 实例，可以通过以下方式获取 access token：
+
+[source,shell,indent=0]
+----
+curl -X POST http://localhost:8180/realms/sample1/protocol/openid-connect/token \
+--user <client-id>:<client-secret> \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-d "grant_type=password&scope=openid&username=<username>&password=<password>"
+----
+
+示例：
+
+[source,shell,indent=0]
+----
+curl -X POST http://localhost:8180/realms/sample1/protocol/openid-connect/token \
+--user jmix-app:UONXQZf6unxVuWsxXvhMAPv5IxFz5P7D \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-d "grant_type=password&&scope=openid&username=johndoe&password=mypass"
+----
+
+现在我们看看如何保护自定义的 MVC 控制器，例如，下面这个：
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/controller/GreetingController.java[tags=code]
+----
+
+假设要保护所有以 `/authenticated/` 开头的 URL，而所有以 `/anonymous/` 开头的 URL 都可供匿名访问。为此，需要在应用程序主类或任何 Spring 配置类中定义一个 `AuthorizedUrlsProvider` bean：
+
+[source,java,indent=0]
+----
+include::example$oidc-ex1/src/main/java/examples/oidcex1/config/ProtectedApiConfiguration.java[tags=my-authorized-urls-provider]
+----
+
+[[oidc-properties]]
+== OIDC 配置
+
+[[jmix.oidc.use-default-configuration]]
+=== jmix.oidc.use-default-configuration
+
+定义是否使用默认自动配置。默认为 `true`。如果希望访问扩展组件中的 Bean 和接口，但不想使用预定义的 Spring security 配置来保护端点，请将该属性设置为 `false`。此时，必须编写自定义的安全配置。
+
+[source,properties]
+----
+jmix.oidc.use-default-configuration = false
+----
+
+[[jmix.oidc.default-claims-roles-mapper.roles-claim-name]]
+=== jmix.oidc.default-claims-roles-mapper.roles-claim-name
+
+定义 ID Token 中包含角色名称集合的 claim 名称。该属性由 `DefaultClaimsRolesMapper` 使用，默认值为 `roles`。
+
+[source,properties]
+----
+jmix.oidc.default-claims-roles-mapper.roles-claim-name = myRoles
+----
+
+[[configuring-local-keycloak-instance]]
+== 配置本地 Keycloak 实例
+
+最流行的 OpenID 供应商是 https://www.keycloak.org/[Keycloak^]。为了熟悉 Jmix OIDC 扩展组件，可以在本地通过 Docker 运行 Keycloak。
+
+[[starting-keycloak-using-docker]]
+=== 使用 Docker 启动 Keycloak 
+
+通过下面的 Docker 命令在 8180 端口启动 Keycloak 实例：
+
+[source,shell,indent=0]
+----
+docker run -p 8180:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin --name keycloak quay.io/keycloak/keycloak:22.0 start-dev
+----
+
+参阅 https://www.keycloak.org/getting-started/getting-started-docker[Keycloak 文档^]。
+
+Keycloak URL： http://localhost:8180[^]
+
+管理员账号：
+[source,text]
+----
+Username: admin
+Password: admin
+----
+
+可以阅读 https://www.keycloak.org/docs/latest/server_admin/[服务管理指南^] 了解如何配置 Keycloak 实例。
+
+[[creating-a-realm]]
+=== 创建一个 Realm
+
+登录 Keycloak 管理员控制台。
+
+打开左上角的弹窗，点击 **Create Realm**：
+
+image::keycloak/create_realm_1.png[align="center"]
+
+给新的 Realm 起个名字，例如，“sample”。
+
+image::keycloak/create_realm_2.png[align="center"]
+
+[[creating-client]]
+=== 创建客户端
+
+为了让 Jmix 应用程序能连接至 Keycloak，需要创建一个新的 **jmix-app** 客户端，类型为 **OpenID Connect**。
+
+image::keycloak/create_client_1.png[align="center"]
+
+启用 **Client authentication**.
+
+image::keycloak/create_client_2.png[align="center"]
+
+输入 **Valid redirect URIs**:
+
+[source,text]
+----
+http://localhost:8080/*
+----
+
+还有 **Web origins**:
+
+[source,text]
+----
+http://localhost:8080
+----
+
+image::keycloak/create_client_3.png[align="center"]
+
+打开新创建的客户端，并打开 **Credentials** 标签页。这里展示了 **Client secret**，Jmix 项目中需要这个秘钥建立连接。
+
+image::keycloak/client_credentials.png[align="center"]
+
+客户端参数在 `application.properties` 文件中配置，参阅 <<client-configuration,客户端配置>> 部分。
+
+[[creating-role]]
+=== 创建角色
+
+下面创建一个新的 realm 角色。默认情况下，角色名称需要与 Jmix 角色的名称一致。例如，创建 **system-full-access** 角色：
+
+image::keycloak/create_role.png[align="center"]
+
+[[creating-user]]
+=== 创建用户
+
+创建一个用户名为 **johndoe** 的用户：
+
+image::keycloak/create_user.png[align="center"]
+
+用户保存之后，会显示 **Credentials** 标签页，这里可以为用户设置密码。
+
+image::keycloak/create_user_credentials.png[align="center"]
+
+在 **Role mappings** 标签页，为用户分配 **system-full-access** 角色：
+
+image::keycloak/assign_role.png[align="center"]
+
+如果需要输入用户的其他属性（例如，“position”），可以在用户编辑器的 **Attributes** 标签页输入。
+
+[[creating-roles-mapper]]
+=== 创建角色映射器
+
+为了在 ID Token 中返回 realm 的角色信息，需要为 **jmix-app** 客户端定义一个 mapper。打开客户端编辑器并切换至 **Client scopes** 标签页：
+
+image::keycloak/create_mapper_1.png[align="center"]
+
+打开 **jmix-app-dedicated** 的编辑器。添加 “realm roles” 的预定义 mapper：
+
+image::keycloak/create_mapper_2.png[align="center"]
+
+编辑 realm 的 **Token Claim Name** 属性值，并选中 **Add to userinfo**：
+
+image::keycloak/create_mapper_3.png[align="center"]

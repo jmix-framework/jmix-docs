@@ -1,0 +1,152 @@
+= 集成测试
+
+集成测试是一种更广泛的测试类型。集成测试中代码的运行环境与正常应用程序的运行时环境几乎一致。这里我们说的集成测试是指，测试时会启动整个 Spring 上下文并在需要时与数据库进行交互。
+
+下面的示例我们再次看看 `OrderAmountCalculation` 类。但与上一节所述不同，我们不将该类作为孤立的单元进行测试，而是将其作为应用程序中更大上下文的一部分进行测试。在本例中，`OrderLine` 实体有一个 `EntityChangedEvent` 监听器。而这个监听器作为持久化逻辑的一部分，用 `OrderAmountCalculation` 类重新计算 `OrderLine` 所属的订单金额：
+
+[source,java,indent=0,title='OrderLineEventListener.java']
+----
+include::example$/testing-ex1/src/main/java/com/company/demo/app/OrderLineEventListener.java[tags=recalculate-order-amount]
+----
+
+在集成测试中，`OrderLineEventListener` 和 `OrderAmountCalculation` 可以一起测试。测试用例中会创建一个订单以及一个订单行，然后通过 xref:data-access:data-manager.adoc[DataManager] API 将它们保存至数据库。这样会触发事件监听器，使得订单金额能重新计算。
+
+[[dependency-injection-in-tests]]
+== 测试中的依赖注入
+
+Spring 集成测试可以使用与应用程序代码相同的依赖注入机制。具体来说，就是可以使用 `@Autowired` 注解将 Bean 注入到测试类中。下面示例中，在测试类注入了 `DataManager` 用于传递式触发 `OrderLineEventListener` 的逻辑：
+
+[source,java,indent=0,title='OrderLineEventListenerTest.java']
+----
+@SpringBootTest
+public class OrderLineEventListenerTest {
+
+    @Autowired
+    DataManager dataManager;
+
+    // ...
+}
+----
+
+如果需要直接测试自定义 bean，也可以直接将被测的 bean 注入到测试类中。下面示例中，在测试类注入了 `CustomerService` 以直接执行其被测方法：
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+@SpringBootTest
+public class CustomerServiceTest {
+
+    @Autowired
+    CustomerService customerService;
+
+    // ...
+}
+----
+
+[[database-interactions]]
+== 数据库交互
+
+与数据库交互在集成测试中有两个重要的好处。
+
+第一个好处是可以配置执行测试用例所需的测试数据。在测试用例中与数据库交互，可以使用常规的 Jmix 功能，比如 `DataManager`，就像在应用程序代码中一样。
+
+第二个好处是，在测试中执行的应用程序逻辑可以访问数据库。
+
+我们看一下这两种情况的示例：
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/CustomerServiceTest.java[tags=find-by-email-found]
+----
+<1> 测试中使用 `DataManager` 在数据库创建一个测试客户（customer）。
+<2> `CustomerService` 可以执行按 email 在数据库查找客户。
+
+[[test-data-cleanup]]
+=== 清理测试数据
+
+在上面的示例中，`DataManager` 将测试客户存储在数据库中。由于默认情况下所有测试用例共享同一个数据库实例，也就是说，这个测试数据也将可用于下一个测试用例。在这个示例中，这不是问题，但在其他情况下，这有可能是个问题。例如，假设 `Customer` 实体的 email 地址字段存在唯一约束。如果编写第一个测试用例，该用例使用特定 email 地址创建一个客户，而另一个测试用例则按 email 地址搜索客户并假设这个客户不存在，那么第二个测试用例将失败，因为有可能找到第一个测试中创建的客户。
+
+有几种方法可以清理测试数据。第一个是暂时保留测试期间创建的实体的引用。在上面的示例中，可以先保留在测试中创建的客户的引用，然后，测试完成后使用 `dataManager.remove(customer)` 将其删除。这是一种有效的方法，但需要在测试中添加一些额外的代码。此外，并不总是可以保留测试期间创建的数据的引用。例如，如果测试过程中执行的生产代码创建了一个新实体，则无法在测试中获取对该实体的引用。此外，如果在测试过程中出现异常，可能也无法执行清理代码。
+
+第二个方法是执行更常规的数据库清理工作。在以下示例中，`JdbcTemplate` 执行 SQL 语句 `DELETE FROM CUSTOMER` 以从数据库中删除所有客户：
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/CustomerServiceTest.java[tags=cleanup-customer-table]
+----
+<1> 注入 `DataSource` 用于初始化 `JdbcTemplate`。
+<2> `@AfterEach` 是 JUnit 注解，表示每个测试用例完成后都需要执行。
+<3> Spring 的 `JdbcTestUtils` 类提供从数据库表删除所有数据的方法。参阅 {spring-framework-doc}/testing/support-jdbc.html[Spring 测试文档^] 了解更多。
+
+[[security-context-in-tests]]
+== 测试中的安全上下文
+
+Jmix 支持以指定用户的身份执行代码，以便能完成测试依赖用户角色和权限的功能。可以通过 xref:security:authentication.adoc#system[SystemAuthenticator] 实现。
+
+下面我们测试 `CustomerService` 中的一个方法，通过使用不同的用户角色而得到不同的执行结果：
+
+[source,java,indent=0,title='CustomerService.java']
+----
+include::example$/testing-ex1/src/main/java/com/company/demo/app/CustomerService.java[tags=customer-service]
+----
+
+示例中，`CustomerService` 有一个方法 `findCustomerByEmail`，能返回找到的客户实例。而安全策略仅允许特定角色访问客户实体。这个用例可以使用 `SystemAuthenticator` 以特定用户身份执行该方法，从而测试此行为：
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/CustomerServiceTest.java[tags=find-by-email-as-user]
+----
+<1> 测试用例中创建了一个无任何角色的新用户。
+<2> `SystemAuthenticator` 以新用户的身份执行测试用例的代码。
+<3> `CustomerService` 使用该用户的安全上下文按 email 在数据库查找客户。
+
+用于新用户无任何角色，服务返回了一个空的 `Optional`。
+
+[[authenticated-as-admin]]
+=== AuthenticatedAsAdmin
+
+除了在测试中的特定部分配置安全上下文之外，还可以使用新的 Jmix 项目中自动生成的 `AuthenticatedAsAdmin` JUnit 扩展。可以在每次测试之前创建一个安全上下文，并将管理员用户设置为认证用户。
+
+[source,java,indent=0,title='CustomerServiceTest.java']
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/CustomerServiceTest.java[tags=authenticated-as-admin]
+----
+
+当然，`AuthenticatedAsAdmin` 与 `SystemAuthenticator` 也可以一起使用。首先，需要将测试类注解为使用 admin 用户，然后在某些测试用例内，可以用 `SystemAuthenticator` 以特定用户身份执行一些代码。
+
+[[overriding-application-behavior]]
+== 覆盖应用中的行为
+
+有时，即使是集成测试，也需要模拟（mock）应用程序中的某些部分。此时，可以将 `@SpringBooTest` 的功能与 Mockito 相结合，模拟特定的 bean，但仍然使用整个 Spring 上下文。
+
+我们再看一个 `NotificationService` 类，其业务逻辑的一部分使用了 xref:email:index.adoc[] 扩展组件中的 `Emailer` API。此服务的集成测试实际上不应该发送电子邮件，因此需要模拟电子邮件功能。
+
+[[mock-bean]]
+=== @MockBean
+
+如需在 Spring 集成测试中模拟一个 bean，可以使用 `@MockBean` 注解。下面的示例中，为 `NotificationService` 类模拟了一个 `Emailer` bean：
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/NotificationServiceTest.java[]
+----
+
+`@MockBean` 可以将应用程序上下文中的 bean 替换成模拟 bean。这样有两个作用：
+
+. 不会真正发送 email。
+. 模拟 email 发送失败的场景。
+
+[[test-configuration]]
+=== @TestConfiguration
+
+上面的示例中，使用了 `@MockBean` 注解将 `Emailer` 替换成了模拟 bean。但是在应用程序上下文中替换 bean 还有一个方法，即，使用 `@TestConfiguration` 注解。这个注解可以用于仅服务于测试的配置类。下面的示例中，测试的配置类将 `Emailer` bean 进行了替换：
+
+[source,java,indent=0]
+----
+include::example$/testing-ex1/src/test/java/com/company/demo/app/NotificationServiceWithTestConfigurationTest.java[]
+----
+<1> 当执行该测试用例时，Spring 会使用带 `@TestConfiguration` 注解的内部静态类。
+<2> 声明了一个名为 `emailer`，类型为 `Emailer` 的 bean。覆盖了同类型的标准 bean。
+<3> 创建一个模拟 bean 实例。
+<4> 配置模拟 bean 的行为并返回配置好的 bean。
+
+生产代码现在会与模拟的 `Emailer` bean 交互。

@@ -1,0 +1,676 @@
+= 布局规则
+
+本章节介绍在视图中放置可视化组件和布局组件的正确方法。
+
+[[component-sizes]]
+== 组件大小
+
+所有实现了 `com.vaadin.flow.component.HasSize` 接口的组件（例如，xref:vc/components/button.adoc[]、xref:vc/components/button.adoc[textField]、xref:vc/components/button.adoc[dataGrid]、xref:vc/components/button.adoc[vbox] 等），都有这些相同的属性：xref:vc/common-attributes.adoc#width[width]、xref:vc/common-attributes.adoc#minWidth[minWidth]、xref:vc/common-attributes.adoc#maxWidth[maxWidth]、xref:vc/common-attributes.adoc#height[height]、xref:vc/common-attributes.adoc#minHeight[minHeight]、xref:vc/common-attributes.adoc#maxHeight[maxHeight]。这些属性对应同名的 CSS 样式属性。
+
+TIP: 在需要响应式布局时，组件需要根据不同的屏幕大小做适配，这时可以使用 `min`/`max` 属性。这些属性还可以防止组件溢出或者太大。参阅 <<tips-and-tricks, 技巧>> 部分了解实际用法。
+
+组件大小的维度有以下几种：
+
+* 基于内容 - `AUTO`
+* 固定大小，例如，`25em`
+* 基于父组件的相对大小（百分比），例如，`100%`
+
+image::layout-rules/size-types.png[]
+
+IMPORTANT: 组件大小的值必须是一个正确的 CSS 字符串。
+
+[[content-based-size]]
+=== 基于内容的尺寸
+
+组件会根据内容的大小占据足够的空间。
+
+示例：
+
+* 对于 `button`，大小由 `text` 长度决定。
+* 对于布局组件，大小由布局内的所有组件的大小决定。
+
+.XML
+[source,xml]
+----
+<button text="Button" width="AUTO"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("AUTO");
+----
+
+基于内容的组件大小会在界面的布局初始化或内容发生变化时自动调整。
+
+image::layout-rules/content-based-size.png[]
+
+[[fixed-size]]
+=== 固定尺寸
+
+固定大小意味着组件尺寸在运行时不会更改。
+
+.XML
+[source,xml]
+----
+<vbox width="20em" height="15em"/>
+----
+
+.Java
+[source,java]
+----
+vBox.setWidth("20em");
+vBox.setHeight("15em");
+----
+
+image::layout-rules/fixed-size.png[]
+
+固定大小可以用绝对长度单位（例如，`px`）或相对长度单位（例如，`em`）进行设置。平台中所有的视图和组件都使用相对长度单位，比如 `em` 和 `rem`，因此应用程序能适配不同的屏幕。
+
+TIP: `em` 是相对父组件字体大小的尺寸单位。默认情况下，字体大小为 `16px`。有关尺寸单位的更多内容，请参阅 https://developer.mozilla.org/en-US/docs/Learn/CSS/Building_blocks/Values_and_units[CSS 值和单位^]。
+
+[[relative-size]]
+=== 相对尺寸
+
+相对大小表示组件占可用空间的百分比。
+
+.XML
+[source,xml]
+----
+<button text="Button" width="50%"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("50%");
+----
+
+具有相对尺寸的组件将根据可用空间的变化而变化，调整其在屏幕上的实际大小。
+
+image::layout-rules/relative-size.png[]
+
+[[layout-specifics]]
+=== 布局特性
+
+* 根 `layout` 元素是垂直布局 （`vbox`），默认情况下具有 100% 的宽度和高度。
+
+* `scroller` 必须具有固定或相对（但不是 `AUTO`）的宽度和高度。`scroller` 内位于滚动方向上的组件，不应具有相对尺寸。
+
+[[component-specifics]]
+=== 组件特性
+
+* `dataGrid` 不需要在 `vbox` 或根 `layout` 元素中显式设置 `height="100%"` 或 <<expand,expanded>>，因为其 https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] CSS 属性的值为 `1`，也就是说，默认情况下 `dataGrid` 已经在父布局中延展。但是，建议设置 `dataGrid` 的 `minHeight` 属性，以防止在垂直空间不足时发生折叠。
+
+[[expand]]
+=== 组件的延展
+
+可以设置组件进行延展（expand）并占用布局中所有的额外空间。
+
+[source,xml]
+----
+<hbox expand="btn" padding="true" width="100%">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.水平布局中的延展
+image::layout-rules/hbox-expand.png[]
+
+[source,xml]
+----
+<vbox expand="btn" width="100%" minHeight="20em">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.垂直布局中的延展
+image::layout-rules/vbox-expand.png[]
+
+NOTE: 延展组件，其实就是将其 https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] CSS 属性设置为 `1`。
+
+[[spacing-margin-padding]]
+== 间距、外边距和内边距
+
+使用间距（spacing）、外边距（margin）和内边距（padding）可以定义组件四周或内部的空白区域。
+
+[[spacing]]
+=== 间距
+
+`spacing` 属性控制是否启用组件的 `spacing` 主题配置。如果主题支持这个属性，则组件会使用或移除间距。
+
+.无间距的水平布局
+image::layout-rules/hbox-no-spacing.png[]
+
+.带默认间距的水平布局
+image::layout-rules/hbox-spacing.png[]
+
+.带默认间距的垂直布局
+image::layout-rules/vbox-spacing.png[]
+
+`vbox` 和 `hbox` 组件默认开启间距。
+
+[[spacing-variants]]
+==== 其他间距选项
+
+'spacing' 属性隐式地为组件主题添加了中等间距配置，这相当于定义 `themeNames="spacing"`。若要设置其他间距选项，需要显式使用 `themeNames` 属性。有五种不同的间距主题可供选择：
+
+[cols="1,1"]
+|===
+|主题变量 |样式效果
+
+|`spacing-xs`
+| 组件之间非常小的间距
+
+|`spacing-s`
+| 组件之间较小的间距
+
+|`spacing`
+| 组件之间中等间距
+
+|`spacing-l`
+| 组件之间较大的间距
+
+|`spacing-xl`
+| 组件之间非常大的间距
+|===
+
+使用 `spacing-xl` 主题变量的示例：
+
+[source,xml]
+----
+<vbox themeNames="spacing-xl" alignItems="STRETCH">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 spacing-xl 变量的垂直布局
+image::layout-rules/vbox-spacing-xl.png[]
+
+[[padding]]
+=== 内边距
+
+`padding` 属性设置布局边框和内部组件之间的间距。
+
+.使用内边距的垂直布局
+image::layout-rules/vbox-padding.png[]
+
+`vbox` 默认开启内边距。可以通过设置 `padding` 为 `false` 关闭内边距设置。对于 `hbox`，默认关闭内边距，可以通过设置 `padding` 为 `true` 开启。
+
+[[margin]]
+=== 外边距
+
+外边距是布局边框外的间距。
+
+.使用外边距的垂直布局
+image::layout-rules/vbox-margin.png[]
+
+外边距默认关闭，可以通过 `margin` 属性开启。
+
+[[alignment]]
+== 对齐
+
+[[justify-content-mode]]
+=== JustifyContent 模式
+
+`justifyContent` 属性对应于 CSS 的 https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content[justify-content^] 属性，用于定义在 flex 容器中如何在 *主轴* 方向布局内部组件并分配间距。
+
+[cols="1,1"]
+|===
+|值 |描述
+
+|`START`（默认）
+|内部组件放置于容器主轴方向的开始位置。
+
+|`CENTER`
+|内部组件放置于容器主轴方向的中间位置。
+
+|`END`
+|内部组件放置于容器主轴方向的结束位置。
+
+|`BETWEEN`
+|内部组件以等宽间距均匀放置在主轴方向，注意，第一个内部组件放置在起始位置，最后一个放置在结束位置。
+
+|`AROUND`
+|内部组件以等宽间距均匀放置在主轴方向。注意，第一个组件和最后一个组件与边框的间距是组件之间间距的一半。
+
+|`EVENLY`
+|内部组件以等宽间距均匀放置在主轴方向，组件与边框的间距与组件之间间距相等。
+|===
+
+对于 `vbox` 和设置了 `flexDirection="COLUMN"`（即，`flex-direction: column`）的 `flexLayout` 布局中，`justifyContent` 属性的效果如下：
+
+[source,xml]
+----
+<vbox justifyContent="START" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="START" 的垂直布局
+image::layout-rules/vbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<vbox justifyContent="CENTER" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="CENTER" 的垂直布局
+image::layout-rules/vbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<vbox justifyContent="END" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="END" 的垂直布局
+image::layout-rules/vbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<vbox justifyContent="BETWEEN" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="BETWEEN" 的垂直布局
+image::layout-rules/vbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<vbox justifyContent="AROUND" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="AROUND" 的垂直布局
+image::layout-rules/vbox-justifyContent-around.png[]
+
+[source,xml]
+----
+
+<vbox justifyContent="EVENLY" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.使用 justifyContent="EVENLY" 的垂直布局
+image::layout-rules/vbox-justifyContent-evenly.png[]
+
+对于 `hbox` 和设置了 `flexDirection="ROW"`（即，`flex-direction: row`）的 `flexLayout` 布局中，`justifyContent` 属性的效果如下：
+
+[source,xml]
+----
+<hbox justifyContent="START" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="START" 的水平布局
+image::layout-rules/hbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<hbox justifyContent="CENTER" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="CENTER" 的水平布局
+image::layout-rules/hbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<hbox justifyContent="END" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="END" 的水平布局
+image::layout-rules/hbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<hbox justifyContent="BETWEEN" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="BETWEEN" 的水平布局
+image::layout-rules/hbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<hbox justifyContent="AROUND" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="AROUND" 的水平布局
+image::layout-rules/hbox-justifyContent-around.png[]
+
+[source,xml]
+----
+<hbox justifyContent="EVENLY" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.使用 justifyContent="EVENLY" 的水平布局
+image::layout-rules/hbox-justifyContent-evenly.png[]
+
+[[align-items]]
+=== AlignItems
+
+`alignItems` 属性对应于 CSS 的 https://developer.mozilla.org/en-US/docs/Web/CSS/align-items[align-items^] 属性，用于定义 flex 容器中组件在 *交叉轴* 方向上的摆放规则。可以看做是交叉轴（与 *主轴* 垂直）的 `justify-content` 属性。
+
+[cols="1,1"]
+|===
+|值 |描述
+
+|`START`
+|内部组件放置于交叉轴的开始位置。
+
+|`CENTER`
+|内部组件放置于交叉轴的中间位置。
+
+|`END`
+|内部组件放置于交叉轴的结束位置。
+
+|`STRETCH`
+|*交叉轴方向未定义尺寸的内部组件* 会被拉伸以占满容器。
+
+|`BASELINE`
+|内部组件放置于容器的基线位置。仅对 `flex-direction: row` 有效。
+
+|`AUTO`
+|内部组件继承父容器的 `align-items` 属性，如果没有父容器，则为 `stretch`。
+|===
+
+对于 `vbox` 和设置了 `flexDirection="COLUMN"`（即，`flex-direction: column`）的 `flexLayout` 布局中，`alignItems` 属性的效果如下：
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.使用 alignItems="START" 的垂直布局
+image::layout-rules/vbox-alignItems-start.png[]
+
+[source,xml]
+----
+<vbox alignItems="CENTER">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.使用 alignItems="CENTER" 的垂直布局
+image::layout-rules/vbox-alignItems-center.png[]
+
+[source,xml]
+----
+<vbox alignItems="END">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.使用 alignItems="END" 的垂直布局
+image::layout-rules/vbox-alignItems-end.png[]
+
+[source,xml]
+----
+<vbox alignItems="STRETCH">
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+</vbox>
+----
+
+.使用 alignItems="STRETCH" 的垂直布局
+image::layout-rules/vbox-alignItems-stretch.png[]
+
+对于 `hbox` 和设置了 `flexDirection="ROW"`（即，`flex-direction: row`）的 `flexLayout` 布局中，`alignItems` 属性的效果如下：
+
+[source,xml]
+----
+<hbox alignItems="START" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.使用 alignItems="START" 的水平布局
+image::layout-rules/hbox-alignItems-start.png[]
+
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.使用 alignItems="CENTER" 的水平布局
+image::layout-rules/hbox-alignItems-center.png[]
+
+[source,xml]
+----
+<hbox alignItems="END" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.使用 alignItems="END" 的水平布局
+image::layout-rules/hbox-alignItems-end.png[]
+
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+</hbox>
+----
+
+.使用 alignItems="STRETCH" 的水平布局
+image::layout-rules/hbox-alignItems-stretch.png[]
+
+[source,xml]
+----
+<hbox alignItems="BASELINE" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.使用 alignItems="BASELINE" 的水平布局
+image::layout-rules/hbox-alignItems-baseline.png[]
+
+[[align-self]]
+=== AlignSelf
+
+`alignSelf` 属性对应 CSS 的 https://developer.mozilla.org/en-US/docs/Web/CSS/align-self[align-self] 属性，用于为单个内部组件定义组件在容器内的对齐方式。该属性会覆盖容器设置的 <<align-items,alignItems>> 属性。
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</vbox>
+----
+
+.使用 alignItems="START" 的垂直布局中组件使用不同的 alignSelf
+image::layout-rules/vbox-alignSelf.png[]
+
+[source,xml]
+----
+<hbox alignItems="START" justifyContent="BETWEEN" padding="true" width="100%" minHeight="10em">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</hbox>
+----
+
+.使用 alignItems="START" 的水平布局中组件使用不同的 alignSelf
+image::layout-rules/hbox-alignSelf.png[]
+
+[[common-layout-mistakes]]
+== 常见的布局错误
+
+*常见错误 1. 在基于内容尺寸的容器中设置组件的相对尺寸*
+
+.错误布局示例：
+[source,xml]
+----
+<vbox>
+    <dataGrid id="usersDataGrid" dataContainer="usersDc"
+              width="100%" height="100%">
+        <actions/>
+        <columns>
+            <column property="firstName"/>
+            <column property="lastName"/>
+            <column property="username"/>
+        </columns>
+    </dataGrid>
+</vbox>
+----
+
+这个例子中，`dataGrid` 高度为 100%，而 `vbox` 的默认高度为 `AUTO`（基于内容）。结果导致 `dataGrid` 被折叠为一条横线：
+
+.在基于内容尺寸的容器中设置组件的相对尺寸示例
+image::layout-rules/dataGrid-relative-size.png[]
+
+*常见错误 2. 没有为内部的 `vbox` 容器禁用 padding*
+
+.错误布局示例：
+[source,xml]
+----
+<layout>
+    <genericFilter ...>
+        ...
+    </genericFilter>
+
+    <vbox width="100%">
+        <hbox id="buttonsPanel" classNames="buttons-panel">
+            ...
+        </hbox>
+        <dataGrid id="usersDataGrid" ...>
+            ...
+        </dataGrid>
+    </vbox>
+    <hbox>
+        ...
+    </hbox>
+</layout>
+----
+
+这个例子中，`vbox` 内放置了一个 `hbox` 和 `dataGrid`，而这个 `vbox` 默认是带有 padding 的。结果导致 `vbox` 内的组件不能与外部的组件对齐。
+
+.垂直布局未禁用 padding 的示例
+image::layout-rules/vbox-incorrect-padding.png[]
+
+*常见错误 3. 对齐相对尺寸的内部组件*
+
+.错误布局示例：
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <span text="Span" height="100%"/>
+</hbox>
+----
+
+这个例子中，`span` 高度为 100%，而外部的 `hbox` 容器定义了 `alignItems="CENTER"`。结果导致文字放在了左上角。
+
+.对齐相对尺寸的内部组件示例
+image::layout-rules/relative-size-alignment.png[]
+
+*常见错误 4. 拉伸固定尺寸的组件*
+
+.错误布局示例：
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+这个例子中，按钮的样式定义了默认高度。结果导致按钮并没有被垂直拉伸。
+
+.拉伸固定尺寸的组件示例
+image::layout-rules/fixed-size-stretching.png[]
+
+*常见错误 5. 设置尺寸未指定单位*
+
+.错误尺寸的示例：
+[source,xml]
+----
+<textField width="400"/>
+----
+
+这个例子中，`textField` 没有指定宽度的单位。结果这样的设置是无效的，因为没有默认的尺寸单位。
+
+[[tips-and-tricks]]
+== 小技巧
+
+定义一个自适应文本控件，在大屏幕的尺寸固定，而在小屏幕具有 100% 宽度：
+
+[source,xml]
+----
+<hbox width="100%">
+    <textField width="100%" maxWidth="40em"/>
+    <button text="Button"/>
+</hbox>
+----
+
+image::layout-rules/responsive-text-field.gif[]
+

@@ -5,16 +5,16 @@
 [[entity-changed-event]]
 == 使用 EntityChangedEvent
 
-当实体保存至数据库时，框架会发送 `EntityChangedEvent` 事件。可以在保存会话内或者会话结束后处理该事件，无论哪种情况，此时数据库已经保存了变更后的数据。
+当实体保存至数据库时，框架会发送 `EntityChangedEvent` 事件。可以在保存事务内或者事务结束后处理该事件，无论哪种情况，此时数据库已经保存了变更后的数据。
 
 `EntityChangedEvent` 包含变更操作的类型（创建、更新或删除）、变更实体的 id，还有变更属性的相关信息以及属性的旧值。对于引用属性，旧值包含引用实体的 id。
 
 [[before-commit]]
 === 提交之前处理变更
 
-如需在当前数据库会话中处理 `EntityChangedEvent`，创建一个带 `@EventListener` 注解的 bean 方法。框架会在实体保存至数据库但是会话尚未提交时调用该方法。在监听器方法中，可以对数据做任何修改，这些修改会与原始的修改一并提交。如果抛出任何异常，则回退所有操作。
+如需在当前数据库事务中处理 `EntityChangedEvent`，创建一个带 `@EventListener` 注解的 bean 方法。框架会在实体保存至数据库但是事务尚未提交时调用该方法。在监听器方法中，可以对数据做任何修改，这些修改会与原始的修改一并提交。如果抛出任何异常，则回退所有操作。
 
-下面的例子中，我们创建了 `Customer` 的一个关联实体，用来登记属性的改动。`Customer` 和 `CustomerGradeChange` 的变更会在同一个会话中提交：
+下面的例子中，我们创建了 `Customer` 的一个关联实体，用来登记属性的改动。`Customer` 和 `CustomerGradeChange` 的变更会在同一个事务中提交：
 
 [source,java,indent=0]
 ----
@@ -42,9 +42,9 @@ include::example$/ex1/src/main/java/dataaccess/ex1/listener/OrderLineEventListen
 
 注意，此时在“提交之后”事件处理器中的异常不会返回给调用端，也不会记录。因此，推荐在 try-catch 中调用代码。
 
-如需在“提交之后”事件处理器中加载或保存任何数据，都需要新起一个会话。
+如需在“提交之后”事件处理器中加载或保存任何数据，都需要新起一个事务。
 
-下面的例子中展示了异常处理和使用 `DataManager` 在单独的会话中加载实体（参考 `joinTransaction(false)` 方法）：
+下面的例子中展示了异常处理和使用 `DataManager` 在单独的事务中加载实体（参考 `joinTransaction(false)` 方法）：
 
 [source,java,indent=0]
 ----
@@ -57,6 +57,14 @@ include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListene
 ----
 include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=save-after-commit]
 ----
+
+如果需要多次调用 `DataManager` 或其他需要使用事务的 service，那么可以为整个方法启动一个新的事务，示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/dataaccess/ex1/listener/CustomerEventListener.java[tags=after-commit-tx]
+----
+<1> 使用 `Propagation.REQUIRES_NEW` 启动新事务。
 
 [[saving-loading-events]]
 == 使用 EntitySavingEvent 和 EntityLoadingEvent

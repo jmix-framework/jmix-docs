@@ -2,7 +2,7 @@ package com.company.onboarding.view.htmlcomponent.label;
 
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
@@ -14,7 +14,7 @@ public class LabelView extends StandardView {
 
     //tag::dynamicLabel[]
     @ViewComponent
-    private Label dynamicLabel;
+    private NativeLabel dynamicLabel;
 
     @Subscribe("button")
     public void onButtonClick(final ClickEvent<JmixButton> event) {

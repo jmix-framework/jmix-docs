@@ -1,0 +1,57 @@
+= 集群通信
+
+Jmix 应用程序可以部署在多个互连服务器的集群中，以分配工作负载、增强可靠性并优化资源利用率。xref:deployment:k8s.adoc[] 章节提供了一个集群部署的实用指南。
+
+本节介绍了在集群通信中有哪些 Jmix 机制参与其中，以及使用了哪些底层技术。希望能帮助排除故障和实现自定义的群集通信方式。
+
+Jmix 子系统需要两种不同的通信方式：共享缓存和消息传递。这两种方式都通过高级别的抽象进行使用，但是可以用不同的实现。默认实现是 Hazelcast。
+
+[[shared-cache]]
+== 共享缓存
+
+下列 Jmix 功能使用了共享缓存：
+
+* xref:data-access:cache.adoc#query-cache[查询缓存] - 保存查询语句执行的结果。
+* xref:security:index.adoc[] - 保存资源角色和行级角色的配置。
+* xref:pessimistic-lock.adoc[] - 维护分布式锁。
+* xref:dyn-attr:index.adoc[] - 保存动态属性配置。
+
+所有这些机制都依赖 Spring Cache 和 JCache API。例如，下图显示了 Jmix 查询缓存中涉及的类：
+
+image::jmix-cluster-cache.drawio.svg[align="center"]
+
+`StandardQueryCache` 类的大部分操作都使用了 Spring Cache。还通过 `CacheOperations` 工具类使用 JCache 来遍历缓存条目，因为 Spring Cache 不提供这样的功能。
+
+上面列出的其他 Jmix 功能也以同样的方式使用共享缓存。
+
+Jmix 的应用程序项目需要为 Spring Cache 提供 JCache 的实现。例如，如果使用 Hazelcast，需要添加依赖：
+
+[source, groovy]
+.build.gradle
+----
+implementation 'com.hazelcast:hazelcast'
+----
+
+然后定义配置属性：
+
+[source, properties]
+.application.properties
+----
+spring.cache.jcache.provider = com.hazelcast.cache.HazelcastMemberCachingProvider
+----
+
+[[messaging]]
+== 消息传递
+
+下列 Jmix 功能使用的消息传递功能：
+
+* xref:data-access:cache.adoc#entity-cache[实体缓存] - 用于广播缓存实体的变更。
+* xref:notifications:index.adoc[] - 用于广播应用内通知消息。
+
+这些功能依赖 Spring Messaging 的抽象：`SubscribableChannel` 接口。Jmix 通过 Hazelcast 的 `ITopic` 代理提供了这个接口的实现：
+
+image::jmix-cluster-messaging.drawio.svg[align="center"]
+
+如果项目中添加了 Hazelcast 的依赖，这些实现将自动在项目中实例化。
+
+如果要使用其他消息传递的 provider，可以创建自己的 Spring bean，需要实现 EclipseLinkChannelSupplier` 接口（用于实体缓存）和 `InAppSubscribableChannelSupplier` 接口（用于消息通知）。
