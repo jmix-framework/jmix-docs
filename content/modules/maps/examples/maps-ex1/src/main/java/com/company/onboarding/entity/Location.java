@@ -39,6 +39,16 @@ public class Location {
     @Column(name = "VERSION", nullable = false)
     @Version
     private Integer version;
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "location")
+    private User user;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 
     public Point getBuilding() {
         return building;
