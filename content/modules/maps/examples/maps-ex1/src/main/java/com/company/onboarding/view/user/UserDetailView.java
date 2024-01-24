@@ -4,6 +4,7 @@ import com.company.onboarding.entity.OnboardingStatus;
 import com.company.onboarding.entity.Step;
 import com.company.onboarding.entity.User;
 import com.company.onboarding.entity.UserStep;
+import com.company.onboarding.view.locationlookup.LocationLookupView;
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.button.Button;
@@ -15,9 +16,11 @@ import com.vaadin.flow.data.renderer.Renderer;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.DataManager;
 import io.jmix.core.EntityStates;
+import io.jmix.flowui.DialogWindows;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.textfield.TypedTextField;
+import io.jmix.flowui.kit.action.ActionPerformedEvent;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.CollectionPropertyContainer;
 import io.jmix.flowui.model.DataContext;
@@ -65,6 +68,8 @@ public class UserDetailView extends StandardDetailView<User> {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private UiComponents uiComponents;
+    @Autowired
+    private DialogWindows dialogWindows;
 
     @Subscribe
     public void onInit(final InitEvent event) {
@@ -170,5 +175,11 @@ public class UserDetailView extends StandardDetailView<User> {
         } else {
             user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
         }
+    }
+
+    @Subscribe("locationField.select")
+    public void onLocationFieldSelect(final ActionPerformedEvent event) {
+        dialogWindows.view(this, LocationLookupView.class)
+                .open();
     }
 }

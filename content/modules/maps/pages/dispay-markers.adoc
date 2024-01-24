@@ -29,10 +29,26 @@ image::add-attr-to-detail.png[align="center", width="561"]
 
 Studio will add the `location` property to `fetchPlan` and the `entityPicker` component to `formLayout` of the `User.detail` view.
 
-== Create View with Markers on Map
+Click the *Debug* button (image:start-debugger.svg[]) in the main toolbar.
+
+Before running the application, Studio will generate a Liquibase changelog:
+
+image::changelog-user.png[align="center", width="1036"]
+
+Click *Save and run*.
+
+Studio will execute the changelog, then build and run the application.
+
+Open `++http://localhost:8080++` in your web browser and log in to the application with `admin` / `admin` credentials.
+
+Click on the `Users` item in the `Application` menu.
+
+Click *Create*. The UI control for selecting a location is shown at the bottom of the form:
+
+image::user-with-location-detail.png[align="center", width="790"]
 
 [[create-blank-view]]
-=== Creating Blank View
+== Creating Blank View
 
 If your application is running, stop it using the *Stop* button (image:suspend.svg[]) in the main toolbar.
 
@@ -61,3 +77,284 @@ Click *Next* and then *Create*.
 Studio will create an empty view and open it in the designer:
 
 image::create-view-designer.png[align="center", width="1386"]
+
+== Setting Up the View Opening
+
+Our new view should open from the user's detail view. For this purpose, the *Location* field is used.
+
+Let's change the Studio-generated `entityPicker` component to the `valuePicker` component. Open `user-detail-view.xml` and find the `entityPicker` component inside the `formLayout`:
+
+[source,xml,indent=0]
+----
+<layout>
+    <formLayout id="form" dataContainer="userDc">
+        ...
+        <entityPicker id="locationField" property="location">
+            <actions>
+                <action id="entityLookup" type="entity_lookup"/>
+                <action id="entityClear" type="entity_clear"/>
+            </actions>
+        </entityPicker>
+        ...
+    </formLayout>
+</layout>
+----
+
+Change the XML element of the component to `valuePicker` and remove the nested `actions` element.
+
+Select `valuePicker` in the *Jmix UI* hierarchy panel or in the view XML descriptor and click the *Add* button in the inspector panel. Select *Actions -> Action* in the drop-down list.
+
+image::value-picker-actions.png[align="center", width="1100"]
+
+First, select a `New Base Action` and click *OK*.
+
+image::new-base-action.png[align="center", width="492"]
+
+Set the `id` of the action to `select` and `icon` to `vaadin:search`.
+
+image::select-action.png[align="center", width="486"]
+
+Then add a predefined `value_clear` action for `locationField`:
+
+image::add-value-clear-action.png[align="center", width="492"]
+
+Select the `select` action in the *Jmix UI* hierarchy panel or in the view XML descriptor and switch to the *Handlers* tab in the *Jmix Inspector* panel. Generate an `ActionPerformedEvent` handler method:
+
+image::action-performed-event.png[align="center", width="939"]
+
+Add the logic of opening `LocationLookupView` to `ActionPerformedEvent` handler method:
+
+[source,java,indent=0]
+----
+@Autowired
+private DialogWindows dialogWindows; // <1>
+
+@Subscribe("locationField.select")
+public void onLocationFieldSelect(final ActionPerformedEvent event) {
+    dialogWindows.view(this, LocationLookupView.class).open();
+}
+----
+<1> The xref:flow-ui:opening-views.adoc#dialog-windows[DialogWindows] bean provides a fluent interface for opening views in dialog windows.
+
+Launch the application. Click on the `Users` item in the `Application` menu. Click *Create*. The `User.detail` view will open. Find the *Location* field and click on the (image:search-button.png[width="29"]) *Search* button. The `LocationLookupView` view will open as a dialog.
+
+image::blank-view-as-dialog.png[align="center", width="1112"]
+
+Now you will be able to review the changes taking place on our view.
+
+== Adding Components on LocationLookupView
+
+First, add a field where the current location selected on the map will be displayed. Click *Add Component* in the actions panel, find `entityPicker`, and double-click it. Set the component's properties as below:
+
+[source,xml,indent=0]
+----
+<entityPicker id="currentLocationField"
+              metaClass="Location"
+              readOnly="true"
+              width="20em"
+              label="msg://currentLocationField.label"/>
+----
+
+Let's add two `hbox` containers:
+
+. The first contains a list of locations and a map.
+. The second contains the *Select* and *Cancel* buttons.
+
+[source,xml,indent=0]
+----
+<hbox padding="false"
+      height="100%"
+      width="100%"/>
+<hbox id="controlLayout"/>
+----
+
+Click *Add Component* in the actions panel and drag and drop `Layouts → VBox` (vertical box) to the first `hbox` element of the *Jmix UI* hierarchy panel. Set the `vbox`'s properties as below:
+
+[source,xml,indent=0]
+----
+<vbox padding="false" width="25em"/>
+----
+
+Then, add a field to select the type of location. Click *Add Component* in the actions panel, find `select`, and drag and drop it to the `vbox`. Set the component's properties as below:
+
+[source,xml,indent=0]
+----
+<select id="locationTypeField"
+        emptySelectionAllowed="true"
+        width="20em"
+        itemsEnum="com.company.onboarding.entity.LocationType"/>
+----
+
+To display the list of locations we will use the `virtualList` component. First, add a data container which will provide a collection of `Location` entities for the virtual list. Click *Add Component* in the actions panel, select the `Data components` section, and double-click the `Collection` item. In the *Collection Properties Editor* window, select `Location` in the *Entity* field and click *OK*:
+
+image::location-collection-container.png[align="center", width="723"]
+
+Studio will create the collection container:
+
+[source,xml,indent=0]
+----
+    <data>
+        <collection id="locationsDc" class="com.company.onboarding.entity.Location">
+            <fetchPlan   extends="_base"/>
+            <loader id="locationsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Location e]]>
+                </query>
+            </loader>
+        </collection>
+    </data>
+----
+
+=== Loading Data
+
+To trigger the created loader, add the xref:flow-ui:facets/dataLoadCoordinator.adoc[dataLoadCoordinator] facet.
+
+image::add-data-load-coordinator.png[align="center", width="770"]
+
+The default query will load all `Location` instances, but you need to filter only locations selected in the `locationTypeField` component. So, we declare a query condition linked with an input field by `DataLoadCoordinator`. We will use the `component_` prefix in a query condition to refer to the `locationTypeField` component.
+
+You can edit the query right in the XML or with *JPQL Query Designer*. To start the designer, find the link next to the `query` attribute in the *Jmix UI* inspector panel or in the gutter of the XML editor and click it:
+
+image::edit-query.png[align="center", width="1046"]
+
+In the *JPQL Query Designer* window, click on the *Add query condition* link:
+
+image::jpql-designer.png[align="center", width="935"]
+
+Then add a `WHERE` clause by `type` attribute with the `:component_locationTypeField` parameter:
+
+image::jpql-resulting-query.png[align="center", width="935"]
+
+The resulting query should be as below:
+
+[source,xml,indent=0]
+----
+                <query>
+                    <![CDATA[select e from Location e
+                    where e.type = :component_locationTypeField]]>
+                </query>
+----
+
+=== Adding VirtualList
+
+Click *Add Component* in the actions panel, find `virtualList`, and drag and drop it to the `vbox`. Set the component's properties as below:
+
+[source,xml,indent=0]
+----
+                <virtualList id="locationVirtualList"
+                             itemsContainer="locationsDc"
+                             minHeight="20em"
+                             width="20em"/>
+----
+
+At this stage, the view XML should be as below:
+
+[source,xml,indent=0]
+----
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://locationLookupView.title">
+    <data>
+        <collection id="locationsDc" class="com.company.onboarding.entity.Location">
+            <fetchPlan   extends="_base"/>
+            <loader id="locationsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Location e
+                    where e.type = :component_locationTypeField]]>
+                </query>
+            </loader>
+        </collection>
+    </data>
+    <layout>
+        <entityPicker id="currentLocationField"
+                      metaClass="Location"
+                      readOnly="true"
+                      width="20em"
+                      label="msg://currentLocationField.label"/>
+        <hbox padding="false"
+              height="100%"
+              width="100%">
+            <vbox padding="false"
+                  width="25em">
+                <select id="locationTypeField"
+                        emptySelectionAllowed="true"
+                        width="20em"
+                        itemsEnum="com.company.onboarding.entity.LocationType">
+                </select>
+                <virtualList id="locationVirtualList"
+                             itemsContainer="locationsDc"
+                             minHeight="20em"
+                             width="20em"/>
+            </vbox>
+        </hbox>
+        <hbox id="controlLayout"/>
+    </layout>
+</view>
+----
+
+Let's run the application to see the new feature in action.
+
+image::location-lookup-view.png[align="center", width="1134"]
+
+We will work on the rendering of the locations list further, but for now we will add the map to our view.
+
+[[adding-map]]
+=== Adding a Map
+
+Place the cursor after the `vbox` element. Click *Add Component* in the actions panel, find the `GeoMap` item and double-click it.
+
+The new `map` element will be created under the `vbox` element in the *Jmix UI* hierarchy panel and in XML. Set the `id`, `height` and `width` attributes as shown below.
+
+[source,xml,indent=0]
+----
+<maps:geoMap id="map"
+             height="100%"
+             width="100%"/>
+----
+
+Then add a xref:maps:data-binding-map.adoc#adding-tile-layer[tile layer with OsmSource], set a xref:maps:data-binding-map.adoc#setting-map-view[map view] and add a xref:maps:data-binding-map.adoc#adding-data-layer[vector layer with DataVectorSource]. The resulting map should be as below:
+
+[source,xml,indent=0]
+----
+                <maps:geoMap id="map"
+                             height="100%"
+                             width="100%">
+                    <maps:mapView centerX="0" centerY="51">
+                        <maps:extent minX="-15" minY="30" maxX="40" maxY="60"/>
+                    </maps:mapView>
+                    <maps:layers>
+                        <maps:tile>
+                            <maps:osmSource/>
+                        </maps:tile>
+                        <maps:vector id="dataVectorLayer">
+                            <maps:dataVectorSource dataContainer="locationsDc"/>
+                        </maps:vector>
+                    </maps:layers>
+                </maps:geoMap>
+----
+
+Let's run the application to see the new feature in action.
+
+image::location-lookup-view-with-map.png[align="center", width="1134"]
+
+As we can see, the map does not fit on the view. Therefore, we will change the view size. Add the `@DialogMode` annotation to the `LocationLookupView` controller:
+
+[source,java,indent=0]
+----
+@Route(value = "LocationLookupView", layout = MainView.class)
+@ViewController("LocationLookupView")
+@ViewDescriptor("location-lookup-view.xml")
+@DialogMode(width = "60em", height = "45em")
+public class LocationLookupView extends StandardView {
+}
+----
+
+Press *Ctrl/Cmd+S* and switch to the running application. Click on the (image:search-button.png[width="29"]) *Search* button next to the *Location* field. The `LocationLookupView` view will open as a dialog with width and height we set earlier.
+
+image::location-lookup-with-map.png[align="center", width="1134"]
+
+On the next step we learn how to use different markers for offices and coworking spaces.
+
+[[using-markers]]
+=== Using Markers
+
