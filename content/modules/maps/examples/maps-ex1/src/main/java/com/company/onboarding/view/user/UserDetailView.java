@@ -1,9 +1,6 @@
 package com.company.onboarding.view.user;
 
-import com.company.onboarding.entity.OnboardingStatus;
-import com.company.onboarding.entity.Step;
-import com.company.onboarding.entity.User;
-import com.company.onboarding.entity.UserStep;
+import com.company.onboarding.entity.*;
 import com.company.onboarding.view.locationlookup.LocationLookupView;
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.ClickEvent;
@@ -20,6 +17,7 @@ import io.jmix.flowui.DialogWindows;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.textfield.TypedTextField;
+import io.jmix.flowui.component.valuepicker.JmixValuePicker;
 import io.jmix.flowui.kit.action.ActionPerformedEvent;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.CollectionPropertyContainer;
@@ -70,6 +68,11 @@ public class UserDetailView extends StandardDetailView<User> {
     private UiComponents uiComponents;
     @Autowired
     private DialogWindows dialogWindows;
+    // tag::locationField[]
+    @ViewComponent
+    private JmixValuePicker<Location> locationField;
+
+    // end::locationField[]
 
     @Subscribe
     public void onInit(final InitEvent event) {
@@ -176,10 +179,18 @@ public class UserDetailView extends StandardDetailView<User> {
             user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
         }
     }
-
+    // tag::onLocationFieldSelect[]
     @Subscribe("locationField.select")
     public void onLocationFieldSelect(final ActionPerformedEvent event) {
         dialogWindows.view(this, LocationLookupView.class)
-                .open();
+                .withAfterCloseListener(closeEvent -> {
+                    if (closeEvent.closedWith(StandardOutcome.SELECT)) {
+                        locationField.setValue(closeEvent.getView().getSelected()); // <1>
+                    }
+                })
+                .open()
+                .getView()
+                .setSelected(getEditedEntity().getLocation()); // <2>
     }
+    // end::onLocationFieldSelect[]
 }

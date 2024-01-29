@@ -6,7 +6,9 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.maps.Geometry;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 
 import java.util.UUID;
 
@@ -18,6 +20,15 @@ public class Location {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    @Column(name = "BUILDING_ENTRANCE")
+    private Point buildingEntrance;
+
+    @Column(name = "PATH_TO_BUILDING")
+    private LineString pathToBuilding;
+
+    @Column(name = "BUILDING_AREA")
+    private Polygon buildingArea;
 
     @Column(name = "CITY", nullable = false)
     @NotNull
@@ -39,8 +50,33 @@ public class Location {
     @Column(name = "VERSION", nullable = false)
     @Version
     private Integer version;
+
     @OneToOne(fetch = FetchType.LAZY, mappedBy = "location")
     private User user;
+
+    public Polygon getBuildingArea() {
+        return buildingArea;
+    }
+
+    public void setBuildingArea(Polygon buildingArea) {
+        this.buildingArea = buildingArea;
+    }
+
+    public LineString getPathToBuilding() {
+        return pathToBuilding;
+    }
+
+    public void setPathToBuilding(LineString pathToBuilding) {
+        this.pathToBuilding = pathToBuilding;
+    }
+
+    public Point getBuildingEntrance() {
+        return buildingEntrance;
+    }
+
+    public void setBuildingEntrance(Point buildingEntrance) {
+        this.buildingEntrance = buildingEntrance;
+    }
 
     public User getUser() {
         return user;

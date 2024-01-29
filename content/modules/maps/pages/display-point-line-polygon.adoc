@@ -1,0 +1,157 @@
+= 3. Display Point, Polyline, and Polygon Features
+
+Let's go back to the `Location` entity and add the following attributes to it:
+
+. `buildingEntrance` with `GeoPoint` type. This attribute stores the coordinates of the entrance to the building.
+. `pathToBuilding` with `GeoPolyline` type. This attribute stores the path to the building.
+. `buildingArea` with `GeoPolygon` type. The attribute is used to display the building on the map using a geometric shape.
+
+image::new-geo-location-attr.png[align="center", width="903"]
+
+Add these attributes to the `Location.detail` view.
+
+To simplify our tutorial, we will leave the added fields as text fields. You can add map event handlers to get coordinates from the map in the same way that we did in xref:maps:data-binding-map.adoc#saving-coordinates[Saving Coordinates to the Building Attribute]. To do this, use the methods of `GeometryUtils`.
+
+Below are examples of filling in the fields:
+
+* *Building*: `POINT (13.347796079315284 52.55344847222085)`
+* *Building entrance*: `POINT (13.347860653822895 52.553536712270784)`
+* *Path to building*: `LINESTRING (13.346886063248354 52.553529790121985, 13.347394863347068 52.5532539371346, 13.347837668453902 52.55355180648286, 13.347860653822895 52.553536712270784)`
+* *Building area*: `POLYGON ((13.347878609736783 52.553551482547135, 13.34795260252847 52.55350646966119, 13.347713548893793 52.55334632728869, 13.347640979040412 52.553390474703775, 13.347878609736783 52.553551482547135))`
+
+== Add Vector Layer
+
+A vector layer is used to work with geometries. You can add more than one vector layer to a map.
+
+To display polygons, polylines, and points, you should add a new vector layer on a map.
+
+Open `location-lookup-view.xml` and add new `vectorLayer` after `dataVectorLayer`:
+
+[source,xml,indent=0]
+----
+            <maps:geoMap id="map" ...>
+                ...
+                <maps:layers>
+                    <maps:tile>
+                        <maps:osmSource/>
+                    </maps:tile>
+                    <maps:vector id="dataVectorLayer">
+                        <maps:dataVectorSource dataContainer="locationsDc"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayer">
+                        <maps:vectorSource/>
+                    </maps:vector>
+                </maps:layers>
+            </maps:geoMap>
+----
+
+== Add Point on the Map
+
+Switch to the `LocationLookupView` view controller and add new method:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=createBuildingEntranceFeature]
+----
+<1> Returns a point feature with custom point style.
+
+Let’s implement reaction to the Locations collection changes.
+
+Click *Generate Handler* in the top actions panel. Collapse all items, then select `CollectionChangeEvent` items in `Data containers handlers → locationsDc`:
+
+image::collection-changed-event.png[align="center", width="896"]
+
+Click *OK*.
+
+Studio will generate the method stub: `onLocationsDcCollectionChange()`. Implement it as below:
+
+[source,java,indent=0]
+----
+    @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+    public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+        VectorLayer vectorLayer = map.getLayer("vectorLayer");
+        VectorSource source = vectorLayer.getSource(); // <1>
+
+        source.removeAllFeatures(); // <2>
+
+        for (Location location : event.getSource().getItems()) {
+            if (location.getBuildingEntrance() != null) {
+                source.addFeature(createBuildingEntranceFeature(location)); // <3>
+            }
+        }
+    }
+----
+<1> Gets the vector source to work with features (Polygon LineString, Point).
+<2> Removes all features from the source.
+<3> Adds a point feature to the source.
+
+== Add Polyline on the Map
+
+Add the `createPathToBuildingFeature()` method in the `LocationLookupView` view controller:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=createPathToBuildingFeature]
+----
+<1> Returns a polyline feature with custom linestring style.
+
+Invoke `createPathToBuildingFeature()` from the existing `onLocationsDcCollectionChange` handler:
+
+[source,java,indent=0]
+----
+    @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+    public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+
+        ...
+
+        for (Location location : event.getSource().getItems()) {
+            if (location.getBuildingEntrance() != null) {
+                source.addFeature(createBuildingEntranceFeature(location));
+            }
+            if (location.getPathToBuilding() != null) {
+                source.addFeature(createPathToBuildingFeature(location)); // <1>
+            }
+        }
+    }
+----
+<1> Adds a polyline feature to the source.
+
+== Add Polygon on the Map
+
+Add the `createBuildingAreaFeature()` method in the `LocationLookupView` view controller:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=createBuildingAreaFeature]
+----
+<1> Returns a polygon feature with custom polygon style. The fill color and the polygon border color are set in variables and depend on the location type.
+
+Invoke `createPathToBuildingFeature()` from the existing `onLocationsDcCollectionChange` handler:
+
+[source,java,indent=0]
+----
+    @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+    public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+
+        ...
+
+        for (Location location : event.getSource().getItems()) {
+            if (location.getBuildingEntrance() != null) {
+                source.addFeature(createBuildingEntranceFeature(location));
+            }
+            if (location.getPathToBuilding() != null) {
+                source.addFeature(createPathToBuildingFeature(location));
+            }
+            if (location.getBuildingArea() != null) {
+                source.addFeature(createBuildingAreaFeature(location)); // <1>
+            }
+        }
+    }
+----
+<1> Adds a polygon feature to the source.
+
+Let's run the application to see the new feature in action. Now, when you select the location, the map zooms in and centers based on the location's coordinates.
+
+The entrance to the building is displayed as a black point on the map. The path to the building is displayed as a dotted line. The polygon shows the boundary of the building.
+
+image::map-with-features.png[align="center", width="1090"]
