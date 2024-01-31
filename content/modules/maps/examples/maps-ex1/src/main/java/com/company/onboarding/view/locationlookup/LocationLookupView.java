@@ -120,14 +120,15 @@ public class LocationLookupView extends StandardView {
     // end::setMapCenter[]
     // tag::onLocationChanged[]
     private void onLocationChanged(Location newLocation) {
-        if (!Objects.equals(newLocation, selected)) {
-            selected = newLocation;
-            select.setEnabled(true); // <1>
+        if (newLocation != null)
+            if (!Objects.equals(newLocation, selected)) {
+                selected = newLocation;
+                select.setEnabled(true); // <1>
 
-            setMapCenter(newLocation.getBuilding().getCoordinate());
+                setMapCenter(newLocation.getBuilding().getCoordinate());
 
-            currentLocationField.setValue(newLocation); // <2>
-        }
+                currentLocationField.setValue(newLocation); // <2>
+            }
     }
     // end::onLocationChanged[]
     // tag::onSelect[]
