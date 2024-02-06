@@ -20,16 +20,16 @@ import org.springframework.core.env.Environment;
 import javax.sql.DataSource;
 
 @Push
-@Theme(value = "onboarding")
-@PWA(name = "Onboarding", shortName = "Onboarding")
+@Theme(value = "onboarding-charts")
+@PWA(name = "Onboarding Charts", shortName = "Onboarding Charts")
 @SpringBootApplication
-public class OnboardingApplication implements AppShellConfigurator {
+public class OnboardingChartsApplication implements AppShellConfigurator {
 
     @Autowired
     private Environment environment;
 
     public static void main(String[] args) {
-        SpringApplication.run(OnboardingApplication.class, args);
+        SpringApplication.run(OnboardingChartsApplication.class, args);
     }
 
     @Bean
@@ -48,7 +48,7 @@ public class OnboardingApplication implements AppShellConfigurator {
 
     @EventListener
     public void printApplicationUrl(final ApplicationStartedEvent event) {
-        LoggerFactory.getLogger(OnboardingApplication.class).info("Application started at "
+        LoggerFactory.getLogger(OnboardingChartsApplication.class).info("Application started at "
                 + "http://localhost:"
                 + environment.getProperty("local.server.port")
                 + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
