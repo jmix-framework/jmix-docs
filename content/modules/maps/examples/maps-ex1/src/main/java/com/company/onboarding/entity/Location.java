@@ -12,10 +12,12 @@ import org.locationtech.jts.geom.Polygon;
 
 import java.util.UUID;
 
+// tag::Location[]
 @JmixEntity
 @Table(name = "LOCATION")
 @Entity
 public class Location {
+    // end::Location[]
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
@@ -42,10 +44,12 @@ public class Location {
     @Column(name = "TYPE_")
     private Integer type;
 
+    // tag::Location[]
     @Geometry
     @Column(name = "BUILDING", nullable = false)
     @NotNull
     private Point building;
+    // end::Location[]
 
     @Column(name = "VERSION", nullable = false)
     @Version
@@ -133,4 +137,6 @@ public class Location {
     public void setId(UUID id) {
         this.id = id;
     }
+    // tag::Location[]
 }
+// end::Location[]
