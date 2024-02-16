@@ -113,8 +113,7 @@ public class StyleView extends StandardView {
                 .addStyles(new Style()
                                 .withStroke(new Stroke()
                                         .withWidth(3.)
-                                        .withColor("#F60018")),
-                        new Style());
+                                        .withColor("#F60018")));
         vectorSource.addFeature(feature);
         // end::lineString[]
     }
