@@ -53,11 +53,10 @@ public class LocationDetailView extends StandardDetailView<Location> {
         // tag::addGeoObjectClickListener[]
         VectorLayer vectorLayer = map.getLayer("vectorLayer");
         DataVectorSource<Location> locationSource = vectorLayer.getSource();
-        locationSource.addGeoObjectClickListener(clickEvent -> {
-            notifications.create("GeoObject click", clickEvent.getItem().getCity())
-                    .withPosition(Notification.Position.BOTTOM_END)
-                    .show();
-        });
+        locationSource.addGeoObjectClickListener(clickEvent ->
+                notifications.create("GeoObject click", clickEvent.getItem().getCity())
+                .withPosition(Notification.Position.BOTTOM_END)
+                .show());
         // end::addGeoObjectClickListener[]
         // tag::onInit[]
     }

@@ -6,20 +6,13 @@ import com.company.onboarding.entity.LocationType;
 import com.company.onboarding.view.main.MainView;
 
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
 import io.jmix.flowui.component.valuepicker.EntityPicker;
 import io.jmix.flowui.kit.action.ActionPerformedEvent;
 import io.jmix.flowui.kit.action.BaseAction;
-import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.view.*;
 import io.jmix.mapsflowui.component.GeoMap;
-import io.jmix.mapsflowui.component.model.feature.LineStringFeature;
-import io.jmix.mapsflowui.component.model.feature.PointFeature;
-import io.jmix.mapsflowui.component.model.feature.PolygonFeature;
 import io.jmix.mapsflowui.component.model.layer.VectorLayer;
 import io.jmix.mapsflowui.component.model.source.DataVectorSource;
-import io.jmix.mapsflowui.component.model.source.VectorSource;
-import io.jmix.mapsflowui.kit.component.model.feature.Feature;
 import io.jmix.mapsflowui.kit.component.model.style.Fill;
 import io.jmix.mapsflowui.kit.component.model.style.Style;
 import io.jmix.mapsflowui.kit.component.model.style.image.Anchor;
@@ -72,14 +65,7 @@ public class LocationLookupView extends StandardView {
     }
     // end::location-param[]
     // tag::initGeoMap[]
-    private void initGeoMap(){
-        StreamResource officeIconResource = new StreamResource("office-marker.png",
-                () -> getClass()
-                        .getResourceAsStream("/META-INF/resources/icons/office-marker.png"));
-        StreamResource coworkingIconResource = new StreamResource("coworking-marker.png",
-                () -> getClass()
-                        .getResourceAsStream("/META-INF/resources/icons/coworking-marker.png"));
-
+    private void initBuildingSource(){
         VectorLayer layer = map.getLayer("dataVectorLayer");
 
         DataVectorSource<Location> source = layer.getSource(); // <1>
@@ -88,9 +74,9 @@ public class LocationLookupView extends StandardView {
                         .withScale(0.5)
                         .withAnchorOrigin(IconOrigin.BOTTOM_LEFT)
                         .withAnchor(new Anchor(0.49, 0.12))
-                        .withResource(location.getType() == LocationType.OFFICE
-                                ? officeIconResource
-                                : coworkingIconResource))
+                        .withSrc(location.getType() == LocationType.OFFICE
+                                ? "icons/office-marker.png"
+                                : "icons/coworking-marker.png"))
                 .withText(new TextStyle()
                         .withBackgroundFill(new Fill("rgba(255, 255, 255, 0.6)"))
                         .withPadding(new Padding(5, 5, 5, 5))
@@ -109,7 +95,16 @@ public class LocationLookupView extends StandardView {
     // tag::onInit[]
     @Subscribe
     public void onInit(final InitEvent event) {
-        initGeoMap();
+        // end::onInit[]
+        // tag::initBuildingSource[]
+        initBuildingSource();
+        // end::initBuildingSource[]
+        // tag::inits[]
+        initBuildingAreaSource();
+        initBuildingEntranceSource();
+        initPathToBuildingSource();
+        // end::inits[]
+        // tag::onInit[]
     }
     // end::onInit[]
     // tag::setMapCenter[]
@@ -137,64 +132,56 @@ public class LocationLookupView extends StandardView {
         close(StandardOutcome.SELECT); // <1>
     }
     // end::onSelect[]
-    // tag::createBuildingEntranceFeature[]
-    private Feature createBuildingEntranceFeature(Location location) {
-        return new PointFeature(location.getBuildingEntrance()) // <1>
-                .addStyles(new Style()
+
+// tag::initBuildingAreaSource[]
+    private void initBuildingAreaSource() {
+        VectorLayer layer = map.getLayer("vectorLayerArea");
+
+        DataVectorSource<Location> source = layer.getSource();
+        source.setStyleProvider(location -> { // <1>
+            String fillColor = location.getType() == LocationType.COWORKING
+                    ? "rgba(52, 216, 0, 0.2)"
+                    : "rgba(1, 147, 154, 0.2)";
+            String strokeColor = location.getType() == LocationType.COWORKING
+                    ? "#228D00"
+                    : "#123EAB";
+            return new Style()
+                    .withFill(new Fill(fillColor))
+                    .withStroke(new Stroke()
+                            .withWidth(2d)
+                            .withColor(strokeColor));
+        });
+    }
+    // end::initBuildingAreaSource[]
+
+    // tag::initBuildingEntranceSource[]
+    private void initBuildingEntranceSource() {
+        VectorLayer layer = map.getLayer("vectorLayerEntrance");
+
+        DataVectorSource<Location> source = layer.getSource();
+        source.setStyleProvider((location -> // <1>
+                new Style()
                         .withImage(new CircleStyle()
                                 .withRadius(4)
                                 .withFill(new Fill("#000000"))
                                 .withStroke(new Stroke()
                                         .withWidth(2d)
-                                        .withColor("#ffffff"))));
+                                        .withColor("#ffffff")))));
     }
-    // end::createBuildingEntranceFeature[]
-    // tag::createPathToBuildingFeature[]
-    private Feature createPathToBuildingFeature(Location location) {
-        return new LineStringFeature(location.getPathToBuilding()) // <1>
-                .addStyles(new Style()
+    // end::initBuildingEntranceSource[]
+    // tag::initPathToBuildingSource[]
+    private void initPathToBuildingSource() {
+        VectorLayer layer = map.getLayer("vectorLayerPath");
+
+        DataVectorSource<Location> source = layer.getSource();
+        source.setStyleProvider(location -> // <1>
+                new Style()
                         .withStroke(new Stroke()
                                 .withWidth(2d)
                                 .withColor("#000000")
                                 .withLineDash(List.of(0.2, 8d, 0.8d))));
     }
-    // end::createPathToBuildingFeature[]
-
-    // tag::createBuildingAreaFeature[]
-    private Feature createBuildingAreaFeature(Location location) {
-        String fillColor = "rgba(52, 216, 0, 0.2)";
-        String strokeColor = "#228D00";
-        if (location.getType() == LocationType.COWORKING) {
-            fillColor = "rgba(1, 147, 154, 0.2)";
-            strokeColor = "#123EAB";
-        }
-        return new PolygonFeature(location.getBuildingArea()) // <1>
-                .addStyles(new Style()
-                        .withFill(new Fill(fillColor))
-                        .withStroke(new Stroke()
-                                .withWidth(2d)
-                                .withColor(strokeColor)));
-    }
-    // end::createBuildingAreaFeature[]
-    @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
-    public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
-        VectorLayer vectorLayer = map.getLayer("vectorLayer");
-        VectorSource source = vectorLayer.getSource();
-
-        source.removeAllFeatures();
-
-        for (Location location : event.getSource().getItems()) {
-            if (location.getBuildingArea() != null) {
-                source.addFeature(createBuildingAreaFeature(location));
-            }
-            if (location.getBuildingEntrance() != null) {
-                source.addFeature(createBuildingEntranceFeature(location));
-            }
-            if (location.getPathToBuilding() != null) {
-                source.addFeature(createPathToBuildingFeature(location));
-            }
-        }
-    }
+    // end::initPathToBuildingSource[]
     // tag::controller[]
 }
 // end::controller[]
