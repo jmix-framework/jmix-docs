@@ -20,7 +20,7 @@ import io.jmix.mapsflowui.kit.component.model.style.image.CircleStyle;
 import io.jmix.mapsflowui.kit.component.model.style.image.IconOrigin;
 import io.jmix.mapsflowui.kit.component.model.style.image.IconStyle;
 import io.jmix.mapsflowui.kit.component.model.style.stroke.Stroke;
-import io.jmix.mapsflowui.kit.component.model.style.text.Padding;
+import io.jmix.mapsflowui.kit.component.model.Padding;
 import io.jmix.mapsflowui.kit.component.model.style.text.TextStyle;
 import org.locationtech.jts.geom.Coordinate;
 import org.springframework.lang.Nullable;

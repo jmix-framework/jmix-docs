@@ -59,7 +59,7 @@ public class StyleView extends StandardView {
     private void addPoint(VectorSource vectorSource) {
 // tag::point[]
         PointFeature styleFeature = new PointFeature(GeometryUtils.createPoint(22, 25))
-                .addStyles(new Style()
+                .withStyles(new Style()
                         .withImage(new CircleStyle()
                                 .withRadius(7)
                                 .withFill(new Fill("#E7003E"))
@@ -70,7 +70,7 @@ public class StyleView extends StandardView {
 // end::point[]
         // tag::point-text[]
         PointFeature textFeature = new PointFeature(GeometryUtils.createPoint(15, 15))
-                .addStyles(new Style()
+                .withStyles(new Style()
                         .withText(new TextStyle()
                                 .withText("Africa")
                                 .withFont("20px sans-serif")
@@ -92,7 +92,7 @@ public class StyleView extends StandardView {
         });
 
         PolygonFeature feature = new PolygonFeature(geometries.createPolygon(shell))
-                .addStyles(new Style()
+                .withStyles(new Style()
                         .withFill(new Fill("rgba(1, 147, 154, 0.2)"))
                         .withStroke(new Stroke()
                                 .withWidth(3.)
@@ -110,7 +110,7 @@ public class StyleView extends StandardView {
                 new Coordinate(25, 17)});
 
         LineStringFeature feature = new LineStringFeature(lineString)
-                .addStyles(new Style()
+                .withStyles(new Style()
                                 .withStroke(new Stroke()
                                         .withWidth(3.)
                                         .withColor("#F60018")));
