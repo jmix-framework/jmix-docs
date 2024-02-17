@@ -54,12 +54,10 @@ public class CustomerListView extends StandardListView<Customer> {
 
         customBtn.setAction(customAction);
         // tag::excelExport[]
-        customersDataGridExcelExport.setDataGridExporter(applicationContext.getBean(CustomExporter.class));
-        customersDataGridExcelExport.setDescription("Action with custom exporter"); // <1>
+        customersDataGridExcelExport.setText("Export data grid to Excel");
         // end::excelExport[]
         // tag::jsonExport[]
-        customersDataGridJsonExport.setDataGridExporter(applicationContext.getBean(CustomExporter.class));
-        customersDataGridJsonExport.setDescription("Action with custom exporter"); // <1>
+        customersDataGridJsonExport.setText("Export data grid to JSON");
         // end::jsonExport[]
         // tag::onInit[]
     }

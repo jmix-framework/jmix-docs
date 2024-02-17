@@ -11,9 +11,15 @@ import org.springframework.stereotype.Component;
 import java.util.function.Function;
 
 // tag::CustomExporter[]
-@Component("ui_CustomExporter")
+@Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class CustomExporter implements DataGridExporter {
+    // end::CustomExporter[]
+
+    @Override
+    public void setFileName(String fileName) {
+    }
+
     @Override
     public void exportDataGrid(Downloader downloader, Grid<Object> dataGrid, ExportMode exportMode) {
         //your custom logic
@@ -40,4 +46,3 @@ public class CustomExporter implements DataGridExporter {
         return null;
     }
 }
-// end::CustomExporter[]
