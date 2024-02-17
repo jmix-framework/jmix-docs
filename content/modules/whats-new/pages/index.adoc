@@ -13,747 +13,173 @@
 
 * Обновляет версию Jmix BOM, которая, в свою очередь, определяет версии всех зависимостей.
 * Обновляет версию Jmix Gradle plugin.
-* Обновляет версию Gradle wrapper до 8.2 в `gradle/wrapper/gradle-wrapper.properties`.
-* Добавляет свойство `vaadin.optimizeBundle = false` в `build.gradle`.
-* Добавляет зависимость `implementation 'io.jmix.security:jmix-security-starter'`.
-* Для компонентов `formLayout` с `labelsPosition="ASIDE"` оборачивает вложенные компоненты элементами `formItem`.
+* Обновляет версию Gradle wrapper до 8.6 в `gradle/wrapper/gradle-wrapper.properties`.
+* В проектах на Kotlin обновляет версию плагина Kotlin до 1.9.22.
+* В связи с перемещением функциональности <<pessimistic-locking, пессимистической блокировки>>, заменяет использования пакетов `io.jmix.core.pessimisticlocking` на `io.jmix.pessimisticlock`, заменяет свойства `jmix.core.pessimistic-lock.\*` на `jmix.pslock.\*` и добавляет зависимости на новый аддон в `build.gradle`.
+* Добавляет свойство приложения `spring.main.allow-circular-references = true`. Подробнее см. <<circular-dependencies-between-spring-beans,ниже>>.
+* Добавляет свойство приложения `jmix.core.skip-null-or-empty-conditions-by-default = true`. Подробнее см. <<handling-empty-conditions,ниже>>.
+* Добавляет свойство приложения `jmix.appsettings.check-permissions-for-app-settings-entity = true` если проект содержит дополнение Application Settings. Подробнее см. <<security-in-application-settings,ниже>>.
 
 
 См. полный список <<breaking-changes,опасных изменений>>, которые могут затронуть ваш проект после обновления.
 
+[[updated-dependencies]]
+== Обновленные зависимости
+
+Следующие важные зависимости были обновлены:
+
+* Spring Boot 3.2. См. его https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.2-Release-Notes[release notes^] для получения подробной информации.
+
+* Vaadin 24.3. См. release notes для Vaadin https://github.com/vaadin/platform/releases/tag/24.2.0[24.2^] и https://github.com/vaadin/platform/releases/tag/24.3.0[24.3^] для получения подробной информации. Studio удаляет файл `.pnpmfile.cjs` из проекта при миграции на Jmix 2.2 (по причине проблемы, описанной в https://github.com/vaadin/flow/issues/17873[vaadin/flow#17873^]). Убедитесь что данный файл более не существует после миграции.
+
 [[new-features]]
 == Новая и улучшенная функциональность
 
-[[add-ons-with-flow-ui]]
-=== Дополнения с Flow UI
+[[java-21]]
+=== Поддержка Java 21
 
-Следующие дополнения теперь доступны в проектах с Flow UI:
+Теперь вы можете использовать Java 21 и все её языковые возможности для написания приложений.
 
-* xref:bulk-edit:index.adoc[]
-* xref:dyn-attr:index.adoc[]
-* xref:jmx-console:index.adoc[]
-* xref:maps:index.adoc[] (preview)
-* xref:notifications:index.adoc[]
-* xref:search:index.adoc[]
-* xref:webdav:index.adoc[]
-
-[[bpm-improvements]]
-=== Улучшения в BPM
-
-* xref:bpm:dmn.adoc[Редактор таблиц DMN] доступен в Flow UI.
-
-* BPM Modeler теперь поддерживает https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#external-worker-task[External Worker Tasks^].
-
-* В Studio появился новый мастер форм процесса. В нем можно выбирать существующие переменные процесса, и Studio автоматически создаст соответствующие компоненты интерфейса, привязанные к этим переменным. Мастер позволяет также задать результаты (outcomes), которые следует сгенерировать в форме.
-
-[[datagrid-improvements]]
-=== Улучшения в DataGrid
-
-[[column-renderers]]
-==== Рендереры колонок
-
-Теперь вы можете задавать рендереры колонкам `dataGrid` декларативно.
-
-Есть несколько предварительно созданных рендереров, которые можно назначить колонке в XML: `numberRenderer`, `localDateRenderer` и `localDateTimeRenderer`. Они принимают строку формата. Например:
-
-[source,xml]
-----
-<column property="dueDate">
-    <localDateRenderer format="MMM dd, yyyy"/>
-</column>
-----
-
-Кастомный рендерер можно назначить колонке с помощью обработчика `renderer`, который теперь доступен на вкладке *Handlers* инспектора *Jmix UI* для элемента `column`. Кроме того, элемент `column` может быть определен без атрибута `property`, то есть без непосредственной привязки к атрибуту сущности. В этом случае элемент `column` должен иметь атрибут `key` с уникальным значением.
-
-Приведенный ниже пример показывает, как определить колонку с пользовательским рендерером, который отображает флажок:
-
-[source,xml]
-----
-<column key="completed" width="4em" flexGrow="0"/>
-----
-
-[source,java]
-----
-@Supply(to = "stepsDataGrid.completed", subject = "renderer")
-private Renderer<UserStep> stepsDataGridCompletedRenderer() {
-    return new ComponentRenderer<>(userStep -> {
-        Checkbox checkbox = uiComponents.create(Checkbox.class);
-        checkbox.setValue(userStep.getCompletedDate() != null);
-        checkbox.addValueChangeListener(e -> {
-            // ...
-        });
-        return checkbox;
-    });
-}
-----
-
-Вы можете использовать разные реализации интерфейса `com.vaadin.flow.data.renderer.Renderer`. В приведенном ниже примере в колонке отображается текст:
-
-[source,xml]
-----
-<column key="status" header="Статус"/>
-----
-
-[source,java]
-----
-@Supply(to = "stepsDataGrid.status", subject = "renderer")
-private Renderer<UserStep> stepsDataGridStatusRenderer() {
-    return new TextRenderer<>(userStep ->
-            isOverdue(userStep) ? "Просрочено!" : "");
-}
-----
-
-[[sorting-by-multiple-columns]]
-==== Сортировка по нескольким колонкам
-
-`dataGrid` теперь поддерживает сортировку по нескольким колонкам. Ее можно настроить с помощью следующих атрибутов XML:
-
-* `multiSort` - включает сортировку по нескольким колонкам.
-* `multiSortOnShiftClickOnly` - если установлено в true, множественная сортировка происходит только при щелчке на заголовок колонки при нажатой клавише Shift. По умолчанию false.
-* `multiSortPriority` - если установлено в `APPEND`, выбранная колонка добавляется в конец списка отсортированных колонок. Если `PREPEND` (что является значением по умолчанию), выбранная колонка добавляется в начало списка.
-
-Например:
-
-[source,xml]
-----
-<dataGrid id="usersDataGrid" dataContainer="usersDc"
-        multiSort="true"
-        multiSortOnShiftClickOnly="true"
-        multiSortPriority="APPEND">
-----
-
-[[aggregation]]
-==== Агрегация
-
-`dataGrid` теперь поддерживает агрегацию значений в строках. Чтобы включить агрегацию, установите атрибут `aggregatable` в значение true, добавьте элемент `aggregation` к агрегированным колонкам и выберите тип агрегации.
-
-Например:
-
-[source,xml]
-----
-<dataGrid id="ordersDataGrid" dataContainer="ordersDc"
-        aggregatable="true">
-    <columns>
-        <column property="num"/>
-        <column property="date"/>
-        <column property="amount">
-            <aggregation type="SUM" cellTitle="Общая сумма"/>
-        </column>
-    </columns>
-</dataGrid>
-----
-
-[[filter-in-column-headers]]
-==== Фильтрация в заголовках колонок DataGrid
-
-CAUTION: Это предварительная функция. Внешний вид и детали реализации могут значительно измениться в будущих версиях.
-
-Данные в `dataGrid` теперь можно фильтровать с использованием xref:flow-ui:vc/components/propertyFilter.adoc[фильтров свойств], встроенных в заголовки колонок.
-
-Вы можете определить, какие колонки должны иметь фильтр, используя атрибут XML `filterable`. Фильтруемые колонки имеют значок "воронки" (image:funnel.svg[]) в своих заголовках. Если пользователь щелкает на этом значке, появляется диалоговое окно с условием фильтрации свойства. Если установлено какое-либо условие, значок в этой колонке подсвечивается.
-
-Чтобы убедиться, что значок фильтра всегда видим, установите подходящую ширину для колонки с использованием атрибута `width` или `autoWidth`. Не делайте ширину колонки изменяемой, в противном случае пользователи смогут уменьшить ширину и потерять значок фильтра.
-
-Например:
-
-[source,xml]
-----
-<columns>
-    <column property="username" filterable="true" width="20em"/>
-    <column property="firstName" filterable="true" autoWidth="true"/>
-    <column property="lastName" filterable="true" autoWidth="true"/>
-    <column property="email"/>
-</columns>
-----
-
-Фильтры свойств в заголовках колонок работают так же, как отдельные xref:flow-ui:vc/components/propertyFilter.adoc[] и xref:flow-ui:vc/components/genericFilter.adoc[] - они добавляют условия к запросу JPQL и фильтруют данные на уровне базы данных.
-
-Фильтруемые колонки могут использоваться вместе с компонентами `propertyFilter` и `genericFilter`. Условия всех фильтров объединяются логическим оператором AND.
-
-На данный момент условия фильтров колонок не связаны с URL страницы. Это означает, что если пользователь применяет фильтр, а затем переходит к экрану деталей и возвращается назад, фильтр будет сброшен. Мы планируем реализовать интеграцию с фасетом xref:flow-ui:facets/urlQueryParameters.adoc[] в следующем релизе.
-
-Here is the AsciiDoc document translated to Russian:
-
-[[virtuallist-component]]
-=== Компонент VirtualList
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://demo.jmix.io/ui-samples/sample/virtual-list-simple" class="live-demo-btn" target="_blank">LIVE DEMO</a>
-</div>
-++++
-
-Компонент `virtualList` предназначен для отображения списков элементов со сложным содержимым. В некоторый момент времени он рендерит только видимую часть элементов списка.
-
-`virtualList` подключается к контейнеру данных и по умолчанию отображает имя экземпляра сущности, находящейся в контейнере. Произвольное содержание можно отобразить с помощью обработчика `renderer`.
-
-Ниже приведен пример использования `virtualList` в экране списка вместо `dataGrid`:
-
-[source,xml]
-----
-<data readOnly="true">
-    <collection id="stepsDc" class="com.company.onboarding.entity.Step">
-...
-<layout>
-    <genericFilter id="genericFilter" ...>
-    <hbox id="buttonsPanel" ...>
-        <button id="createBtn" text="Создать" themeNames="primary"/>
-        <simplePagination id="pagination" dataLoader="stepsDl"/>
-    </hbox>
-    <virtualList id="stepsVirtualList" itemsContainer="stepsDc"/>
-----
-
-[source,java]
-----
-@Autowired
-private UiComponents uiComponents;
-
-@Supply(to = "stepsVirtualList", subject = "renderer")
-private Renderer<Step> stepsVirtualListRenderer() {
-    return new ComponentRenderer<>(step -> {
-        HorizontalLayout hbox = uiComponents.create(HorizontalLayout.class);
-        // создать содержание элемента списка
-        return hbox;
-    });
-}
-----
-
-Обратите внимание, что элементы в `virtualList` не выбираются с помощью клавиатуры. Стандартные действия xref:flow-ui:actions/list-actions.adoc[] не работают с `virtualList`, поэтому, если это необходимо, вы должны определить собственные действия для операций CRUD.
-
-[[html-component]]
-=== Компонент Html
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://demo.jmix.io/ui-samples/sample/html-component" class="live-demo-btn" target="_blank">LIVE DEMO</a>
-</div>
-++++
-
-Компонент `html` позволяет вставлять в экраны произвольное HTML-содержимое.
-
-Содержимое можно определить во вложенном элементе `content`, в файле, расположенном в ресурсах проекта, или в файле сообщений. В последнем случае содержимое можно легко интернационализировать. Например:
-
-.com/company/onboarding/view/sample/sample-view.xml
-[source,xml]
-----
-<html content="msg://helloWorld"/>
-----
-
-.messages_ru.properties
-[source,properties]
-----
-com.company.onboarding.view.sample/helloWorld=<h2>Привет, мир</h2>
-----
-
-[[settings-facet]]
-=== Фасет Settings
-
-Фасет `settings` сохраняет и восстанавливает настройки визуальных компонентов для текущего пользователя. На данный момент поддерживаются следующие компоненты:
-
-* `dataGrid`, `treeDataGrid` - фасет сохраняет порядок и ширину столбцов, параметры сортировки.
-* `details`, `genericFilter` - фасет сохраняет состояние `opened`.
-* `simplePagination` - фасет сохраняет выбранный размер страницы, если `itemsPerPageVisible` равно true.
-
-Для использования фасета убедитесь, что в вашем проекте есть следующая зависимость:
-
-[source,groovy]
-----
-implementation 'io.jmix.flowui:jmix-flowui-data-starter'
-----
-
-При добавлении фасета с атрибутом `auto="true"` он управляет настройками всех поддерживаемых компонентов экрана, у которых указаны идентификаторы:
-
-[source,xml]
-----
-<facets>
-    <settings auto="true"/>
-----
-
-Для управления настройками конкретного компонента используйте вложенные элементы `component`, например:
-
-[source,xml]
-----
-<facets>
-    <settings>
-        <component id="customersDataGrid"/>
-    </settings>
-----
-
-Для исключения некоторого компонента используйте `auto="true"` для фасета и `enabled="false"` для компонента:
-
-[source,xml]
-----
-<facets>
-    <settings auto="true">
-        <component id="customersDataGrid" enabled="false"/>
-    </settings>
-----
-
-Фасет предоставляет обработчики, позволяющие сохранять и восстанавливать любые свойства экрана и его компонентов. В следующем примере показано, как сохранить значение флажка:
-
-[source,java]
-----
-@ViewComponent
-private SettingsFacet settings;
-@ViewComponent
-private JmixCheckbox testCheckbox;
-
-@Install(to = "settings", subject = "applySettingsDelegate")
-private void settingsApplySettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
-    settings.applySettings();
-    Optional<Boolean> value = settingsContext.getViewSettings().getBoolean("testCheckbox", "value");
-    testCheckbox.setValue(value.orElse(Boolean.FALSE));
-}
-
-@Install(to = "settings", subject = "saveSettingsDelegate")
-private void settingsSaveSettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
-    settingsContext.getViewSettings().put("testCheckbox", "value", testCheckbox.getValue());
-    settings.saveSettings();
-}
-----
-
-Фасет предоставляет два обработчика для восстановления настроек:
-
-* `applySettingsDelegate` вызывается перед обработчиком события `ReadyEvent` экрана.
-* `applyDataLoadingSettingsDelegate` вызывается перед обработчиком события `BeforeShowEvent` экрана и позволяет восстановить настройки, связанные с загрузкой данных.
-
-Обработчик `saveSettingsDelegate` вызывается перед обработчиком события `DetachEvent` экрана.
-
-Настройки хранятся в основном хранилище данных в таблице `FLOWUI_USER_SETTINGS` в формате JSON. Вы можете управлять сохраненными настройками, открыв сущность `flowui_UserSettingsItem` в xref:data-tools:entity-inspector.adoc[Entity Inspector].
-
-[[timer-facet]]
-=== Фасет Timer
-
-Фасет xref:flow-ui:facets/timer.adoc[timer] предназначен для выполнения кода экрана через определенные интервалы времени. Он работает в потоке, обрабатывающем события пользовательского интерфейса, и может обновлять компоненты экрана.
-
-Вот перевод документа AsciiDoc на русский язык:
-
-[[ui-elements-and-attributes]]
-=== Элементы и атрибуты UI
-
-[[prefix-and-suffix-components]]
-==== Компоненты Prefix и Suffix
-
-Prefix и suffix компоненты теперь могут быть добавлены в XML к компонентам, реализующим интерфейсы `HasPrefix` и `HasSuffix`. Например:
-
-[source,xml]
-----
-<textField id="nameField" property="name">
-    <prefix>
-        <icon icon="ASTERISK"/>
-    </prefix>
-    <suffix>
-        <button id="setNameBtn" text="Установить имя"/>
-    </suffix>
-</textField>
-----
-
-[[inline-css-attribute]]
-==== Атрибут встроенных стилей CSS
-
-Теперь вы можете использовать атрибут `css` для предоставления встроенных стилей CSS для любого компонента. Например:
-
-[source,xml]
-----
-<button id="editBtn" action="usersDataGrid.edit" css="color: red;"/>
-----
-
-[[align-self-attribute]]
-==== Атрибут alignSelf
-
-Новый атрибут `alignSelf` позволяет переопределять значение `alignItems` включающего контейнера в индивидуальных компонентах. Например:
-
-[source,xml]
-----
-<hbox alignItems="CENTER" height="10em">
-    <span id="totalLabel" text="Итого"/>
-    <span id="completedLabel" text="Завершено" alignSelf="END"/>
-    <span id="overdueLabel" text="Просрочено"/>
-</hbox>
-----
-
-Этот атрибут доступен для всех компонентов. Он соответствует свойству CSS https://developer.mozilla.org/ru/docs/Web/CSS/align-self[align-self^].
-
-[[fetching-items-in-dropdowns]]
-=== Получение элементов выпадающих списков
-
-Компоненты UI с выпадающими списками (xref:flow-ui:vc/components/comboBox.adoc[], xref:flow-ui:vc/components/entityComboBox.adoc[], xref:flow-ui:vc/components/multiSelectComboBox.adoc[], `multiSelectComboBoxPicker`) теперь могут загружать элементы пакетами в ответ на действия пользователя. Например, когда пользователь вводит `foo`, компонент загружает из базы данных не более 50 элементов с именем, содержащим `foo`, и отображает их в выпадающем списке. Когда пользователь прокручивает список, компонент получает следующую партию из 50 элементов с тем же запросом и добавляет их в список.
-
-Для реализации этого поведения определите вложенный элемент `itemsQuery`, вместо указания атрибута `itemsContainer`. Элемент `itemsQuery` должен содержать текст запроса во вложенном элементе `query` и несколько дополнительных атрибутов, указывающих, какие данные и как загружать.
-
-Пример `itemsQuery` в `entityComboBox`:
-
-[source,xml]
-----
-<entityComboBox id="departmentField" property="department" pageSize="30">
-    <itemsQuery class="com.company.onboarding.entity.Department" fetchPlan="_instance_name"
-                searchStringFormat="(?i)%${inputString}%">
-        <query>
-            <![CDATA[select e from Department e where e.name like :searchString order by e.name]]>
-        </query>
-    </itemsQuery>
-</entityComboBox>
-----
-
-Пример `itemsQuery` в `comboBox`:
-
-[source,xml]
-----
-<comboBox id="departmentField" pageSize="30" >
-    <itemsQuery searchStringFormat="(?i)%${inputString}%">
-        <query>
-            <![CDATA[select e.name from Department e where e.name like :searchString order by e.name]]>
-        </query>
-    </itemsQuery>
-</comboBox>
-----
-
-Как видно, `itemsQuery` в `comboBox` не требует атрибутов `class` и `fetchPlan`, поскольку запрос должен возвращать список скалярных значений (обратите внимание на `e.name` в результирующем наборе полей).
-
-Атрибут `pageSize` компонента определяет размер пакета при загрузке данных из базы данных. По умолчанию он равен 50.
-
-Получение элементов также может быть определено программно с использованием обработчика `itemsFetchCallback`. Например:
-
-[source,xml]
-----
-<entityComboBox id="departmentField" property="department"/>
-----
-
-[source,java]
-----
-@Install(to = "departmentField", subject = "itemsFetchCallback")
-private Stream<Department> departmentFieldItemsFetchCallback(final Query<Department, String> query) {
-    String param = query.getFilter().orElse("");
-    return dataManager.load(Department.class)
-            .condition(PropertyCondition.contains("name", param))
-            .firstResult(query.getOffset())
-            .maxResults(query.getLimit())
-            .list()
-            .stream();
-}
-----
-
-В этом примере данные извлекаются с использованием `DataManager`, но вы можете использовать этот подход для загрузки из любого собственного сервиса.
-
-[[read-only-data-loaders]]
-=== Загрузчики "только для чтения"
-
-Элементы XML `loader`, определяющие xref:flow-ui:data/data-loaders.adoc[загрузчики данных], теперь имеют атрибут `readOnly`. Если он установлен в `true`, загрузчик не получает ссылку на xref:flow-ui:data/data-context.adoc[DataContext] и не помещает в него сущности после загрузки. В результате сущности, загруженные с использованием этого загрузчика, не отслеживаются `DataContext` и не сохраняются автоматически даже в случае изменений.
-
-Этот атрибут теперь используется в шаблонах экранов списков вместо `readOnly="true"` на корневом элементе `data` (который выбирал "пустую" реализацию `DataContext` для всего экрана). Оба атрибута предназначены для повышения производительности за счет обхода `DataContext` для данных, доступных только для чтения, но атрибут `readOnly` в загрузчиках предоставляет более детализированное управление: вы можете использовать нормальный `DataContext` для сохранения отредактированной сущности и одновременно загружать сущности только для чтения, например, для выпадающих списков.
-
-Теперь Studio по умолчанию генерирует загрузчики коллекций с атрибутом `readOnly="true"`.
-
-В следующем примере загруженная сущность `User` помещается в `DataContext`, в то время как коллекция сущностей `Department` - нет:
-
-[source,xml]
-----
-<data>
-    <instance id="userDc" class="com.company.onboarding.entity.User">
-        <fetchPlan extends="_base"/>
-        <loader/>
-        <collection id="stepsDc" property="steps"/>
-    </instance>
-
-    <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
-        <fetchPlan extends="_base"/>
-        <loader id="departmentsDl" readOnly="true">
-            <query>
-                <![CDATA[select e from Department e order by e.name]]>
-            </query>
-        </loader>
-    </collection>
-</data>
-----
-
-[[master-detail-view-template]]
-=== Шаблон экрана Master-Detail
-
-Новый шаблон экрана `Master-detail view` позволяет создавать CRUD-экраны со списком сущностей слева и деталями выбранной сущности справа.
-
-[[user-substitution]]
-=== Замещение пользователей
-
-xref:security:users.adoc#user-substitution[Экраны замещения пользователя] теперь реализованы в Flow UI.
-
-При создании нового проекта экран списка пользователей уже содержит пункт *User substitutions* в выпадающем меню *Additional*. Чтобы отобразить этот элемент в существующем проекте, откройте `user-list-view.xml` и добавьте действие `sec_showUserSubstitutions` к `dataGrid` и соответствующий элемент к `dropdownButton`, как показано ниже:
-
-[source,xml]
-----
-<dropdownButton id="additionalBtn" ...>
-    <items>
-        <actionItem id="showUserSubstitutionsItem" ref="usersDataGrid.showUserSubstitutions"/>
-...
-<dataGrid id="usersDataGrid" ...>
-    <actions>
-        <action id="showUserSubstitutions" type="sec_showUserSubstitutions"/>
-----
-
-Вот перевод документа AsciiDoc на русский язык:
-
-[[injection-by-code-completion]]
-=== Инжекция через автозавершение кода
-
-Теперь Studio предлагает новый способ инжекции зависимостей в Spring-бины и контроллеры экранов.
-
-Как только вы начнете вводить несколько символов внутри тела метода, вам станет доступен выпадающий список автозавершения кода, заполненный доступными бинами и компонентами UI, в дополнение к существующим локальным переменным и полям класса. Бины и компоненты UI, которые еще не инжектированы в класс, будут выделены курсивом. Если вы выберете такой элемент, он будет инжектирован в конструктор или в поле с соответствующей аннотацией (`@Autowired` или `@ViewComponent`), и это поле будет сразу доступно для использования в позиции курсора.
-
-Вы можете установить минимальное количество символов для ввода или полностью отключить эту функцию на вкладке *Coding Assistance* в xref:studio:plugin-settings.adoc[Настройках плагина Jmix].
-
-[[support-for-data-repositories]]
-=== Поддержка репозиториев данных
-
-Теперь Studio полностью поддерживает создание и управление xref:data-access:data-repositories.adoc[репозиториями данных].
-
-Чтобы создать репозиторий, нажмите *New* -> *Data Repository* на панели инструментов *Jmix*. В диалоге *New Jmix Data Repository* выберите сущность и нажмите *OK*. Studio создаст интерфейс репозитория, расширяющий `JmixDataRepository`, и добавит аннотацию `@EnableJmixDataRepositories` в главный класс приложения.
-
-Когда репозиторий данных открывается в редакторе, Studio отображает панель действий сверху с двумя кнопками. Кнопка *Add Derived Method* позволяет создать метод, запрос которого будет выводиться из имени метода. Кнопка *Add Query Method* создает метод с явно указанным запросом JPQL. Оба метода открывают специальные диалоги, где вы можете определить запрос и его параметры.
-
-Для всех существующих методов репозитория Studio отображает слева значок "шестеренки". Он позволяет настраивать параметры метода, например, добавлять сортировку или фетч-план. Вы также можете выделить запрос в аннотацию `@Query` и изменить имя метода по своему усмотрению.
-
-Репозитории данных, созданные для конкретной сущности, отображаются в панели инструментов *Jmix* в разделе *Data Repositories* внутри раздела сущности.
-
-[[commenting-database-schema]]
-=== Добавление комментариев к модели данных
-
-Теперь вы можете добавлять комментарии к сущностям и их атрибутам с использованием аннотации `@io.jmix.core.metamodel.annotation.Comment`, например:
-
-[source,java]
-----
-@Comment("""
-        Хранит информацию о книгах.
-        Содержит ссылку на жанр.""")
-@JmixEntity
-@Table(name = "BOOK")
-@Entity
-public class Book {
-    // ...
-
-    @Comment("Название книги")
-    @Column(name = "TITLE")
-    private String title;
-----
-
-Для всех баз данных, кроме HSQL, Studio генерирует операции изменения Liquibase `setTableRemarks` и `setColumnRemarks` для сохранения комментариев в схеме базы данных. Таким образом, комментарии становятся доступными через любой инструмент инспекции базы данных.
-
-Вы также можете извлекать комментарии из метаданных (или непосредственно из аннотаций класса) для отображения в пользовательском интерфейсе приложения или генерации документации. Используйте для этого методы `MetadataTools.getMetaAnnotationValue()`.
-
-Studio поддерживает создание комментариев в xref:studio:entity-designer.adoc[дизайнере сущностей]: см. ссылки *Comment* в списках параметров сущности и атрибута. Когда комментарий установлен, ссылка показывает его первые несколько слов.
-
-[[view-designer-improvements]]
-=== Улучшения дизайнера экранов
-
-Теперь панель инструментов *Jmix UI* отображается как для XML-дескрипторов экранов, так и для их контроллеров. Она позволяет видеть дерево компонентов, изменять свойства компонентов или даже добавлять новые компоненты в экран, работая с Java-кодом в контроллере. Вы также можете инжектировать компоненты в контроллер, перетаскивая их из иерархии в редактор кода.
-
-Для работы предварительного просмотра экранов требуется сборка фронтенда и запуска Vaadin Development Mode Server, что может занять много времени. Чтобы сэкономить время при открытии проекта, панель предварительного просмотра теперь открывается только при нажатии кнопки *Start Preview* в верхней панели редактора XML. После этого предварительный просмотр будет активен для всех последующих открытых экранов проекта. Вы также можете отключить предварительный просмотр, нажав *Stop Preview*.
-
-[[profile-specific-properties]]
-=== Свойства, зависящие от профиля
-
-Studio теперь может читать свойства приложения из файлов, зависящих от профиля, если в основном файле `application.properties` установлено свойство `spring.profiles.active`. Это позволяет иметь отдельный профиль для среды разработки.
-
-Приведенный ниже пример показывает, как создать профиль `dev`, в котором определяются свойства для подключения к базе данных, и использовать его по умолчанию для среды разработки.
-
-.application.properties
-[source,properties]
-----
-spring.profiles.active = dev
-
-# ...
-----
-
-.application-dev.properties
-[source,properties]
-----
-main.datasource.url = jdbc:postgresql://localhost/onboarding-21
-main.datasource.username = root
-main.datasource.password = root
-----
-
-После внесения этих изменений xref:studio:data-stores.adoc[редактор свойств хранилища данных] в Studio будет читать и записывать свойства из файла `application-dev.properties`, а не из `application.properties`.
-
-Вы можете исключить файл `application-dev.properties` из системы управления версиями, чтобы не раскрывать свои настройки подключения. При запуске приложения в тестовой или производственной среде профиль можно указать с помощью аргумента командной строки или переменной окружения.
-
-[[connecting-to-unsupported-databases]]
-=== Подключение к неподдерживаемым базам данных
-
-Теперь вы можете определить дополнительное хранилище данных, подключенное к базе данных, которую Jmix не поддерживает нативно.
-
-Эта функция в настоящее время находится в состоянии предварительной версии и отключена по умолчанию. Чтобы включить ее, дважды нажмите клавишу Shift, в открывшемся списке выберите пункт *Jmix Features* и установите флажок *Generic Database Support for Additional Data Store*.
-
-После этого при создании дополнительного хранилища данных вы увидите пункт `Generic DB` в выпадающем списке *Database type*. Если выбрать этот тип, Studio позволит ввести следующие параметры:
-
-* *DBMS type* - произвольный идентификатор типа базы данных, используемый также как префикс для классов, специфичных для базы данных (см. ниже). Введите короткую строку, содержащую только буквенно-цифровые символы в нижнем регистре, например `foo`.
-
-* *Database URL* - полный JDBC URL подключения, например `jdbc:foosql://localhost/database`
-
-* *Driver class name* - имя класса драйвера JDBC, например `org.foosql.Driver`.
-
-* *Driver artifact* - координаты артефакта драйвера JDBC, например `org.foosql:foosql:1.0.0`.
-
-* *Connection test query* - SQL-запрос для проверки соединения, например `select 1`.
-
-* *Database platform* - класс, расширяющий `org.eclipse.persistence.platform.database.DatabasePlatform` и описывающий базу данных для фреймворка EclipseLink ORM. Вы можете выбрать существующий класс, если он подходит для вашей базы данных, или оставить `Create DatabasePlatform class`, чтобы создать новый класс.
-
-Нажмите *OK*.
-
-Studio как обычно создаст класс `Myds1StoreConfiguration` с необходимыми бинами в базовом пакете проекта. Кроме того, она создаст следующие заглушки в пакете `<base-package>/dbms`:
-
-* `FooPlatform` - класс, расширяющий `DatabasePlatform`. Он описывает базу данных для фреймворка EclipseLink ORM.
-
-* `FooDbmsFeatures` - класс, реализующий интерфейс `DbmsFeatures`. Он описывает базу данных для фреймворка Jmix.
-
-* `FooSequenceSupport` - класс, реализующий интерфейс `SequenceSupport`. Он описывает, как должны обрабатываться последовательности в этой базе данных.
-
-* `FooDbTypeConverter` - класс, реализующий интерфейс `DbTypeConverter`. Он определяет методы для преобразования данных между объектами Java и параметрами и результатами JDBC.
-
-Studio также добавит зависимость `implementation 'org.foosql:foosql:1.0.0'` в `build.gradle`.
-
-Теперь вам необходимо реализовать методы в соответствующих классах-заглушках. Воспользуйтесь в качестве примера классами фреймворка, такими как `JmixPostgreSQLPlatform`, `PostgresqlDbmsFeatures` и пр.
+Фреймворк по-прежнему собирается с использованием Java 17, поэтому обе версии (и 17 и 21) доступны для прикладных проектов.
 
 [[breaking-changes]]
 == Опасные изменения
 
-[[production-build]]
-=== Продакшн-сборка
+[[circular-dependencies-between-spring-beans]]
+=== Циклические зависимости между бинами Spring
 
-В связи с изменениями в https://github.com/vaadin/flow/releases/tag/24.1.9[Vaadin 24.1.9^] файл `build.gradle` проекта должен содержать следующий код:
+Ранее циклические зависимости между бинами Spring были разрешены в Jmix на уровне фреймворка.
 
-[source,groovy]
+Jmix 2.2 больше не имеет циклических зависимостей и по умолчанию не разрешает их в прикладных проектах.
+
+Есть вероятность того, что ваш проект содержит циклические зависимости между своими бинами, поэтому процедура миграции Studio автоматически добавляет следующее свойство в проект:
+
+[source,properties]
 ----
-vaadin {
-    optimizeBundle = false
-}
-----
-
-Теперь это требуется для продакшн-сборки.
-
-[[representation-of-roles-in-authentication-object]]
-=== Представление ролей в объекте аутентификации
-
-Теперь роли текущего пользователя представлены классом Spring Security `SimpleGrantedAuthority`, который фактически содержит только строку, обозначающую роль. Строка имеет следующий формат:
-
-* Для ресурсных ролей: `ROLE_<role-code>`, например `ROLE_system-full-access`.
-* Для ролей уровня строк: `ROW_LEVEL_ROLE_<role-code>`, например `ROW_LEVEL_ROLE_my-role`.
-
-Granted authorities нужного Java-класса и содержания могут быть созданы из кодов ролей с использованием класса `RoleGrantedAuthorityUtils`.
-
-Следующий стартер должен быть добавлен в `build.gradle` (Studio делает это автоматически при апгрейде проекта):
-
-[source, groovy]
-----
-implementation 'io.jmix.security:jmix-security-starter'
+spring.main.allow-circular-references = true
 ----
 
-Класс `RoleGrantedAuthority`, который ранее представлял роли в объекте `Authentication`, удален.
+Мы рекомендуем вам удалить это свойство и попробовать запустить приложение. Если произойдет ошибка инициализации, то либо переработайте свои бины, чтобы устранить циклические зависимости, либо верните данное свойство.
 
-Дополнительную информацию можно найти здесь: https://github.com/jmix-framework/jmix/issues/233[#233^].
+Подробнее см. https://github.com/jmix-framework/jmix/issues/287[#287^].
 
-[[labels-position-in-formlayout]]
-=== Положение меток в FormLayout
+[[handling-empty-conditions]]
+=== Обработка пустых условий
 
-Если метки компонентов внутри xref:flow-ui:vc/layouts/formLayout.adoc[formLayout] размещены сбоку, то каждое поле должно быть обернуто в элемент `formItem`.
+Ранее xref:data-access:data-manager.adoc#load-by-conditions[условия по свойствам] преобразовывались в true если параметр условия был пуст (null, пустая строка или пустая коллекция).
 
-В следующем примере метки находятся сбоку, независимо от ширины компоновки:
-
-[source,xml]
-----
-<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
-    <formItem>
-        <textField id="usernameField" property="username" readOnly="true"/>
-    </formItem>
-    <formItem>
-        <textField id="firstNameField" property="firstName"/>
-    </formItem>
-    <formItem>
-        <textField id="lastNameField" property="lastName"/>
-    </formItem>
-    <formItem>
-        <checkbox id="activeField" property="active"/>
-    </formItem>
-</formLayout>
-----
-
-Требование также распространяется, если `labelsPosition="ASIDE"` задано для определенных `responsiveSteps`:
-
-[source,xml]
-----
-<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
-    <responsiveSteps>
-        <responsiveStep minWidth="0" columns="1" labelsPosition="TOP"/>
-        <responsiveStep minWidth="40em" columns="1" labelsPosition="ASIDE"/>
-        <responsiveStep minWidth="50em" columns="2" labelsPosition="TOP"/>
-        <responsiveStep minWidth="65em" columns="2" labelsPosition="ASIDE"/>
-    </responsiveSteps>
-    <formItem>
-        <textField id="usernameField" property="username" readOnly="true"/>
-    </formItem>
-    <formItem>
-        <textField id="firstNameField" property="firstName"/>
-    </formItem>
-    <formItem>
-        <textField id="lastNameField" property="lastName"/>
-    </formItem>
-    <formItem>
-        <checkbox id="activeField" property="active"/>
-    </formItem>
-</formLayout>
-----
-
-When upgrading a project to Jmix 2.1, Studio automatically wraps nested components for all `formLayout` components with `labelsPosition="ASIDE"` used in the project.
-
-[[simplepagination-settotalcountdelegate-signature]]
-=== Сигнатура метода SimplePagination.setTotalCountDelegate
-
-Изменена сигнатура метода `SimplePagination.setTotalCountDelegate()`. Теперь он принимает `Function<DataLoadContext, Integer>`, а не `Function<LoadContext, Integer>` как ранее.
-
-`DataLoadContext` является общим предком для `LoadContext` и `ValueLoadContext`, поэтому данное изменение позволяет использовать делегат подсчета общего количества `simplePagination` с контейнерами `keyValueCollection`.
-
-Ваш код может быть затронут, если вы добавляете делегат программно, используя метод `SimplePagination.setTotalCountDelegate()`. В этом случае просто приведите полученную переменную к типу `LoadContext`, например:
+Начиная с Jmix 2.2, null или пустой параметр не приводит к пропуску условия. Для примера рассмотрим следующий код:
 
 [source,java]
 ----
-pagination.setTotalCountDelegate(dataLoadContext -> {
-    long count = dataManager.getCount((LoadContext<?>) dataLoadContext);
+dataManager.load(User.class)
+    .condition(PropertyCondition.contains("email", null))
+    .list();
 ----
 
-Делегаты, создаваемые с помощью аннотации `@Install`, продолжат работать как ранее.
+В Jmix 2.1 и ранее он выполнял следующий SQL:
 
-Дополнительную информацию можно найти здесь: https://github.com/jmix-framework/jmix/issues/2192[#2192^].
-
-[[basecontainersorter-createcomparator-signature]]
-=== Сигнатура метода BaseContainerSorter.createComparator
-
-Сигнатура метода `BaseContainerSorter.createComparator()` изменена для поддержки сортировки по нескольким колонкам `dataGrid` (см. https://github.com/jmix-framework/jmix/issues/1265[#1265^]). Теперь метод принимает `Sort.Order` вместо `Sort`.
-
-Если в вашем проекте реализована xref:flow-ui:data/data-examples.adoc#custom-sorting[специализированная сортировка], измените данный метод соответствующим образом.
-
-[[jmix-main-view-navigation-css-class]]
-=== Класс CSS jmix-main-view-navigation
-
-Классу CSS `jmix-main-view-navigation`, используемому в элементе `nav` файла `main-view.xml`, были добавлены следующие свойства:
-
-[source,css]
+[source,sql]
 ----
-display: flex;
-flex-direction: column;
+SELECT ID, ACTIVE, EMAIL, <...> FROM USER_
 ----
 
-Если вы добавляете свои стили для этого элемента, возможно, вам потребуется адаптировать их к компоновке на основе flexbox.
+В Jmix 2.2 по умолчанию он выполняет следующий SQL и передает `null` в качестве значения параметра:
+
+[source,sql]
+----
+SELECT ID, ACTIVE, EMAIL, <...> FROM USER_ WHERE EMAIL LIKE ?
+----
+
+В результате, в Jmix 2.1 возвращается список всех пользователей, а в Jmix 2.2 результирующий список будет пуст.
+
+Чтобы вернуть предыдущее поведение, установите следующее свойство приложения:
+
+[source,properties]
+----
+jmix.core.skip-null-or-empty-conditions-by-default = true
+----
+
+Процедура миграции Studio автоматически добавляет это свойство в ваш проект.
+
+В качестве альтернативы, вы можете пропустить пустые параметры для конкретных условий:
+
+[source,java]
+----
+dataManager.load(User.class)
+    .condition(PropertyCondition.contains("email", null).skipNullOrEmpty())
+    .list();
+----
+
+Подробнее см. https://github.com/jmix-framework/jmix/issues/2490[#2490^].
+
+[[noResultException]]
+=== NoResultException
+
+Исключение `io.jmix.core.NoResultException` теперь выбрасывается вместо `java.lang.IllegalStateException`, если метод `one()` xref:data-access:data-manager.adoc#load-by-id[fluent API загрузки сущностей] DataManager не нашел ни одного экземпляра. См. https://github.com/jmix-framework/jmix/issues/2682[#2682^].
+
+[[pessimistic-locking]]
+=== Пессимистическая блокировка
+
+Функция пессимистическая блокировки была выделена в xref:pessimistic-lock:index.adoc[дополнение].
+
+Пакет `io.jmix.core.pessimisticlocking` переименован в `io.jmix.pessimisticlocking`.
+
+Следующие свойства приложения были изменены:
+
+* `jmix.core.pessimistic-lock.use-default-quartz-configuration` -> `jmix.pslock.use-default-quartz-configuration`
+* `jmix.core.pessimistic-lock.expiration-cron` -> `jmix.pslock.expiration-cron`
+
+Процедура миграции Studio автоматически добавляет зависимости в ваш `build.gradle` и изменяет импорты и имена свойств.
+
+Подробнее см. https://github.com/jmix-framework/jmix/issues/1958#issuecomment-1792291873[#1958^].
+
+[[validation-in-file-upload-fields]]
+=== Валидация в полях загрузки файлов
+
+Метод `isInvalid()` компонентов xref:flow-ui:vc/components/fileUploadField.adoc[] и xref:flow-ui:vc/components/fileStorageUploadField.adoc[] теперь не вызывает валидацию, а только проверяет валидное состояние поля. См. https://github.com/jmix-framework/jmix/issues/2821[#2821^].
+
+[[action-shortcuts]]
+=== Сочетания клавиш действий
+
+Клавиатурные сочетания действий, назначенных компонентам типа xref:flow-ui:vc/components/button.adoc[] или xref:flow-ui:vc/components/dataGrid.adoc[] теперь обрабатываются иначе. Подробнее см. https://github.com/jmix-framework/jmix/issues/1758#issuecomment-1859722867[#1758^].
+
+[[security-in-application-settings]]
+=== Проверка прав в Application Settings
+
+Дополнение xref:appsettings:index.adoc[] теперь не требует наличия прав на сущность `AppSettingsEntity` для работы с настройками через бин `AppSettings`.
+
+Чтобы вернуть предыдущее поведение,  установите следующее свойство приложения:
+
+[source,properties]
+----
+jmix.appsettings.check-permissions-for-app-settings-entity = true
+----
+
+Процедура миграции Studio автоматически добавляет это свойство в ваш проект.
+
+Подробнее см. https://github.com/jmix-framework/jmix/issues/2710[#2710^].
+
+[[changed-api-in-maps]]
+=== Изменения API в дополнении Maps
+
+Следующие изменения произведены в дополнении xref:maps:index.adoc[]:
+
+* `io.jmix.mapsflowui.kit.component.model.style.text.Padding` перемещен в пакет `io.jmix.mapsflowui.kit.component.model`. См. https://github.com/jmix-framework/jmix/issues/2822[#2822^].
+* Метод `addStyles()` классов `Feature`, `PointFeature`, `MarkerFeature`, `LineStringFeature`, `PolygonFeature` теперь возвращает `void`. Используйте вместо него метод `withStyles()`, если вам нужно вернуть экземпляр feature. См. https://github.com/jmix-framework/jmix/issues/2807[#2807^].
+* Метод `addStyles()` класса `VectorLayer` теперь возвращает `void`. Используйте вместо него метод `withStyles()`, если вам нужно вернуть экземпляр слоя. Кроме того, переименованы методы: `isDeclutter()` -> `getDeclutter()`, `isUpdateWhileAnimating()` -> `getUpdateWhileAnimating()`. См. https://github.com/jmix-framework/jmix/issues/2790[#2790^].
+* Метод `addPointStyles()` класса `ClusterSource` теперь возвращает `void`. Используйте вместо него метод `withPointStyles()`, если вам нужно вернуть экземпляр источника. См. https://github.com/jmix-framework/jmix/issues/2790[#2790^].
+* В классе `Layer` метод `isVisible()` переименован в `getVisible()`. См. https://github.com/jmix-framework/jmix/issues/2790[#2790^].
+* Тип свойств зума в классах `VectorLayer`, `TileLayer`, `ImageLayer` и `GeoMapView` изменен с `Integer` на `Double`. См. https://github.com/jmix-framework/jmix/issues/2701[#2701^].
 
 [[changelog]]
 == Список изменений
 
 * Решенные проблемы в Jmix Framework:
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.3[2.1.3^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.2[2.1.2^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.1[2.1.1^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.0[2.1.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aissue+project%3Ajmix-framework%2F18+is%3Aclosed[2.2.0^]
+// ** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.2.0[2.2.0^]
 
 * Решенные проблемы в Jmix Studio:
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.3[2.1.3^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.2[2.1.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.1[2.1.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.0,-2.0.*%20Affected%20versions:%20-SNAPSHOT[2.1.0^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.2.0,-2.1.*%20Affected%20versions:%20-SNAPSHOT[2.2.0^]
