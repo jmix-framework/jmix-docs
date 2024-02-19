@@ -6,9 +6,13 @@ import com.company.demo.entity.Customer;
 import com.company.demo.exporters.CustomExporter;
 import com.company.demo.view.main.MainView;
 
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.Renderer;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Actions;
+import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.ListDataComponent;
+import io.jmix.flowui.component.checkbox.JmixCheckbox;
 import io.jmix.flowui.component.grid.DataGrid;
 import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
@@ -41,7 +45,8 @@ public class CustomerListView extends StandardListView<Customer> {
     private JsonExportAction customersDataGridJsonExport;
 
     // end::jsonExport[]
-
+    @Autowired
+    private UiComponents uiComponents;
     // tag::onInit[]
     @Subscribe
     public void onInit(final InitEvent event) {
@@ -62,4 +67,15 @@ public class CustomerListView extends StandardListView<Customer> {
         // tag::onInit[]
     }
     // end::onInit[]
+    @Supply(to = "customersDataGrid.isEmail", subject = "renderer")
+    private Renderer<Customer> customersDataGridIsEmailRenderer() {
+        return new ComponentRenderer<>(
+                () -> {
+                    JmixCheckbox checkbox = uiComponents.create(JmixCheckbox.class);
+                    checkbox.setReadOnly(true);
+                    return checkbox;
+                },
+                (checkbox, customer) -> checkbox.setValue(customer.getEmail() != null)
+        );
+    }
 }
