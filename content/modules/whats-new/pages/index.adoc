@@ -62,6 +62,28 @@ See https://github.com/jmix-framework/jmix/issues/2437#issuecomment-1926905380[#
 
 The complete documentation on the Charts add-on will be available soon.
 
+[[maps-improvements]]
+=== Maps Improvements
+
+* Added support for MultiPoint, MultiPolygon and MultiLineString. See https://github.com/jmix-framework/jmix/issues/2807#issuecomment-1919332115[#2807^].
+
+* Added heatmap layer. See https://github.com/jmix-framework/jmix/issues/2790[#2790^].
+
+* Added support for clustering. See https://github.com/jmix-framework/jmix/issues/2575#issuecomment-1868799733[#2575^].
+
+[[bpm-improvements]]
+=== BPM Improvements
+
+* The BPM form wizard in Studio now supports creating forms for Start events and for entity instances instead of process variables. See the *Form template* and *Form type* dropdowns on the first step of the wizard.
+
+* The *Async* flag can be set for service tasks in the Studio BPMN designer.
+
+* Business process definitions developed in Studio can now be deployed to the running application. Use the *Hot Deploy Process* button in the top panel of the BPMN designer in Studio.
+
+* The runtime BPM modeler now provides support for the `flowable:failedJobRetryTimeCycle` element. See the *Failed job retry time cycle* property when a service task is selected.
+
+* The runtime BPM modeler now allows you to select existing process variables for bean arguments from dropdowns.
+
 [[richtextarea]]
 === RichTextArea Component
 
@@ -149,6 +171,52 @@ For example, in the xref:tutorial:index.adoc#data-model[Onboarding application],
 
 See https://github.com/jmix-framework/jmix/issues/518#issuecomment-1860205607[#518^] for more information.
 
+[[sending-events-to-all-user-sessions]]
+=== Sending Events to All User Sessions
+
+The `UiEventPublisher` bean now has the `publishEventForUsers()` method that accepts an application event instance and a collection of usernames. This method allows you to send events to user session of particular users, regardless of whether they are connected to the same server or a different server within the cluster.
+
+Example of sending an event to `alice`:
+
+[source,java,indent=0]
+----
+public class DepartmentListView extends StandardListView<Department> {
+    @Autowired
+    private UiEventPublisher uiEventPublisher;
+
+    @Subscribe(id = "sendEventBtn", subject = "clickListener")
+    public void onSendEventBtnClick(final ClickEvent<JmixButton> event) {
+        uiEventPublisher.publishEventForUsers(new MyUiEvent(this), List.of("alice"));
+    }
+
+    public static class MyUiEvent extends ApplicationEvent {
+
+        public MyUiEvent(Object source) {
+            super(source);
+        }
+    }
+}
+----
+
+Example of an event listener:
+
+[source,java,indent=0]
+----
+public class MainView extends StandardMainView {
+    @Autowired
+    private Notifications notifications;
+
+    @EventListener
+    public void onMyUiEvent(DepartmentListView.MyUiEvent event) {
+        notifications.show("Event received");
+    }
+}
+----
+
+If the second argument of the `publishEventForUsers()` method is null, the event is sent to all connected users.
+
+See https://github.com/jmix-framework/jmix/issues/1235#issuecomment-1820550454[#1235^] for more information.
+
 [[improved-save-performance]]
 === Improved Save Performance
 
@@ -165,6 +233,7 @@ public void onInit(final InitEvent event) {
 ----
 
 See <<detailview-and-datacontext-interfaces,potentially breaking changes>> and https://github.com/jmix-framework/jmix/issues/1725[#1725^] for more information.
+
 
 [[reduced-build-time]]
 === Reduced Build Time
@@ -184,12 +253,38 @@ jmix {
 }
 ----
 
+[[studio-improvements]]
+=== Studio Improvements
+
 [[code-snippets]]
-=== Code Snippets
+==== Code Snippets
 
 New xref:studio:code-snippets.adoc[code snippets] are available in Studio for xref:bpm:index.adoc[BPM], xref:reports:index.adoc[Reports], xref:notifications:index.adoc[Notifications] and xref:email:index.adoc[Email sending] functionality if the corresponding add-ons are included in your project.
 
-=== TO BE CONTINUED
+[[adding-components-using-wizards]]
+==== Adding Components Using Wizards
+
+The *Add Component* action of xref:studio:view-designer.adoc[] now has two tabs:
+
+* *From Palette* tab shows the component palette as before;
+
+* *Using Wizard* tab contains wizards that help solving complex tasks related to UI. For example, the *Edit entity attributes* wizard creates a `formLayout` with fields for selected entity attributes and a data container with a proper fetch plan.
++
+The list of wizards is sensitive to the current view contents: for example, if the view already contains a `dataGrid`, the *Add column to DataGrid* wizard is available.
+
+[[link-to-ui-component-documentation]]
+==== Link to UI Component Documentation
+
+The inspector panel of the Jmix UI tool window now shows a link to the documentation on the selected UI component. See the question mark icon next to the component type.
+
+The same link is available as the *Jmix Documentation* item in the component hierarchy context menu.
+
+[[test-scaffolding]]
+==== Test Scaffolding
+
+Studio now shows the *Tests* item in the Jmix tool window. Double-click on this item opens the *Project* tree in the `src/test/java` folder.
+
+The *New -> Advanced -> Integration Test* and *New -> Advanced -> UI Integration Test*  actions allow you to quickly create test classes for testing xref:testing:integration-tests.adoc[business logic] and xref:testing:ui-integration-tests.adoc[views].
 
 [[breaking-changes]]
 == Breaking Changes
