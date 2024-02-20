@@ -38,10 +38,10 @@ public class StyleView extends StandardView {
         VectorLayer vectorLayer = map.getLayer("vectorLayer");
         VectorSource vectorSource = vectorLayer.getSource();
 
-        //addMarker(vectorSource);
-        //addPoint(vectorSource);
+        addMarker(vectorSource);
+        addPoint(vectorSource);
         addPolygon(vectorSource);
-        //addLineString(vectorSource);
+        addLineString(vectorSource);
     }
 
     private void addMarker(VectorSource vectorSource) {
