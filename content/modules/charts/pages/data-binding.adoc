@@ -1,0 +1,216 @@
+= Data Binding
+
+== DataProvider
+
+The `DataProvider` interface has two standard implementations: `ListChartItems` and `ContainerChartItems` classes.
+
+An instance of `DataProvider` is passed to the `setDataProvider()` method of chart configuration. This approach is the most universal, but it requires creating instances of `DataProvider` or `DataItem` in a screen controller.
+
+Entity properties or the values contained in an instance of `DataProvider` which are used for display purposes are defined in the chart attributes. The set of chart attributes may differ for different chart types.
+
+[[list-data-provider]]
+=== ListChartItems
+
+`ListDataProvider` contains a list of the `DataItem` instances from which the data for the chart will be taken. There are several standard implementations of the `DataItem` interface:
+`ListChartItems` allows manual addition of data items within the chart suitable for scenarios where data is not directly tied to a database entity or when a customized data structure is needed.
+
+* `EntityDataItem` takes an instance of any entity from which the data for the chart will be taken:
++
+[source,java]
+----
+public class EntityDataItemSample extends StandardView {
+
+    @Autowired
+    protected Metadata metadata;
+
+    @ViewComponent
+    protected Chart chart;
+
+    @Subscribe
+    protected void onInit(InitEvent event) {
+        ListChartItems<EntityDataItem> chartItems = new ListChartItems<>(
+                List.of(
+                        new EntityDataItem(createValueDescriptionEntity(75, "Sky")),
+                        new EntityDataItem(createValueDescriptionEntity(7, "Shady side of pyramid")),
+                        new EntityDataItem(createValueDescriptionEntity(18, "Sunny side of pyramid"))
+                )
+        );
+
+        chart.withDataSet(
+                new DataSet().withSource(
+                        new DataSet.Source<EntityDataItem>()
+                                .withDataProvider(chartItems)
+                                .withCategoryField("description")
+                                .withValueField("value")
+                )
+        );
+    }
+
+    protected ValueDescription createValueDescriptionEntity(Integer value, String description) {
+        ValueDescription entity = metadata.create(ValueDescription.class);
+        entity.setValue(value);
+        entity.setDescription(description);
+        return entity;
+    }
+}
+----
++
+* `MapDataItemScreen` is a set of key-value pairs from which the data for the chart will be taken:
++
+[source,java]
+----
+public class MapDataItemSample extends StandardView {
+
+    @ViewComponent
+    protected Chart chart;
+
+    @Subscribe
+    protected void onInit(InitEvent event) {
+        ListChartItems<MapDataItem> chartItems = new ListChartItems<>(
+                List.of(
+                        new MapDataItem(Map.of("value", 75, "description", "Sky")),
+                        new MapDataItem(Map.of("value", 7, "description", "Shady side of pyramid")),
+                        new MapDataItem(Map.of("value", 18, "description", "Sunny side of pyramid"))
+                )
+        );
+
+        chart.withDataSet(
+                new DataSet().withSource(
+                        new DataSet.Source<MapDataItem>()
+                                .withDataProvider(chartItems)
+                                .withCategoryField("description")
+                                .withValueField("value")
+                )
+        );
+    }
+}
+----
++
+* `SimpleDataItem` takes an instance of any `public` class from which the data for the chart will be taken:
++
+[source,java]
+----
+public class SimpleDataItemSample extends StandardView {
+
+    @ViewComponent
+    protected Chart chart;
+
+    @Subscribe
+    protected void onInit(InitEvent event) {
+        ListChartItems<SimpleDataItem> chartItems = new ListChartItems<>(
+                List.of(
+                        new SimpleDataItem(new ValueDescription(75, "Sky")),
+                        new SimpleDataItem(new ValueDescription(7, "Shady side of pyramid")),
+                        new SimpleDataItem(new ValueDescription(18, "Sunny side of pyramid"))
+                )
+        );
+
+        chart.withDataSet(
+                new DataSet().withSource(
+                        new DataSet.Source<SimpleDataItem>()
+                                .withDataProvider(chartItems)
+                                .withCategoryField("description")
+                                .withValueField("value")
+                )
+        );
+    }
+
+    public static class ValueDescription {
+        protected Integer value;
+        protected String description;
+
+        public ValueDescription(Integer value, String description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        public Integer getValue() {
+            return value;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+    }
+}
+----
+
+[[container-data-provider]]
+=== ContainerDataItems
+`ContainerChartItems` links the chart's data directly to a Jmix `CollectionContainer`, facilitating the use of entity-based data in chart visualizations.
+
+An instance of `DataProvider` is passed to the `setDataSet()` method of chart configuration. This approach is the most universal, but it requires creating instances of `DataProvider` or `DataItem` in a screen controller.
+
+`ContainerDataProvider` is used to assign a xref:ui:data/collection-container.adoc[CollectionContainer] <update link> to a `Chart` component.
+
+.Suppose we have a data container with a loader which will load the `TransportCount` instances. Below is the fragment of the screen XML descriptor:
+[source,xml]
+----
+<view xmlns="http://jmix.io/schema/flowui/view"
+    xmlns:charts="http://jmix.io/schema/charts/ui">
+    <data>
+        <collection id="dateValueDc" class="com.company.chartsaddon.entity.DateValue">
+            <fetchPlan extends="_local"/>
+            <loader id="dateValueLoader">
+                <query><![CDATA[select e from DateValue e order by e.date]]></query>
+            </loader>
+        </collection>
+    </data>
+    <layout>
+        <charts:chart id="chart" width="100%" height="100%">
+            <charts:dataSet>
+                <charts:source dataContainer="dateValueDc" categoryField="date" valueFields="value"/>
+            </charts:dataSet>
+        </charts:chart>
+    </layout>
+</view>
+----
+
+.A screen controller defines the `onInit()` method that sets a data provider for the `stackedArea` chart. The data provider is based on the `transportCountsDc` data container.
+[source,java]
+----
+@ViewComponent
+protected Chart chart;
+
+@Subscribe
+protected void onInit(InitEvent event) {
+    chart.setDataSet(
+        new DataSet().withSource(
+            new DataSet.Source<EntityDataItem>()
+                .withDataProvider(new ContainerChartItems<>(dateValueDc))
+        )
+    );
+}
+----
+
+This approach requires an entity that will represent chart data. It may be convenient when such an entity already exists in the application data model and when chart data should be displayed as a table.
+
+[[gauge-series-data-binding]]
+== GaugeSeries Data Binding
+
+The `GaugeSeries` requires its own `DataSet` for specifying series-specific data.
+
+For example:
+
+[source,xml]
+----
+<view xmlns="http://jmix.io/schema/flowui/view"
+      xmlns:charts="http://jmix.io/schema/charts/ui">
+    <layout>
+        <charts:chart>
+            <charts:tooltip formatter="{a} &lt;br/&gt;{b} : {c}%"/>
+
+            <charts:series>
+                <charts:gauge name="Pressure">
+                    <charts:data>
+                        <charts:dataItem value="50" name="SCORE"/>
+                    </charts:data>
+                    <charts:detail formatter="{value}"/>
+                </charts:gauge>
+            </charts:series>
+        </charts:chart>
+    </layout>
+</view>
+----
+
+This segment demonstrates how to configure a `GaugeSeries` with `dataItem` directly within the chart's XML, effectively binding series-specific data points to the gauge chart.
