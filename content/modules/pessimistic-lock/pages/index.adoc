@@ -1,0 +1,41 @@
+= 悲观锁
+
+对于单一实体实例，当有极大的可能会出现并行编辑时，我们可以使用悲观锁机制。因为在这种情况下，基于实体版本的 xref:data-model:entities.adoc#versioned-trait[乐观锁] 机制会经常发生编辑冲突。
+
+当实体实例在 UI 的详情视图打开时，悲观锁会显式锁定该实例。于是，在特定的时间段内，只有一个用户可以编辑这个实例。
+
+Jmix 悲观锁机制还可以用来管理并行执行的任意流程。锁是分布式的，会在集群中进行复制。更多详细内容，请参考 `LockManager` 接口的 Javadocs。
+
+[[installation]]
+== 安装
+
+通过 Jmix 组件市场安装请按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的说明进行。
+
+手动安装，需在 `build.gradle` 文件添加下列依赖：
+
+[source,groovy,indent=0]
+----
+include::example$/pslock-ex1/build.gradle[tags=dependencies]
+----
+
+[[usage]]
+== 用法
+
+如需启用某个实体的悲观锁，可以在实体类添加 `@PessimisticLock` 注解。示例：
+
+[source,java,indent=0]
+----
+include::example$/pslock-ex1/src/main/java/com/company/demo/entity/Document.java[tags=pessimistic-lock]
+----
+
+注解的 `timeoutSec` 属性用于配置锁的超时时限，单位为秒。默认值为 300 秒。
+
+锁的自动过期机制依赖 Quartz 定时任务。需要在项目中包含 xref:quartz:index.adoc[Quartz] 扩展组件。
+
+下列应用程序属性可以控制锁过期机制：
+
+* 设置 `jmix.pslock.use-default-quartz-configuration` 为 `false` 可以禁用默认的过期机制。该属性默认为 `true`。
+
+* 使用 `jmix.pslock.expiration-cron` 属性设置过期计划的 Cron 表达式。默认为 `0 * * * * ?` - 每分钟。
+
+锁的当前状态可以通过 *Pessimistic Locking -> Locks* 视图查看。视图中可以对任意对象进行解锁。

@@ -1,25 +1,29 @@
 package search.ex1.screen.search;
 
+import com.vaadin.flow.router.Route;
+import io.jmix.flowui.DialogWindows;
+import io.jmix.flowui.component.UiComponentUtils;
+import io.jmix.flowui.view.*;
 import io.jmix.search.searching.SearchResult;
-import io.jmix.searchui.component.SearchField;
-import io.jmix.searchui.screen.result.SearchResultsScreen;
-import io.jmix.ui.ScreenBuilders;
-import io.jmix.ui.screen.*;
+import io.jmix.searchflowui.component.SearchField;
+import io.jmix.searchflowui.component.SearchFieldContext;
+import io.jmix.searchflowui.view.result.SearchResultsView;
 import org.springframework.beans.factory.annotation.Autowired;
 
-@UiController("sample_SearchScreenHandler2")
-@UiDescriptor("search-screen-handler2.xml")
-public class SearchScreenHandler2 extends Screen {
+@Route(value = "search-view", layout = MainView.class)
+@ViewController("SearchView")
+@ViewDescriptor("search-view.xml")
+public class SearchView extends StandardView {
 
     // tag::my-search-field[]
-    @Autowired
+    @ViewComponent
     SearchField mySearchField;
 
     // end::my-search-field[]
 
     // tag::screen-builders[]
     @Autowired
-    private ScreenBuilders screenBuilders;
+    DialogWindows dialogWindows;
 
     // end::screen-builders[]
 
@@ -28,12 +32,13 @@ public class SearchScreenHandler2 extends Screen {
     public void mySearchFieldSearchCompletedHandler(
             SearchField.SearchCompletedEvent event) {
         SearchResult searchResult = event.getSearchResult();
-        screenBuilders.screen(this)
-                .withScreenClass(SearchResultsScreen.class)
-                .withOpenMode(OpenMode.DIALOG)
-                .build()
-                .setSearchResult(searchResult)
-                .show();
+        DialogWindow<SearchResultsView> searchResultsDialog =
+                dialogWindows.view(UiComponentUtils.getView(this),
+                                SearchResultsView.class)
+                        .build();
+        SearchResultsView view = searchResultsDialog.getView();
+        view.initView(new SearchFieldContext(mySearchField));
+        searchResultsDialog.open();
     }
     // end::handler[]
 }

@@ -1,208 +1,392 @@
 = 开始使用 BPM
 :page-aliases: bpm:quick-start.adoc
 
-本章节介绍如何建模以及运行简单的业务流。
+本章节介绍如何建模以及运行简单的业务流。这里，我们将创建一个用于申请和批准报销的流程。
 
-假设我们想要创建一个报销流程。
+这个流程需要有三方参与：
 
-有三方需要参与这个流程：
-
-* 需要报销的职员；
+* 申请报销的职员；
 * 能审批报销的经理；
-* 给职员转账的会计。
+* 审批通过后能进行支付的会计。
 
-我们将创建的模型：
+在 BPM 中，我们将创建模型：
 
 image::quick-start/model.png[align="center"]
 
 [[modeling-process]]
 == 流程建模
 
-启动应用程序并打开 *BPM -> Modeler（建模器）* 界面。
+启动应用程序并打开 *BPM -> Modeler（建模器）* 视图。面板的右侧显示当前流程的属性列表。
 
-当建模器第一次打开时，右侧的属性面板展示流程本身的属性。修改下列字段：
+对我们的报销流程，可以这样填写：
 
 * *Process id*: `reimbursement`
 * *Name*: `Reimbursement`
-
-image::quick-start/properties.png[align="center"]
-
-在属性面板找到 *Documentation（文档）* 文本域，然后编写一段流程描述。
-
-image::quick-start/description.png[align="center"]
+* *Documentation*: 为流程添加一个简短的描述。
++
+image::quick-start/properties.png[align="center" width="1392"]
 
 [[creating-start-form]]
 === 创建开始表单
 
-在画布上点击 `StartEvent` 元素。属性面板则会展示其属性。
+画布中的每个元素都有其自有属性。此时，画布中唯一的元素只有 `StartEvent`，表示发起流程的用户所能看到的 <<start-form, 开始表单>>。下面我们开始配置：
 
-*Form（表单）* 部分填写的内容是会在用户启动流程之后展示给用户的。我们指定 *Input dialog（输入对话框）* 作为流程启动的表单。
+* 点击 `StartEvent` 元素。
++
+* 在 *Form Type* 字段选择 `Input dialog`。*Open mode* 自动设置为 *Dialog*。
++
+image::quick-start/start-event.png[align="center" width="1392"]
 
-image::quick-start/start-event.png[align="center"]
+下一步，创建输入参数，提示用户需要为表单输入一些信息：
 
-然后我们需要指定在输入对话框内给用户展示的参数。
+* 点击 image:quick-start/plus-button.png[[align="center", width="32"] 并添加 `requestNumber` 参数，使用下列属性：
 
-点击 **+** 按钮，然后在 *Input dialog parameter edit（输入对话框参数编辑器）* 窗口中创建一个 `requestNumber` 参数，有下列属性：
+// ** *Process variable*: `requestNumber`
+// ** *Caption* – Request number (this will be generated automatically.)
+// ** *Type* – String
+// ** *Editable* – true
+// ** *Required* – true
 
-* *Caption（名称）* - 请求编号
-* *Type（类型）* - String
-* *Editable（可编辑）* - true
-* *Required（必选）* - true
+image::quick-start/request-number.png[align="center" width="602"]
 
-image::quick-start/request-number.png[align="center"]
+* 重复上面的步骤创建另外三个参数：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
 
-再创建三个输入对话框参数：
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|true
+|true
 
-* `expenseAmount`（类型是 `Decimal (double)`，可编辑且必需）
-* `expenseDate`（类型是 `Date`，可编辑且必需）
-* `document`（类型是 `File`，可编辑且必需）
+|`expenseDate`
+|Expense Date
+|Date
+|true
+|true
 
-之后，再创建一个输入对话框参数 `manager`，类型为 `Entity`，可编辑且必需。选择 `User` 实体名称。指定 UI 组件为 `ComboBox`，方便用户选择。我们将 JPQL 查询字段留空，这样会使用默认的 `select e from smpl_User e` 查询语句。
+|`document`
+|Document
+|File
+|true
+|true
 
-在输入对话框参数列表的下方 *Business key（业务键值）* 字段，选中 `requestNumber`。业务键值是一个流程实例的特定领域标识符。
+|===
 
-添加完所有参数之后，*Form* 部分将展示如下：
+* 下一步，创建一个用于选择审批经理的输入参数。这个参数需要配置更多的属性：
++
+[cols="1,1,1,1,1,1,1,"]
+|===
+|Process variable | Caption | Type | Editable | Required | Entity name | UI Component | JPQL query
 
-image::quick-start/form.png[align="center"]
+|`manager`
+|Manager
+|Entity
+|true
+|true
+|User
+|ComboBox
+|_留空^*^_
+|===
++
+__^*^ 如果未指定任何语句，则默认为__ `select e from User e`。
++
+* 设置 *Business key* 字段的值为 `requestNumber`，Business key 是一个流程实例在特定领域的标识符。
 
-流程启动之后，输入对话框参数会保存在对应的流程变量中。
+添加所有参数完成后，*Form* 应该如下：
 
-[[creating-approval-user-task]]
-=== 创建审批用户任务
+image::quick-start/form.png[align="center" width="340"]
 
-我们开始创建 *Approval（审批）* 用户任务。在画布中选中开始事件节点，展示弹出菜单。点击 *Append task* 按钮。
+// When a process is started, input dialog values will be saved to the corresponding process variables.
 
-image::quick-start/append-task.png[align="center"]
+[[creating-approval-task]]
+=== 创建审批任务
 
-然后点击 *Change type*，扳手图标按钮，并选择 *User Task*。
+审批任务通过 <<approval-form,审批表单>> 完成，只有被指定可以审批该笔报销的经理才能看到。
 
-image::quick-start/user-task.png[align="center"]
+首先，在画布中添加一个新的元素：
 
-在属性面板中，指定任务名 `Approval` 以及任务 id `approval`。
-
-我们用 *Process variable（流程变量）* 作为执行人来源。下拉列表展示这些字段和 `Entity` 类型的流程变量，实体类型需要实现 `UserDetails` 接口。从列表中选择 `manager` 流程变量。
-
-image::quick-start/manager.png[align="center"]
-
+* 点击 `StartEvent` 元素进行选中。
+* 点击 *Append task* image:quick-start/append-task-icon.png[width="20"] 图标。
+* 点击 *Change type* image:quick-start/change-type-icon.png[width="20"] 图标并选择 *User Task*。
++
+image::quick-start/user-task.gif[align="center" width="660"]
++
+* 为该用户任务设置以下 *General* 属性：
+** *Id*: `approval`
+** *Name*: `Approval`
+** *Assignee source*: `Process variable`
+** *Process variable*: `manager`
++
+image::quick-start/manager.png[align="center" width="280"]
++
 TIP: 默认情况下，可以用内置的 `initiator` 流程变量分配任务。更多详细信息，请参阅 xref:bpm:user-task.adoc#process-variable[流程变量相应章节]。
++
+* 继续在 *Form* 部分设置下列属性：
+** *Form type*: `Input dialog`
+** *Open mode*: `Dialog`（默认设置）
 
-对于 *Approval* 任务，我们还需要指定一个流程表单。这也是一个输入对话框。这个对话框将展示开始表单中的流程变量，但需要新增一个参数。
+* 点击 image:quick-start/plus-button.png[[align="center", width="36"] 添加下列已有参数，并设置为不可编辑：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
 
-创建一个新的输入对话框参数，并在 *Process variable* 下拉列表中选择 `requestNumber` 变量。将这个字段设置为不可编辑，即，取消勾选 *Editable* 复选框。
+|`requestNumber`
+|Request number
+|String
+|false
+|true
 
-image::quick-start/user-task-variables.png[align="center"]
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|false
+|true
 
-用同样的方式创建输入对话框参数 `expenseAmount`、`expenseDate` 和 `document` 变量。这些参数都是不可编辑的。
+|`expenseDate`
+|Expense Date
+|Date
+|false
+|true
 
-新增一个对话框参数，流程变量名为 `comment`，类型为 `Multiline string`。字段是可编辑，非必需。这个字段是给经理用的，当批准或驳回报销申请时，可以用来写一些说明。
+|`document`
+|Document
+|File
+|false
+|true
+|===
++
+* 点击 image:quick-start/plus-button.png[[align="center", width="36"] 并为表单创建最后一个参数：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
+
+|`comment`
+|Comment
+|Multiline string
+|true
+|false
+|===
++
+这个参数是一个文本字段，经理可以在审批的时候用这个参数输入一些备注。
 
 [[creating-outcomes]]
 === 创建输出
 
-在 *Approval* 这一步，经理有两个选择：批准或驳回请求。做到这点有个简单的办法 - 使用输出。对于每个输出，表单上都会显示一个按钮，结果会存在一个特殊的流程变量中。
+*Approval* 步骤有两个输出：同意（approved）或驳回（rejected）。因此，在审批过程中，经理需要有两个按钮可以操作。
 
-首先创建 *Approval* 用户任务的第一个输出，点击属性面板中 *Outcomes（输出）* 部分的相应按钮。在输出编辑器界面，指定输出 id `approve`，名称为 `Approve` 并在图标列表选择一个图标 `CHECK`。
+* 画布中选中审批元素。然后在 *Outcomes* 属性中点击 image:quick-start/plus-button.png[[align="center", width="36"]。
+* 为第一个输出设置下列属性：
+// +
+// [cols="1,1,1"]
+// |===
+// |Business id | Caption | Icon
+//
+// |`approve`
+// |Approve
+// |CHECK
+// |===
++
+image::quick-start/outcome-approve.png[align="center" width="613"]
++
+* 重复以上步骤创建第二个输出：
++
+[cols="1,1,1"]
+|===
+|Business id | Caption | Icon
 
-image::quick-start/outcome-approve.png[align="center"]
+|`reject`
+|Reject
+|BAN
+|===
 
-然后创建第二个输出：id 是 `reject`，名称是 `Reject`，图标是 `BAN`。
+根据 *Approval* 任务的不同输出，后续流程路径也将不同。在流程的分叉口，我们添加一个排他性的网关（Exclusive Gateway）元素：
 
-*Approval* 任务完成之后，流程需要根据输出选择相应的路径。我们创建一个互斥网关（exclusive gateway）。
+* 选中 *Approval* 任务元素并点击 *Append Gateway* image:quick-start/append-gateway-icon.png[width="20"]。
+* 选中网关元素并通过 image:quick-start/append-task-icon.png[width="20"] -> image:quick-start/change-type-icon.png[width="20"] -> *User Task* 创建一个新的用户任务。
+* 选中网关元素并点击 image:quick-start/append-end-event-icon.png[width="20"] 创建 `EndEvent` 元素。
+* 选中元素间的流并命名：`approved` 和 `rejected`。
 
-选中 *Approval* 任务元素，在菜单中点击 *Append Gateway* 操作。
-
-image::quick-start/append-gateway.png[align="center"]
-
-点击这个网关，使用菜单中的相应按钮创建 `EndEvent` 和 `User task`。一个顺序流从互斥网关流向 `EndEvent` 元素，另一个顺序流流向用户任务。给这两个顺序流分别命名为：`approved` 和 `rejected`。
+现在模型如下：
 
 image::quick-start/flows.png[align="center"]
 
-为 `approved` 流指定条件，点击这个流元素，然后在序列流属性面板的 *Condition source（条件来源）* 下拉框字段选择 `User task outcome`。再选中 `Approval` 用户任务和 `approve` 输出。
-
-image::quick-start/flow-approved.png[align="center"]
-
-按同样的步骤配置 `rejected` 序列流，但是在输出值字段需要选择 `reject`。
+* 选中 `approved` 流，并设置其 *Condition* 属性：
+** *Condition source*: `User task outcome`
+** *User task id*: `Approval`
+** *User task outcome*: `approve`
++
+image::quick-start/flow-approved.png[align="center" width="380"]
++
+* 类似的，为 `rejected` 流设置 *Condition* 属性：
+** *Condition source*: `User task outcome`
+** *User task id*: `Approval`
+** *User task outcome*: `reject`
 
 [[creating-payment-user-task]]
 === 创建支付用户任务
 
-第二个用户任务，设置任务名称为 `Payment`，任务 id 为 `payment`。
+模型中的另一个用户任务就是需要在审批通过的情况下通知会计可以支付报销款了。这个任务只有会计才能使用，通过 <<payment-form, 支付表单>> 实现。
 
-我们实现下列行为：所有的会计都能看到这个任务，他们中的任何一人都能领取这个任务。因此，为了实现这个功能，我们不能指定某个特定的任务执行人，而是需要指定 *Candidate groups（候选组）* 或 *Candidate users（候选用户）*。
+* 在画布中选中用户任务，然后设置 *Id* 和 *Name*：
+** *Id*: `payment`
+** *Name*: Payment
 
-我们给会计创建一个 *Candidate group*。打开 *BPM -> User groups（用户组）* 界面，新建一个组，名称为 `Accountants`，编码为 `accountants`。修改组类型为 `Users` 并添加几个用户到组内。
+对于这个任务，我们需要实现的一个功能是当该任务发送给所有的会计时，任何一个会计都可以领取该任务。因此，这里并不是将任务分配给特定的人员，而是可以设置 *Candidate groups（候选组）* 或 *Candidate users（候选用户）*。
 
-image::quick-start/user-group.png[align="center"]
+现在我们为所有的会计创建一个 *Candidate group*。
 
-需要给这些用户分配 `bpm-process-actor-ui` 角色，给予必要的访问 BPM 界面和实体的权限，以便这些用户能开始流程、处理用户任务。可以在 *Application -> Users* 界面分配角色。
+TIP: 离开建模器之前，可以用工具栏的 image:quick-start/save-draft-button.png[width="32"] 按钮保存模型草稿。之后随时可以通过 image:quick-start/open-draft-button.png[width="32"] 按钮打开保存的草稿。
 
-返回建模器，选择 `Payment` 用户任务并点击 *Assignee（执行人）* 区域 *Candidate groups* 字段旁边的编辑按钮。
+* 打开 *BPM -> User groups* 视图，创建一个名为 `Accountants` 的分组，code 设置为 `accountants`。
+* 用户类型设置为 *Users*。
+* 添加一些用户到这个分组。
++
+image::quick-start/user-group.png[align="center" width="1414"]
 
-image::quick-start/candidate-groups.png[align="center"]
+NOTE: 流程中的用户必须具有 `BPM: process actor` 角色。该角色提供方位 BPM 视图和实体的权限，以便用户可以启动流程或处理用户任务。角色分配可以在 *Application -> Users* 视图完成。
 
-在弹窗中，选择 *Groups source（组来源）* 字段的值为 `User groups` 然后添加 `Accountants` 分组。
+* 返回建模器，选中 `Payment` 用户任务。
+* 找到 *Candidate groups* 属性字段，并点击编辑按钮 image:quick-start/edit-button.png[width="32"]。
+* 在候选组编辑器中，添加 `Accountants` 分组。
++
+image::quick-start/groups.png[align="center" width="756"]
 
-image::quick-start/groups.png[align="center"]
+* 与 `Approval` 任务一样，为 `Payment` 任务也配置一个输入对话框。属性设置如下：
+** *Form type*: `Input dialog`
+** *Open mode*: `Dialog`（默认设置）
+* 添加输入参数。参数与审批表单一致，但备注栏也需要设置为不可编辑：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
 
-为 `Payment` 任务创建输入对话框表单。添加已有的 `requestNumber`、`expenseAmount`、`expenseDate`、`document` 和 `comment` 字段，全部为不可编辑。
+|`requestNumber`
+|Request number
+|String
+|false
+|true
 
-在 `Payment` 用户任务后添加 `EndEvent` 元素。
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|false
+|true
+
+|`expenseDate`
+|Expense Date
+|Date
+|false
+|true
+
+|`document`
+|Document
+|File
+|false
+|true
+
+|`comment`
+|Comment
+|Multiline string
+|false
+|false
+
+|===
++
+* 返回画布，在 `Payment` 任务之后添加 `EndEvent` 元素 image:quick-start/append-end-event-icon.png[width="20"]。
 
 [[specifying-users-to-start-process]]
 === 指定用户发起流程
 
-我们需要做的最后一件事就是指定谁能发起这个流程。如果这个流程可以由任何用户发起，我们可以创建并使用一个特殊的用户分组。
+必须为用户创建一个特定的分组，只有这个组内的用户才能发起流程。这个示例中，我们的分组将包含所有用户。
 
-打开 *User groups* 界面并创建一个新的组，命名为 `All users`。设置其 *Type* 为 `All users`，这表示这个组会自动包含所有的用户。建模器中，选择 `All users` 组作为流程发起候选人。
+打开 *User groups* 视图，创建一个新的分组，属性如下：
 
-image::quick-start/all-users.png[align="center"]
+** *Name*: All users
+** *Code*: all-users
+** *Type*: All users
++
+image::quick-start/all-users.png[align="center" width="1392"]
 
-回到建模器，点击画布的空白处，展示流程属性。与 `Payment` 任务相似，我们将在 *Starter candidates（候选发起人）* 区域定义 *Candidate groups*。
-
-image::quick-start/users-start.png[align="center"]
+* 回到 *Modeler* 视图，点击画布的空白处，展示流程属性。
+* 在 *Starter candidates* 中，设置 *Candidate groups* 为 `All users`。
++
+image::quick-start/users-start.png[align="center" width="385"]
 
 [[starting-process]]
-== 开始流程
+== 部署流程
 
-流程模型已准备好，可以部署至流程引擎。点击工具栏的 *Deploy process（部署流程）* 按钮。
+流程模型已准备好，可以部署至流程引擎。
 
-image::quick-start/toolbar.png[align="center"]
+* 打开 *Modeler* 视图。
+* 点击工具栏的 *Deploy process* image:quick-start/deploy-process-button.png[[align="center", width="32"]。
+* 打开 *BPM -> Start Process* 视图。
 
-如需发起流程，打开 *BPM -> Start Process（开始流程）* 界面。此界面展示当前用户可以发起的流程定义。
+列表中应该可以看到新的 *Reimbursement* 流程。这个列表中是所有当前用户可以启动的已部署流程。
 
 [[testing-process]]
 == 测试流程
 
-选择 `reimbursement` 流程，点击 *Start process* 按钮。
+现在流程已经建模完毕并且完成部署，可以启动流程了。我们逐步查看每一步中创建的表单。
 
-image::quick-start/start-process.png[align="center"]
+[[start-form]]
+=== 开始表单
 
-开始流程表单会自动展示，填写字段，选择 `manager` 然后点击 *Start process* 按钮。
+在当前的配置下，任何用户可以通过 *BPM -> Start Process* 视图启动该流程。
 
-image::quick-start/start-form.png[align="center"]
+* 选择 *Reimbursement* 流程，并点击 *Start process* 按钮。
++
+image::quick-start/start-process.png[align="center" width="1392"]
++
+* 填写表单中的数据，并点击 *Start process* 按钮。
++
+image::quick-start/start-form.png[align="center" width="598"]
 
-经理可以在 *BPM -> My Tasks（我的任务）* 界面看到分配的任务。
+分配的经理会收到一个审批任务。
 
-image::quick-start/approval-step.png[align="center"]
+[[approval-form]]
+=== 审批表单
 
-双击任务。表单中的一些字段是只读的，与我们之前在建模器配置的一样，还有两个按钮用来输出结果：*Approve* 和 *Reject*。
+我们从经理的角度看一下流程下一步如何进行。在上一步中，分配了经理 *james* 来审批这个申请。
 
-image::quick-start/approval-form.png[align="center"]
+* 以分配经理的身份登录系统进行审批。
+* 打开 *BPM -> My Tasks* 视图。
+* 从列表中选择任务并点击 *Open Task* 按钮。
++
+image::quick-start/approval-step.png[align="center" width="1011"]
++
+* 确认申请信息后，点击 *Approve* 按钮。
++
+image::quick-start/approval-form.png[align="center" width="596"]
 
-输入备注，点击 *Approve* 按钮。
-以 *Accountants* 用户组的任何成员的身份登录。打开 *BPM -> My Tasks* 界面。可以看到虽然表格是空的，但是提示用户有一个组任务可以领取。展开 *Group tasks* 节点。
+审批通过后，申请会发送给会计以进行后续步骤。
 
-image::quick-start/group-task.png[align="center"]
+[[payment-form]]
+=== 支付表单
 
-任何会计领取这个任务之前，`Accountants` 分组的所有用户都能在他们的组任务中看到 `Payment` 任务。打开任务表单。可以看到，表单是只读的，如果没有领取任务则不能修改表单。表单底部有两个按钮：*Claim and resume（领取并继续）* and *Claim and close（领取并关闭）*。
+会计可以在 *Group* 任务中看到待支付的报销申请。
 
-image::quick-start/payment-task.png[align="center"]
+* 以 *Accountants* 组的任意用户登录系统。
+* 打开 *BPM -> My Tasks* 视图。展开 *Group tasks* 节点。
++
+image::quick-start/group-task.png[align="center" width="1010"]
++
+* 打开任务表单。
++
+image::quick-start/payment-task.png[align="center" width="596"]
++
+无人领取任务时，表单中的字段都是只读的。
++
+* 领取任务有两种方式：
+** 点击 *Claim and resume* 按钮可以立即处理该任务。这个操作会从 *Group* 任务列表中移除该任务，并显示 *Complete task* 按钮。
+** 点击 *Claim and close* 按钮可以领取该任务，但不会立即处理。这个操作会关闭表单并从 *Group* 任务列表中移除该任务至用户的 *Assigned* 任务列表。之后其他用户无法看见该任务。
++
+* 点击 the *Complete task* 按钮可以完成流程。没有设置输出的任务会默认带有这个按钮。
++
+image::quick-start/complete-task.png[align="center" width="1392"]
 
-* *Claim and resume* 将任务从其他用户的分组任务列表删除，并将任务表单保留在界面上。表单将变为可编辑状态，并显示完成任务的按钮。
-* *Claim and close* 将任务从其他用户的分组任务列表删除，并关闭流程表单。任务会显示在当前用户已分配的任务列表中。
-
-点击 *Claim and close* 按钮。从 *Assigned tasks（已分配任务）* 分组中选择 `Payment` 任务。打开任务表单，使用默认的 *Complete task（完成任务）* 按钮完成当前任务。当我们没有在模型中指定任务输出时，会展示该默认按钮。
-
-image::quick-start/complete-task.png[align="center"]
-
-流程操作结束。
+流程现在结束了。

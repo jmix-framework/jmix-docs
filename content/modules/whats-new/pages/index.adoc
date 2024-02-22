@@ -16,741 +16,438 @@ IntelliJ IDEA 的最低版本要求是 {minimal-idea-version}。
 
 * 升级 Jmix BOM 的版本，BOM 又定义了所有依赖的版本。
 * 升级 Jmix Gradle 插件的版本。
-* Gradle wrapper 升级至 8.2，位于 `gradle/wrapper/gradle-wrapper.properties` 文件中。
-* `build.gradle` 中添加了 `vaadin.optimizeBundle = false` 属性。
-* 添加了 `implementation 'io.jmix.security:jmix-security-starter'` 依赖。
-* 对于使用 `labelsPosition="ASIDE"` 的 `formLayout` 组件，现在都嵌套了一个 `formItem` 元素。
+* Gradle 包装器版本更新到 8.6，见 `gradle/wrapper/gradle-wrapper.properties`。
+* 在 Kotlin 项目中，将 Kotlin 插件版本更新到 1.9.22。
+* 由于 <<pessimistic-locking, 悲观锁>> 特性的组件化，将 `io.jmix.core.pessimisticlocking` 替换为 `io.jmix.pessimisticlock`，将 `jmix.core.pessimistic-lock.\*` 应用程序属性替换为 `jmix.pslock.\*`，并将组件的依赖添加到 `build.gradle` 中。
+* 新增 `spring.main.allow-circular-references = true` 应用程序属性。有关更多信息请参阅 <<circular-dependencies-between-spring-beans,后续部分>>。
+* 新增 `jmix.core.skip-null-or-empty-conditions-by-default = true` 应用程序属性。有关更多信息请参阅 <<handling-empty-conditions,后续部分>>。
+* 如果项目包含 Application Settings 插件，则添加 `jmix.appsettings.check-permissions-for-app-settings-entity = true` 应用程序属性。有关更多信息请参阅 <<handling-empty-conditions,后续部分>>。
 
 请参考破坏性改动的 <<breaking-changes,完整列表>>，并在升级后做相应修复。
+
+[[updated-dependencies]]
+== 更新的依赖
+
+更新了以下主要依赖：
+
+* Spring Boot 3.2。有关更多信息请参阅： https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.2-Release-Notes[Spring boot release notes^]。
+
+* Vaadin 24.3。有关更多信息请参阅 Vaadin https://github.com/vaadin/platform/releases/tag/24.2.0[24.2^] 以及 https://github.com/vaadin/platform/releases/tag/24.3.0[24.3^]。迁移至 Jmix 2.2 时，Studio 会删除 `.pnpmfile.cjs` 文件，原因： https://github.com/vaadin/flow/issues/17873[vaadin/flow#17873^]。请确保升级版本后项目中没有该文件。
 
 [[new-features]]
 == 新功能和改进
 
-[[add-ons-with-flow-ui]]
-=== 支持 Flow UI 的扩展组件
+[[java-21]]
+=== 支持 Java 21
 
-下列扩展组件现在已经支持 Flow UI：
+现在可以用 Java 21 的语言特性编写应用程序了。
 
-* xref:bulk-edit:index.adoc[]
-* xref:dyn-attr:index.adoc[]
-* xref:jmx-console:index.adoc[]
-* xref:maps:index.adoc[] (preview)
-* xref:notifications:index.adoc[]
-* xref:search:index.adoc[]
-* xref:webdav:index.adoc[]
+框架仍然使用 Java 17 构建，因此 Java 17 和 21 都可用于应用程序项目。
+
+[[charts-add-on]]
+=== 图表扩展组件
+
+新的图表（Charts）扩展组件集成了 https://echarts.apache.org[Apache ECharts^] JS 库。
+
+要在项目中包含该组件，在 `build.gradle` 添加依赖：
+
+[source,groovy]
+----
+implementation 'io.jmix.charts:jmix-charts-flowui-starter'
+----
+
+在视图中添加图表时，可以通过 *Add component* 工具箱添加 `Chart` 组件。
+
+有关更多信息请参阅： https://github.com/jmix-framework/jmix/issues/2437#issuecomment-1926905380[GitHub #2437^]。
+
+图表的完整文档稍后推出。
+
+[[maps-improvements]]
+=== 地图改进
+
+* 添加了对 MultiPoint、MultiPolygon 和 MultiLineString 的支持。参阅： https://github.com/jmix-framework/jmix/issues/2807#issuecomment-1919332115[GitHub #2807^]。
+
+* 添加了热力图（heatmap）图层。参阅： https://github.com/jmix-framework/jmix/issues/2790[GitHub #2790^]。
+
+* 添加了对集群的支持。参阅： https://github.com/jmix-framework/jmix/issues/2575#issuecomment-1868799733[GitHub #2575^]。
 
 [[bpm-improvements]]
 === BPM 改进
 
-* xref:bpm:dmn.adoc[DMN 表格编辑器] 已经迁移至 Flow UI。
+Studio 中的 BPM 表单向导现在支持为流程启动事件和实体实例创建表单，而不是流程变量。请参考向导第一步中的 *Form template* 和 *Form type* 下拉列表。
 
-* BPM 建模器现在支持 https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#external-worker-task[External Worker Tasks^]。
+* 可以在 Studio BPMN 设计器中为服务任务设置 *Async* 标志。
 
-* 在新的 Studio 流程表单创建向导中，可以选择表单展示已有的流程变量，Studio 会为该变量创建合适的 UI 组件。向导中也支持定义流程表单视图的输出。
+* 在 Studio 中开发的业务流程定义现在可以部署到正在运行的应用程序中。使用 Studio 中 BPMN 设计器顶部面板中的 *Hot Deploy Process* 按钮。
 
-[[datagrid-improvements]]
-=== DataGrid 改进
+* 运行时 BPM 建模器现在提供对 `flowable:failedJobRetryTimeCycle` 元素的支持。选中服务任务时，可以看到 *Failed job retry time cycle* 属性。
 
-[[column-renderers]]
-==== 列渲染器
+* 运行时 BPM 建模器现在支持从下拉列表中为 Bean 参数选择已有的流程变量。
 
-可以声明式地为 `dataGrid` 列分配渲染器（renderers）。
+[[richtextarea]]
+=== RichTextArea 组件
 
-框架自带一些渲染器，可以在 XML 直接使用：`numberRenderer`、`localDateRenderer` 和 `localDateTimeRenderer`。接收参数为字符串。示例：
+新的 `richTextArea` 组件集成了 https://quilljs.com[Quill^] JS 库。在标准的 *Add component* 工具箱中可用。
+
+[[horizontal-main-menu]]
+=== 横向主菜单
+
+新的 `horizontalMenu` 组件支持创建带有横向菜单的主视图。
+
+新的 *Main view with top menu* 模板可以通过视图创建向导使用。如果要使用新视图而不是现有主视图，请在向导的第一步中勾选 *Use as default main view*  复选框。然后 Studio 将替换所有视图 `@Route` 注解的 `layout` 属性，并在 `jmix.ui.main-view-id` 应用程序属性中指定新视图。
+
+参阅： https://github.com/jmix-framework/jmix/issues/2492#issuecomment-1855606091[GitHub #2492^]。
+
+[[filtering-main-menu]]
+=== 过滤主菜单
+
+新的 `menuFilterField` 组件支持用户对主菜单项进行过滤。在标准的 *Add component* 工具箱中可用。
+
+`menu` 属性需设置为要过滤的 `listMenu` 组件：
+
+[source,xml,indent=0]
+----
+<menuFilterField menu="menu"
+                 placeholder="Search..." classNames="ms-s me-s"/>
+<nav id="navigation" classNames="jmix-main-view-navigation" ariaLabel="msg://navigation.ariaLabel">
+    <listMenu id="menu"/>
+</nav>
+----
+
+请注意，目前不支持对 <<horizontal-main-menu>> 进行过滤。
+
+[[initial-layout-in-main-view]]
+=== 主视图初始布局
+
+现在，支持以声明方式定义初始布局，当主视图中未打开任何视图时将显示该布局。使用 appLayout` 组件的 `initialLayout` 元素：
 
 [source,xml]
 ----
-<column property="dueDate">
-    <localDateRenderer format="MMM dd, yyyy"/>
-</column>
+<appLayout>
+    <navigationBar .../>
+    <drawerLayout .../>
+    <initialLayout>
+        <h2 text="Hello world!"/>
+    </initialLayout>
+</appLayout>
 ----
 
-列现在可以通过 `renderer` 处理方法使用自定义的渲染器，这个处理方法可以通过 *Jmix UI* 组件属性面板的 *Handlers* 标签页为任意 `column` 元素生成。另外，`column` 元素支持不使用 `property` 属性，也就是说，这种列不与实体的某个属性关联。此时，`column` 元素必须有唯一的 `key` 属性。
+参阅： https://github.com/jmix-framework/jmix/issues/2213[GitHub #2213^]。
 
-下面的示例如何在列中使用自定义渲染器显示复选框：
+[[data-grid-enhancements]]
+=== 数据网格改进
 
-[source,xml]
+[[data-grid-handling-double-click]]
+==== 处理双击事件
+
+xref:flow-ui:vc/components/dataGrid.adoc[] 组件现在可以在列表视图处理双击事件：打开详细信息视图，或者在查找模式下完成选择。参阅： https://github.com/jmix-framework/jmix/issues/2582[GitHub #2582^]。
+
+[[data-grid-url-parameters-for-filterin-column-headers]]
+==== 表头过滤器的 URL 参数。
+
+xref:flow-ui:vc/components/dataGrid.adoc[] 表头过滤器状态可以在 URL 显示，以此提供带过滤器状态的深度链接，这样在详情视图之间切换时可以保留视图状态。
+
+在 xref:flow-ui:facets/urlQueryParameters.adoc[] facet 中使用 `dataGridFilter` 元素，指向数据网格：
+
+[source,xml,indent=0]
 ----
-<column key="completed" width="4em" flexGrow="0"/>
-----
-
-[source,java]
-----
-@Supply(to = "stepsDataGrid.completed", subject = "renderer")
-private Renderer<UserStep> stepsDataGridCompletedRenderer() {
-    return new ComponentRenderer<>(userStep -> {
-        Checkbox checkbox = uiComponents.create(Checkbox.class);
-        checkbox.setValue(userStep.getCompletedDate() != null);
-        checkbox.addValueChangeListener(e -> {
-            // ...
-        });
-        return checkbox;
-    });
-}
-----
-
-可以使用 `com.vaadin.flow.data.renderer.Renderer` 接口的不同实现。下面的示例中，列中展示了自定义文本：
-
-[source,xml]
-----
-<column key="status" header="Status"/>
-----
-
-[source,java]
-----
-@Supply(to = "stepsDataGrid.status", subject = "renderer")
-private Renderer<UserStep> stepsDataGridStatusRenderer() {
-    return new TextRenderer<>(userStep ->
-            isOverdue(userStep) ? "Overdue!" : "");
-}
-----
-
-[[sorting-by-multiple-columns]]
-==== 按多列排序
-
-`dataGrid` 现在支持按多列排序。可以通过下列 XML 属性配置：
-
-* `multiSort` - 启用多列排序。
-* `multiSortOnShiftClickOnly` - 如果设置为 `true` 则仅当按下 `Shift` 时点击表头才按多列排序。默认值为 `false`。
-* `multiSortPriority` - 如果设置为 `APPEND`，则点击的列排序优先级最低。如果设置为 `PREPEND`（默认值），则点击的列优先级最高。
-
-示例：
-
-[source,xml]
-----
-<dataGrid id="usersDataGrid" dataContainer="usersDc"
-        multiSort="true"
-        multiSortOnShiftClickOnly="true"
-        multiSortPriority="APPEND">
-----
-
-[[aggregation]]
-==== 聚合
-
-`dataGrid` 现在支持对行内数据进行聚合。如需启用聚合功能，设置表格的 `aggregatable` 属性为 `true`，并为聚合列添加 `aggregation` 元素以及设置聚合类型。
-
-示例：
-
-[source,xml]
-----
-<dataGrid id="ordersDataGrid" dataContainer="ordersDc"
-        aggregatable="true">
-    <columns>
-        <column property="num"/>
-        <column property="date"/>
-        <column property="amount">
-            <aggregation type="SUM" cellTitle="Total amount"/>
-        </column>
-    </columns>
-</dataGrid>
-----
-
-[[filter-in-column-headers]]
-==== 表头过滤器
-
-CAUTION: 该功能目前为预览版。外观和内部实现可能在后续发布版本中做重大修改。
-
-`dataGrid` 中的数据可以使用嵌入表头的 xref:flow-ui:vc/components/propertyFilter.adoc[属性过滤器] 进行过滤。
-
-使用 `filterable` XML 属性定义哪些列支持过滤。可过滤的列表头带有漏斗图标（image:funnel.svg[]）。如果用户点击该图标，会显示一个带属性过滤器的弹窗。如果设置了过滤条件，则列的图标会高亮。
-
-为了更好地显示过滤器图标，请为表格列设置合适的列宽，或者设置 `autoWidth` 属性。并且，不能让列宽可拖动，否则，用户可能会变更列宽导致图标不可见。
-
-示例：
-
-[source,xml]
-----
-<columns>
-    <column property="username" filterable="true" width="20em"/>
-    <column property="firstName" filterable="true" autoWidth="true"/>
-    <column property="lastName" filterable="true" autoWidth="true"/>
-    <column property="email"/>
-</columns>
-----
-
-表头的属性过滤器与独立的属性过滤器以及 xref:flow-ui:vc/components/genericFilter.adoc[] 一样，是通过在 xref:flow-ui:data/data-loaders.adoc[数据加载器] 添加过滤条件实现的。标准流程中，过滤条件会翻译成 JPQL 语句，并在数据库层面实现数据过滤。
-
-可过滤的列也支持与 `propertyFilter` 和 `genericFilter` 组件同时使用。所有的条件都会用 `AND` 连接。
-
-此时，列过滤器条件还没有与页面的 URL 绑定。也就是说，如果用户使用了列过滤器，然后导航至详情页面又返回，则过滤器会被清除。我们将在下一个版本中实现列过滤器与 xref:flow-ui:facets/urlQueryParameters.adoc[] facet 的集成。
-
-[[virtuallist-component]]
-=== VirtualList 组件
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://demo.jmix.io/ui-samples/sample/virtual-list-simple" class="live-demo-btn" target="_blank">在线示例</a>
-</div>
-++++
-
-`virtualList` 组件用于展示带有复杂内容的列表数据。每次仅渲染可见的列表数据。
-
-`virtualList` 也是与数据容器连接，默认展示容器中实体的实例名称。使用 `renderer` 处理方法可以展示任意内容。
-
-下面的例子中，使用 `virtualList` 而非 `dataGrid` 展示列表数据：
-
-[source,xml]
-----
-<data readOnly="true">
-    <collection id="stepsDc" class="com.company.onboarding.entity.Step">
-...
+<facets>
+    <urlQueryParameters>
+        <dataGridFilter component="usersDataGrid"/>
+    </urlQueryParameters>
+</facets>
 <layout>
-    <genericFilter id="genericFilter" ...>
-    <hbox id="buttonsPanel" ...>
-        <button id="createBtn" text="Create" themeNames="primary"/>
-        <simplePagination id="pagination" dataLoader="stepsDl"/>
-    </hbox>
-    <virtualList id="stepsVirtualList" itemsContainer="stepsDc"/>
+    <dataGrid id="usersDataGrid" dataContainer="usersDc">
+        <columns>
+            <column property="username" filterable="true" resizable="false" autoWidth="true"/>
 ----
 
-[source,java]
-----
-@Autowired
-private UiComponents uiComponents;
+[[collection-properties-in-generic-filter]]
+=== 通用过滤器中的集合属性
 
-@Supply(to = "stepsVirtualList", subject = "renderer")
-private Renderer<Step> stepsVirtualListRenderer() {
-    return new ComponentRenderer<>(step -> {
-        HorizontalLayout hbox = uiComponents.create(HorizontalLayout.class);
-        // 创建每个数据的内容
-        return hbox;
-    });
+The xref:flow-ui:vc/components/genericFilter.adoc[] 组件现在支持为集合（多对多）属性创建过滤条件。
+
+例如，在 xref:tutorial:index.adoc#data-model[Onboarding 示例]中，可以按 `steps` 属性及其内部属性（`steps.dueDate`、`steps.step.name` 等）筛选用户。JPA 数据存储将自动创建带有 `join` 子句的相应查询语句。以前，只能通过手动定义 xref:flow-ui:vc/components/genericFilter.adoc#jpql-conditions[JPQL 条件] 来实现此目的。
+
+参阅： https://github.com/jmix-framework/jmix/issues/518#issuecomment-1860205607[GitHub #518^]。
+
+[[sending-events-to-all-user-sessions]]
+=== 向所有用户会话发送消息
+
+`UiEventPublisher` Bean 现在具有 `publishEventForUsers()` 方法，接收应用程序事件实例和 username 集合作为参数。该方法可以将事件发送到特定用户的用户会话，无论这些用户是连接到集群中的同一服务器还是不同的服务器。
+
+向 `alice` 发送事件的示例：
+
+[source,java,indent=0]
+----
+public class DepartmentListView extends StandardListView<Department> {
+    @Autowired
+    private UiEventPublisher uiEventPublisher;
+
+    @Subscribe(id = "sendEventBtn", subject = "clickListener")
+    public void onSendEventBtnClick(final ClickEvent<JmixButton> event) {
+        uiEventPublisher.publishEventForUsers(new MyUiEvent(this), List.of("alice"));
+    }
+
+    public static class MyUiEvent extends ApplicationEvent {
+
+        public MyUiEvent(Object source) {
+            super(source);
+        }
+    }
 }
 ----
 
-注意，`virtualList` 里面的展示的数据在页面上是不能选择且不能导航的。标准的 xref:flow-ui:actions/list-actions.adoc[] 也不能用于该组件，因此，如需操作的话，可以定义自己的 CRUD 操作。
+事件监听示例：
 
-[[html-component]]
-=== Html 组件
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://demo.jmix.io/ui-samples/sample/html-component" class="live-demo-btn" target="_blank">在线示例</a>
-</div>
-++++
-
-使用 `html` 组件可以在视图中插入任意的 HTML 内容。
-
-HTML 内容可以通过内部的 `content` 元素定义，或通过项目资源目录内的某个文件定义，或定义在消息包内。最后一种情况是比较容易支持国际化的。示例：
-
-.com/company/onboarding/view/sample/sample-view.xml
-[source,xml]
+[source,java,indent=0]
 ----
-<html content="msg://helloWorld"/>
+public class MainView extends StandardMainView {
+    @Autowired
+    private Notifications notifications;
+
+    @EventListener
+    public void onMyUiEvent(DepartmentListView.MyUiEvent event) {
+        notifications.show("Event received");
+    }
+}
 ----
 
-.messages_en.properties
-[source,properties]
+如果 `publishEventForUsers()` 的第二个参数是 null，事件发送给所有已连接的用户。
+
+参阅： https://github.com/jmix-framework/jmix/issues/1235#issuecomment-1820550454[GitHub #1235^]。
+
+[[improved-save-performance]]
+=== 保存实体性能改进
+
+现在，如果详情视图是通过导航打开的，则默认情况下不会在保存并关闭操作后重新加载已编辑的实体，因为在这种情况下，列表视图无论如何都会重新加载整个列表。这样改进了复杂视图中加载和保存较大对象图的性能。
+
+可以使用 `DetailView` 接口的 `setReloadSaved()` 方法显式控制是否加载已保存实例，例如：
+
+[source,java]
 ----
-com.company.onboarding.view.sample/helloWorld=<h2>Hello World</h2>
+@Subscribe
+public void onInit(final InitEvent event) {
+    setReloadSaved(true);
+}
 ----
 
-[[settings-facet]]
-=== Settings Facet
+参阅 <<detailview-and-datacontext-interfaces,潜在破坏性改动>> 以及 https://github.com/jmix-framework/jmix/issues/1725[GitHub #1725^]。
 
-`settings` facet 可以保存并恢复当前用户的页面配置。此时，仅支持下列组件：
+[[reduced-build-time]]
+=== 减少构建时间
 
-* `dataGrid`、`treeDataGrid` - facet 保存列的顺序和宽度，以及排序参数。
-* `details`、`genericFilter` - facet 保存 `opened` 状态。
-* `simplePagination` - facet 保存选择的页面数据展示条数，需要 `itemsPerPageVisible` 为 `true`。
+如果实体自上次构建生成以来没有被修改过，则增强实体的过程中会跳过这些实体，这大大缩短了具有较大数据模型的项目的构建时间。
 
-项目需要有如下依赖才能使用 facet：
+例如，如果已经构建了项目，然后修改了视图控制器并再次构建，此时，控制台中可以看到以下信息：`Entities enhancing was skipped, because entity classes haven't been changed since the last build`。
+
+如需禁用此行为并在每次编译时始终增强所有实体，在 `build.gradle` 中添加：
 
 [source,groovy]
 ----
-implementation 'io.jmix.flowui:jmix-flowui-data-starter'
-----
-
-当页面的 XML 包含 `auto="true"` 的 settings facet 时，该 facet 会管理页面中所有支持的组件，要求组件必须有 id：
-
-[source,xml]
-----
-<facets>
-    <settings auto="true"/>
-----
-
-如果仅需管理某个特定组件，可以使用内部的 `component` 元素定义，示例：
-
-[source,xml]
-----
-<facets>
-    <settings>
-        <component id="customersDataGrid"/>
-    </settings>
-----
-
-如果需要排除某些组件，可以设置 facet 的 `auto="true"`，然后使用 `enabled="false"` 的组件配置：
-
-[source,xml]
-----
-<facets>
-    <settings auto="true">
-        <component id="customersDataGrid" enabled="false"/>
-    </settings>
-----
-
-该 facet 还提供了 handler 可用于保存和恢复视图以及组件的任意属性。下面的示例演示如何保存一个复选框的值：
-
-[source,java]
-----
-@ViewComponent
-private SettingsFacet settings;
-@ViewComponent
-private JmixCheckbox testCheckbox;
-
-@Install(to = "settings", subject = "applySettingsDelegate")
-private void settingsApplySettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
-    settings.applySettings();
-    Optional<Boolean> value = settingsContext.getViewSettings().getBoolean("testCheckbox", "value");
-    testCheckbox.setValue(value.orElse(Boolean.FALSE));
-}
-
-@Install(to = "settings", subject = "saveSettingsDelegate")
-private void settingsSaveSettingsDelegate(final SettingsFacet.SettingsContext settingsContext) {
-    settingsContext.getViewSettings().put("testCheckbox", "value", testCheckbox.getValue());
-    settings.saveSettings();
+jmix {
+    entitiesEnhancing {
+        skipUnmodifiedEntitiesEnhancing = false
+    }
 }
 ----
 
-有两个恢复设置的 handler：
+[[studio-improvements]]
+=== Studio 改进
 
-* `applySettingsDelegate` 在视图的 `ReadyEvent` 之前调用。
-* `applyDataLoadingSettingsDelegate` 在视图的 `BeforeShowEvent` 之前调用，可以用于恢复与数据加载相关的设置。
+[IMPORTANT]
+====
+从 Jmix Studio 2.2 开始，在最多 10 个实体和角色的小型项目中可以免费使用 premium RAD 功能，无需订阅。
+====
 
-`saveSettingsDelegate` handler 在视图的 `DetachEvent` 之前调用。
+[[code-snippets]]
+==== 代码片段
 
-UI 的设置以 JSON 格式保存在主数据存储的 `FLOWUI_USER_SETTINGS` 表中。可以在 xref:data-tools:entity-inspector.adoc[实体探查] 中打开 `flowui_UserSettingsItem` 实体管理保存的设置。
+Studio 新增加的 xref:studio:code-snippets.adoc[代码片段] 现在支持 xref:bpm:index.adoc[BPM]、xref:reports:index.adoc[报表]、xref:notifications:index.adoc[] 以及 xref:email:index.adoc[] 扩展组件。
 
-[[timer-facet]]
-=== Timer Facet
+[[adding-components-using-wizards]]
+==== 通过向导添加组件
 
-新加的 xref:flow-ui:facets/timer.adoc[timer]（定时器）facet 支持以特定的时间间隔运行一些视图中的代码，它运行在一个可以处理 UI 事件的线程中，并能更新视图中的组件。
+xref:studio:view-designer.adoc[] 的 *Add Component* 操作现在有两个 tab：
 
-[[ui-elements-and-attributes]]
-=== UI 元素和属性
+* *From Palette* tab 显示组件工具箱，与以前一样;
 
-[[prefix-and-suffix-components]]
-==== 前缀和后缀组件
+* *Using Wizard* tab 向导可以帮助解决 UI 中的复杂问题。例如，*Edit entity attributes* 向导会创建一个 `formLayout`，其中包含所选实体属性的字段，以及一个带有 fetch plan 的数据容器。
++
+向导的列表会根据当前视图内容变化：例如，如果视图有 `dataGrid`，则可使用 *Add column to DataGrid* 向导。
 
-XML 中可以为实现了 `HasPrefix` 和 `HasSuffix` 接口的组件添加前缀（prefix）和后缀（suffix）组件。示例：
+[[link-to-ui-component-documentation]]
+==== UI 组件文档的链接
 
-[source,xml]
-----
-<textField id="nameField" property="name">
-    <prefix>
-        <icon icon="ASTERISK"/>
-    </prefix>
-    <suffix>
-        <button id="setNameBtn" text="Set name"/>
-    </suffix>
-</textField>
-----
+现在，Jmix UI 工具窗口的组件属性面板会显示指向所选 UI 组件文档的链接。即组件类型旁边的问号图标。
 
-[[inline-css-attribute]]
-==== 内联 CSS 属性
+在组件层次结构的右键菜单中，也有 *Jmix Documentation* 项。
 
-所有组件现在支持内联的 `css` 属性，可以为组件设置样式。示例：
+[[test-scaffolding]]
+==== 测试脚手架
 
-[source,xml]
-----
-<button id="editBtn" action="usersDataGrid.edit" css="color: red;"/>
-----
+Studio 在 Jmix 工具窗口展示 *Tests* 节点。双击该节点打开 *Project* 树的 `src/test/java` 文件夹。
 
-[[align-self-attribute]]
-==== alignSelf 属性
-
-组件新增了 `alignSelf` 属性用于在内部独立组件覆盖容器组件配置的 `alignItems` 属性。示例：
-
-[source,xml]
-----
-<hbox alignItems="CENTER" height="10em">
-    <span id="totalLabel" text="Total"/>
-    <span id="completedLabel" text="Completed" alignSelf="END"/>
-    <span id="overdueLabel" text="Overdue"/>
-</hbox>
-----
-
-该属性支持所有组件。对应于 CSS 的 https://developer.mozilla.org/en-US/docs/Web/CSS/align-self[align-self^] 属性。
-
-[[fetching-items-in-dropdowns]]
-=== 下拉框选项的批量加载
-
-具有下拉框的 UI 组件（xref:flow-ui:vc/components/comboBox.adoc[], xref:flow-ui:vc/components/entityComboBox.adoc[], xref:flow-ui:vc/components/multiSelectComboBox.adoc[], `multiSelectComboBoxPicker`）现在可以根据用户的输入批量加载选项。例如，当用户输入 `foo` 时，组件会从数据库最多加载 50 个名称中包含 `foo` 的选项并在下拉框展示。当用户往下滚动列表时，组件会加载后续的 50 个选项。
-
-如需使用这个功能，可以在组件内部定义 `itemsQuery` 元素替代 `itemsContainer` 属性。`itemsQuery` 元素需要包含内部的 `query` 元素用于指定查询语句，以及配置一些其他关于如何加载数据的属性。
-
-`entityComboBox` 中使用 `itemsQuery` 的示例：
-
-[source,xml]
-----
-<entityComboBox id="departmentField" property="department" pageSize="30">
-    <itemsQuery class="com.company.onboarding.entity.Department" fetchPlan="_instance_name"
-                searchStringFormat="(?i)%${inputString}%">
-        <query>
-            <![CDATA[select e from Department e where e.name like :searchString order by e.name]]>
-        </query>
-    </itemsQuery>
-</entityComboBox>
-----
-
-`comboBox` 中使用 `itemsQuery` 的示例：
-
-[source,xml]
-----
-<comboBox id="departmentField" pageSize="30" >
-    <itemsQuery searchStringFormat="(?i)%${inputString}%">
-        <query>
-            <![CDATA[select e.name from Department e where e.name like :searchString order by e.name]]>
-        </query>
-    </itemsQuery>
-</comboBox>
-----
-
-可以看到，`comboBox` 中使用 `itemsQuery` 时，不需要指定 `class` 和 `fetchPlan` 属性，因为查询语句会直接返回纯值列表（即 `e.name`）。
-
-组件的 `pageSize` 属性定义批量加载数据的大小。默认为 50。
-
-选项的批量加载也可以通过 `itemsFetchCallback` handler 编程式定义。示例：
-
-[source,xml]
-----
-<entityComboBox id="departmentField" property="department"/>
-----
-
-[source,java]
-----
-@Install(to = "departmentField", subject = "itemsFetchCallback")
-private Stream<Department> departmentFieldItemsFetchCallback(final Query<Department, String> query) {
-    String param = query.getFilter().orElse("");
-    return dataManager.load(Department.class)
-            .condition(PropertyCondition.contains("name", param))
-            .firstResult(query.getOffset())
-            .maxResults(query.getLimit())
-            .list()
-            .stream();
-}
-----
-
-示例中，尽管数据是通过 `DataManager` 加载，但是你也可以用这个方案改成通过自定义服务加载。
-
-[[read-only-data-loaders]]
-=== 只读数据加载器
-
-XML 中定义 xref:flow-ui:data/data-loaders.adoc[数据加载器] 的 `loader` 元素现在支持 `readOnly` 属性。如果该属性设置为 `true`，则数据加载器不会获取 xref:flow-ui:data/data-context.adoc[DataContext] 的引用，也不会在加载后将实体合并到 DataContext。因此，这个加载器加载的数据不受 `DataContext` 跟踪，即使发生变化也不会自动保存。
-
-列表视图的模板现在默认使用这个属性替换 `data` 元素中的 `readOnly="true"`（会导致整个 `DataContext` 无法操作）属性。这两种配置都是为了使 `DataContext` 忽略只读数据而提高性能，但数据加载器的 `readOnly` 属性提供了更加细粒度的控制：常规的 `DataContext` 可以用于保存修改的实体，而同时为类似下拉框的组件仅加载只读数据。
-
-Studio 现在生成的集合数据加载器默认带 `readOnly="true"`。
-
-下面的示例中，`User` 会合并到 `DataContext` 而 `Department` 实体集合则不会：
-
-[source,xml]
-----
-<data>
-    <instance id="userDc" class="com.company.onboarding.entity.User">
-        <fetchPlan extends="_base"/>
-        <loader/>
-        <collection id="stepsDc" property="steps"/>
-    </instance>
-
-    <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
-        <fetchPlan extends="_base"/>
-        <loader id="departmentsDl" readOnly="true">
-            <query>
-                <![CDATA[select e from Department e order by e.name]]>
-            </query>
-        </loader>
-    </collection>
-</data>
-----
-
-[[master-detail-view-template]]
-=== 主从视图模板
-
-新的 `Master-detail view` 模板支持创建主从视图，实体列表位于左侧，选择实体的详情位于右侧。
-
-[[user-substitution]]
-=== 用户替代
-
-xref:security:users.adoc#user-substitution[用户替代] 的视图已经在 Flow UI 中实现。
-
-新建的项目在用户列表视图中的 *Additional* 下拉框中已经包含 *User substitutions* 选项。如需在已有项目中显示该菜单，打开 `user-list-view.xml` 并为 `dataGrid` 添加 `sec_showUserSubstitutions` 操作，以及 `dropdownButton` 按钮的对应操作：
-
-[source,xml]
-----
-<dropdownButton id="additionalBtn" ...>
-    <items>
-        <actionItem id="showUserSubstitutionsItem" ref="usersDataGrid.showUserSubstitutions"/>
-...
-<dataGrid id="usersDataGrid" ...>
-    <actions>
-        <action id="showUserSubstitutions" type="sec_showUserSubstitutions"/>
-----
-
-[[injection-by-code-completion]]
-=== 代码自动完成进行注入
-
-Studio 现在提供了一种在 Spring bean 和视图控制器中注入依赖的新方式。
-
-当你在一个方法内部输入一些字符时，会出现一个代码自动完成的弹窗，这里除了显示本地变量和类字段外，也能显示可用的 bean 和 UI 组件了。那些还没有在类里面注入的 bean 和 UI 组件会以斜体显示。如果你选择一项，则会自动注入到构造器或通过合适的注解（`@Autowired` 或 `@ViewComponent`）注入字段，并且字段可以在光标处立即可用。
-
-可以在 xref:studio:plugin-settings.adoc[Jmix 插件配置] 的 *Coding Assistance* 标签页配置最少输入的字符数或关闭该功能。
-
-[[support-for-data-repositories]]
-=== 支持 Data Repositories
-
-Studio 现在完全支持创建和管理 xref:data-access:data-repositories.adoc[data repositories]。
-
-如需创建 repository，点击 *Jmix* 工具窗口的 *New* -> *Data Repository*。在 *New Jmix Data Repository* 对话框中，选择一个实体并点击 *OK*。Studio 会创建扩展自 `JmixDataRepository` 的 repository 接口，并在应用程序主类上添加 `@EnableJmixDataRepositories`。
-
-当在编辑器内打开一个 data repository 时，Studio 会在编辑器顶部显示带 2 个按钮的操作面板。*Add Derived Method* 按钮会创建一个从方法名生成查询语句的方法。*Add Query Method* 会创建一个指定了 JPQL 查询的方法。这两种方式都会打开特定的对话框用于配置查询语句及其参数。
-
-对于 repository 中已有的方法，Studio 会在侧边槽展示一个齿轮图标，可以用于修改方法参数，比如添加排序或修改 fetch plan。也可以将查询语句抽取至一个 `@Query` 注解内，按照自己的需要修改。
-
-特定实体的 data repository 显示在 *Jmix* 工具窗口实体的 *Data Repositories* 节点中。
-
-[[commenting-database-schema]]
-=== 数据模型备注
-
-现在可以为实体和属性添加备注，请使用 `@io.jmix.core.metamodel.annotation.Comment` 注解，示例：
-
-[source,java]
-----
-@Comment("""
-        Stores information about books.
-        Has reference to Genre.""")
-@JmixEntity
-@Table(name = "BOOK")
-@Entity
-public class Book {
-    // ...
-
-    @Comment("Book title")
-    @Column(name = "TITLE")
-    private String title;
-}
-----
-
-对于除了 HSQL 之外的所有数据库，Studio 会生成 `setTableRemarks` 和 `setColumnRemarks` Liquibase changelog，将备注存储在数据库 schema 中。因此，使用任何数据库工具都可以看到。
-
-项目中也可以从元数据（或直接从类注解）抽取备注展示到应用程序的 UI 中，或用于生成文档。框架提供了方便的 `MetadataTools.getMetaAnnotationValue()` 方法。
-
-Studio 支持使用 xref:studio:entity-designer.adoc[] 创建备注：通过实体和属性参数的 *Comment* 链接按钮实现。如果设置了备注，则链接会显示前几个字。
-
-[[view-designer-improvements]]
-=== 视图设计器改进
-
-现在 *Jmix UI* 工具窗口可以在编辑 XML 或 Java 控制器时展示了。支持在编写 Java 控制器代码时看到组件树、修改组件属性，甚至为视图添加新组件。还可以通过拖拽的方式从组件层级结构中将组件拖入控制器进行注入。
-
-*Preview* 面板需要进行前端构建并启动 Vaadin 开发模式服务，这可能需要一些时间。因此，为了使项目的打开更加快捷，*Preview* 面板默认关闭，仅在点击 XML 编辑器顶部的 *Start Preview* 按钮时才打开。这样后续所有打开的项目视图都会有预览。也可以通过 *Stop Preview* 按钮停止预览。
-
-[[profile-specific-properties]]
-=== Profile-specific Properties
-
-Studio 现在可以基于在主 `application.properties` 文件中设置 `spring.profiles.active` 读取 profile-specific 文件中的配置了。因此，可以配置多个开发环境的独立 profile。
-
-下面的示例展示了创建一个 `dev` profile，并在其中定义数据库连接，然后设置为开发环境默认配置文件的代码。
-
-.application.properties
-[source,properties]
-----
-spring.profiles.active = dev
-
-# ...
-----
-
-.application-dev.properties
-[source,properties]
-----
-main.datasource.url = jdbc:postgresql://localhost/onboarding-21
-main.datasource.username = root
-main.datasource.password = root
-----
-
-做了这些修改之后，Studio 的 xref:studio:data-stores.adoc[数据存储配置] 编辑器会从 `application-dev.properties` 读写数据库配置，而不再是 `application.properties`。
-
-你可以让 `application-dev.properties` 文件不参与版本管理，避免共享数据库连接配置。当在生产环境运行时，可以通过命令行或者环境变量指定不同的配置文件。
-
-[[connecting-to-unsupported-databases]]
-=== 自定义数据库连接
-
-现在可以定义一个连接至 Jmix 原生不支持的 xref:studio:data-stores.adoc#additional-data-store[附加数据存储] 了。
-
-该功能目前处于预览状态，并且默认关闭。如需启用，双击 Shift，在打开的列表中选择 *Jmix Features*，然后勾选 *Generic Database Support for Additional Data Store*。
-
-然后，当创建附加数据存储时，可以在 *Database type* 下拉框中找到 `Generic DB` 选项。如果选择这个类型，Studio 会让你输入以下参数：
-
-* *DBMS type* - 设置该数据库类型的唯一标识，这个标识也会用作该数据库相关类的前缀（下面会解释）。可以输入一个仅包含小写字母的短字符串，例如 `foo`。
-
-* *Database URL* - JDBC 连接的 URL，示例：`jdbc:foosql://localhost/database`。
-
-* *Driver class name* - JDBC 驱动的类名，示例：`org.foosql.Driver`。
-
-* *Driver artifact* - JDBC 驱动制件的坐标，示例：`org.foosql:foosql:1.0.0`。
-
-* *Connection test query* - 测试数据库连接的一个 SQL 查询语句，示例：`select 1`。
-
-* *Database platform* - 设置一个继承自 `org.eclipse.persistence.platform.database.DatabasePlatform` 的类，用于为 EclipseLink ORM 框架描述该数据库。可以选择已有的适合你数据库的类，或者 `Create DatabasePlatform class` 创建一个新的类。
-
-点击 *OK*。
-
-Studio 会在根包内创建一个 `Myds1StoreConfiguration` 类，其中带有必需的 bean 定义。此外，还会在 `<base-package>/dbms` 包内创建下列桩代码：
-
-* `FooPlatform` - 继承自 `DatabasePlatform` 的类。为 EclipseLink ORM 框架描述该数据库。
-
-* `FooDbmsFeatures` - 实现 `DbmsFeatures` 接口的类。为 Jmix 框架描述该数据库。
-
-* `FooSequenceSupport` - 实现 `SequenceSupport` 接口的类。描述该数据库如何处理序列。
-
-* `FooDbTypeConverter` - 实现 `DbTypeConverter` 接口的类。定义 Java 对象和 JDBC 参数、结果之间的转换方法。
-
-Studio 还会在 `build.gradle` 添加 `implementation 'org.foosql:foosql:1.0.0'` 依赖。
-
-之后，你需要在生成的庄代码中实现具体的方法。可以参考框架中的类，例如 `JmixPostgreSQLPlatform`、`PostgresqlDbmsFeatures` 等。
+*New -> Advanced -> Integration Test* 和 *New -> Advanced -> UI Integration Test* 操作支持快速创建测试 xref:testing:integration-tests.adoc[业务逻辑] 和 xref:testing:ui-integration-tests.adoc[视图] 的测试类。
 
 [[breaking-changes]]
 == 破坏性改动
 
-[[production-build]]
-=== Production Build
+[[circular-dependencies-between-spring-beans]]
+=== Spring bean 的循环依赖
 
-由于 https://github.com/vaadin/flow/releases/tag/24.1.9[Vaadin 24.1.9^] 的改动，`build.gradle` 需要包含下列内容：
+以前，Spring Bean 之间的循环依赖关系是由 Jmix 在框架层面启用的。
 
-[source,groovy]
+Jmix 2.2 本身不再有循环依赖，并且默认不会在应用程序项目中启用。
+
+你的项目可能会存在 Spring Bean 的循环依赖关系，因此 Studio 迁移过程会自动将以下属性添加到项目中：
+
+[source,properties]
 ----
-vaadin {
-    optimizeBundle = false
-}
-----
-
-这是 Production build 必需的代码。
-
-[[representation-of-roles-in-authentication-object]]
-=== 认证对象中的角色
-
-现在当前用户的角色由 Spring Security 的 `SimpleGrantedAuthority` 类包含，使用一个字符串表示一个角色。字符串的格式如下：
-
-* 资源角色：`ROLE_<role-code>`，例如：`ROLE_system-full-access`。
-* 行级角色：`ROW_LEVEL_ROLE_<role-code>`，例如：`ROW_LEVEL_ROLE_my-role`。
-
-对应的授权 Java 类对象可以通过 `RoleGrantedAuthorityUtils` 类使用角色编码创建。
-
-`build.gradle` 中需要包含下列 starter（Studio 会在升级时自动添加）：
-
-[source, groovy]
-----
-implementation 'io.jmix.security:jmix-security-starter'
+spring.main.allow-circular-references = true
 ----
 
-之前在 `Authentication` 对象中表示角色的类 `RoleGrantedAuthority` 已经删除。
+我们建议删除此属性并尝试启动应用程序。如果初始化失败，请重构 Bean 以消除循环依赖关系，或继续沿用该属性。
 
-参考 GitHub issue https://github.com/jmix-framework/jmix/issues/233[#233^] 了解详情。
+参阅： https://github.com/jmix-framework/jmix/issues/287[GitHub #287^]。
 
-[[labels-position-in-formlayout]]
-=== FormLayout 中的标签位置
+[[handling-empty-conditions]]
+=== 支持空过滤条件
 
-如果 xref:flow-ui:vc/layouts/formLayout.adoc[formLayout] 中的组件标签放置在组件旁边，则这样的组件需要放入 `formItem` 内。
+以前，如果 xref:data-access:data-manager.adoc#load-by-conditions[属性条件] 的参数值为空（null、空字符串或空集合），则其计算结果为 true。
 
-下面的示例中，组件的标签都位于侧边，而不论布局的宽度如何：
-
-[source,xml]
-----
-<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
-    <formItem>
-        <textField id="usernameField" property="username" readOnly="true"/>
-    </formItem>
-    <formItem>
-        <textField id="firstNameField" property="firstName"/>
-    </formItem>
-    <formItem>
-        <textField id="lastNameField" property="lastName"/>
-    </formItem>
-    <formItem>
-        <checkbox id="activeField" property="active"/>
-    </formItem>
-</formLayout>
-----
-
-如果定义了一些响应式布局的点以及使用了 `labelsPosition="ASIDE"`，则也有同样的要求：
-
-[source,xml]
-----
-<formLayout dataContainer="userDc" width="100%" labelsPosition="ASIDE">
-    <responsiveSteps>
-        <responsiveStep minWidth="0" columns="1" labelsPosition="TOP"/>
-        <responsiveStep minWidth="40em" columns="1" labelsPosition="ASIDE"/>
-        <responsiveStep minWidth="50em" columns="2" labelsPosition="TOP"/>
-        <responsiveStep minWidth="65em" columns="2" labelsPosition="ASIDE"/>
-    </responsiveSteps>
-    <formItem>
-        <textField id="usernameField" property="username" readOnly="true"/>
-    </formItem>
-    <formItem>
-        <textField id="firstNameField" property="firstName"/>
-    </formItem>
-    <formItem>
-        <textField id="lastNameField" property="lastName"/>
-    </formItem>
-    <formItem>
-        <checkbox id="activeField" property="active"/>
-    </formItem>
-</formLayout>
-----
-
-当升级项目至 Jmix 2.1 时，Studio 会自动完成这个改动。
-
-[[simplepagination-settotalcountdelegate-signature]]
-=== SimplePagination.setTotalCountDelegate 签名变化
-
-`SimplePagination.setTotalCountDelegate()` 方法的签名发生了变化。现在接收的参数是 `Function<DataLoadContext, Integer>`，而非 `Function<LoadContext, Integer>`。
-
-`DataLoadContext` 是 `LoadContext` 和 `ValueLoadContext` 的共同父类，因此，这个改动可以使得 `simplePagination` 的计数代理能用 `keyValueCollection` 数据容器。
-
-如果你的代码中通过编程的方式调用 `SimplePagination.setTotalCountDelegate()` 添加了代理，则需要进行修改。仅需将参数强转为 `LoadContext`，示例：
+从 Jmix 2.2 开始，null 或空参数不会导致该条件无效。例如，下列代码：
 
 [source,java]
 ----
-pagination.setTotalCountDelegate(dataLoadContext -> {
-    long count = dataManager.getCount((LoadContext<?>) dataLoadContext);
-    //...
-});
+dataManager.load(User.class)
+    .condition(PropertyCondition.contains("email", null))
+    .list();
 ----
 
-使用 `@Install` 注解创建的代理不受影响。
+在 Jmix 2.1 或更早版本中，会执行下列 SQL：
 
-参考 GitHub issue https://github.com/jmix-framework/jmix/issues/2192[#2192^] 了解详情。
-
-[[basecontainersorter-createcomparator-signature]]
-=== BaseContainerSorter.createComparator 签名变化
-
-`BaseContainerSorter.createComparator()` 方法的签名也做了修改，目的是为了支持 `dataGrid` 中的多列排序（参考 GitHub issue https://github.com/jmix-framework/jmix/issues/1265[#1265^]）。现在的参数为 `Sort.Order` 而非 `Sort`。
-
-如果你实现了 xref:flow-ui:data/data-examples.adoc#custom-sorting[自定义排序]，则需要修改你的对应方法。
-
-[[jmix-main-view-navigation-css-class]]
-=== jmix-main-view-navigation CSS 类
-
-`main-view.xml` 中 `nav` 的 `jmix-main-view-navigation` CSS 类添加了如下样式：
-
-[source,css]
+[source,sql]
 ----
-display: flex;
-flex-direction: column;
+SELECT ID, ACTIVE, EMAIL, <...> FROM USER_
 ----
 
-如果你针对这个元素添加自定义的 CSS，则需要修改以适配 flexbox 布局。
+在 Jmix 2.2 中，默认会执行下列 SQL 并传递 `null` 作为参数：
+
+[source,sql]
+----
+SELECT ID, ACTIVE, EMAIL, <...> FROM USER_ WHERE EMAIL LIKE ?
+----
+
+因此，在 Jmix 2.1 中，返回的是整个用户列表，而在 Jmix 2.2 中，结果列表是空的。
+
+如果仍要使用之前的行为，请设置以下应用程序属性：
+
+[source,properties]
+----
+jmix.core.skip-null-or-empty-conditions-by-default = true
+----
+
+Studio 迁移程序会自动将此属性添加到项目中。
+
+或者，可以跳过特定条件的空参数：
+
+[source,java]
+----
+dataManager.load(User.class)
+    .condition(PropertyCondition.contains("email", null).skipNullOrEmpty())
+    .list();
+----
+
+参阅： https://github.com/jmix-framework/jmix/issues/2490[GitHub #2490^]。
+
+[[noResultException]]
+=== NoResultException
+
+当 DataManager 的流式 xref:data-access:data-manager.adoc#load-by-id[加载 API] 的 `one()` 方法没有返回结果，现在抛出 `io.jmix.core.NoResultException` 而非 `java.lang.IllegalStateException`。参阅： https://github.com/jmix-framework/jmix/issues/2682[GitHub #2682^]。
+
+[[pessimistic-locking]]
+=== 悲观锁
+
+悲观锁功能现在抽取成为了 xref:pessimistic-lock:index.adoc[扩展组件]。
+
+`io.jmix.core.pessimisticlocking` 包重命名为 `io.jmix.pessimisticlocking`。
+
+修改了下列属性：
+
+* `jmix.core.pessimistic-lock.use-default-quartz-configuration` -> `jmix.pslock.use-default-quartz-configuration`
+* `jmix.core.pessimistic-lock.expiration-cron` -> `jmix.pslock.expiration-cron`
+
+Studio 迁移过程会自动将依赖项添加到 `build.gradle` 中，并更改 imports 和应用程序属性名称。
+
+参阅： https://github.com/jmix-framework/jmix/issues/1958#issuecomment-1792291873[GitHub #1958^]。
+
+[[validation-in-file-upload-fields]]
+=== 文件上传控件的验证
+
+xref:flow-ui:vc/components/fileUploadField.adoc[] 和 xref:flow-ui:vc/components/fileStorageUploadField.adoc[] 的 `isInvalid()` 方法不再触发验证，而仅仅检查字段本身是否有效。参阅： https://github.com/jmix-framework/jmix/issues/2821[GitHub #2821^]。
+
+[[action-shortcuts]]
+=== 操作快捷键
+
+给 xref:flow-ui:vc/components/button.adoc[] 或 xref:flow-ui:vc/components/dataGrid.adoc[] 等组件操作设置的键盘快捷键现在的处理方式不同了。参阅： https://github.com/jmix-framework/jmix/issues/1758#issuecomment-1859722867[GitHub #1758^]。
+
+[[security-in-application-settings]]
+=== 应用程序属性的安全
+
+xref:appsettings:index.adoc[] 扩展组件不再要求添加 `AppSettingsEntity` 实体的许可便能通过 `AppSettings` bean 处理。
+
+如果仍要使用之前的行为，请设置以下应用程序属性：
+
+[source,properties]
+----
+jmix.appsettings.check-permissions-for-app-settings-entity = true
+----
+
+Studio 迁移程序会自动将此属性添加到项目中。
+
+参阅： https://github.com/jmix-framework/jmix/issues/2710[GitHub #2710^]。
+
+[[security-views]]
+=== Security Views
+
+为了提高可用性，改进了资源和行级角色的标准视图的布局，参阅 https://github.com/jmix-framework/jmix/issues/2519[GitHub #2519^]。
+
+如果扩展了这些视图，则可能需要修改代码。
+
+[[detailview-and-datacontext-interfaces]]
+=== DetailView 和 DataContext 接口
+
+<<improved-save-performance,详情视图性能提升>> 中添加了以下方法：
+
+* `DataContext.save(boolean reloadSaved)`
+* `DetailView.isReloadSaved()`
+* `DetailView.setReloadSaved(boolean reloadSaved)`
+
+如果直接实现了这些接口，则可能需要修改代码。
+
+另外，如果未重新加载实体，则 `DataContext.PostSaveEvent.getSavedInstances()` 方法返回一个空集合。可以用新的 `DataContext.PostSaveEvent.isEntitiesReloaded()` 方法检查实体是否重新加载。
+
+[[maps-api]]
+=== 地图 API
+
+xref:maps:index.adoc[] 扩展组件用如下改动：
+
+* `io.jmix.mapsflowui.kit.component.model.style.text.Padding` 移至 `io.jmix.mapsflowui.kit.component.model` 包。参阅： https://github.com/jmix-framework/jmix/issues/2822[GitHub #2822^]。
+* `Feature`、`PointFeature`、`MarkerFeature`、`LineStringFeature`、`PolygonFeature` 类的 `addStyles()` 方法现在返回 `void`。如果需要继续使用要素的当前实例，请使用 `withStyles()`。参阅： https://github.com/jmix-framework/jmix/issues/2807[GitHub #2807^]。
+* 在 `VectorLayer` 类中，`addStyles()` 方法现在返回 `void`。如果需要继续使用图层的当前实例，请使用 `withStyles()`。重命名的方法：`isDeclutter()` -> `getDeclutter()`、`isUpdateWhileAnimating()` -> `getUpdateWhileAnimating()`。参阅： https://github.com/jmix-framework/jmix/issues/2790[GitHub #2790^]。
+* 在 `ClusterSource` 类中，`addPointStyles()` 方法现在返回 `void`。如果需要继续使用数据源的当前实例，请使用 `withPointStyles()`。参阅： https://github.com/jmix-framework/jmix/issues/2790[GitHub #2790^]。
+* 在 `Layer` 类中，`isVisible()` 方法重命名为 `getVisible()`。参阅： https://github.com/jmix-framework/jmix/issues/2790[GitHub #2790^]。
+* `VectorLayer`、`TileLayer`、`ImageLayer` 和 `GeoMapView` zoom 属性的类型从 `Integer` 改为 `Double`。参阅： https://github.com/jmix-framework/jmix/issues/2701[GitHub #2701^]。
 
 [[changelog]]
 == 变更日志
 
 * Jmix 框架解决的问题：
 
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.2[2.1.2^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.1[2.1.1^]
-** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.1.0[2.1.0^]
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aissue+project%3Ajmix-framework%2F18+is%3Aclosed[2.2.0^]
+// ** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A2.2.0[2.2.0^]
 
 * Jmix Studio 解决的问题：
 
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.2[2.1.2^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.1[2.1.1^]
-** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.1.0,-2.0.*%20Affected%20versions:%20-SNAPSHOT[2.1.0^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.2.0,-2.1.*%20Affected%20versions:%20-SNAPSHOT[2.2.0^]

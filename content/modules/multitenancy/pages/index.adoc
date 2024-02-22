@@ -1,13 +1,20 @@
 = 多租户
 
-include::ROOT:partial$outdated-ui-warning.adoc[]
+该扩展组件支持构建多租户的 Jmix 应用程序，多个租户的数据都保存在单一数据库中。一个应用程序实例即可满足多个租户的需求，租户是指彼此隔离且只能访问特定（通常是只读）数据的用户组。
 
-该扩展组件支持构建多租户的 Jmix 应用程序，所有租户的数据都保存在单一数据库中。一个应用程序实例即可服务于多个租户，租户是指不同的用户组，组之间互相不可见，仅共享特定的（通常是只读的）数据。
+在一个多租户的 Jmix 应用程序中，有两种类型的数据：
 
-多租户应用程序中有两种类型的数据：
+* *通用数据*：
+** 应用程序中所有租户之间共享的数据。
+** 租户对这些通用数据具有只读访问权限，这些数据可全局访问，但不能由单个租户修改。
 
-* 租户之间共享的通用数据。租户的用户对这些数据应该仅有只读权限。
-* 租户特有的数据，其他租户无法访问。租户享有对此类数据的全部权限。
+* *租户特有的数据*：
+** 每个租户的特定数据，对其他租户不可见或无法访问。
+** 租户可以完全访问自己的租户特定数据，他们可以根据需要与这些数据进行交互或修改，而不会影响属于其他租户的数据。
+
+通过在 Jmix 应用程序中实现多租户，开发人员可以有效地管理和向多个客户或用户组提供服务，确保数据隔离、安全性和基于每个租户特定需求的个性化访问控制。这种方式优化了数据的结构和访问，同时维护了不同用户组的数据隐私和完整性。
+
+CAUTION: xref:rest:index.adoc[] 扩展组件不能支持多租户。目前还无法按租户分隔实体实例。
 
 [[installation]]
 == 安装
@@ -18,24 +25,17 @@ include::ROOT:partial$outdated-ui-warning.adoc[]
 
 [source,groovy,indent=0]
 ----
-implementation 'io.jmix.multitenancy:jmix-multitenancy-starter'
-implementation 'io.jmix.multitenancy:jmix-multitenancy-flowui-starter'
+include::example$/multitenancy-ex1/build.gradle[tags=dependency]
 ----
-
-// todo flowui
-// [source,groovy,indent=0]
-// ----
-// include::example$/ex1/build.gradle[tags=mt-dep]
-// ----
 
 [[how-it-works]]
 == 原理
 
-项目中租户特有的实体必须有一个 String 类型的参数，用 `@TenantId` 注解标注。当租户用户加载此类实体时，框架会将租户 ID 的 `WHERE` 条件添加到 JPQL 查询语句中，仅读取用户租户的数据。另外，在保存新实体时，租户 ID 属性会自动设置为当前用户的租户。
+在项目中，特定于租户的实体应包含带 `@TenantId` 注解的 String 类型属性。当租户用户加载这些实体时，框架会将 tenant-id 的 `WHERE` 条件添加到 JPQL 查询语句中，仅读取用户租户的数据。此外，在保存新实体时，tenant-id 属性会自动分配给当前用户的租户。
 
-CAUTION: 原生 SQL 不会自动过滤，因此租户用户不应该有权限访问任何能提供对原生 SQL 或 Groovy 代码访问的功能（包括JMX 控制台、创建 xref:reports:index.adoc[报表] 等）。
+CAUTION: 原生 SQL 不会自动过滤，因此租户用户不应该有权限访问任何能提供对原生 SQL 或 Groovy 代码访问的功能（包括 xref:jmx-console:index.adoc[JMX 控制台]、创建 xref:reports:index.adoc[报表] 等）。
 
-项目的 `User` 实体必须包含租户 ID 属性。所有租户用户的这个属性都需要设置为一个特定的值。属性值为空的用户（不属于任何租户）可以看到所有租户的数据，__全局管理员__ 可以这样设置，方便配置所有租户和维护整个系统。
+在项目中，`User` 实体必须包含 tenant-id 属性。所有租户用户的这个属性都需要设置为一个特定的值。属性值为空的用户（不属于任何租户）可以看到所有租户的数据，__全局管理员__ 可以这样设置，方便配置所有租户和维护整个系统。
 
 Jmix 模块中的下列实体具有 `sysTenantId` 属性，支持多租户：
 
@@ -47,86 +47,89 @@ Jmix 模块中的下列实体具有 `sysTenantId` 属性，支持多租户：
 * `ResourceRoleEntity`
 * `RowLevelRoleEntity`
 * `FilterConfiguration`
-* `UiTablePresentation`
 
 [[managing-tenants]]
 == 租户管理
 
-该扩展组件提供了 *Administration（管理） -> Tenants（租户）* 界面，支持全局管理员创建和编辑租户。
+该扩展组件提供了 *Multitenancy（多租户） -> Tenants（租户）* 界面，支持全局管理员创建和编辑租户。
 
 租户注册记录包含两个属性：
 
 * *Tenant id（租户 ID）* - 租户特定实体中使用的租户标识符。创建之后无法修改。
 * *Tenant name（租户名称）* - 租户的描述名称。
 
+image::tenants-view.png[align="center", width="1070"]
+
 [[tenant-users]]
 == 租户用户
 
-不同租户中的用户可能会有相同的登录名。如需在整个应用程序中提供唯一的 `username` 属性，租户用户需要使用租户 ID 为前缀的 username 进行注册。例如，如果 `t1` 和 `t2` 租户中都有叫 Alice 的不同用户，那么她们应该使用分别使用 `t1|alice` 和 `t2|alice` 用户名。
+在多租户应用程序中，不同租户中的用户可以具有相同的登录名。如需确保 `username` 属性在整个应用程序中是唯一的，租户用户应使用包含 tenant-id 前缀的用户名进行注册。例如，如果在 `t1` 和 `t2` 两个租户中有两个名为 Alice 的不同用户，则其用户名应分别为 `t1|alice` 和 `t2|alice`。
 
-租户用户可以有两种登录应用程序的方法：
+租户用户可以使用完整的用户名（包括 tenant-id，例如 `t1|alice`）来登录应用程序。
 
-. 打开登录界面时，使用租户 ID 作为 URL 参数，例如，`++http://localhost:8080/#login?tenantId=t1++`。然后用户可以输入不带租户 ID 前缀的用户名，例如，仅输入 `alice`。
+租户用户可通过两种方式登录应用程序：
+
+. 第一种方法是在访问登录屏幕时使用包含 tenant-id 的 URL 参数，例如 `++http://localhost:8080/#login?tenantId=t1++` 。此时，用户只需输入不带 tenant-id 前缀的登录名，例如 `alice`。
 +
-可以使用 `jmix.multitenancy.tenantIdUrlParamName` 应用程序属性为该 URL 参数指定不同的名称。
+可以使用 `jmix.multitenancy.tenantIdUrlParamName` 应用程序属性来设置 URL 参数的自定义名称。
 
-. 用户填写包括租户 ID 的完整用户名，例如，`t1|alice`。
+. 用户可以提供完整的用户名，包括 tenant-id，例如 `t1|alice`。
 
-NOTE: 可以实现自定义的唯一用户名结构。
+NOTE: 除上述方法之外，还可以实现自定义的唯一用户名结构。
 
 [[configuring-users]]
 == 用户配置
 
-本节中，我们介绍在项目中如何配置用户管理和认证以支持多租户。
+本节中，我们介绍在项目中配置用户管理和认证以支持多租户的流程。
 
 . 在 `User` 实体中添加一个属性，并使用 `@TenantId` 注解：
 +
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=tenantId]
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/entity/User.java[tags=tenantId]
 ----
 
 . `User` 实体实现 `io.jmix.multitenancy.core.AcceptsTenant` 接口。`getTenantId()` 方法必须返回带 `@TenantId` 注解的属性：
 +
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/multitenancy/ex1/entity/User.java[tags=AcceptsTenant-1;AcceptsTenant-2]
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/entity/User.java[tags=user;getTenantId]
 ----
 
-. 在 `user-browse.xml` 中的表格添加 `tenant` 列：
+. 在 `user-list-view.xml` 中的数据网格添加 `tenant` 列：
 +
 [source,xml,indent=0]
 ----
-include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-browse.xml[tags=tenant]
+include::example$/multitenancy-ex1/src/main/resources/com/company/demo/view/user/user-list-view.xml[tags=tenant]
 ----
 
-. 在 `user-edit.xml` 中添加一个选择租户的字段：
+. 在 `user-detail-view.xml` 中添加一个选择租户的字段：
 +
 [source,xml,indent=0]
 ----
-include::example$/ex1/src/main/resources/multitenancy/ex1/screen/user/user-edit.xml[tags=tenant]
+include::example$/multitenancy-ex1/src/main/resources/com/company/demo/view/user/user-detail-view.xml[tags=tenant]
 ----
 
-. 在 `UserEdit` 类添加下列代码：
+. 在 `UserDetailView` 类添加下列代码：
 +
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/multitenancy/ex1/screen/user/UserEdit.java[tags=tenant-1;tenant-2;tenant-3]
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/view/user/UserDetailView.java[tags=tenantField;tenant]
 ----
 
-. 如需支持 <<tenant-users,上面>> 介绍的不同租户相同登录名的功能，在 `LoginScreen` 类添加下列代码：
+. 如需 <<tenant-users,按照之前解释的>>，支持在各个租户之间使用相同的登录名，请在 `LoginView` 类中添加以下代码：
 +
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/multitenancy/ex1/screen/login/LoginScreen.java[tags=mt-1;mt-2;mt-3]
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/view/login/LoginView.java[tags=tenant]
 ----
 
 [[configuring-security]]
 == 安全配置
 
-为租户用户配置角色时，需要在实体属性策略中排除租户 ID 属性，避免用户能查看该字段。例如，如果 `Customer` 实体是租户特定的实体，并具有 `tenant` 属性带 `@TenantId` 注解，则对于该实体访问权限的角色中，需要显式的列出所有的属性并忽略 `tenant`：
+为租户用户设置角色时，请勿在实体属性策略中包含 tenant-id 属性，因为该属性需要对用户隐藏。例如，如果 `Customer` 属于租户特定实体，并且包含用 `@TenantId` 注释的 `tenant` 属性，则授予此实体访问权限的角色需要显式地指定包含的属性，且不要包含 `tenant` 属性：
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/multitenancy/ex1/security/UsersRole.java[tags=mt-1;mt-2]
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/security/UsersRole.java[tags=mt-1]
 ----

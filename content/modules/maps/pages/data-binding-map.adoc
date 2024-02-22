@@ -1,0 +1,177 @@
+= 1. 地图绑定数据
+
+本章节内，我们将创建：
+
+* `LocationType` 枚举。
+* 带 `GeoPoint` 类型属性的 `Location` 实体。
+* CRUD 视图，其中 `Location.detail` 视图中使用了地图。
+
+[[entity-and-views-creation]]
+== 创建 Location 实体和视图
+
+首先，我们生成一个 `LocationType` 枚举，包含两个值：`Office` 和 `Coworking`。创建枚举的详细说明请参阅：xref:tutorial:enumerations.adoc[使用枚举]。
+
+image::enumeration-location-type.png[align="center", width="591"]
+
+下一步，创建 `Location` 实体。创建实体的详细说明请参阅：xref:tutorial:simple-crud.adoc[简单增删改查]。
+
+在 *New JPA Entity* 对话框中勾选 *Traits → Versioned* 复选框。
+
+image::new-location-entity-dialog.png[align="center", width="493"]
+
+`Location` 实体的属性如下：
+
+* `city` - `String` 类型。勾选 *Mandatory* 复选框。
+* `address` - `String` 类型。勾选 *Mandatory* 复选框。
+* `type` - `LocationType` 枚举类型。
+* `building` - `GeoPoint` 类型。勾选 *Mandatory* 复选框：
++
+image::geo-point-attribute.png[align="center", width="862"]
+
+使用 `address` 属性定义实体的 xref:studio:entity-designer.adoc#creating-instance-name[实例名]。
+
+为 `Location` 实体创建 CRUD 视图。创建实体 CRUD 视图的详细说明请参阅：xref:tutorial:simple-crud.adoc#create-views[创建 CRUD 视图]。
+
+在创建视图的过程中，每一步都使用推荐的配置即可。
+
+Studio 会自动生成两个视图：`Location.list` 和 `Location.detail`。
+
+[[adding-map]]
+== 在视图中添加地图
+
+从 *Jmix* 工具窗口找到 `location-detail-view.xml` 文件并双击打开视图设计器：
+
+image::location-detail-view.png[align="center", width="1318"]
+
+可以看到 `building` 属性使用的是 `textField` 组件。
+
+如需在视图中展示地图，XML 里需要包含 `geoMap` 组件。
+
+将光标定位在 `formLayout` 元素之后。
+
+点击操作面板的 *Add Component*，然后找到 `GeoMap` 并双击。
+
+image::adding-map.png[align="center", width="1136"]
+
+此时，*Jmix UI* 层级结构和 XML 中都会在 `formLayout` 元素的下方添加新的 `geoMap` 元素。按照下面的代码配置 `id`、`height` 和 `width` 属性。
+
+[source,xml,indent=0]
+----
+<maps:geoMap id="map" height="100%" width="100%"/>
+----
+
+[[adding-tile-layer]]
+=== 添加 OsmSource 的瓦片层
+
+我们将使用一个栅格层（Raster layer）作为地图的基础背景层。这里，我们使用 `OsmSource`，这是一个预定义用于展示 https://wiki.openstreetmap.org[OpenStreetMap^] 瓦片的源。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `map`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *Layers -> TileLayer*。
+
+image::add-tile-layer.png[align="center", width="331"]
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `maps:tile`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *OsmSource*。
+
+image::add-osmsource.png[align="center", width="898"]
+
+现在我们可以启动应用程序查看新添加的地图。
+
+点击主工具栏的 *Debug* 按钮（image:start-debugger.svg[]）。
+
+在应用程序启动之前，Studio 会比较项目中的数据模型和数据库的表结构。当存在新建实体时，Studio 会自动生成修改数据库的 Liquibase changelog（例如，创建 `LOCATION` 表）。
+
+image::changelog-location.png[align="center", width="1036"]
+
+点击 *Save and run*。
+
+Studio 会先在数据库运行 changelog，然后构建并启动应用程序：
+
+image::run-app.png[align="center", width="1101"]
+
+应用程序启动完成后，可以在浏览器打开 `++http://localhost:8080++` 用凭证 `admin/admin` 登录。
+
+从 `Application` 菜单中选择 `Locations` 打开 `Location.list` 视图。点击 *Create* 打开 `Location.detail` 视图：
+
+image::location-detail1.png[align="center", width="1134"]
+
+[[setting-map-view]]
+=== 地图配置
+
+默认情况下，`geoMap` 组件展示初始位置为 `(0,0)` 的世界地图。
+
+我们将使用 `mapView` 配置地图展示的位置。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `map`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *MapView*。
+
+image::add-map-view.png[align="center", width="372"]
+
+设置 `centerY` 属性：
+
+[source,xml,indent=0]
+----
+<maps:mapView centerY="51.0"/>
+----
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `maps:mapView`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *Extent*，然后按照下面的代码配置 `minX`、`minY`、`maxX` 和 `maxY` 属性。
+
+[source,xml,indent=0]
+----
+<maps:extent minX="-15.0"
+             minY="30.0"
+             maxX="40.0"
+             maxY="60.0"/>
+----
+
+Extent（范围）配置的是地图的可见区域，也就是说，超出可见区域外的部分将不显示。
+
+启动应用程序以查看最新改动。
+
+[[adding-data-layer]]
+=== 添加 DataVectorSource 的矢量层
+
+为了处理地理对象，我们将引入一个矢量层。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `maps:layers`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *VectorLayer*。设置其 `id` 为：`id="vectorLayer"`。
+
+我们使用 `DataVectorSource`，这个源支持与 Jmix 数据容器进行数据绑定。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `vectorLayer`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *DataVectorSource*。设置其 `dataContainer` 属性：
+
+[source,xml,indent=0]
+----
+<maps:vector id="vectorLayer">
+    <maps:dataVectorSource dataContainer="locationDc"
+                           property="building"/>
+</maps:vector>
+----
+
+现在地图的完整配置如下：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex1/src/main/resources/com/company/onboarding/view/location/location-detail-view.xml[tags=geoMap]
+----
+
+[[saving-coordinates]]
+== 在实体属性中保存坐标
+
+当 HR 经理创建一个位置时，可以点击地图中的一个点，然后这个点的坐标会保存在 `Location` 实体的一个 `Point` 类型的属性中。
+
+现在我们为地图添加一个 `ClickEvent` 事件。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `map`，切换至 *Handlers* tab，创建 `MapClickEvent` 的处理方法：
+
+image::add-click-event.png[align="center", width="1044"]
+
+在 `map` 点击事件的处理方法中，添加获取并保存坐标的业务逻辑：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/location/LocationDetailView.java[tags=view;geometryFactory;MapClickEvent]
+----
+<1> 用 `GeometryUtils` 获取 `GeometryFactory`。`GeometryUtils` 是 JTS 库相关的一个工具类。
+<2> 通过 `GeometryFactory` 的方法将从 `event` 中获取的坐标转换为 `Point` 对象。
+<3> 使用基类 `StandardDetailView` 的 `getEditedEntity()` 方法获取正在编辑的 `Location` 实体。
+
+启动应用程序，从 `Application` 菜单中选择 `Locations` 打开 `Location.list` 视图。点击 *Create* 打开 `Location.detail` 视图。填写 *City*、*Address* 和 *Type* 的信息。在地图上点击特定的地址，*Building* 字段会自动填入地图上选取的坐标。点击 *OK* 保存数据。
+
+image::location-detail2.png[align="center", width="1134"]

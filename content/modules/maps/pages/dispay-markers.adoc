@@ -1,0 +1,533 @@
+= 2. 地图中显示标记
+
+[[add-attr]]
+== 为实体和页面添加属性
+
+我们为 `User` 实体添加 `location` 属性：
+
+在 *Jmix* 工具窗口双击 `User` 实体，并选择其最后一个属性（为了将新属性添加至最后）：
+
+image::new-attr-for-user.png[align="center", width="1046"]
+
+点击 *Attributes* 工具栏的 *Add*（image:add.svg[]）。在 *New Attribute* 对话框中，*Name* 输入 `location`，*Attribute type* 选择 `ASSOCIATION`，*Type* 选择 `Location`。勾选 *One to One* 和 *Owning Side* 复选框。
+
+image::location-attr.png[align="center", width="862"]
+
+为了建立一对一的 xref:data-model:entities.adoc#references[引用]，Studio 会推荐在 `Location` 实体中生成一个反向属性。
+
+image::create-inverse-attr.png[align="center", width="416"]
+
+点击 *Yes*，然后下一个对话框中点击 *OK*。
+
+选择 `location` 属性，点击 *Attributes* 工具栏的 *Add to Views*（image:add-attribute-to-screens.svg[]）：
+
+image::add-attr-to-view.png[align="center", width="431"]
+
+随后的对话框中显示所有能展示 `User` 实体的视图。我们选择 `User.detail` 视图：
+
+image::add-attr-to-detail.png[align="center", width="561"]
+
+Studio 会自动在 `User.detail` 视图的 `fetchPlan` 中添加 `location` 属性，并在 `formLayout` 中增加一个 `entityPicker` 组件。
+
+点击主工具栏的 *Debug* 按钮（image:start-debugger.svg[]）。
+
+应用程序启动前，Studio 会生成一个 Liquibase changelog：
+
+image::changelog-user.png[align="center", width="1036"]
+
+点击 *Save and run*。
+
+Studio 会先在数据库运行 changelog，然后构建并启动应用程序。
+
+应用程序启动完成后，可以在浏览器打开 `++http://localhost:8080++` 用凭证 `admin/admin` 登录。
+
+从 `Application` 菜单选择 `Users` 打开用户列表视图。
+
+点击 *Create*。表单的底部会显示用于选择位置的控件：
+
+image::user-with-location-detail.png[align="center", width="790"]
+
+[[create-blank-view]]
+== 创建空视图
+
+如果你的应用程序还在运行，请点击主工具栏的 *Stop* 按钮（image:suspend.svg[]）。
+
+在 *Jmix* 工具窗口，选在 *New*（image:add.svg[]）-> *View*：
+
+image::create-blank-view.png[align="center", width="290"]
+
+在 *Create Jmix View* 窗口，选择 `Blank view` 模板：
+
+image::create-view-template.png[align="center", width="776"]
+
+点击 *Next*。
+
+向导的下一步中，输入以下内容：
+
+* *Descriptor name*: `location-lookup-view`
+* *Controller name*: `LocationLookupView`
+* *Package name*: `com.company.onboarding.view.locationlookup`
+
+删除 *Parent menu item*，这个视图不用这个设置。
+
+image::create-blank-view-params.png[align="center", width="776"]
+
+点击 *Next*，然后 *Create*。
+
+Studio 会生成一个空的视图，并在设计器显示：
+
+image::create-view-designer.png[align="center", width="1386"]
+
+[[set-up-view-opening]]
+== 打开新视图
+
+我们的新视图是要从 user 的详情视图打开的，这里要用到 *Location* 字段。
+
+需要将 Studio 生成的 `entityPicker` 组替换为 `valuePicker` 组件。打开 `user-detail-view.xml` 找到 `formLayout` 中的 `entityPicker` 组件：
+
+[source,xml,indent=0]
+----
+<layout>
+    <formLayout id="form" dataContainer="userDc">
+        ...
+        <entityPicker id="locationField" property="location">
+            <actions>
+                <action id="entityLookup" type="entity_lookup"/>
+                <action id="entityClear" type="entity_clear"/>
+            </actions>
+        </entityPicker>
+        ...
+    </formLayout>
+</layout>
+----
+
+修改组件的 XML 元素为 `valuePicker`，并删除其中的 `actions` 元素。
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `valuePicker`，然后点击组件面板的 *Add* 按钮。在下拉列表中，选择 *Actions → Action*。
+
+image::value-picker-actions.png[align="center", width="1100"]
+
+首先，选择一个 `New Base Action` 并点击 *OK*。
+
+image::new-base-action.png[align="center", width="492"]
+
+设置操作的 `id` 为 `select`， `icon` 为 `vaadin:search`。
+
+image::select-action.png[align="center", width="486"]
+
+然后，为 `locationField` 添加一个内置的 `value_clear` 操作：
+
+image::add-value-clear-action.png[align="center", width="492"]
+
+在 *Jmix UI* 层级结构面板或 XML 中选择 `select` 操作。然后在 *Jmix Inspector* 中切换至 *Handlers* tab，生成一个 `ActionPerformedEvent` 的处理方法：
+
+image::action-performed-event.png[align="center", width="939"]
+
+在 `ActionPerformedEvent` 的处理方法中，添加打开 `LocationLookupView` 的逻辑：
+
+[source,java,indent=0]
+----
+@Autowired
+private DialogWindows dialogWindows; // <1>
+
+@Subscribe("locationField.select")
+public void onLocationFieldSelect(final ActionPerformedEvent event) {
+    dialogWindows.view(this, LocationLookupView.class).open();
+}
+----
+<1> xref:flow-ui:opening-views.adoc#dialog-windows[DialogWindows] 提供以对话框的方式打开视图的流式接口。
+
+启动应用程序，在 `Application` 菜单选择 `Users`。点击 *Create* 打开 `User.detail` 视图。找到 *Location* 字段，点击（image:search-button.png[width="29"]）*Search* 按钮。该操作会打开 `LocationLookupView` 对话框。
+
+image::blank-view-as-dialog.png[align="center", width="1112"]
+
+[[add-components]]
+== 为 LocationLookupView 添加组件
+
+首先，添加一个控件用于展示当前地图中选择的位置。在操作面板中，点击 *Add Component*，找到 `entityPicker`，双击进行添加。配置该组件的属性如下：
+
+[source,xml,indent=0]
+----
+<entityPicker id="currentLocationField"
+              metaClass="Location"
+              readOnly="true"
+              width="20em"
+              label="msg://currentLocationField.label"/>
+----
+
+下一步，我们将添加两个 `hbox` 容器：
+
+. 第一个将包含一组位置以及一个地图。
+. 第二个将包含 *Select* 和 *Cancel* 按钮。
+
+[source,xml,indent=0]
+----
+<hbox padding="false"
+      height="100%"
+      width="100%"/>
+<hbox id="controlLayout"/>
+----
+
+点击操作面板中的 *Add Component*，然后将 `Layouts → VBox` 拖放至 *Jmix UI* 层级结构面板中的第一个 `hbox` 元素。配置 `vbox` 如下：
+
+[source,xml,indent=0]
+----
+<vbox padding="false" width="25em"/>
+----
+
+接下来，添加一个用于选择位置类型的控件。点击操作面板中的 *Add Component*，找到 `select`，拖放至 `vbox` 内。配置组件的属性如下：
+
+[source,xml,indent=0]
+----
+<select id="locationTypeField"
+        emptySelectionAllowed="true"
+        width="20em"
+        itemsEnum="com.company.onboarding.entity.LocationType"/>
+----
+
+为了展示位置的列表，我们使用 `listBox` 组件。这里需要先引入一个数据容器，为列表组件提供 `Location` 实体集合。点击操作面板中的 *Add Component*，在 `Data components` 里双击 `Collection`。在 *Collection Properties Editor* 窗口中，*Entity* 字段选 `Location`，点击 *OK*：
+
+image::location-collection-container.png[align="center", width="723"]
+
+Studio 会生成集合数据容器：
+
+[source,xml,indent=0]
+----
+    <data>
+        <collection id="locationsDc" class="com.company.onboarding.entity.Location">
+            <fetchPlan   extends="_base"/>
+            <loader id="locationsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Location e]]>
+                </query>
+            </loader>
+        </collection>
+    </data>
+----
+
+[[load-data]]
+=== 加载数据
+
+需要引入 xref:flow-ui:facets/dataLoadCoordinator.adoc[dataLoadCoordinator] facet 以触发刚创建的数据加载器。
+
+image::add-data-load-coordinator.png[align="center", width="770"]
+
+默认的查询语句会加载所有的 `Location` 实例，但是我们仅需要在 `locationTypeField` 组件中选中的那些类型的实例。因此，我们声明一个 xref:flow-ui:data/data-loaders.adoc#query-conditions[查询条件]，其中有一个输入参数，通过 `DataLoadCoordinator` 提供。
+
+在查询条件中，我们用 `component_` 前缀表示引用 `locationTypeField` 组件的值。
+
+下面是在 XML 元素中声明 `<condition>` 的内容：
+
+[source,xml,indent=0]
+----
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://locationLookupView.title"
+      xmlns:c="http://jmix.io/schema/flowui/jpql-condition"> <!--1-->
+    <data>
+        <collection id="locationsDc" class="com.company.onboarding.entity.Location">
+            <fetchPlan extends="_base"/>
+            <loader id="locationsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Location e]]>
+                    <condition> <!--2-->
+                        <c:jpql> <!--3-->
+                            <c:where>e.type = :component_locationTypeField</c:where> <!--4-->
+                        </c:jpql>
+                    </condition>
+                </query>
+            </loader>
+        </collection>
+    </data>
+----
+<1> 添加 JPQL 条件命名空间。
+<2> 在 `query`` 中定义 `condition` 元素。
+<3> 定义一个 JPQL 条件，其中可以包含可选的 `join` 元素和必需的 `where` 元素。
+<4> `WHERE` 子句中对 `type` 属性使用 `:component_locationTypeField` 参数进行过滤。
+
+[[add-list-box]]
+=== 添加 ListBox
+
+点击操作面板中的 *Add Component*，找到 `listBox`，拖放至 `vbox` 内，配置组件的属性如下：
+
+[source,xml,indent=0]
+----
+<listBox id="listBox"
+         itemsContainer="locationsDc"
+         minHeight="20em"
+         width="20em"/>
+----
+
+此时，视图的 XML 是这样的：
+
+[source,xml,indent=0]
+----
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://locationLookupView.title"
+      xmlns:c="http://jmix.io/schema/flowui/jpql-condition">
+    <data>
+        <collection id="locationsDc" class="com.company.onboarding.entity.Location">
+            <fetchPlan extends="_base"/>
+            <loader id="locationsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Location e]]>
+                    <condition>
+                        <c:jpql>
+                            <c:where>e.type = :component_locationTypeField</c:where>
+                        </c:jpql>
+                    </condition>
+                </query>
+            </loader>
+        </collection>
+    </data>
+    <layout>
+        <entityPicker id="currentLocationField"
+                      metaClass="Location"
+                      readOnly="true"
+                      width="20em"
+                      label="msg://currentLocationField.label"/>
+        <hbox padding="false"
+              height="100%"
+              width="100%">
+            <vbox padding="false"
+                  width="25em">
+                <select id="locationTypeField"
+                        emptySelectionAllowed="true"
+                        width="20em"
+                        itemsEnum="com.company.onboarding.entity.LocationType">
+                </select>
+                <listBox id="listBox"
+                         itemsContainer="locationsDc"
+                         minHeight="20em"
+                         width="20em"/>
+            </vbox>
+        </hbox>
+        <hbox id="controlLayout"/>
+    </layout>
+</view>
+----
+
+可以运行应用程序并查看新加的功能。
+
+image::location-lookup-view.png[align="center", width="1134"]
+
+//We will work on the rendering of the locations list further, but for now, let's focus on adding the map to our view.
+
+[[add-map]]
+=== 添加地图
+
+将光标移至 `vbox` 元素的后面。点击操作面板中的 *Add Component*，找到 `GeoMap` 并双击进行添加。
+
+此时，*Jmix UI* 层级结构和 XML 中都会在 `vbox` 元素的下方添加新的 `geoMap` 元素。按照下面的代码配置 `id`、`height` 和 `width` 属性。
+
+[source,xml,indent=0]
+----
+<maps:geoMap id="map"
+             height="100%"
+             width="100%"/>
+----
+
+接下来，为地图引入一个 xref:maps:data-binding-map.adoc#adding-tile-layer[OsmSource 的瓦片层]，设置一个 xref:maps:data-binding-map.adoc#setting-map-view[map view]，然后添加一个 xref:maps:data-binding-map.adoc#adding-data-layer[DataVectorSource 的矢量层]。完整的地图配置如下：
+
+[source,xml,indent=0]
+----
+                <maps:geoMap id="map"
+                             height="100%"
+                             width="100%">
+                    <maps:mapView centerX="0" centerY="51">
+                        <maps:extent minX="-15" minY="30" maxX="40" maxY="60"/>
+                    </maps:mapView>
+                    <maps:layers>
+                        <maps:tile>
+                            <maps:osmSource/>
+                        </maps:tile>
+                        <maps:vector id="dataVectorLayer">
+                            <maps:dataVectorSource dataContainer="locationsDc"
+                                                   property="building"/>
+                        </maps:vector>
+                    </maps:layers>
+                </maps:geoMap>
+----
+
+启动应用程序查看新添加的功能。
+
+image::location-lookup-view-with-map.png[align="center", width="1134"]
+
+可以看到，地图并不能适配视图。因此，我们需要修改视图的大小。为 `LocationLookupView` 视图控制器添加 `@DialogMode` 注解：
+
+[source,java,indent=0]
+----
+@Route(value = "LocationLookupView", layout = MainView.class)
+@ViewController("LocationLookupView")
+@ViewDescriptor("location-lookup-view.xml")
+@DialogMode(width = "60em", height = "45em")
+public class LocationLookupView extends StandardView {
+}
+----
+
+按下 *Ctrl/Cmd+S* 保存更改并切换至运行中的程序。点击 *Location* 控件的 *Search* 按钮（image:search-button.png[width="29"]）。此时打开的 `LocationLookupView` 视图大小就是我们刚配置的大小。
+
+image::location-lookup-with-map.png[align="center", width="1134"]
+
+<<use-markers,使用自定义标记>> 部分将介绍如何为 offices 和 coworking 使用不同的标记。
+
+[[add-buttons]]
+=== 添加按钮
+
+下面我们添加两个按钮：`Select` 按钮用于保存当前的位置信息，`Cancel` 按钮可以直接取消不保存。
+
+打开 `location-lookup-view.xml` 找到 `controlLayout` hbox。点击操作面板中的 *Add Component*，并在 `controlLayout` 中添加两个按钮。
+
+新创建的按钮需要关联操作。按照下面的代码定义 `actions` 以及内部的 `action` 元素：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex1/src/main/resources/com/company/onboarding/view/locationlookup/location-lookup-view.xml[tags=actions]
+----
+<1> 自定义的 `select`，xref:flow-ui:actions/declarative-actions.adoc#attributes[操作属性] 直接在 XML 定义。
+<2> 标准的 xref:flow-ui:actions/view-actions.adoc#view_close[视图关闭] 操作。
+
+通过 *Jmix UI inspector panel* → *Handlers* tab 生成操作的处理方法：
+
+image::action-select-event.png[align="center", width="815"]
+
+[[select-action-handler]]
+实现 `select` 操作处理方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=onSelect]
+----
+<1> `close()` 能关闭当前视图。`StandardOutcome.SELECT` 参数可以由调用端代码进行处理。我们 xref:maps:interaction-views.adoc[在后面] 进行处理。
+
+按照下面的代码配置按钮的 ID 以及操作：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex1/src/main/resources/com/company/onboarding/view/locationlookup/location-lookup-view.xml[tags=controlLayout]
+----
+
+[[use-markers]]
+== 使用自定义标记
+
+切换至 *Project* 工具窗口，在 `/src/main/resources/META-INF/resources/icons/` 目录可以看到为 offices 和 coworking 准备的不同图标：
+
+image::locate-markers.png[align="center", width="359"]
+
+打开 `LocationLookupView` 控制器，并注入 `GeoMap` 组件。
+
+[source,java,indent=0]
+----
+    @ViewComponent
+    private GeoMap map;
+----
+
+[TIP]
+====
+操作面板的 *Inject* 按钮可以用来注入视图组件或 Spring bean：
+
+image::inject-map.png[align="center", width="682"]
+====
+
+下一步，引入一个方法自定义标记：
+
+[source,java,indent=0]
+----
+    private void initBuildingSource(){
+        VectorLayer layer = map.getLayer("dataVectorLayer");
+
+        DataVectorSource<Location> source = layer.getSource(); // <1>
+        source.setStyleProvider(location -> new Style() // <2>
+                .withImage(new IconStyle()
+                        .withScale(0.5)
+                        .withAnchorOrigin(IconOrigin.BOTTOM_LEFT)
+                        .withAnchor(new Anchor(0.49, 0.12))
+                        .withSrc(location.getType() == LocationType.OFFICE
+                                ? "icons/office-marker.png"
+                                : "icons/coworking-marker.png"))
+                .withText(new TextStyle()
+                        .withBackgroundFill(new Fill("rgba(255, 255, 255, 0.6)"))
+                        .withPadding(new Padding(5, 5, 5, 5))
+                        .withOffsetY(15)
+                        .withFont("bold 15px sans-serif")
+                        .withText(location.getCity())));
+    }
+----
+<1> 获取 `locationsDc` 关联的 `DataVectorSource`。
+<2> 设置一个新的样式，使用了图片和文字的组合。图片根据位置类型变化。
+
+点击顶部操作面板的 *Generate Handler* 按钮并选择 `Controller handlers → InitEvent`：
+
+image::init-event-generate.png[align="center", width="896"]
+
+点击 *OK*。Studio 会自动生成一个方法的桩代码。我们在里面调用 `initBuildingSource()`：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=onInit;initBuildingSource]
+----
+
+启动应用程序并打开 `LocationLookupView`。可以看到不同类型位置的标记也不同。
+
+image::different-markers.png[align="center", width="1134"]
+
+[[marker-events]]
+== 处理标记事件
+
+一旦用户在地图中选择了一个标记，则标记的位置将填入 *Current location* 字段。还有，地图将以选择的位置为中心并调整缩放级别。
+
+打开 `LocationLookupView` 控制器，并添加 `setMapCenter()` 方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=setMapCenter]
+----
+
+找到 `initBuildingSource()` 方法，并在最后添加如下代码：
+
+[source,java,indent=0]
+----
+    private void initBuildingSource(){
+        //...
+        source.addGeoObjectClickListener(clickEvent -> {
+            Location location = clickEvent.getItem();
+
+            setMapCenter(location.getBuilding().getCoordinate());
+        });
+    }
+----
+
+运行应用程序查看最新改动。现在点击标记时，地图会以标记的坐标为中心，并进行放大。
+
+image::centered-map.png[align="center", width="1134"]
+
+现在我们要在 *Current location* 控件显示选择的位置，并启用 *Select* 按钮。
+
+在 `LocationLookupView` 控制器中，注入 `currentLocationField` 组件以及 `select` 操作。定义 `selected` 变量：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=components;selected]
+----
+
+然后添加 `onLocationChanged()` 方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=onLocationChanged]
+----
+<1> 启用 *Select* 操作。
+<2> 将选择的位置填入 *Current location* 控件。
+
+在 `initBuildingSource()` 中调用 `onLocationChanged()`：
+
+[source,java,indent=0]
+----
+    private void initBuildingSource(){
+        //...
+        source.addGeoObjectClickListener(clickEvent -> {
+            //...
+            onLocationChanged(location);
+        });
+    }
+----

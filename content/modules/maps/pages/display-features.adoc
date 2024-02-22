@@ -1,0 +1,171 @@
+= 3. 显示地图要素
+
+首先我们为 `Location` 实体添加下列几个新的属性：
+
+. `buildingEntrance` - `GeoPoint` 类型。存储建筑的入口坐标。
+. `pathToBuilding` - `GeoPolyline` 类型。存储到达建筑的路径。
+. `buildingArea` - `GeoPolygon` 类型。用几何图形在地图描绘建筑。
+
+image::new-geo-location-attr.png[align="center", width="903"]
+
+将这些属性添加至 `Location.detail` 视图。
+
+为了简化我们的教程，这些新加的字段我们都用 UI 的文本控件。这些字段的值也可以从地图的点击事件中获取，与 xref:maps:data-binding-map.adoc#saving-coordinates[] 类似。
+
+下面是我们用到的示例数据：
+
+* *Building*:
++
+`POINT (13.347796079315284 52.55344847222085)`
+* *Building entrance*:
++
+`POINT (13.347860653822895 52.553536712270784)`
+* *Path to building*:
++
+----
+LINESTRING (13.346886063248354 52.553529790121985,
+13.347394863347068 52.5532539371346, 13.347837668453902 52.55355180648286,
+13.347860653822895 52.553536712270784)
+----
+* *Building area*:
++
+----
+POLYGON ((13.347878609736783 52.553551482547135,
+13.34795260252847 52.55350646966119,
+13.347713548893793 52.55334632728869,
+13.347640979040412 52.553390474703775,
+13.347878609736783 52.553551482547135))
+----
+
+[[add-vector-layer]]
+== 添加矢量层
+
+地图中需要用矢量层处理几何图形。一个地图中可以添加多个矢量层。
+
+因此，为了演示地图中的点、线段和多边形，我们需要为地图添加矢量层。
+
+打开 `location-lookup-view.xml` 为 xref:maps:geo-objects.adoc[地理对象] 的每个地理属性创建单独的矢量层和矢量数据源。为矢量数据源指定 `dataContainer` 和 `property` 属性：
+
+[source,xml,indent=0]
+----
+            <maps:geoMap id="map" ...>
+                ...
+                <maps:layers>
+                    <maps:tile>
+                        <maps:osmSource/>
+                    </maps:tile>
+                    <maps:vector id="dataVectorLayer">
+                        <maps:dataVectorSource dataContainer="locationsDc"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerArea">
+                        <maps:dataVectorSource dataContainer="locationsDc"
+                                               property="buildingArea"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerPath">
+                        <maps:dataVectorSource dataContainer="locationsDc"
+                                               property="pathToBuilding"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerEntrance">
+                        <maps:dataVectorSource dataContainer="locationsDc"
+                                               property="buildingEntrance"/>
+                    </maps:vector>
+                </maps:layers>
+            </maps:geoMap>
+----
+
+[[add-point]]
+== 添加点
+
+在 `LocationLookupView` 视图控制器中，添加一个新方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=initBuildingEntranceSource]
+----
+<1> 配置一个 `styleProvider`，使用自定义的样式显示一个点。
+
+// Now, let's handle the changes in the Locations collection.
+//
+// Click *Generate Handler* in the top actions panel. Collapse all items, then select `CollectionChangeEvent` items in `Data containers handlers → locationsDc`:
+//
+// image::collection-changed-event.png[align="center", width="896"]
+//
+// Click *OK*.
+//
+// Studio will automatically generate the method stub: `onLocationsDcCollectionChange()`. Implement it as follows:
+//
+// [source,java,indent=0]
+// ----
+//     @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+//     public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+//         VectorLayer vectorLayer = map.getLayer("vectorLayer");
+//         VectorSource source = vectorLayer.getSource(); // <1>
+//
+//         source.removeAllFeatures(); // <2>
+//
+//         for (Location location : event.getSource().getItems()) {
+//             if (location.getBuildingEntrance() != null) {
+//                 source.addFeature(createBuildingEntranceFeature(location)); // <3>
+//             }
+//         }
+//     }
+// ----
+// <1> Gets the vector source to work with features (Polygon, LineString, Point).
+// <2> Removes all features from the source.
+// <3> Adds a point feature to the source.
+
+[[add-polyline]]
+== 添加多段线
+
+在 `LocationLookupView` 视图控制器中，添加一个 `initPathToBuildingSource()`：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=initPathToBuildingSource]
+----
+<1> 配置一个 `styleProvider`，使用自定义的线段样式显示一条多段线。
+
+// Invoke `createPathToBuildingFeature()` from the existing `onLocationsDcCollectionChange` handler:
+//
+// [source,java,indent=0]
+// ----
+//     @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+//     public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+//
+//         ...
+//
+//         for (Location location : event.getSource().getItems()) {
+//             if (location.getBuildingEntrance() != null) {
+//                 source.addFeature(createBuildingEntranceFeature(location));
+//             }
+//             if (location.getPathToBuilding() != null) {
+//                 source.addFeature(createPathToBuildingFeature(location)); // <1>
+//             }
+//         }
+//     }
+// ----
+// <1> Adds a polyline feature to the source.
+
+[[add-polygon]]
+== 添加多边形
+
+在 `LocationLookupView` 视图控制器中，添加一个 `initBuildingAreaSource()`：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=initBuildingAreaSource]
+----
+<1> 配置一个 `styleProvider`，使用自定义的线段样式显示一个多边形。填充的颜色和边框的颜色依据类型而变化。
+
+在 `onInit()` 中调用创建的方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=onInit;inits]
+----
+
+启动应用程序查看新添加的功能。当选择位置时，地图会放大，并以选择的位置坐标为中心。
+
+建筑物的入口在地图中以黑色圆点表示，路径以虚线段表示，多边形描绘建筑物的边界。
+
+image::map-with-features.png[align="center", width="1090"]
