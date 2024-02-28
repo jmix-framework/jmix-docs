@@ -1,8 +1,8 @@
 = 实体日志
 
-实体日志是一种跟踪 JPA 实体变更的机制。它记录实体属性的改动并提供用户视图用于查找和展示变更的信息：
+实体日志是一种监控系统内 JPA 实体变更的机制。它记录实体属性的改动并提供用户视图用于查找和展示变更的信息：
 
-* 变更了什么实体实例。
+* 修改了什么实体实例。
 * 属性变更前后的旧值和新值。
 * 修改实体的时间。
 * 修改实体的用户。
@@ -10,70 +10,76 @@
 [[register-changes]]
 == 变更注册
 
-如果 JPA 实体是通过 xref:data-access:data-manager.adoc[DataManager] 或 xref:data-access:entity-manager.adoc[EntityManager] 保存，则实体日志会自动跟踪实体的变更。但如果使用原生 SQL，则实体日志不会起作用。
+如果 JPA 实体是通过 xref:data-access:data-manager.adoc[DataManager] 或 xref:data-access:entity-manager.adoc[EntityManager] 保存，实体日志会自动监控实体的变更。但使用原生 SQL 时，实体日志不会起作用。
 
-你也可以使用 `EntityLog` bean 在应用程序代码中注册变更的实体：手动调用 `registerCreate()`、`registerModify()` 和 `registerDelete()` 方法并设置 `auto` 参数为 false。当框架自动调用实体日志时，该参数设置为 true。
+另一中方法是使用 `EntityLog` bean 在应用程序代码中注册变更的实体，此时，需要调用 `registerCreate()`、`registerModify()` 和 `registerDelete()` 方法并设置 `auto` 参数为 `false`。当框架自动调用实体日志时，该参数设置为 true。
 
 [[setup]]
 == 配置实体日志
 
-你可以在应用程序的 *Audit -> Entity Log* 视图中配置实体日志。
+NOTE: 为了在运行时使用管理界面，用户必须具有该扩展组件提供的 `entity-log` 资源角色。
 
-image::entity-log-set.png[algne=centre]
+可以在应用程序的 *Audit -> Entity Log* 视图中配置实体日志。切换至 *Setup* tab：
 
-另外，如果你想要将实体日志的配置包含在数据库初始化脚本中，则能用插入数据库记录的方式进行配置。
+image::entity-log-set.png[align="center",width="1300"]
 
-日志是用 `LoggedEntity` 和 `LoggedAttribute` 实体配置，对应数据库的 `AUDIT_LOGGED_ENTITY` 和 `AUDIT_LOGGED_ATTR` 表。
+点击 *Create* 按钮开始配置实体日志。
 
-`LoggedEntity` 定义需要记录日志的实体类型，具有如下属性：
+从 *Name* 下拉框中选择实体，并选择需要审计的属性。
 
-* `name` - 实体元类的名称，例如，`sample_Order`。
-* `auto` - 定义当 `EntityLog` 带有 `auto` = `true` 参数调用时（即，由实体监听器调用时），系统是否需要记录变更。
-* `manual` - 定义当 `EntityLog` 带有 `auto` = `false` 参数调用时，系统是否需要记录变更。
+*Auto* 复选框配置当使用 `auto` = `true` 参数调用 `EntityLog` 时（即，由实体监听器调用时），系统是否需要记录变更。
 
-`LoggedAttribute` 定义需要记录的实体属性，带有属性名，并包含至 `LoggedEntity` 的连接。
+*Manual* 复选框配置当使用 `auto` = `false` 参数调用 `EntityLog` 时，系统是否需要记录变更。
+
+*Export* 和 *Import* 操作支持导入或导出 JSON、ZIP 格式的配置。
+
+另外，如果需要在数据库初始化脚本中配置实体日志，则可以用插入数据库记录的方式进行配置。
+
+实体日志的配置通过 `LoggedEntity` 和 `LoggedAttribute` 实体完成，对应数据库的 `AUDIT_LOGGED_ENTITY` 和 `AUDIT_LOGGED_ATTR` 表。
+
+`LoggedEntity` 定义需要记录日志的实体类型。
+
+`LoggedAttribute` 定义需要记录的实体属性，带有属性名，并包含至 `LoggedEntity` 的引用。
 
 如需为特定实体配置日志，需要在 `AUDIT_LOGGED_ENTITY` 和 `AUDIT_LOGGED_ATTR` 表添加相应的记录。
 
-示例，在数据库初始化时，记录 `Customer` 实体 `phone` 属性的变更：
+例如，下面的示例中，在数据库初始化时，完成了对 `Customer` 实体 `phone` 属性的变更记录的配置：
 
 [source,xml,indent=0]
 ----
-include::example$/ex1/src/main/resources/audit/ex1/liquibase/changelog/2021/02/03-040-1a13ea07.xml[tags=changelog]
+include::example$/audit-ex1/src/main/resources/com/company/demo/liquibase/changelog/2024/02/21-153813-a38a565c.xml[tags=changelog]
 ----
 
 [[view]]
 == 查看实体日志
 
-打开 *Audit -> Entity Log* 视图即可查看实体日志。可以在过滤器中设置必要的条件查找日志记录。
-To view the entity log content, go to the *Audit -> Entity Log* view. Set necessary filters to find log entries.
+打开 *Audit -> Entity Log* 视图的 *View* tab 即可查看实体日志的内容。可以在过滤器中设置必要的条件查找日志记录。
 
-image::entity-log-view.png[algne=centre]
+image::entity-log-view.png[align="center",width="1441"]
 
-另外，你也可以从任何应用程序视图访问特定实体的日志。
+另外，也可以从任何应用程序视图访问特定实体的日志。
 
 日志记录保存在 `AUDIT_ENTITY_LOG` 表，对应 `EntityLogItem` 实体。修改的属性值保存在 `CHANGES` 列，Java 中转换成 `EntityLogAttr` 实体实例。
 
-在下面的示例中，`Order` 实体的详情视图展示实体日志内容的表格。
+在下面的示例中，`Order` 实体的详情视图展示实体日志内容的列表。
 
 这是视图 XML 的部分内容：
 
 [source,xml,indent=0]
 ----
-include::example$/ex1/src/main/resources/audit/ex1/screen/order/order-edit.xml[tags=order-xml]
+include::example$/audit-ex1/src/main/resources/com/company/demo/view/order/order-detail-view.xml[tags=order-xml]
 ----
 
 <1> 加载 `EntityLogItem` 集合至 `entityLogItemsDc` 数据容器。
 <2> 加载相关的 `EntityLogAttr` 示例至 `entityLogAttrDc` 数据容器。
-<3> 连接至 `entityLogItemsDc` 容器的表格。
-<4> 连接至 `entityLogAttrDc` 容器的表格。
+<3> 连接至 `entityLogItemsDc` 容器的数据网格。
+<4> 连接至 `entityLogAttrDc` 容器的数据网格。
 
 `Order` 视图控制器代码如下：
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/audit/ex1/screen/order/OrderEdit.java[tags=order-java]
+include::example$/audit-ex1/src/main/java/com/company/demo/view/order/OrderDetailView.java[tags=order-java]
 ----
 
-<1> `onBeforeShow` 方法在视图展示之前加载数据。
-<2> 在 `orderDc` 数据容器的 `ItemChangeEvent` 处理器内，为依赖的数据加载器设置参数，并加载数据。
+<1> 在 `orderDc` 数据容器的 `ItemChangeEvent` 处理器内，为数据加载器设置参数，并加载数据。
