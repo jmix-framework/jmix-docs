@@ -1,17 +1,18 @@
 = 开始使用
 
-本章节介绍如何在应用程序中使用搜索扩展组件。
+本章节介绍如何在应用程序中使用搜索功能。
 
 假设你需要在应用程序中添加一些实体，并配置对实体属性进行搜索。
 
-首先，安装并配置扩展组件：
+首先，需要完成下面几步：
 
 . 根据 xref:search:index.adoc#installation[安装] 部分的说明在项目中添加搜索扩展组件。
-. 根据服务地址 xref:search:index.adoc#connecting-to-elasticsearch-service[配置] ES 的连接。
+. 根据 ES 服务的地址 xref:search:index.adoc#connecting-to-elasticsearch-service[配置] ES 的连接。
 
-== 创建数据模型和界面
+[[data-model-views-creation]]
+== 创建数据模型和视图
 
-创建下列枚举和类：
+创建下列类：
 
 . `Status` 枚举，枚举值为 `SILVER` 和 `GOLD` 值。
 . `Customer（客户）` 实体，具有下列属性：
@@ -31,66 +32,62 @@
 
 为 `Order` 实体配置 xref:data-model:entities.adoc#instance-name[实例名称]，用于在搜索结果中展示。
 
-为 `Customer` 和 `Order` 实体创建编辑和浏览界面。
+为 `Customer` 和 `Order` 实体创建列表和详情视图。
 
+[[index-definition]]
 == 创建索引定义接口
 
 然后，需要创建索引定义（Index Definition），这是一个接口，定义哪些实体和属性需要进行索引。假设我们需要通过订单的编号、产品名、客户状态或客户的姓搜索订单。在索引定义接口内，我们创建一个方法定义需要索引的属性。
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/search/ex1/service/OrderIndexDefinition.java[tags=index-definition1;order-mapping;index-definition2]
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition;order-mapping]
 ----
 . 接口需要使用 `@JmixEntitySearchIndex` 注解和必要参数 `entity`。
-. 接口可以随意命名。
-. `@AutoMappedField` 注解能自动映射需要的属性。我们的例子中，使用 `includeProperties` 参数指定需要进行索引的属性名。
-. 方法可以随意命名。
+. 接口可以任意命名。
+. `@AutoMappedField` 注解能自动映射需要的属性。这里，使用 `includeProperties` 参数指定需要进行索引的属性名。
+. 方法可以任意命名。
 
-[[configure_index_naming]]
-== 索引命名
+[[configure-index-naming]]
+== 配置索引名称
 
-默认情况下，项目中创建的索引名使用 `search_index_` 前缀。由于同一个 ES 服务可以用在多个项目中，因此为了保证索引名的唯一性，我们修改项目中默认的前缀。在 `application.properties` 文件添加：
+默认情况下，项目中创建的索引名使用 `search_index_` 前缀。由于同一个 ES 服务可以用在多个项目中，因此为了保证索引名的唯一性，我们建议修改项目中索引的默认前缀。在 `application.properties` 文件添加：
 
 [source,properties,indent=0]
 ----
-include::example$/ex1/src/main/resources/application.properties[tags=prefix]
+include::example$/search-ex1/src/main/resources/application.properties[tags=prefix]
 ----
 
+[[configure-indexing-queue]]
 == 索引处理队列
 
-Jmix 应用程序能跟踪数据的变化，但是不会自动将数据同步至 ES。如需定期更新 ES 索引，在项目添加 xref:quartz:index.adoc[] 扩展组件。搜索组件会用 Quartz 定期处理默认配置的索引列队。
+Jmix 应用程序能监控数据的修改，但是不会自动将数据同步至 ES。如需定期更新 ES 索引，在项目添加 xref:quartz:index.adoc[] 扩展组件。搜索组件会用 Quartz 定期处理默认配置的索引队列。
 
-== 创建搜索界面
+[[create-search-view]]
+== 创建搜索视图
 
-. 使用 Studio 的模板创建一个空界面，命名为 *Search screen*。
-. 在界面的 XML 根元素中添加 `xmlns:search="http://jmix.io/schema/search/ui` 命名空间：
+. 使用 Studio 的 `Blank view` 模板创建一个空界面，命名为 *Search*。
+. 点击操作面板的 *Add Component*，找到 `SearchField` 并双击。
+. 新增的 `searchField` 元素会同时在 *Jmix UI* 层级面板和 XML 中显示。与其他 xref:flow-ui:vc/components.adoc[UI 组件] 一样，可以配置其 `id`、`height`、`width` 等属性。
 +
 [source,xml,indent=0]
 ----
-include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=namespace]
-----
-+
-. 在 `layout` 元素内添加 `searchField` 组件：
-+
-[source,xml,indent=0]
-----
-include::example$/ex1/src/main/resources/search/ex1/screen/search/search-screen.xml[tags=search-field]
+include::example$/search-ex1/src/main/resources/com/company/demo/view/search/search-view.xml[tags=search-field]
 ----
 
-现在，界面中有了一个用于输入搜索关键字的文本框和一个执行搜索的按钮。
+现在，视图中有了一个用于输入搜索关键字的文本框和一个执行搜索的按钮。
 
+[[test-searching]]
 == 测试搜索
 
 上面步骤完成后，可以运行应用程序并测试搜索功能了。
 
 首先，添加一些 `Customer` 和 `Order` 实体。
 
-打开 *Search screen* 并搜索 `Silver` 状态的客户。
+打开 *Search* 并搜索 `Silver` 状态的客户。
 
-image::search-screen.png[align="center"]
+搜索结果在 *Search Result* 视图展示。
 
-搜索结果在另一界面展示。
+image::search-result.png[align="center",width="1138"]
 
-image::search-result.png[align="center"]
-
-点击一条结果，会打开编辑界面。
+点击一条结果，会打开实体详情视图。
