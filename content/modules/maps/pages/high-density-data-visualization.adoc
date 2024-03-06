@@ -1,0 +1,129 @@
+= High-Density Data Visualization
+
+High-density data is a type of dataset that has a large number of data points within a specific spatial or temporal region.
+
+Large and dense datasets can be difficult to visualize effectively. There are several methods that can be used to visualize high-density data in a more meaningful manner. The following sections will discuss these methods.
+
+[[clustering]]
+== Clustering
+
+Clustering is a method of grouping xref:maps:features-geometries.adoc[features] in a layer based on their proximity to each other. Typically, the size of each cluster is proportional to the number of features contained within it. This can be useful for showing areas where many points are located close together.
+
+image::clustering-main.png[align="center", width="779"]
+
+Clustering is configured on the cluster source associated with the xref:maps:layers-sources.adoc#vector-layer[vector layer]. The cluster source should either incorporate a nested xref:maps:layers-sources.adoc#data-vector-source[DataVectorSource] or a xref:maps:layers-sources.adoc#vector-source[VectorSource].
+
+For example, to cluster features from a data container in XML, follow these steps:
+
+. Include a vector layer in the xref:maps:map-component.adoc[geoMap] component.
+. Add `ClusterSource` to this layer.
+. Set up `DataVectorSource` for the cluster in the following manner:
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-basics]
+----
+
+Below, we will outline the key aspects of clustering.
+
+[[cluster-source]]
+=== ClusterSource
+
+`ClusterSource` is a source that enables feature clustering on the map. It requires an additional source to supply features, which can be either:
+
+* `DataVectorSource`
+* `VectorSource`
+
+To cluster features without data binding use `VectorSource`:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-vectorSource]
+----
+
+[[cluster-properties]]
+=== Cluster Properties
+
+Cluster has the following properties:
+
+* `attributions` represents text for credits.
+* `disableAtZoom` establishes a zoom level at which clustering becomes disabled.
+* `distance` indicates the distance in pixels at which features get clustered together.
+* `minDistance` denotes the minimum pixel distance between clusters. (For more details, refer to https://openlayers.org/en/latest/apidoc/module-ol_source_Cluster-Cluster.html[OSM documentation^]).
+* `showSinglePointAsCluster` displays a single point as a cluster of size 1.
+* `weightProperty` - if provided, each point in the layer will have an integer weight value based on the `weight` property of the xref:maps:geo-objects.adoc[geo-object]. This value aids in calculating the combined cluster value (by default, the point count is utilized).
+* `wrapX` determines whether the world should be horizontally wrapped.
+
+[[weight-property]]
+=== Weight Property
+
+By default, the cluster computes the count of points within it, which is then displayed on the cluster marker. `weightProperty` allows us to indicate the property that the cluster should utilize for calculation.
+
+For instance, the project includes a JPA entity:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location]
+----
+<1> The `building` attribute contains coordinates locating the building on the map.
+<2> The `weight` attribute holds a numerical value that provides information about a building.
+
+In the XML descriptor, we set up the configuration for the cluster:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=data;layout;weightProperty]
+----
+
+[[cluster-styling]]
+=== Cluster Icon Styling
+
+Cluster icons can be customized using the Java API. There are two methods for styling:
+
+. Introduce a new style that covers the default one.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=cluster;init;new-style]
+----
++
+image::cluster-new-style.png[align="center", width="100"]
+
+. Removing the default style and adding a completely new one.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterS;init;remove-add]
+----
++
+image::cluster-remove-add-style.png[align="center", width="100"]
+
+To change text style, use the `setPointTextStyle()` method:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterSource;init;text-style]
+----
+
+image::cluster-text-style.png[align="center", width="100"]
+
+[[feature-property]]
+=== Set Property for Feature
+
+Features have the ability to define the properties that will be associated with these features.
+
+If the cluster specifies the weight property, it will try to obtain it from the features' properties.
+
+Let's consider the following example:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=point-feature]
+----
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=source;init;addAllFeatures;generatePoints]
+----
+
+//== Heatmap
