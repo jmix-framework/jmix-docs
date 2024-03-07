@@ -1,5 +1,6 @@
 package com.company.onboarding.view.user;
 
+import com.company.onboarding.entity.OnboardingStatus;
 import com.company.onboarding.entity.User;
 import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.html.Image;
@@ -28,9 +29,10 @@ import java.util.Map;
 @DialogMode(width = "50em", height = "37.5em")
 public class UserListView extends StandardListView<User> {
 
+    // tag::viewComponent[]
     @ViewComponent
     protected Chart pie;
-
+    // end::viewComponent[]
     @Autowired
     private UiComponents uiComponents;
 
@@ -38,29 +40,41 @@ public class UserListView extends StandardListView<User> {
     private FileStorage fileStorage;
     @Autowired
     private DataManager dataManager;
-
+    // tag::onInit[]
     @Subscribe
     public void onInit(final InitEvent event) {
-        final List<com.company.onboarding.entity.User> inProgress = dataManager.load(com.company.onboarding.entity.User.class)
-                .query("select u from User u where u.onboardingStatus = :onboardingStatus1")
-                .parameter("onboardingStatus1", 10)
-                .list();
+        // tag::userLists[]
+        final Integer notStarted = dataManager.loadValue(
+                        "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
+                        Integer.class
+                )
+                .store("main")
+                .parameter("onboardingStatus", OnboardingStatus.NOT_STARTED)
+                .one();
 
-        final List<com.company.onboarding.entity.User> notStarted = dataManager.load(com.company.onboarding.entity.User.class)
-                .query("select u from User u where u.onboardingStatus = :onboardingStatus1")
-                .parameter("onboardingStatus1", 20)
-                .list();
+        final Integer inProgress = dataManager.loadValue(
+                        "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
+                        Integer.class
+                )
+                .store("main")
+                .parameter("onboardingStatus", OnboardingStatus.IN_PROGRESS)
+                .one();
 
-        final List<com.company.onboarding.entity.User> completed = dataManager.load(com.company.onboarding.entity.User.class)
-                .query("select u from User u where u.onboardingStatus = :onboardingStatus1")
-                .parameter("onboardingStatus1", 30)
-                .list();
 
+        final Integer completed = dataManager.loadValue(
+                        "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
+                        Integer.class
+                )
+                .store("main")
+                .parameter("onboardingStatus", OnboardingStatus.COMPLETED)
+                .one();
+        // end::userLists[]
         ListChartItems<MapDataItem> items = new ListChartItems<>(
-                new MapDataItem(Map.of("category", "Not Started", "value", inProgress.size())),
-                new MapDataItem(Map.of("category", "Completed", "value", notStarted.size())),
-                new MapDataItem(Map.of("category", "In Progress", "value", completed.size()))
-        );
+                new MapDataItem(Map.of("category", "Completed", "value", notStarted)),
+                new MapDataItem(Map.of("category", "Not Started", "value", inProgress)),
+                new MapDataItem(Map.of("category", "In Progress", "value", completed))
+            );
+
 
         pie.setDataSet(
                 new DataSet()
@@ -72,6 +86,7 @@ public class UserListView extends StandardListView<User> {
                         )
         );
     }
+    // end::onInit[]
 
     @Supply(to = "usersDataGrid.picture", subject = "renderer")
     private Renderer<User> usersDataGridPictureRenderer() {
