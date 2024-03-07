@@ -1,0 +1,256 @@
+= High-Density Data Visualization
+
+High-density data is a type of dataset that has a large number of data points within a specific spatial or temporal region.
+
+Large and dense datasets can be difficult to visualize effectively. There are several methods that can be used to visualize high-density data in a more meaningful manner. The following sections will discuss these methods.
+
+[[clustering]]
+== Clustering
+
+Clustering is a method of grouping xref:maps:features-geometries.adoc[features] in a layer based on their proximity to each other. Typically, the size of each cluster is proportional to the number of features contained within it. This can be useful for showing areas where many points are located close together.
+
+image::clustering-main.png[align="center", width="779"]
+
+Clustering is configured on the cluster source associated with the xref:maps:layers-sources.adoc#vector-layer[vector layer]. The cluster source should either incorporate a nested xref:maps:layers-sources.adoc#data-vector-source[DataVectorSource] or a xref:maps:layers-sources.adoc#vector-source[VectorSource].
+
+For example, to cluster features from a data container in XML, follow these steps:
+
+. Include a vector layer in the xref:maps:map-component.adoc[geoMap] component.
+. Add `ClusterSource` to this layer.
+. Set up `DataVectorSource` for the cluster in the following manner:
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-basics]
+----
+
+Below, we will outline the key aspects of clustering.
+
+[[cluster-source]]
+=== ClusterSource
+
+`ClusterSource` is a source that enables feature clustering on the map. It requires an additional source to supply features, which can be either:
+
+* `DataVectorSource`
+* `VectorSource`
+
+To cluster features without data binding use `VectorSource`:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-vectorSource]
+----
+
+[[cluster-attributes]]
+=== Cluster Attributes
+
+Cluster has the following attributes:
+
+* `attributions` represents text for credits.
+* `disableAtZoom` establishes a zoom level at which clustering becomes disabled.
+* `distance` indicates the distance in pixels at which features get clustered together.
+* `minDistance` denotes the minimum pixel distance between clusters. (For more details, refer to https://openlayers.org/en/latest/apidoc/module-ol_source_Cluster-Cluster.html[OSM documentation^]).
+* `showSinglePointAsCluster` displays a single point as a cluster of size 1.
+* `weightProperty` - if provided, each point in the layer will have an integer weight value based on the `weight` property of the xref:maps:geo-objects.adoc[geo-object]. This value aids in calculating the combined cluster value (by default, the point count is utilized).
+* `wrapX` determines whether the world should be horizontally wrapped.
+
+[[weight-property]]
+=== Weight Property
+
+By default, the cluster computes the count of points within it, which is then displayed on the cluster marker. `weightProperty` allows us to indicate the property that the cluster should utilize for calculation.
+
+For instance, the project includes a JPA entity:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;weight]
+----
+<1> The `building` attribute contains coordinates locating the building on the map.
+<2> The `weight` attribute holds a numerical value that provides information about a building.
+
+In the XML descriptor, we set up the configuration for the cluster:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=data;layout;weightProperty]
+----
+
+[[cluster-styling]]
+=== Cluster Icon Styling
+
+Cluster icons can be customized using the Java API. There are two methods for styling:
+
+. Introduce a new style that covers the default one.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=cluster;init;new-style]
+----
++
+image::cluster-new-style.png[align="center", width="100"]
+
+. Removing the default style and adding a completely new one.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterS;init;remove-add]
+----
++
+image::cluster-remove-add-style.png[align="center", width="100"]
+
+To change text style, use the `setPointTextStyle()` method:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterSource;init;text-style]
+----
+
+image::cluster-text-style.png[align="center", width="100"]
+
+[[feature-property]]
+=== Set Property for Feature
+
+Features have the ability to define the properties that will be associated with these features.
+
+If the cluster specifies the weight property, it will try to obtain it from the features' properties.
+
+Let's consider the following example:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=point-feature]
+----
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=source;init;addAllFeatures;generatePoints]
+----
+
+[[heatmap]]
+== Heatmap
+
+A heatmap renders point xref:maps:features-geometries.adoc[features] as a raster surface, highlighting areas with a higher concentration of points along a continuous color gradient.
+
+Warmer colors (such as red or orange) indicate areas with higher values, while cooler colors (like blue or green) indicate lower values.
+
+image::heatmap-main.png[align="center", width="623"]
+
+Heatmaps are configured on the `HeatmapLayer`. This layer displays data in the form of heat points. `HeatmapLayer` works with `HeatmapDataVectorSource` and xref:maps:layers-sources.adoc#vector-source[VectorSource].
+
+* `HeatmapDataVectorSource` is used to bind with xref:flow-ui:data/data-containers.adoc[data containers] (entities or DTOs). The `property` attribute should refer to the property of the entity that has the `Point` type.
+
+* `VectorSource` should be used when there is no need to bind with the data containers.
+
+For example, to add a heatmap linked to the data container, follow these steps:
+
+. Include a heatmap layer in the xref:maps:map-component.adoc[geoMap] component: select the `geoMap` element in the *Jmix UI* hierarchy panel or in the view XML descriptor, then click the *Add* button in the inspector panel. From the drop-down list, choose *Layers → HeatmapLayer*.
++
+image::add-heatmap-layer.png[align="center", width="351"]
+. Add `HeatmapDataVectorSource` to this layer. Set up this source in the following manner:
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;default]
+----
+<1> Define a property from the `Location` entity that has a `Point` type.
+
+Below, we will outline the key aspects of heatmaps.
+
+[[heatmap-attributes]]
+=== Heatmap Attributes
+
+Heatmap has the following attributes:
+
+* The <<heatmap-weight-property,weightProperty>> attribute specifies the entity property from which to retrieve the weight (intensity) or the property from `Feature`.
++
+NOTE: If the property is not specified, the maximum available weight value will be utilized.
+
+* `maxWeight` - it indicates the maximum intensity value, ranging from `0.0` to `1.0.`
+* `blur` specifies the pixel size of the point blur effect.
+* `radius` specifies the pixel size of the point radius.
+* `gradient` - the color gradient of the point, which should consist of CSS colors separated by commas.
+
+Additionally, include the base layer properties: `className`, `maxZoom`, `minZoom`, `opacity`, `visible`, `zIndex`
+
+Take a look at the example:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=different-attributes]
+----
+
+[[heatmap-weight-property]]
+=== Weight Property
+
+`weightProperty` is a property that determines the intensity or weight of a point displayed on the heatmap. It should be specified either in a `Feature` or an entity. The values for this property should be within the range of `0.0` and `1.0` and should be of type `Double`.
+
+If the `weightProperty` value is not explicitly defined, a default value of `1` is commonly used to represent the maximum intensity level for the heatmap points.
+
+Take a look at <<heatmap-without-data-binding,this>> and <<heatmap-linked-to-data,this>> examples utilizing the `weightProperty` property.
+
+[[heatmap-examples]]
+=== Examples
+
+[[heatmap-without-data-binding]]
+==== Heatmap without Data Binding
+
+`VectorSource` is used when there is no need to bind with the data containers.
+
+In the example below, a map is created and initially configured using XML.
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=without-data-binding]
+----
+<1> Set the property that will be associated with `Feature`.
+<2> Specify `id` for the vector source, which will enable you to inject it into the controller.
+
+After that, additional properties are set programmatically in Java controller:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=vectorSource;init;without-data-binding]
+----
+<1> Inject `vectorSource` into the controller class.
+<2> Pass the `weight` value into the method, which we previously specified for the `heatmap` element in the XML descriptor.
+
+[[heatmap-linked-to-data]]
+==== Heatmap Linked to Data
+
+For instance, the project includes a JPA entity:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;intensity]
+----
+<1> The `building` attribute contains coordinates locating the building on the map.
+<2> The `intensity` attribute holds a numerical value that provides some additional information.
+
+In the XML descriptor, we set up the configuration for a heatmap:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;binding]
+----
+<1> Specify in the `weightProperty` attribute the value of the entity property that contains the intensity value of the point.
+
+[[heatmap-weightProvider]]
+==== Heatmap with WeightProvider
+
+`HeatmapDataVectorSource` has a specific method in cases where an entity/DTO doesn't have a <<heatmap-weight-property,weight property>> or needs to calculate it in some other way. In these cases, it is not necessary to specify `weightProperty`, as the provider will be used instead.
+
+In the example below, a map is created and initially configured using XML.
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=WeightProvider]
+----
+
+Afterward, we will set up a weight provider for `heatmapDataVectorSource` in Java controller:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=heatmapDataVectorSource;init;setWeightProvider]
+----
+<1> Please note: `heatmapDataVectorSource` is parameterized.
+<2> The provider is called for each item and should return a calculated weight value.
