@@ -20,11 +20,18 @@ public class Location {
     @Column(name = "BUILDING")
     private Point building; // <1>
 
+    // end::Location[]
+    // tag::weight[]
     @Column(name = "WEIGHT")
     private Integer weight; // <2>
 
-    // getters and setters
-    // end::Location[]
+    // end::weight[]
+
+    // tag::intensity[]
+    @Column(name = "INTENSITY")
+    private Double intensity; // <2>
+
+    // end::intensity[]
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
@@ -36,6 +43,14 @@ public class Location {
 
     @Column(name = "ADDRESS")
     private String address;
+
+    public Double getIntensity() {
+        return intensity;
+    }
+
+    public void setIntensity(Double intensity) {
+        this.intensity = intensity;
+    }
 
     public Integer getWeight() {
         return weight;
@@ -77,5 +92,6 @@ public class Location {
         this.id = id;
     }
     // tag::Location[]
+    // getters and setters
 }
 // end::Location[]
