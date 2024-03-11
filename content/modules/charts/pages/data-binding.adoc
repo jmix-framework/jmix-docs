@@ -1,220 +1,91 @@
 = Data Binding
 
-== DataContainer
-
+[[data-provider]]
 == DataProvider
 
 Using a `Data Provider` in charts allows to present non-entity based or dynamically aggregated data.
 
 The `DataProvider` interface has two standard implementations: `ListChartItems` and `ContainerChartItems` classes.
 
-An instance of `DataProvider` is passed to the `setDataProvider()` method of chart configuration. This approach is the most universal, but it requires creating instances of `DataProvider` or `DataItem` in a screen controller.
+An instance of `DataProvider` is passed to the `withDataProvider()` method within the `DataSet.Source` attribute of chart configuration. This approach requires creating instances of `DataProvider` or `DataItem` in a screen controller.
 
 Entity properties or the values contained in an instance of `DataProvider` which are used for display purposes are defined in the chart attributes. The set of chart attributes may differ for different chart types.
 
 [[list-data-provider]]
 === ListChartItems
 
-`ListDataProvider` contains a list of the `DataItem` instances from which the data for the chart will be taken. There are several standard implementations of the `DataItem` interface:
+`ListChartItems` contains a list of the `DataItem` instances from which the data for the chart will be taken. There are several standard implementations of the `DataItem` interface:
 `ListChartItems` allows manual addition of data items within the chart suitable for scenarios where data is not directly tied to a database entity or when a customized data structure is needed.
 
 * `EntityDataItem` takes an instance of any entity from which the data for the chart will be taken:
 +
-[source,java]
+[source,java,indent=0]
 ----
-public class EntityDataItemSample extends StandardView {
-
-    @Autowired
-    protected Metadata metadata;
-
-    @ViewComponent
-    protected Chart chart;
-
-    @Subscribe
-    protected void onInit(InitEvent event) {
-        ListChartItems<EntityDataItem> chartItems = new ListChartItems<>(
-                List.of(
-                        new EntityDataItem(createValueDescriptionEntity(75, "Sky")),
-                        new EntityDataItem(createValueDescriptionEntity(7, "Shady side of pyramid")),
-                        new EntityDataItem(createValueDescriptionEntity(18, "Sunny side of pyramid"))
-                )
-        );
-
-        chart.withDataSet(
-                new DataSet().withSource(
-                        new DataSet.Source<EntityDataItem>()
-                                .withDataProvider(chartItems)
-                                .withCategoryField("description")
-                                .withValueField("value")
-                )
-        );
-    }
-
-    protected ValueDescription createValueDescriptionEntity(Integer value, String description) {
-        ValueDescription entity = metadata.create(ValueDescription.class);
-        entity.setValue(value);
-        entity.setDescription(description);
-        return entity;
-    }
-}
+include::example$charts-ex1/src/main/java/com/company/demo/view/dataitems/EntityDataItemSample.java[tags=onInit]
 ----
 
-* `MapDataItemScreen` is a set of key-value pairs from which the data for the chart will be taken:
+* `MapDataItem` is a set of key-value pairs from which the data for the chart will be taken:
 +
-[source,java]
+[source,java,indent=0]
 ----
-public class MapDataItemSample extends StandardView {
-
-    @ViewComponent
-    protected Chart chart;
-
-    @Subscribe
-    protected void onInit(InitEvent event) {
-        ListChartItems<MapDataItem> chartItems = new ListChartItems<>(
-                List.of(
-                        new MapDataItem(Map.of("value", 75, "description", "Sky")),
-                        new MapDataItem(Map.of("value", 7, "description", "Shady side of pyramid")),
-                        new MapDataItem(Map.of("value", 18, "description", "Sunny side of pyramid"))
-                )
-        );
-
-        chart.withDataSet(
-                new DataSet().withSource(
-                        new DataSet.Source<MapDataItem>()
-                                .withDataProvider(chartItems)
-                                .withCategoryField("description")
-                                .withValueField("value")
-                )
-        );
-    }
-}
+include::example$charts-ex1/src/main/java/com/company/demo/view/dataitems/MapDataItemSample.java[tags=onInit]
 ----
 
 * `SimpleDataItem` takes an instance of any `public` class from which the data for the chart will be taken:
 +
-[source,java]
+[source,java,indent=0]
 ----
-public class SimpleDataItemSample extends StandardView {
-
-    @ViewComponent
-    protected Chart chart;
-
-    @Subscribe
-    protected void onInit(InitEvent event) {
-        ListChartItems<SimpleDataItem> chartItems = new ListChartItems<>(
-                List.of(
-                        new SimpleDataItem(new ValueDescription(75, "Sky")),
-                        new SimpleDataItem(new ValueDescription(7, "Shady side of pyramid")),
-                        new SimpleDataItem(new ValueDescription(18, "Sunny side of pyramid"))
-                )
-        );
-
-        chart.withDataSet(
-                new DataSet().withSource(
-                        new DataSet.Source<SimpleDataItem>()
-                                .withDataProvider(chartItems)
-                                .withCategoryField("description")
-                                .withValueField("value")
-                )
-        );
-    }
-
-    public static class ValueDescription {
-        protected Integer value;
-        protected String description;
-
-        public ValueDescription(Integer value, String description) {
-            this.value = value;
-            this.description = description;
-        }
-
-        public Integer getValue() {
-            return value;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-    }
-}
+include::example$charts-ex1/src/main/java/com/company/demo/view/dataitems/SimpleDataItemSample.java[tags=onInit]
 ----
 
 [[container-data-provider]]
 === ContainerDataItems
-`ContainerChartItems` links the chart's data directly to a Jmix `CollectionContainer`, facilitating the use of entity-based data in chart visualizations.
+`ContainerDataProvider` is used to assign a xref:flow-ui:data/collection-container.adoc[CollectionContainer]  to a `Chart` component programmatically.
 
-An instance of `DataProvider` is passed to the `setDataSet()` method of chart configuration. This approach is the most universal, but it requires creating instances of `DataProvider` or `DataItem` in a screen controller.
+An instance of `ContainerDataItems` is passed to the `withDataProvider()` method.
 
-`ContainerDataProvider` is used to assign a xref:flow-ui:data/collection-container.adoc[CollectionContainer]  to a `Chart` component.
-
-Suppose we have a data container with a loader which will load the `TransportCount` instances. Below is the fragment of the screen XML descriptor:
-[source,xml]
+Suppose we have a data container with a loader which will load the `VehicleCount` instances. Below is the fragment of the screen XML descriptor:
+[source,xml,indent=0]
 ----
-<view xmlns="http://jmix.io/schema/flowui/view"
-    xmlns:charts="http://jmix.io/schema/charts/ui">
-    <data>
-        <collection id="dateValueDc" class="com.company.chartsaddon.entity.DateValue">
-            <fetchPlan extends="_local"/>
-            <loader id="dateValueLoader">
-                <query><![CDATA[select e from DateValue e order by e.date]]></query>
-            </loader>
-        </collection>
-    </data>
-    <layout>
-        <charts:chart id="chart" width="100%" height="100%">
-            <charts:dataSet>
-                <charts:source dataContainer="dateValueDc" categoryField="date" valueFields="value"/>
-            </charts:dataSet>
-        </charts:chart>
-    </layout>
-</view>
+include::example$charts-ex1/src/main/resources/com/company/demo/view/vehiclecount/vehicle-count-chart-view.xml[tags=dataCollection]
 ----
 
-A screen controller defines the `onInit()` method that sets a data provider for the `stackedArea` chart. The data provider is based on the `transportCountsDc` data container.
-[source,java]
+The screen controller defines the `onInit()` method that sets a data provider for the chart. The data provider is based on the `vehiclesDc` data container.
+[source,java,indent=0]
 ----
-@ViewComponent
-protected Chart chart;
-
-@Subscribe
-protected void onInit(InitEvent event) {
-    chart.setDataSet(
-        new DataSet().withSource(
-            new DataSet.Source<EntityDataItem>()
-                .withDataProvider(new ContainerChartItems<>(dateValueDc))
-        )
-    );
-}
+include::example$charts-ex1/src/main/java/com/company/demo/view/vehiclecount/VehicleCountChartView.java[tags=dataSet]
 ----
 
-This approach requires an entity that will represent chart data. It may be convenient when such an entity already exists in the application data model and when chart data should be displayed as a table.
+To bind data declaratively, use the xref:chart-component.adoc#data-set[`dataSet`] component in your XML descriptor file to connect data from the defined `dataContainer`.
+[source,xml,indent=0]
+----
+include::example$charts-ex1/src/main/resources/com/company/demo/view/vehiclecount/vehicle-count-chart-view.xml[tags=dataSet]
+----
+
+Both of these approaches require an existing entity that will represent chart data.
 
 [[gauge-series-data-binding]]
 == GaugeSeries Data Binding
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/gauge-series-simple" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
 
 The `GaugeSeries` requires its own `DataSet` for specifying series-specific data.
 
-For example:
+In case of the `Gauge` chart, you will need to define a `dataItem` element inside the chart's `series` as follows.
 
-[source,xml]
+[source,xml,indent=0]
 ----
-<view xmlns="http://jmix.io/schema/flowui/view"
-      xmlns:charts="http://jmix.io/schema/charts/ui">
-    <layout>
-        <charts:chart>
-            <charts:tooltip formatter="{a} &lt;br/&gt;{b} : {c}%"/>
-
-            <charts:series>
-                <charts:gauge name="Pressure">
-                    <charts:data>
-                        <charts:dataItem value="50" name="SCORE"/>
-                    </charts:data>
-                    <charts:detail formatter="{value}"/>
-                </charts:gauge>
-            </charts:series>
-        </charts:chart>
-    </layout>
-</view>
+include::example$charts-ex1/src/main/resources/com/company/demo/view/gauge/gauge-series.xml[tags=dataBinding]
 ----
 
-This segment demonstrates how to configure a `GaugeSeries` with `dataItem` directly within the chart's XML, effectively binding series-specific data points to the gauge chart.
+Or get the `series` attribute in your java controller, and use the `setData` method to bind data programmatically.
+
+[source,java,indent=0]
+----
+include::example$charts-ex1/src/main/java/com/company/demo/view/gauge/GaugeSeriesColorizedSample.java[tags=dataBinding]
+----
+
+These segments demonstrate how to configure a `GaugeSeries` with `dataItem` to bind series-specific data points to the `Gauge` chart.
