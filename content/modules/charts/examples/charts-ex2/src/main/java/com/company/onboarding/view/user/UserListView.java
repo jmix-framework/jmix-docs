@@ -48,7 +48,6 @@ public class UserListView extends StandardListView<User> {
                         "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
                         Integer.class
                 )
-                .store("main")
                 .parameter("onboardingStatus", OnboardingStatus.NOT_STARTED)
                 .one();
 
@@ -56,7 +55,6 @@ public class UserListView extends StandardListView<User> {
                         "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
                         Integer.class
                 )
-                .store("main")
                 .parameter("onboardingStatus", OnboardingStatus.IN_PROGRESS)
                 .one();
 
@@ -65,7 +63,6 @@ public class UserListView extends StandardListView<User> {
                         "select count(u) from User u where u.onboardingStatus = :onboardingStatus",
                         Integer.class
                 )
-                .store("main")
                 .parameter("onboardingStatus", OnboardingStatus.COMPLETED)
                 .one();
         // end::userLists[]
