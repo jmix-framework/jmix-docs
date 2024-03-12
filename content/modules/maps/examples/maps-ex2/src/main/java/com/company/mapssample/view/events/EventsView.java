@@ -11,13 +11,11 @@ import io.jmix.maps.utils.GeometryUtils;
 import io.jmix.mapsflowui.component.GeoMap;
 import io.jmix.mapsflowui.component.event.MapClickEvent;
 import io.jmix.mapsflowui.component.event.MapDoubleClickEvent;
-import io.jmix.mapsflowui.component.event.MapSingleClickEvent;
 import io.jmix.mapsflowui.component.model.GeoMapView;
 import io.jmix.mapsflowui.component.model.feature.LineStringFeature;
 import io.jmix.mapsflowui.component.model.feature.MarkerFeature;
 import io.jmix.mapsflowui.component.model.feature.PointFeature;
 import io.jmix.mapsflowui.component.model.feature.PolygonFeature;
-import io.jmix.mapsflowui.component.model.layer.VectorLayer;
 import io.jmix.mapsflowui.component.model.source.VectorSource;
 import io.jmix.mapsflowui.kit.component.model.feature.Feature;
 import org.locationtech.jts.geom.*;
@@ -41,6 +39,11 @@ public class EventsView extends StandardView {
     private Notifications notifications;
 
     // end::notifications[]
+    // tag::vectorSource[]
+    @ViewComponent("geoMap.vector.vectorSource")
+    private VectorSource vectorSource;
+
+    // end::vectorSource[]
     // tag::MapClickEvent[]
     @Subscribe("geoMap")
     public void onGeoMapMapClick(final MapClickEvent event) {
@@ -63,10 +66,6 @@ public class EventsView extends StandardView {
     @Subscribe
     public void onInit(final InitEvent event) {
         // end::onInit[]
-        // tag::getSource[]
-        VectorLayer vectorLayer = geoMap.getLayer("vector");
-        VectorSource vectorSource = vectorLayer.getSource();
-        // end::getSource[]
         // tag::addSourceFeatureClickListener[]
         vectorSource.addSourceFeatureClickListener(clickEvent -> {
             Feature feature = clickEvent.getFeature();
