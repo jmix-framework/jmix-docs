@@ -9,9 +9,7 @@ import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.view.*;
 import io.jmix.maps.utils.GeometryUtils;
-import io.jmix.mapsflowui.component.GeoMap;
 import io.jmix.mapsflowui.component.event.MapClickEvent;
-import io.jmix.mapsflowui.component.model.layer.VectorLayer;
 import io.jmix.mapsflowui.component.model.source.DataVectorSource;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -28,16 +26,17 @@ public class LocationDetailView extends StandardDetailView<Location> {
     protected GeometryFactory geometryFactory = GeometryUtils.getGeometryFactory(); // <1>
 
     // end::geometryFactory[]
-    // tag::map[]
-    @ViewComponent
-    private GeoMap map;
 
-    // end::map[]
     // tag::notifications[]
     @Autowired
     private Notifications notifications;
 
     // end::notifications[]
+    // tag::dataVectorSource[]
+    @ViewComponent("map.vectorLayer.dataVectorSource")
+    private DataVectorSource<Location> dataVectorSource;
+
+    // end::dataVectorSource[]
     // tag::MapClickEvent[]
     @Subscribe("map")
     public void onMapMapClick(final MapClickEvent event) {
@@ -51,9 +50,7 @@ public class LocationDetailView extends StandardDetailView<Location> {
     public void onInit(final InitEvent event) {
         // end::onInit[]
         // tag::addGeoObjectClickListener[]
-        VectorLayer vectorLayer = map.getLayer("vectorLayer");
-        DataVectorSource<Location> locationSource = vectorLayer.getSource();
-        locationSource.addGeoObjectClickListener(clickEvent ->
+        dataVectorSource.addGeoObjectClickListener(clickEvent ->
                 notifications.create("GeoObject click", clickEvent.getItem().getCity())
                 .withPosition(Notification.Position.BOTTOM_END)
                 .show());
