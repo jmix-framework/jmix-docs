@@ -11,7 +11,7 @@ import java.util.List;
 @ViewController("simple-data-item")
 @ViewDescriptor("simple-data-item.xml")
 public class SimpleDataItemSample extends StandardView {
-    // tag::onInit[]
+    // tag::controller[]
     @ViewComponent
     protected Chart chart;
 
@@ -34,7 +34,7 @@ public class SimpleDataItemSample extends StandardView {
                 )
         );
     }
-    // end::onInit[]
+    // end::controller[]
 
     public static class ValueDescription {
         protected Integer value;

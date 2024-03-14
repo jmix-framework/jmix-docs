@@ -14,10 +14,10 @@ import java.util.List;
 @ViewController("entity-data-item")
 @ViewDescriptor("entity-data-item.xml")
 public class EntityDataItemSample extends StandardView {
-
+    // tag::controller[]
     @Autowired
     protected Metadata metadata;
-    // tag::onInit[]
+
     @ViewComponent
     protected Chart chart;
 
@@ -40,7 +40,7 @@ public class EntityDataItemSample extends StandardView {
                 )
         );
     }
-    // end::onInit[]
+
 
     protected ValueDescription createValueDescriptionEntity(Integer value, String description) {
         ValueDescription entity = metadata.create(ValueDescription.class);
@@ -48,4 +48,5 @@ public class EntityDataItemSample extends StandardView {
         entity.setDescription(description);
         return entity;
     }
+    // end::controller[]
 }

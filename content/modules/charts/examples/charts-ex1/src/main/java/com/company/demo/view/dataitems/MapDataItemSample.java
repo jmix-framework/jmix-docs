@@ -13,7 +13,7 @@ import java.util.Map;
 @ViewDescriptor("map-data-item.xml")
 public class MapDataItemSample extends StandardView {
 
-    // tag::onInit[]
+    // tag::controller[]
     @ViewComponent
     protected Chart chart;
 
@@ -36,5 +36,5 @@ public class MapDataItemSample extends StandardView {
                 )
         );
     }
-    // end::onInit[]
+    // end::controller[]
 }
