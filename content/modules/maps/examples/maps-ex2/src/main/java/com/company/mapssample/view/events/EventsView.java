@@ -11,6 +11,8 @@ import io.jmix.maps.utils.GeometryUtils;
 import io.jmix.mapsflowui.component.GeoMap;
 import io.jmix.mapsflowui.component.event.MapClickEvent;
 import io.jmix.mapsflowui.component.event.MapDoubleClickEvent;
+import io.jmix.mapsflowui.component.event.MapMoveEndEvent;
+import io.jmix.mapsflowui.component.event.MapZoomChangedEvent;
 import io.jmix.mapsflowui.component.model.GeoMapView;
 import io.jmix.mapsflowui.component.model.feature.LineStringFeature;
 import io.jmix.mapsflowui.component.model.feature.MarkerFeature;
@@ -114,4 +116,29 @@ public class EventsView extends StandardView {
         PolygonFeature feature = new PolygonFeature(geometryFactory.createPolygon(shell));
         vectorSource.addFeature(feature);
     }
+    // tag::MapMoveEndEvent[]
+    @Subscribe("geoMap")
+    public void onGeoMapMapMoveEnd(final MapMoveEndEvent event) {
+        notifications.create("MapMoveEndEvent",
+                        String.format("""
+                                    Values:
+                                    Center: %s
+                                    Zoom: %s
+                                    Rotation: %s
+                                    """,
+                                event.getCenter(),
+                                event.getZoom(),
+                                event.getRotation()))
+                .withPosition(Notification.Position.BOTTOM_END)
+                .show();
+    }
+    // end::MapMoveEndEvent[]
+    // tag::MapZoomChangedEvent[]
+    @Subscribe("geoMap")
+    public void onGeoMapMapZoomChanged(final MapZoomChangedEvent event) {
+        notifications.create("MapZoomChangedEvent", "Zoom: " + event.getZoom())
+                .withPosition(Notification.Position.BOTTOM_END)
+                .show();
+    }
+    // end::MapZoomChangedEvent[]
 }
