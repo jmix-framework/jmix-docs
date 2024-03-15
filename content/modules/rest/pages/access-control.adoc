@@ -165,6 +165,59 @@ curl -X POST http://localhost:8080/oauth2/token \
    -d "refresh_token=zN2i5JooLfi0iqNJzaE-iiEiC2oHStv_X-kOaLuqX6ZNyRCs0EaNLik1xZrz-TPHfNEahLS2c402S_1kAO09K2x6oi3LFgpFoyr9snwE3ZXJ3Lp5AVH7s4YUBOXi0VRc"
 ----
 
+[[resource-owner-password-credentials-grant]]
+== Resource Owner Password Credentials Grant
+
+The Resource Owner Password Credentials grant has been removed from the OAuth 2.1 specification as it is not secure. However, it may be useful in some cases, so Jmix framework provides support for it. You can read more about the Resource Owner Password Credentials grant in the {oauth-2_0-specification-page}#section-4.3[OAuth 2.0 specification^].
+
+In short, this flow allows you to obtain an access token with permissions of a real Jmix application user. Jmix user credentials are passed in the request body.
+
+To enable the grant type, the "password" grant type must be registered for the client in the `application.properties` file:
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application-password-grant.properties[tags=authorization-grant-types]
+----
+
+A full set of application properties may be as follows:
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application-password-grant.properties[tags=password-grant-all-props]
+----
+
+To obtain an access token, the client must make a request to the token endpoint. The request content type must be `application/x-www-form-urlencoded`. The `grant_type` parameter should have the `password` value. `username` and `password` parameters must contain Jmix user credentials. The `Authorization` header must define the basic authentication using client id and secret registered in `application.properties`. In the example above they are `myapp` and `mysecret`.
+
+If using the `curl` utility, the request will look as follows:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:mysecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=password" \
+   -d "username=user1" \
+   -d "password=pass1"
+----
+
+The following result will be returned:
+
+[source,json]
+----
+{
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "token_type":"Bearer",
+  "expires_in":3599
+}
+----
+
+If you need a refresh token to be returned as well, then register the "refresh_token" grant for the client:
+
+[source,properties]
+----
+spring.security.oauth2.authorizationserver.client.myclient.registration.authorization-grant-types=password,refresh_token
+----
+
 [[anonymous-access]]
 == Anonymous Access
 
@@ -251,3 +304,8 @@ TIP: The anonymous access feature *does not* require that `anonymous` user has t
 == Predefined Roles
 
 *REST: minimal access* (`rest-minimal`): Allows users to interact with the application via the API.
+
+[[specific-policies]]
+== Specific Policies
+
+*rest.enabled* xref:security:resource-roles.adoc#specific-policy[specific policy] grants access to REST API endpoints. You should either assign the user the `rest-minimal` role or add this specific policy to any of other user roles.
