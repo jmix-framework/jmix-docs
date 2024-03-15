@@ -1,29 +1,28 @@
 package com.company.demo.view.gauge;
 
+import com.company.demo.view.main.MainView;
+import com.vaadin.flow.router.Route;
 import io.jmix.chartsflowui.component.Chart;
 import io.jmix.chartsflowui.kit.component.model.series.GaugeSeries;
-import io.jmix.flowui.facet.Timer;
 import io.jmix.flowui.view.*;
 
-import java.util.Random;
 
-@ViewController("gauge-series-colorized")
-@ViewDescriptor("gauge-series-colorized.xml")
-public class GaugeSeriesColorizedSample extends StandardView {
+@Route(value = "gauge-series", layout = MainView.class)
+@ViewController("GaugeSeriesView")
+@ViewDescriptor("gauge-series-view.xml")
+public class GaugeSeriesView extends StandardView {
 
     @ViewComponent
     protected Chart chart;
 
-    protected Random random = new Random();
-
-    @Subscribe("timer")
-    protected void onTimerTick(Timer.TimerActionEvent event) {
+    @Subscribe
+    protected void onInit(InitEvent event) {
         // tag::dataBinding[]
         GaugeSeries gaugeSeries = chart.getSeries("gaugeSeries");
 
         gaugeSeries.setData(
                 new GaugeSeries.DataItem()
-                        .withValue((double) random.nextInt(0, 100))
+                        .withValue(50.0).withName("SCORE")
         );
         // end::dataBinding[]
     }
