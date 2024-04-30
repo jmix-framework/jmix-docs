@@ -1,0 +1,256 @@
+= 高密度数据可视化
+
+高密度数据是一种在特定空间或时间区域内具有大量数据点的数据集。
+
+数量多且密集的数据集可能难以进行有效的可视化。但是，有几种方法可以使得高密度数据的展示更容易，且能表现数据的意义。以下各小节将讨论这些方法。
+
+[[clustering]]
+== 聚合图
+
+Clustering（聚合图）是一种根据图层中 xref:maps:features-geometries.adoc[地图要素] 之间的接近程度对要素进行分组显示的方法。通常，每个聚合图标的大小与其包含的要素数量成正比。这种方法可以用于显示区域中点的距离非常近的数据。
+
+image::clustering-main.png[align="center", width="779"]
+
+聚合在 xref:maps:layers-sources.adoc#vector-layer[矢量层] 中的 cluster source（聚合源）配置。聚合源需要使用 xref:maps:layers-sources.adoc#data-vector-source[DataVectorSource] 或 xref:maps:layers-sources.adoc#vector-source[VectorSource]。
+
+按照下面步骤可以对在 XML 对数据源进行聚合处理：
+
+. 在 xref:maps:map-component.adoc[geoMap] 组件添加一个矢量层。
+. 为矢量层添加 `ClusterSource`。
+. 按下面的代码配置 `DataVectorSource`：
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-basics]
+----
+
+接下来，我们将介绍聚合图的几个关键概念。
+
+[[cluster-source]]
+=== 聚合源
+
+`ClusterSource` 聚合源是一个支持地图要素聚合的数据源。需要额外的源支持地图要素，额外的源可以是下列之一：
+
+* `DataVectorSource`
+* `VectorSource`
+
+其中 `VectorSource` 可用于无需绑定数据的要素聚合：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-vectorSource]
+----
+
+[[cluster-attributes]]
+=== cluster 属性
+
+`cluster` 元素有下列属性：
+
+* `attributions` 表示制作人的名称。
+* `disableAtZoom` 设置一个缩放级别，在该级别上将禁用聚合。
+* `distance` 表示地图要素可以聚合在一起的距离（以像素为单位）。
+* `minDistance` 表示聚合之间的最小像素距离。（有关详细信息，请参阅 https://openlayers.org/en/latest/apidoc/module-ol_source_Cluster-Cluster.html[OSM 文档^]）。
+* `showSinglePointAsCluster` 将单个点显示为大小为 1 的聚合。
+* `weightProperty` - 如果提供，图层中的每个点都将有一个基于 xref:maps:geo-objects.adoc[geo-object] 的 `weight` 属性的整数权重值。此值用于计算组合的聚合值（默认情况下，聚合值为内部点的数量）。
+* `wrapX` 设置文字是否可以水平换行。
+
+[[weight-property]]
+=== 权重属性
+
+默认情况下，一个聚合会计算其中包含点的数量，然后将数量显示在聚合图的标记上。通过 `weightProperty` 可以设置用于聚合计算的属性。
+
+例如，该项目包含一个 JPA 实体：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;weight]
+----
+<1> `building` 属性包含建筑物在地图上的坐标。
+<2> `weight` 属性包含建筑物的一个数值属性。
+
+XML 中，我们按如下配置聚合：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=data;layout;weightProperty]
+----
+
+[[cluster-styling]]
+=== 聚合图标样式
+
+聚合图的图标可以通过 Java API 进行自定义。有两种方式：
+
+. 添加一个新的样式盖住默认样式。
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=cluster;init;new-style]
+----
++
+image::cluster-new-style.png[align="center", width="100"]
+
+. 删除默认样式并添加新样式。
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterS;init;remove-add]
+----
++
+image::cluster-remove-add-style.png[align="center", width="100"]
+
+如需修改文字样式，使用 `setPointTextStyle()` 方法：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterSource;init;text-style]
+----
+
+image::cluster-text-style.png[align="center", width="100"]
+
+[[feature-property]]
+=== 设置要素属性
+
+要素中可以定义将在聚合中使用的要素属性。
+
+例如，如果聚合指定了权重属性，那么将会尝试从要素的属性中获取。
+
+示例：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=point-feature]
+----
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=source;init;addAllFeatures;generatePoints]
+----
+
+[[heatmap]]
+== 热力图
+
+Heatmap（热力图）将 xref:maps:features-geometries.adoc[点要素] 渲染为栅格层，使用渐变色依次显示点的浓度。
+
+较暖的颜色（如红色或橙色）表示值较高的区域，而较冷的颜色（如蓝色或绿色）表示值较低的区域。
+
+image::heatmap-main.png[align="center", width="623"]
+
+热力图在 `HeatmapLayer` 配置。该图层以热点的形式显示数据。`HeatmapLayer` 使用 `HeatmapDataVectorSource` 和 xref:maps:layers-sources.adoc#vector-source[VectorSource]。
+
+* `HeatmapDataVectorSource` 用于绑定 xref:flow-ui:data/data-containers.adoc[数据容器]（实体或 DTO）。`property` 属性需配置为 `Point` 类型的实体属性。
+
+* 当不需要与数据容器绑定时，应使用 `VectorSource`。
+
+例如，可以按下列步骤配置一个与数据容器关联的热力图：
+
+. 为 xref:maps:map-component.adoc[geoMap] 组件添加热力图层：在 *Jmix UI* 层级结构或视图 XML 中，选择 `geoMap` 元素，然后点击属性面板的 *Add* 按钮，选择 *Layers → HeatmapLayer*。
++
+image::add-heatmap-layer.png[align="center", width="351"]
+. 为热力图层添加 `HeatmapDataVectorSource`，按下面的代码配置：
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;default]
+----
+<1> 设置为 `Location` 实体中 `Point` 类型的属性
+
+接下来，我们将介绍热力图的几个关键概念。
+
+[[heatmap-attributes]]
+=== 热力图属性
+
+`heatmap` 具有下列属性：
+
+* <<heatmap-weight-property,weightProperty>> 属性设置为实体（或要素）中表示权重（强度）的属性。
++
+NOTE: 如果未指定该属性，则将使用最大可用权重值。
+
+* `maxWeight` - 表示最大权重值，范围从 `0.0` 到 `1.0`。
+* `blur` 设置点模糊效果的像素大小。
+* `radius` 设置点半径的像素大小。
+* `gradient` - 配置渐变色范围，需设置为逗号分隔的 CSS 颜色。
+
+此外，还包括基本的图层属性：`className`、`maxZoom`、`minZoom`、`opacity`、`visible`、`zIndex`。
+
+示例：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=different-attributes]
+----
+
+[[heatmap-weight-property]]
+=== 权重属性
+
+`weightProperty` 是确定热图上点的强度或权重的属性。需指定为要素或者实体的属性。此属性必须是 `Double` 类型，且值域为 `0.0` 到 `1.0`。
+
+如果未显式定义 `weightProperty` 的值，则通常使用默认值 `1` 来表示热力图点的最大权重。
+
+下面是使用 `weightProperty` 属性的 <<heatmap-without-data-binding>> 和 <<heatmap-linked-to-data>> 示例。
+
+[[heatmap-examples]]
+=== 示例
+
+[[heatmap-without-data-binding]]
+==== 无数据绑定的热力图
+
+如无需绑定数据容器，则可以使用 `VectorSource`。
+
+下面的示例中，用 XML 配置并初始化了一个地图。
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=without-data-binding]
+----
+<1> 设置地图要素中将使用的属性。
+<2> 为矢量源设置一个 `id`，以便注入控制器。
+
+然后，我们通过 Java 控制器设置其他信息：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=vectorSource;init;without-data-binding]
+----
+<1> 在控制器类中注入 `vectorSource`。
+<2> 方法中使用 `weight` 参数设置值，这个参数是在 XML 中 `heatmap` 元素指定的。
+
+[[heatmap-linked-to-data]]
+==== 有数据绑定的热力图
+
+例如，项目中有一个 JPA 实体：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;intensity]
+----
+<1> `building` 属性包含建筑物在地图上的坐标。
+<2> `intensity` 属性包含建筑物的一个数值属性。
+
+XML 中，我们按如下配置热力图：
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;binding]
+----
+<1> 在 `weightProperty` 属性中指定包含点强度值的实体属性的值。
+
+[[heatmap-weightProvider]]
+==== WeightProvider
+
+`HeatmapDataVectorSource` 提供了一个特殊的方法用于处理实体或 DTO 没有 <<heatmap-weight-property,权重属性>> 或权重需要通过别的方式计算的情形。此时，不需要指定 `weightProperty`。
+
+下面的示例中，在 XML 配置并初始化了一个地图。
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=WeightProvider]
+----
+
+然后，我们在 Java 控制器中为 `heatmapDataVectorSource` 配置了一个权重的 provider：
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=heatmapDataVectorSource;init;setWeightProvider]
+----
+<1> 注意：`heatmapDataVectorSource` 是有泛型参数的。
+<2> 对每一项数据都调用这个 provider 并返回计算出的权重值。

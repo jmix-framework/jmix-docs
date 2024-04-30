@@ -11,8 +11,10 @@ import io.jmix.flowui.kit.action.ActionPerformedEvent;
 import io.jmix.flowui.kit.action.BaseAction;
 import io.jmix.flowui.view.*;
 import io.jmix.mapsflowui.component.GeoMap;
-import io.jmix.mapsflowui.component.model.layer.VectorLayer;
+import io.jmix.mapsflowui.component.model.FitOptions;
 import io.jmix.mapsflowui.component.model.source.DataVectorSource;
+import io.jmix.mapsflowui.kit.component.model.Easing;
+import io.jmix.mapsflowui.kit.component.model.Padding;
 import io.jmix.mapsflowui.kit.component.model.style.Fill;
 import io.jmix.mapsflowui.kit.component.model.style.Style;
 import io.jmix.mapsflowui.kit.component.model.style.image.Anchor;
@@ -20,9 +22,8 @@ import io.jmix.mapsflowui.kit.component.model.style.image.CircleStyle;
 import io.jmix.mapsflowui.kit.component.model.style.image.IconOrigin;
 import io.jmix.mapsflowui.kit.component.model.style.image.IconStyle;
 import io.jmix.mapsflowui.kit.component.model.style.stroke.Stroke;
-import io.jmix.mapsflowui.kit.component.model.Padding;
 import io.jmix.mapsflowui.kit.component.model.style.text.TextStyle;
-import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.springframework.lang.Nullable;
 
 import java.util.List;
@@ -48,7 +49,26 @@ public class LocationLookupView extends StandardView {
     // tag::selected[]
     private Location selected;
     // end::selected[]
+    // tag::buildingSource[]
+    @ViewComponent("map.dataVectorLayer.buildingSource")
+    private DataVectorSource<Location> buildingSource;
 
+    // end::buildingSource[]
+    // tag::entranceSource[]
+    @ViewComponent("map.vectorLayerEntrance.entranceSource")
+    private DataVectorSource<Location> entranceSource;
+
+    // end::entranceSource[]
+    // tag::pathSource[]
+    @ViewComponent("map.vectorLayerPath.pathSource")
+    private DataVectorSource<Location> pathSource;
+
+    // end::pathSource[]
+    // tag::areaSource[]
+    @ViewComponent("map.vectorLayerArea.areaSource")
+    private DataVectorSource<Location> areaSource;
+
+    // end::areaSource[]
     // tag::location-param[]
     public Location getSelected() {
         return selected;
@@ -60,16 +80,13 @@ public class LocationLookupView extends StandardView {
         currentLocationField.setValue(selected);
 
         if (selected != null) {
-            setMapCenter(selected.getBuilding().getCoordinate());
+            setMapCenter(selected.getBuilding());
         }
     }
     // end::location-param[]
     // tag::initGeoMap[]
     private void initBuildingSource(){
-        VectorLayer layer = map.getLayer("dataVectorLayer");
-
-        DataVectorSource<Location> source = layer.getSource(); // <1>
-        source.setStyleProvider(location -> new Style() // <2>
+        buildingSource.setStyleProvider(location -> new Style() // <1>
                 .withImage(new IconStyle()
                         .withScale(0.5)
                         .withAnchorOrigin(IconOrigin.BOTTOM_LEFT)
@@ -83,10 +100,10 @@ public class LocationLookupView extends StandardView {
                         .withOffsetY(15)
                         .withFont("bold 15px sans-serif")
                         .withText(location.getCity())));
-        source.addGeoObjectClickListener(clickEvent -> {
+        buildingSource.addGeoObjectClickListener(clickEvent -> {
             Location location = clickEvent.getItem();
 
-            setMapCenter(location.getBuilding().getCoordinate());
+            setMapCenter(location.getBuilding());
 
             onLocationChanged(location);
         });
@@ -108,9 +125,11 @@ public class LocationLookupView extends StandardView {
     }
     // end::onInit[]
     // tag::setMapCenter[]
-    private void setMapCenter(Coordinate center) {
-        map.getMapView().setCenter(center);
-        map.getMapView().setZoom(20);
+    private void setMapCenter(Geometry center) {
+        map.fit(new FitOptions(center)
+                .withDuration(2000)
+                .withEasing(Easing.LINEAR)
+                .withMaxZoom(20d));
     }
     // end::setMapCenter[]
     // tag::onLocationChanged[]
@@ -120,7 +139,7 @@ public class LocationLookupView extends StandardView {
                 selected = newLocation;
                 select.setEnabled(true); // <1>
 
-                setMapCenter(newLocation.getBuilding().getCoordinate());
+                setMapCenter(newLocation.getBuilding());
 
                 currentLocationField.setValue(newLocation); // <2>
             }
@@ -135,10 +154,7 @@ public class LocationLookupView extends StandardView {
 
 // tag::initBuildingAreaSource[]
     private void initBuildingAreaSource() {
-        VectorLayer layer = map.getLayer("vectorLayerArea");
-
-        DataVectorSource<Location> source = layer.getSource();
-        source.setStyleProvider(location -> { // <1>
+        areaSource.setStyleProvider(location -> { // <1>
             String fillColor = location.getType() == LocationType.COWORKING
                     ? "rgba(52, 216, 0, 0.2)"
                     : "rgba(1, 147, 154, 0.2)";
@@ -156,10 +172,7 @@ public class LocationLookupView extends StandardView {
 
     // tag::initBuildingEntranceSource[]
     private void initBuildingEntranceSource() {
-        VectorLayer layer = map.getLayer("vectorLayerEntrance");
-
-        DataVectorSource<Location> source = layer.getSource();
-        source.setStyleProvider((location -> // <1>
+        entranceSource.setStyleProvider((location -> // <1>
                 new Style()
                         .withImage(new CircleStyle()
                                 .withRadius(4)
@@ -171,10 +184,7 @@ public class LocationLookupView extends StandardView {
     // end::initBuildingEntranceSource[]
     // tag::initPathToBuildingSource[]
     private void initPathToBuildingSource() {
-        VectorLayer layer = map.getLayer("vectorLayerPath");
-
-        DataVectorSource<Location> source = layer.getSource();
-        source.setStyleProvider(location -> // <1>
+        pathSource.setStyleProvider(location -> // <1>
                 new Style()
                         .withStroke(new Stroke()
                                 .withWidth(2d)

@@ -81,9 +81,10 @@ public class GenericFilterView extends StandardView {
                 agePropertyFilter.getOperation())); // <4>
 
         javaDefaultConfiguration.getRootLogicalFilterComponent().add(agePropertyFilter); // <5>
-        genericFilter.setCurrentConfiguration(javaDefaultConfiguration); // <6>
 
-        programmaticFilterBox.add(genericFilter); // <7>
+        programmaticFilterBox.add(genericFilter); // <6>
+
+        genericFilter.setCurrentConfiguration(javaDefaultConfiguration); // <7>
     }
     // end::programmaticFilter[]
 

@@ -1,0 +1,214 @@
+= 第二部分：进阶
+
+In this chapter, you will create:
+
+* The `WebdavFolder` entity.
+
+== Creating WebdavFolder Entity
+
+One of the `WebdavFolder` entity's attributes is `classification`, which contains information on the type of folder. Therefore, let's create a `Classification` enumeration consisting of two values: `Public` and `Restricted`.
+
+The detailed instructions for creating enumerations can be found in the xref:tutorial:enumerations.adoc[Using Enumerations] section of Tutorial.
+
+image::enum-classification.png[align="center", width="427"]
+
+Next, create the `WebdavFolder` entity. You can find detailed instructions for creating entities in the xref:tutorial:simple-crud.adoc[Simple CRUD] section of the Tutorial.
+
+The `WebdavFolder` entity has the following attributes:
+
+* `name` with `String` type. Select the *Mandatory* checkbox.
+* `classification` with `Classification` enumeration type.
+* `department` with `Department` type:
+** *Attribute type*: `ASSOCIATION`
+** *Type*: `Department`
+** *Cardinality*: `Many to One`
+** *FK constraint action*: `DENY`
+* `parent` with `WebdavFolder` type:
+** *Attribute type*: `ASSOCIATION`
+** *Type*: `WebdavFolder`
+** *Cardinality*: `Many to One`
+
+== Adding WebdavFolder Attribute to WebdavDocumentWrapper
+
+Then add the `webdavFolder` attribute to the `WebdavDocumentWrapper` entity:
+
+Double-click on the `WebdavDocumentWrapper` entity in *Jmix* tool window and select its last attribute (to add the new attribute to the end):
+
+image::add-attr-wbddocwrapper.png[align="center", width="912"]
+
+Click *Add* (image:add.svg[]) in the *Attributes* toolbar. In the *New Attribute* dialog, enter `folder` into the *Name* field, select `ASSOCIATION` in the *Attribute type* dropdown and `WebdavFolder` in the *Type* dropdown. Select CASCADE in the *FK constraint action* dropdown.
+
+image::add-folder-attr.png[align="center", width="862"]
+
+Click *OK*.
+
+== Creating Knowledge Base View
+
+Описать экран
+
+Below is a mockup of the *Knowledge base* view:
+
+image::knowledge-base-mockup.png[align="center", width="862"]
+
+In this chapter, you will create the *Knowledge base* view from scratch.
+
+If your application is running, stop it using the *Stop* button (image:suspend.svg[]) in the main toolbar.
+
+In the *Jmix* tool window, click *New* (image:add.svg[]) -> *View*. In the *Create Jmix View* window, select the `Blank view` template. Click *Next*.
+
+On the next step of the wizard, enter:
+
+* *Descriptor name*: `knowledge-base-view`
+* *Controller name*: `KnowledgeBaseView`
+* *Package name*: `com.company.onboarding.view.knowledgebase`
+
+image::knowledge-base-create1.png[align="center", width="997"]
+
+Click *Next*.
+
+On the next step of the wizard, change the view title to `Knowledge base`:
+
+image::knowledge-base-create2.png[align="center", width="997"]
+
+Click *Create*.
+
+Studio will create an empty view and open it in the designer:
+
+image::knowledge-base-create3.png[align="center", width="1265"]
+
+The new view will also be added to the main menu.
+
+Run the application by clicking the *Debug* button (image:start-debugger.svg[]) in the main toolbar.
+
+Prior to application execution, Studio will draft a Liquibase changelog:
+
+image::changelog.png[align="center", width="1219"]
+
+Click *Save and run*.
+
+Studio will execute the changelog, proceed with building and running the application.
+
+Open the application in your web browser and log in to the application.
+
+Click on the `Knowledge base` item in the `Application` menu and make sure your empty view is opened.
+
+=== Defining Data Section
+
+According to the provided design sketch, there will be two data containers on the view, the data from which will be used to display the folder list and the list of webDAV documents related to the folders.
+
+. First, add a data container which will provide a collection of `WevdavFolder` entities for the tree data grid. Click *Add Component* in the actions panel, select the *Data components* section, and double-click the *Collection* item. In the *Collection Properties Editor* window, select `WevdavFolder` in the *Entity* field, uncheck the *Read only* checkbox, and click *OK*:
++
+image::folder-collection-create.png[align="center", width="729"]
++
+Studio will create the collection container:
++
+[source,xml]
+----
+<data>
+    <collection id="webdavFoldersDc"
+                class="com.company.onboarding.entity.WebdavFolder">
+        <fetchPlan extends="_base"/>
+        <loader id="webdavFoldersDl">
+            <query>
+                <![CDATA[select e from WebdavFolder e]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+. Then, add a data container which will provide a collection of `WebdavDocumentWrapper` entities for the data grid. Click *Add Component* in the actions panel, select the *Data components* section, and double-click the *Collection* item. In the *Collection Properties Editor* window, select `WebdavDocumentWrapper` in the *Entity* field. Click the *Edit* button (image:edit.svg[]) to the right of the *Fetch plan* field.
+
++
+image::wbdoc-wrapper-collection-create.png[align="center", width="729"]
++
+Select the `wevdavDocument` attribute and then the `lastVersion` attribute for it in the *Edit Fetch Plan* dialog.
++
+image::wbdoc-wrapper-collection-create2.png[align="center", width="848"]
++
+Studio will create the collection container:
++
+[source,xml,indent=0]
+----
+        <collection id="webdavDocumentWrappersDc"
+                    class="com.company.onboarding.entity.WebdavDocumentWrapper">
+            <fetchPlan extends="_base">
+                <property name="webdavDocument" fetchPlan="_base">
+                    <property name="lastVersion" fetchPlan="_base"/>
+                </property>
+            </fetchPlan>
+            <loader id="webdavDocumentWrappersDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from WebdavDocumentWrapper e]]>
+                </query>
+            </loader>
+        </collection>
+----
++
+The default query will load all `WebdavDocumentWrapper` instances, but you need to select only documents of the current webdav folder. Let’s modify the query using *JPQL Query Designer*. Select `webdavDocumentWrappersDl` in the *Jmix UI* hierarchy panel and click the value of the `query` attribute. Then add a `where` clause by the `folder` attribute with the `:folder` parameter.
++
+
+image::wbdoc-wrapper-query.png[align="center", width="935"]
++
+The resulting query should be as below:
++
+[source,xml,indent=0]
+----
+            <loader id="webdavDocumentWrappersDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from WebdavDocumentWrapper e
+                    where e.folder = :folder]]>
+                </query>
+            </loader>
+----
+
+We'll provide passing the `:folder` parameter into the query a bit later, but for now let's create the visual components to display the list of folders and documents.
+
+=== Adding UI Layouts
+
+Since the *Knowledge base* view is divided into two areas, we will use the xref:flow-ui:vc/layouts/split.adoc[split] layout. Add the `split` layout, and then add two vertical boxes (xref:flow-ui:vc/layouts/vbox.adoc[vbox]) to it sequentially. In the first vertical box, there is a horizontal box containing the tree data grid control buttons, and a xref:flow-ui:vc/components/treeDataGrid.adoc[treeDataGrid] containing a folder hierarchy. In the second vertical box, there is a horizontal panel containing the data grid control buttons and a xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] containing webDAV documents. The template for the view looks like this:
+
+[source,xml,indent=0]
+----
+    <layout>
+        <split width="100%" height="100%" splitterPosition="17">
+            <vbox>
+                <hbox id="webdavFoldersButtonsPanel"
+                      classNames="buttons-panel"/>
+                <!--We will later add a folder treeDataGrid here-->
+            </vbox>
+            <vbox>
+                <hbox id="documentsButtonsPanel"
+                      classNames="buttons-panel"/>
+                <!--We will later add a webDAV document dataGrid here-->
+            </vbox>
+        </split>
+    </layout>
+----
+
+=== Creating WebdavFolder TreeDataGrid
+
+Add the `treeDataGrid` component into the first vertical box. Select `WebdavFolder` in the *Entity* field and `webdavFoldersDc` data container in the *TreeDataGrid Properties Editor* dialog:
+
+image::webdav-folder-tree-data-grid.png[align="center", width="762"]
+
+Remove the extra column `classification` and set the `hierarchy` property to `parent`.
+
+[source,xml,indent=0]
+----
+                <treeDataGrid dataContainer="webdavFoldersDc"
+                              hierarchyProperty="parent"
+                              width="100%"
+                              id="webdavFoldersTreeDataGrid">
+                    <actions>
+                        <action id="create" type="list_create"/>
+                        <action id="edit" type="list_edit"/>
+                        <action id="remove" type="list_remove"/>
+                    </actions>
+                    <columns>
+                        <column property="name"/>
+                    </columns>
+                </treeDataGrid>
+----
+// === Provide Value for Folder Parameter
+//
+// The next task is to provide a value for the `:folder` parameter. You can do it in the `BeforeShowEvent` handler. Switch to the MyOnboardingView controller class, click Generate Handler button in the top actions panel and select Controller handlers → BeforeShowEvent:
