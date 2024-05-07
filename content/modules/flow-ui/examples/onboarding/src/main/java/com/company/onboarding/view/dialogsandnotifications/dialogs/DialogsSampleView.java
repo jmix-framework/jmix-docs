@@ -13,12 +13,12 @@ import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.action.DialogAction;
 import io.jmix.flowui.app.inputdialog.DialogActions;
 import io.jmix.flowui.app.inputdialog.DialogOutcome;
+import io.jmix.flowui.backgroundtask.BackgroundTask;
+import io.jmix.flowui.backgroundtask.TaskLifeCycle;
 import io.jmix.flowui.component.combobox.EntityComboBox;
 import io.jmix.flowui.component.validation.ValidationErrors;
-import io.jmix.flowui.view.StandardView;
-import io.jmix.flowui.view.Subscribe;
-import io.jmix.flowui.view.ViewController;
-import io.jmix.flowui.view.ViewDescriptor;
+import io.jmix.flowui.kit.component.button.JmixButton;
+import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.company.onboarding.entity.User;
 import static io.jmix.flowui.app.inputdialog.InputParameter.*;
@@ -179,4 +179,33 @@ public class DialogsSampleView extends StandardView {
                 .open();
     }
     // end::inputDialog-custom-validator[]
+
+    // tag::backgroundTaskDialog[]
+    @Subscribe(id = "backgroundTaskButton", subject = "singleClickListener")
+    public void onBackgroundTaskClick(final ClickEvent<JmixButton> event) {
+        dialogs.createBackgroundTaskDialog(new SampleTask(15, this, 10)) // <1>
+                .withHeader("Background task running")
+                .withText("Please wait until the task is complete")
+                .withTotal(10) // <2>
+                .withCancelAllowed(true) // <3>
+                .open();
+    }
+
+    protected class SampleTask extends BackgroundTask<Integer, Void> {
+        int count;
+        public SampleTask(long timeoutSeconds, View<?> view, int count) {
+            super(timeoutSeconds, view);
+            this.count = count;
+        }
+
+        @Override
+        public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
+            for (int i = 1; i < count + 1; i++) {
+                Thread.sleep(1000);
+                taskLifeCycle.publish(i);
+            }
+            return null;
+        }
+    }
+    // end::backgroundTaskDialog[]
 }
