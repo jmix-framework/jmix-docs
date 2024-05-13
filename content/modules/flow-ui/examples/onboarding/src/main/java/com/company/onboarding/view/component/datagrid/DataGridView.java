@@ -2,6 +2,7 @@ package com.company.onboarding.view.component.datagrid;
 
 
 import com.company.onboarding.entity.User;
+import com.company.onboarding.entity.UserStep;
 import com.company.onboarding.view.DataGridHelper;
 import com.company.onboarding.view.main.MainView;
 
@@ -10,12 +11,16 @@ import com.vaadin.flow.component.Focusable;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.LocalDateRenderer;
+import com.vaadin.flow.data.renderer.Renderer;
+import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import io.jmix.core.FileRef;
 import io.jmix.core.FileStorage;
 import io.jmix.flowui.UiComponents;
+import io.jmix.flowui.component.checkbox.JmixCheckbox;
 import io.jmix.flowui.component.combobox.JmixComboBox;
 import io.jmix.flowui.component.grid.DataGrid;
 import io.jmix.flowui.component.grid.editor.DataGridEditor;
@@ -24,6 +29,8 @@ import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.function.Consumer;
@@ -76,8 +83,10 @@ public class DataGridView extends StandardView {
         dataGrid.setItems(new ContainerDataGridItems<>(usersDc));
         // end::setItems[]
         // tag::addJoiningDate[]
-        usersDtGr.addColumn(new LocalDateRenderer<>
-                        (User::getJoiningDate,"dd/MM"))
+        usersDtGr.addColumn(new LocalDateRenderer<>(
+                        User::getJoiningDate,
+                        () -> DateTimeFormatter.ofLocalizedDate(
+                                FormatStyle.MEDIUM)))
                 .setHeader("Joining date");
         // end::addJoiningDate[]
         // tag::addComponentColumn[]
@@ -134,4 +143,50 @@ public class DataGridView extends StandardView {
         // tag::onInit[]
     }
     // end::onInit[]
+    @Supply(to = "usersDtGr.picture", subject = "renderer")
+    private Renderer<User> usersDtGrPictureRenderer() {
+        return new ComponentRenderer<>(user -> {
+            FileRef fileRef = user.getPicture();
+            if (fileRef != null) {
+                Image image = uiComponents.create(Image.class);
+                image.setWidth("30px");
+                image.setHeight("30px");
+                StreamResource streamResource = new StreamResource(
+                        fileRef.getFileName(),
+                        () -> fileStorage.openStream(fileRef));
+                image.setSrc(streamResource);
+                image.setClassName("user-picture");
+
+                return image;
+            } else {
+                return null;
+            }
+        });
+    }
+
+    // tag::textRenderer[]
+    @Supply(to = "userStepsDataGrid.status", subject = "renderer")
+    private Renderer<UserStep> userStepsDataGridStatusRenderer() {
+        return new TextRenderer<>(userStep ->
+                isOverdue(userStep) ? "Overdue!" : "");
+    }
+    // end::textRenderer[]
+
+    private boolean isOverdue(UserStep userStep) {
+        return true;
+    }
+
+    // tag::ComponentRenderer[]
+    @Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+    private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+        return new ComponentRenderer<>(userStep -> {
+            JmixCheckbox checkbox = uiComponents.create(JmixCheckbox.class);
+            checkbox.setValue(userStep.getCompletedDate() != null);
+            checkbox.addValueChangeListener(e -> {
+                // ...
+            });
+            return checkbox;
+        });
+    }
+    // end::ComponentRenderer[]
 }
