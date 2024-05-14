@@ -21,31 +21,38 @@ import java.util.concurrent.TimeUnit;
 public class ProgressBarView extends StandardView {
     // tag::background-tasks[]
     @ViewComponent
-    protected ProgressBar progressBar;
+    protected ProgressBar progressBar; // <1>
     @Autowired
     protected BackgroundWorker backgroundWorker;
+
+    protected BackgroundTaskHandler<Void> taskHandler;
 
     private static final int ITERATIONS = 6;
 
     @Subscribe
-    protected void onInit(InitEvent event) {
-        BackgroundTask<Integer, Void> task = new BackgroundTask<Integer, Void>(100) {
+    protected void onInit(InitEvent event) {  // <2>
+        taskHandler = backgroundWorker.handle(createBackgroundTask());
+        taskHandler.execute();
+    }
+
+    protected BackgroundTask<Integer, Void> createBackgroundTask () { // <3>
+        return new BackgroundTask<>(100, TimeUnit.SECONDS) {
             @Override
             public Void run(TaskLifeCycle<Integer> taskLifeCycle) throws Exception {
-                for (int i = 1; i <= ITERATIONS; i++) {
-                    TimeUnit.SECONDS.sleep(1); // <1>
+                for (int i=1; i< ITERATIONS; i++) {
+                    TimeUnit.SECONDS.sleep(1);
                     taskLifeCycle.publish(i);
                 }
                 return null;
             }
+
             @Override
-            public void progress(List<Integer> changes) {
+            public void progress (List<Integer> changes) {
                 double lastValue = changes.get(changes.size() - 1);
-                progressBar.setValue(lastValue / ITERATIONS); // <2>
+                double value = lastValue/ITERATIONS;
+                progressBar.setValue(value); // <4>
             }
         };
-        BackgroundTaskHandler taskHandler = backgroundWorker.handle(task);
-        taskHandler.execute();
     }
     // end::background-tasks[]
 }
