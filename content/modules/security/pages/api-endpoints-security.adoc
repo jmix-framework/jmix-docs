@@ -1,27 +1,27 @@
 = API Endpoints Security
 
-Requests to the Jmix application are secured by the Spring Security framework. This section explains how you can configure custom API endpoint security.
+Requests to the Jmix application are protected by the Spring Security framework. This section explains how you can configure custom API endpoint security.
 
 [[security-architecture]]
 == Security Architecture
 
-If you want to gain a deep understanding of how security works, it is recommended that you read the relevant sections of the Spring Security documentation:
+To gain a deep understanding of how security works, it is recommended that you read the relevant sections of the Spring Security documentation:
 
-* https://docs.spring.io/spring-security/reference/servlet/architecture.html[Spring Security’s high-level architecture within Servlet-based applications^]
-* https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html[Authorize HttpServletRequests^]
+* {spring-security-doc}/servlet/architecture.html[Spring Security’s high-level architecture within Servlet-based applications^]
+* {spring-security-doc}/servlet/authorization/authorize-http-requests.html[Authorize HttpServletRequests^]
 
-To determine which URLs should be protected Spring Security uses special https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] beans. Each `SecurityFilterChain` bean is configured by the https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^] builder. An application can have multiple `SecurityFilterChain` beans declared. In this case, it is extremely important to indicate their correct order. See the https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] section of Spring Security documentation for examples of how to configure multiple `HttpSecurity` objects.
+To determine which URLs should be protected Spring Security uses special {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] beans. Each `SecurityFilterChain` bean is configured by the {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^] builder. An application can have multiple `SecurityFilterChain` beans declared. In this case, it is extremely important to indicate their correct order. See the {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] section of Spring Security documentation for examples of how to configure multiple `HttpSecurity` objects.
 
-Each Jmix application by default contains a security configuration that extends the https://vaadin.com/docs/latest/security/enabling-security#security-configuration-class[VaadinWebSecurity] class. This configuration sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grant access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always executed last.
+Each Jmix application by default contains a security configuration that extends the {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^] class. This configuration sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grants access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always invoked last.
 
-Add-ons like OpenID Connect or Authorization Server bring their own `SecurityFilterChain` beans that protect authorization or resource server endpoints. These `SecurityFilterChain`s are always executed before the one from the FlowUI module.
+Add-ons like OpenID Connect or Authorization Server bring their own `SecurityFilterChain` beans that protect authorization or resource server endpoints. These beans are always invoked before the one from the UI module.
 
 [[custom-endpoints-security]]
 == Custom Endpoints Security
 
 To define custom security rules for endpoints, declare a new `SecurityFilterChain` bean. It is important that the order of this bean must be less than the order of `SecurityFilterChain` beans provided by Jmix framework.
 
-You can find order values constants used by Jmix inside the `JmixSecurityFilterChainOrder` interface. The rule of thumb is to use the `JmixSecurityFilterChainOrder.CUSTOM`, `JmixSecurityFilterChainOrder.CUSTOM - 10` and similar values for your security filter chains.
+You can find order value constants used by Jmix in the `JmixSecurityFilterChainOrder` interface. The rule of thumb is to use the `JmixSecurityFilterChainOrder.CUSTOM`, `JmixSecurityFilterChainOrder.CUSTOM - 10` and similar values for your security filter chains.
 
 A simple `SecurityFilterChain` bean definition may look as follows:
 
@@ -34,10 +34,10 @@ Configuration above grants access to all requests for endpoints that match the `
 
 == Examples
 
-[[public-controller-example]]
-=== Public Controller Example
+[[public-endpoints-example]]
+=== Public Endpoints Example
 
-Let's assume you have a controller with two methods and want these methods to be available for any user without authentication.
+Let's assume that you have a controller with two methods, and you want these methods to be available for any user without authentication.
 
 [source,java,indent=0]
 ----
@@ -51,7 +51,7 @@ Public access can be configured using the following configuration:
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/AnonymousControllerSecurityConfiguration.java[tags=whole-class]
 ----
 <1> `JmixSecurityFilterChainOrder.CUSTOM` order is less than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
-<2> https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html#security-matchers[securityMatcher()^] is used to determine whether a given `HttpSecurity` should be applied to the request. The request matcher from the example will match requests with URLs conforming the pattern `/greeting/**`. Requests for other URLs will be processed by a default security filter chain from Jmix FlowUI module.
+<2> {spring-security-doc}/servlet/authorization/authorize-http-requests.html#security-matchers[securityMatcher()^] is used to determine whether a given `HttpSecurity` should be applied to the request. The request matcher from the example will match requests with URLs that follow the pattern `/greeting/**`. Requests for other URLs will be processed by a default security filter chain from Jmix UI module.
 <3> `permitAll()` instruction grants access to endpoints.
 <4> Disables CSRF for POST requests.
 
@@ -73,7 +73,7 @@ Requests with URLs matching the `pass:[/api/**]` pattern should be protected wit
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/BasicControllerSecurityConfiguration.java[tags=whole-class]
 ----
-<1> `SecurityFilterChain` bean must have an order less than any other `SecurityFilterChain` bean provided by Jmix. The `JmixSecurityFilterChainOrder.CUSTOM` constant will help us with that.
+<1> `JmixSecurityFilterChainOrder.CUSTOM` order is less than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
 <2> Security matcher indicates that the HttpSecurity will only be applied for `pass:[/api/**]` requests.
 <3> If the request is selected by security matcher then we can provide further rules. All requests for `pass:[/api/public/**]` must be permitted without authentication.
 <4> All requests that don't match the `pass:[/api/public/**]` pattern defined above must be authenticated.
@@ -89,32 +89,32 @@ Host: server.example.com
 Authorization: Basic YWRtaW46YWRtaW4=
 ----
 
-NOTE: Public access to `pass:[/api/public/**]` could be alternatively configured using another `SecurityFilterChain` bean that has `pass:[securityMatcher("/api/public/**")]` and an order less than the current one, e.g. `JmixSecurityFilterChainOrder.CUSTOM - 10`.
+TIP: In this example, public access to `pass:[/api/public/**]` could be alternatively configured using another `SecurityFilterChain` bean that has `pass:[securityMatcher("/api/public/**")]` and an order less than the current one, e.g. `JmixSecurityFilterChainOrder.CUSTOM - 10`.
 
 [[token-based-authentication-example]]
 === Token Based Authentication Example
 
-When the xref:rest:index.adoc[REST API] add-on is added to the application, the *Authorization Server* add-on is added as well. The Authorization Server add-on allows users to xref:rest:access-control.adoc[obtain access tokens].
+When the xref:rest:index.adoc[] add-on is added to the application, the *Authorization Server* add-on is added as well. The Authorization Server allows users to xref:rest:access-control.adoc[obtain access tokens].
 
 By default, Jmix configures Generic REST API endpoints (`pass:[/rest/**]`) in such a way that endpoints require a valid access token in the request header: `pass:[Authorization: Bearer {ACCESS_TOKEN}]`.
 
-Custom endpoints may also be configured to be protected with tokens issued by the Authorization Server add-on. The Authorization Server add-on security configuration provides extension points that may be used for that.
+You can configure protection of custom endpoints with tokens issued by the Authorization Server. The Authorization Server add-on security configuration provides extension points that can be used for that purpose.
 
-We have the following REST controller:
+Suppose that you have the following REST controller:
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
 ----
 
-To make `pass:[/greeting/**]` endpoints protected with the access token we should define a bean that implements the `io.jmix.core.security.AuthorizedUrlsProvider` interface and return a list of URL patterns from the `getAuthenticatedUrlPatterns()` method.
+To make `pass:[/greeting/**]` endpoints protected with the access token you should define a bean that implements the `io.jmix.core.security.AuthorizedUrlsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method:
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/GreetingAuthorizedUrlsProvider.java[tags=whole-class]
 ----
 
-After the above configuration is defined, all requests to `pass:[/greeting/**]` endpoints should contain an access token in the `Authorization` header. For example:
+After the above configuration is defined, all requests to `pass:[/greeting/**]` endpoints will need an access token in the `Authorization` header. For example:
 
 [source]
 ----
@@ -123,9 +123,10 @@ Host: server.example.com
 Authorization: Bearer <ACCESS_TOKEN>
 ----
 
+[[troubleshooting]]
 == Troubleshooting
 
-If you come across a 401 or 403 error or have any other issues related to endpoint security then it's very likely that Spring Security https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-logging[logging^] will help you to understand what is going on.
+If you come across a 401 Unauthorized or 403 Forbidden HTTP error or have any other issues related to endpoint security, then it's very likely that Spring Security {spring-security-doc}/servlet/architecture.html#servlet-logging[logging^] will help you to understand what is going on.
 
 To enable the logging add the following application property with DEBUG or TRACE value to the `application.properties` file:
 
