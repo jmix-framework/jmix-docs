@@ -49,7 +49,7 @@ public class OnboardingWebdavApplication implements AppShellConfigurator {
     @EventListener
     public void printApplicationUrl(final ApplicationStartedEvent event) {
         LoggerFactory.getLogger(OnboardingWebdavApplication.class).info("Application started at "
-                + "https://localhost:"
+                + "http://localhost:"
                 + environment.getProperty("local.server.port")
                 + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
     }

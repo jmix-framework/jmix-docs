@@ -3,6 +3,7 @@ package com.company.onboarding.security;
 import com.company.onboarding.entity.Step;
 import com.company.onboarding.entity.User;
 import com.company.onboarding.entity.UserStep;
+import com.company.onboarding.entity.WebdavDocumentWrapper;
 import io.jmix.security.model.EntityAttributePolicyAction;
 import io.jmix.security.model.EntityPolicyAction;
 import io.jmix.security.role.annotation.EntityAttributePolicy;
@@ -13,8 +14,8 @@ import io.jmix.securityflowui.role.annotation.ViewPolicy;
 
 @ResourceRole(name = "Employee", code = "employee", scope = "UI")
 public interface EmployeeRole {
-    @MenuPolicy(menuIds = "MyOnboardingView")
-    @ViewPolicy(viewIds = "MyOnboardingView")
+    @MenuPolicy(menuIds = {"MyOnboardingView", "WebdavDocumentWrapper.list"})
+    @ViewPolicy(viewIds = {"MyOnboardingView", "WebdavDocumentWrapper.list"})
     void screens();
 
     @EntityAttributePolicy(entityClass = User.class,
@@ -37,4 +38,8 @@ public interface EmployeeRole {
     @EntityPolicy(entityClass = Step.class,
             actions = EntityPolicyAction.READ)
     void step();
+
+    @EntityAttributePolicy(entityClass = WebdavDocumentWrapper.class, attributes = "*", action = EntityAttributePolicyAction.VIEW)
+    @EntityPolicy(entityClass = WebdavDocumentWrapper.class, actions = EntityPolicyAction.READ)
+    void webdavDocumentWrapper();
 }
