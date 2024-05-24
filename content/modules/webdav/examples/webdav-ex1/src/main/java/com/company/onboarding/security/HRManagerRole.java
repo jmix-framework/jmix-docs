@@ -12,7 +12,7 @@ import io.jmix.securityflowui.role.annotation.ViewPolicy;
 @ResourceRole(name = "HR Manager", code = "hr-manager", scope = "UI")
 public interface HRManagerRole {
     @MenuPolicy(menuIds = {"User.list", "WebdavDocumentWrapper.list"})
-    @ViewPolicy(viewIds = {"User.detail", "User.list", "WebdavDocumentWrapper.detail", "WebdavDocumentWrapper.list"})
+    @ViewPolicy(viewIds = {"User.detail", "User.list", "WebdavDocumentWrapper.detail", "WebdavDocumentWrapper.list", "Department.list"})
     void screens();
 
     @EntityAttributePolicy(entityClass = Department.class,

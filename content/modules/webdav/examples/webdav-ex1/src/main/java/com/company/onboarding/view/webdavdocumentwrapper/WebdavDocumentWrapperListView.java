@@ -52,29 +52,6 @@ public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocume
     private Downloader downloader; // <1>
 
     // end::downloader[]
-    // tag::buttons-actions[]
-    @ViewComponent
-    private JmixButton downloadBtn;
-    @ViewComponent
-    private JmixButton createBtn;
-    @ViewComponent
-    private JmixButton editBtn;
-    @ViewComponent
-    private JmixButton removeBtn;
-    @ViewComponent("webdavDocumentWrappersDataGrid.download")
-    private BaseAction webdavDocumentWrappersDataGridDownload;
-    @ViewComponent("webdavDocumentWrappersDataGrid.create")
-    private CreateAction<WebdavDocumentWrapper> webdavDocumentWrappersDataGridCreate;
-    @ViewComponent("webdavDocumentWrappersDataGrid.edit")
-    private EditAction<WebdavDocumentWrapper> webdavDocumentWrappersDataGridEdit;
-    @ViewComponent("webdavDocumentWrappersDataGrid.remove")
-    private RemoveAction<WebdavDocumentWrapper> webdavDocumentWrappersDataGridRemove;
-    @Autowired
-    private Metadata metadata;
-    @Autowired
-    private AccessManager accessManager;
-
-    // end::buttons-actions[]
     // tag::lastModifiedDate-renderer[]
     @Autowired
     private ApplicationContext applicationContext;
@@ -143,42 +120,4 @@ public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocume
         downloader.download(fileReference); // <4>
     }
     // end::download[]
-
-    // tag::customizing-ui[]
-    @Subscribe
-    public void onBeforeShow(final BeforeShowEvent event) {
-        setupDocumentsButtons();
-        onDocumentSelect(null);
-    }
-
-    protected void setupDocumentsButtons() {
-        CrudEntityContext accessContext = getDocumentsAccessContext();
-        downloadBtn.setVisible(accessContext.isReadPermitted());
-        createBtn.setVisible(accessContext.isCreatePermitted());
-        editBtn.setVisible(accessContext.isUpdatePermitted());
-        removeBtn.setVisible(accessContext.isDeletePermitted());
-
-        webdavDocumentWrappersDataGridDownload.setVisible(accessContext.isReadPermitted());
-        webdavDocumentWrappersDataGridCreate.setVisible(accessContext.isCreatePermitted());
-        webdavDocumentWrappersDataGridEdit.setVisible(accessContext.isUpdatePermitted());
-        webdavDocumentWrappersDataGridRemove.setVisible(accessContext.isDeletePermitted());
-    }
-    protected CrudEntityContext getDocumentsAccessContext() {
-        MetaClass metaClass = metadata.getClass(WebdavDocumentWrapper.class);
-        CrudEntityContext accessContext = new CrudEntityContext(metaClass);
-        accessManager.applyRegisteredConstraints(accessContext);
-        return accessContext;
-    }
-
-    protected void onDocumentSelect(WebdavDocumentWrapper selectedDocument) {
-        boolean hasWebdavDocument = selectedDocument != null && selectedDocument.getWebdavDocument() != null;
-        webdavDocumentWrappersDataGridDownload.setEnabled(hasWebdavDocument);
-        downloadBtn.setEnabled(hasWebdavDocument);
-    }
-
-    @Subscribe("webdavDocumentWrappersDataGrid")
-    public void onWebdavDocumentWrappersDataGridItemClick(final ItemClickEvent<WebdavDocumentWrapper> event) {
-        onDocumentSelect(webdavDocumentWrappersDataGrid.getSingleSelectedItem());
-    }
-// end::customizing-ui[]
 }

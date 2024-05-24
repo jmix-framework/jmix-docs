@@ -15,7 +15,7 @@ import io.jmix.securityflowui.role.annotation.ViewPolicy;
 @ResourceRole(name = "Employee", code = "employee", scope = "UI")
 public interface EmployeeRole {
     @MenuPolicy(menuIds = {"MyOnboardingView", "WebdavDocumentWrapper.list"})
-    @ViewPolicy(viewIds = {"MyOnboardingView", "WebdavDocumentWrapper.list"})
+    @ViewPolicy(viewIds = {"MyOnboardingView", "WebdavDocumentWrapper.list", "WebdavDocumentWrapper.detail"})
     void screens();
 
     @EntityAttributePolicy(entityClass = User.class,
