@@ -17,6 +17,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 
@@ -31,8 +32,11 @@ public class NotificationsEx1Application implements AppShellConfigurator {
     @Autowired
     private Environment environment;
 
+    // tag::notification-type[]
     @Autowired
     private NotificationTypesRepository notificationTypesRepository;
+
+    // end::notification-type[]
 
     public static void main(String[] args) {
         SpringApplication.run(NotificationsEx1Application.class, args);
@@ -53,8 +57,8 @@ public class NotificationsEx1Application implements AppShellConfigurator {
     }
 
     // tag::notification-type[]
-    @PostConstruct
-    public void postConstruct() {
+    @EventListener
+    public void onApplicationContextRefreshed(final ContextRefreshedEvent event) {
         notificationTypesRepository.registerTypes(
                 new NotificationType("info", "INFO_CIRCLE"), // <1>
                 new NotificationType("warn", "WARNING")
