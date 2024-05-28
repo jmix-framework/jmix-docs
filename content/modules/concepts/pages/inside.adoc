@@ -1,6 +1,78 @@
 = Inside Jmix
 
+In this section, we will discuss the inner workings of the framework that enable the implementation of the principles described in the xref:principles.adoc[previous section].
+
+// todo Recommendations who should read this
+
 == Data Model and Metadata
+
+The xref:principles.adoc#_lean_data_model[lean data model] approach allows you to avoid duplicating the data model across different layers and writing boilerplate code. This section explains how Jmix offers efficient methods for working with a single model of heterogeneous data.
+
+=== Building Metadata
+
+Let's take a look at the various options for application data sources, ranging from simple to more complex.
+
+In the simplest case, the application connects to a single relational database, and its data model consists of a number of interconnected JPA entities:
+
+*picture: DB1, JPA Entities*
+
+Sometimes data are located in several databases. Then you have multiple persistence units with JPA entities:
+
+*picture: DB1, DB2, JPA Entities*
+
+If you need to connect to an external data source, then you also need some POJOs or DTOs to represent its data:
+
+*picture: DB1, DB2, External Service, JPA Entities, DTOs*
+
+So in the source code, you can have separate collections of Java classes, differently structured and annotated, and handled by different mechanisms of loading and saving data.
+
+But Jmix also combines all these fragments into a common data model and treats all classes as just "entities" with equal characteristics:
+
+*picture: Data Model, entities*
+
+The data model can even contain references between entities from different storages (as shown by dotted lines) and Jmix helps to maintain these references on the application level.
+
+The common data model with the unified information about all entities, attributes and relations is provided by the xref:data-model:metadata.adoc[Metadata] mechanism. It scans Java classes and represents entities by `MetaClass` objects and entity attributes by `MetaProperty` objects.
+
+The picture below shows an example of how some JPA entities are reflected in metadata:
+
+*picture: source code -> metadata*
+
+Note that the `employeeCount` attribute here is transient and is not handled by JPA. But in metadata, it has the same set of characteristics as other attributes.
+
+You may notice that the Java classes have some unusual annotations: `@JmixEntity`, `@InstanceName`, `@Secret`. They are specific to Jmix: `@JmixEntity` is required, it indicates that the class should be included in the metadata, the others are optional and just provide additional information about attributes.
+
+You can add the `@JmixEntity` to any POJO, thus including it in the metadata as an entity. This is how the common data model is built - by annotating all data model classes regardless of their storage technology.
+
+Actually, the metadata API is rarely used in the application code. When you write business logic and code for loading and saving entities, you use Java classes and their getter/setter methods and enjoy static typing and coding assistance in the IDE.
+
+But the unified API for the whole data model is indispensable for generic mechanisms of the framework, first of all for data-aware UI components. It provides an abstraction over various methods of specifying data model characteristics, so UI components are completely agnostic of Java classes and annotations. They can work equally well directly with JPA entities or with POJOs if you need to transform the stored data for the UI.
+
+Other features working with data model can also benefit from the metadata API. Below is the code that could be used by an auditing solution to get all non-collection attributes of an entity:
+
+[source, java]
+----
+Class<?> javaClass = // ...
+MetaClass metaClass = metadata.getClass(javaClass);
+List<MetaProperty> singleValueProperties = metaClass.getProperties().stream()
+        .filter(metaProperty ->
+                !metaProperty.getRange().getCardinality().isMany())
+        .toList();
+----
+
+An entity in Jmix can even be defined dynamically at runtime by a set of key-value pairs. Such entities do not have a specific Java class, but nevertheless can be displayed and edited in user interface. UI components do not need a Java class, they need only an object that can read/write properties by name, and a corresponding `MetaClass` with the collection of `MetaProperty` to describe these properties.
+
+=== Enhancing Entities
+
+Now we'll briefly discuss another aspect of the unified data model maintained by Jmix: _enhancing_ of entity classes, which is also known as bytecode modification. Jmix enhances entity classes at build time to provide required characteristics for all types of entities. These characteristics include the presence of an identifier, suitable `equals()` and `hashCode()` methods, ability to read/write entity attributes by name and listen to changes in attribute values.
+
+For example, a DTO entity can have no identifier attribute if it is not stored in any persistent storage and exists purely in memory. But for uniformity with persistent entities, Jmix modifies the entity bytecode and adds an identifier field with automatically generated value. The same with `equals()` and `hashCode()` - they are added to the entity classes at build time with the implementation based on comparing identifiers.
+
+The following diagram shows that after enhancement the `User` entity class implements the `Entity` interface, contains generated `equals()` and `hashCode()` methods and a reference to the `EntityEntry` object which provides common methods required by the framework.
+
+*picture: enhanced entity class diagram*
+
+The most interesting feature that all entities acquire from enhancing is their observability. It is possible to register listeners with an entity instance and get notified about changes in its attributes. It simplifies working with data on UI layer: any changes in entities made by the application code, like `user.setFirstName("Joe")` are immediately shown by the linked UI components, and the changed entities are automatically saved in the database. The application developer doesn't need to write any special code for this, it happens because the framework components listen to changes in entities.
 
 == Data Access
 
