@@ -5,6 +5,7 @@ import com.company.demo.entity.CustomerGrade;
 import io.jmix.core.DataManager;
 import io.jmix.core.Id;
 import io.jmix.core.Sort;
+import io.jmix.core.UnconstrainedDataManager;
 import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
 import io.jmix.core.session.SessionData;
@@ -25,6 +26,17 @@ public class CustomerService {
     @Autowired
     private DataManager dataManager;
     // end::inject-dm[]
+
+    // tag::unconstrained-dm[]
+    @Autowired
+    private UnconstrainedDataManager unconstrainedDataManager;
+
+    public Customer loadByIdUnconstrained(UUID customerId) {
+        return unconstrainedDataManager.load(Customer.class)
+                .id(customerId)
+                .one();
+    }
+    // end::unconstrained-dm[]
 
     // tag::session-data[]
     @Autowired
