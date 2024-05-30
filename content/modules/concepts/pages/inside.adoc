@@ -76,6 +76,10 @@ The most interesting feature that all entities acquire from enhancing is their o
 
 == Data Access
 
+// todo intro
+
+=== DataManager
+
 Jmix provides its own abstraction for loading and saving entities: xref:data-access:data-manager.adoc[DataManager]. It has a simple fluent API:
 
 [source,java]
@@ -118,7 +122,33 @@ However, in this case Jmix will not be able to intercept the data flow and provi
 
 Now, let's discuss the capabilities that Jmix offers through the Data Manager.
 
+. One of the key features of Jmix is its built-in data access control mechanism. By default, DataManager applies xref:security:row-level-roles.adoc#policies[row-level constraints] and xref:security:resource-roles.adoc#entity-policy[entity operations policy]. When loading entities in pages, it makes sure that each page (except the last one) has a requested number of rows, even if some entities have been filtered out by a row-level constraint.
++
+As a result, when writing business logic, you can be sure your code operates only on data permitted for the current user.
 
+. DataManager maintains xref:data-model:entities.adoc#cross-data-store-ref[cross-datastore references] that allow you to link entities located in different databases without writing any code.
+
+. DataManager sends entity lifecycle events, which allows you to perform additional actions when loading and saving entity instances: copy data between persistent and transient attributes, update related entities, send notifications and so on.
+
+. References of entities loaded using DataManager can be loaded xref:data-access:fetching.adoc#lazy-loading[lazily], when they are first accessed. This allows for easy navigation through the entity graph, regardless of what initial graph was loaded with the root entity:
++
+[source,java]
+----
+Order order = dataManager.load(Order.class).id(orderId).one();
+String cityName = order.getCustomer().getAddress().getCity().getName();
+----
+
+. DataManager supports a pluggable mechanism for integrating add-ons into the process of loading and saving data. It is used, for example, by the Dynamic Attributes add-on to mix in dynamic attributes to entity instances and by the Search add-on to automatically send changed instances to indexing.
+
+The DataManager does not perform all the work on its own. Instead, it delegates the actual loading and saving tasks to the DataStore implementations. The DataStore interface is an abstraction for a concrete storage system, such as a database or other service that can store entities.
+
+Jmix contains a single built-in implementation of the DataStore interface: `JpaDataStore`. It can work with entities located in a relational database, using the EntityManager provided by JPA (Jakarta Persistence API).
+
+An application or an add-on can provide custom DataStore implementations to work with entities from non-relational databases or from various web services.
+
+So the DataManager itself serves mostly as a gateway, providing a convenient API and dispatching requests between DataStore implementations:
+
+*picture: data-manager-4*
 
 
 == User Interface
