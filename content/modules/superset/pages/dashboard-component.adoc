@@ -8,24 +8,20 @@ To add the component on the view, use Jmix Studio.
 
 Click *Add Component* in the actions panel, then find the `SupersetDashboard` item and double-click it.
 
-image::add-component-highlight.png[align="center"]
+image::adding-component.png[align="center"]
 
 The new `dashboard` element will be added in both the *Jmix UI* hierarchy panel and in the XML. You can configure attributes like xref:flow-ui:vc/common-attributes.adoc#id[id], xref:flow-ui:vc/common-attributes.adoc#height[height], xref:flow-ui:vc/common-attributes.adoc#width[width], etc., in the same way as it is done for other xref:flow-ui:vc/components.adoc[UI components].
 
 [source,xml,indent=0]
 ----
-<superset:dashboard id="dashboard"
-                    width="100%"
-                    height="100%"/>
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
 ----
 
 If you don’t use the view designer, declare the `superset` namespace in your view’s XML descriptor manually:
 
 [source,xml,indent=0]
 ----
-<view xmlns="http://jmix.io/schema/flowui/view"
-      xmlns:superset="http://jmix.io/schema/superset/ui"
-      title="msg://dashboardView.title">
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=superset-schema]
 ----
 
 [[how-to-inject]]
@@ -35,21 +31,15 @@ image::inject-dashboard-from-hierarchy.png[align="center", width="368"]
 
 Alternatively, you can employ the *Inject* button available in the actions panel:
 
-image::inject-dashboard-highlight.png[align="center", width="682"]
+image::inject-dashboard.png[align="center", width="682"]
 
 NOTE: For the component to be injectable into the controller, it must have the `id` attribute specified.
 
 Now you can interact with the `SupersetDashboard` component programmatically by accessing its methods directly:
 
-[source, java]
+[source, java, indent=0]
 ----
-@ViewComponent
-private SupersetDashboard dashboard;
-
-@Subscribe
-public void onInit(final InitEvent event) {
-    dashboard.setEmbeddedId("1aec5c74-f143-4051-818b-fcf9d77c8501");
-}
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
 ----
 
 == Attributes
@@ -75,7 +65,7 @@ xref:flow-ui:vc/common-attributes.adoc#width[width]
 === chartControlsVisible
 Sets the chart controls visible or not.
 
-image::chart-controls-example-highlight.png[]
+image::chart-controls-example.png[]
 
 [[embeddedId]]
 === embeddedId
@@ -94,7 +84,7 @@ Sets the filters bar expanded or not.
 === titleVisible
 Sets the title bar visible or not.
 
-image::title-visible-example-highlight.png[align="center"]
+image::title-visible-example.png[align="center"]
 
 [[url]]
 === url
@@ -116,23 +106,14 @@ We can add a constraint to component using Jmix Studio. Click on the component i
 
 [source, xml, indent=0]
 ----
-<superset:dashboard id="dashboard"
-                    width="100%"
-                    height="100%"
-                    embeddedId="940f36ff-6c97-4a35-a4ff-4e4aeee3a9c7">
-    <superset:datasetConstraints>
-        <superset:datasetConstraint datasetId="24"/>
-    </superset:datasetConstraints>
-</superset:dashboard>
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
 ----
 
 Now we can write a native SQL condition.
 
 [source, xml, indent=0]
 ----
-<superset:datasetConstraint datasetId="24">
-    <![CDATA[salary >= 80000]]>
-</superset:datasetConstraint>
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint-closure]
 ----
 
 The `salary` is the column in a dataset.
@@ -143,54 +124,16 @@ When a Jmix application has configured security roles, it would be great if thes
 
 For instance, let's say that every department manager can see information about salaries only in its own department. In this case, we can check that manager has a specific row-level role and build accordingly a constraint.
 
-[source, java]
+[source, java, indent=0]
 ----
-@Component
-public class DepartmentDatasetConstraintProvider implements DatasetConstraintsProvider {
-    private final CurrentAuthentication currentAuthentication;
-    private final SecurityProperties securityProperties;
-
-    public DepartmentDatasetConstraintProvider(CurrentAuthentication currentAuthentication,
-                                               SecurityProperties securityProperties) {
-        this.currentAuthentication = currentAuthentication;
-        this.securityProperties = securityProperties;
-    }
-
-    @Override
-    public List<DatasetConstraint> getConstraints() {
-        Department department = getDepartment();
-        if (hasDepartmentConstraintRole() && department != null) {
-            return List.of(new DatasetConstraint(24, "department_name = '" + department.getName() + "'"));
-        }
-        return List.of();
-    }
-
-    private boolean hasDepartmentConstraintRole() {
-        Authentication authentication = currentAuthentication.getAuthentication();
-        return authentication.getAuthorities().stream()
-                .anyMatch(grantedAuthority ->
-                        grantedAuthority.getAuthority().equals(
-                                securityProperties.getDefaultRowLevelRolePrefix() + DepartmentConstraintRole.CODE));
-    }
-
-    private Department getDepartment() {
-        User user = (User) currentAuthentication.getUser();
-        return user.getDepartment();
-    }
-}
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[tags=dataset-constraint-provider]
 ----
 
 To use this constraints provider in the component, we should inject this Spring Bean into a view controller and then use the *Generate Handler* action to generate a method handler.
 
-[source, java]
+[source, java, indent=0]
 ----
-@Autowired
-private DepartmentDatasetConstraintProvider departmentDatasetConstraintProvider;
-
-@Install(to = "dashboard", subject = "datasetConstraintsProvider")
-private List<DatasetConstraint> dashboardDatasetConstraintsProvider() {
-    return departmentDatasetConstraintProvider.getConstraints();
-}
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
 ----
 
 == Guest Token Provider
@@ -212,86 +155,16 @@ The `FetchGuestTokenContext` contains information about component that triggers 
 
 The example of using `SupersetGuestTokenProvider` that uses Spring `TaskScheduler` can be as follows:
 
-[source, java]
+[source, java, indent=0]
 ----
-@Component
-public class CustomGuestTokenProvider implements SupersetGuestTokenProvider {
-    private static final Logger log = LoggerFactory.getLogger(CustomGuestTokenProvider.class);
-
-    private CurrentAuthentication currentAuthentication;
-    private TaskExecutor taskExecutor;
-    private SupersetClient supersetClient;
-    private SupersetTokenManager tokenManager;
-
-    public CustomGuestTokenProvider(CurrentAuthentication currentAuthentication,
-                                    SupersetClient supersetClient,
-                                    SupersetTokenManager tokenManager,
-                                    TaskExecutor taskExecutor) {
-        this.currentAuthentication = currentAuthentication;
-        this.supersetClient = supersetClient;
-        this.tokenManager = tokenManager;
-        this.taskExecutor = taskExecutor;
-    }
-
-    @Override
-    public void fetchGuestToken(FetchGuestTokenContext context, Consumer<String> callback) {
-        String username = currentAuthentication.getUser().getUsername();
-        taskExecutor.execute(() -> {
-            try {
-                String guestToken = supersetClient
-                        .fetchGuestToken(
-                                buildGuestTokenBody(context, username),
-                                tokenManager.getAccessToken(),
-                                tokenManager.getCsrfToken())
-                        .getToken();
-
-                context.getSource().getUI()
-                        .ifPresent(ui -> ui.access(() -> callback.accept(guestToken)));
-            } catch (IOException | InterruptedException e) {
-                log.error("Could not fetch guest token", e);
-            }
-        });
-    }
-
-    private GuestTokenBody buildGuestTokenBody(FetchGuestTokenContext context, String username) {
-        List<GuestTokenBody.RowLevelRole> rls = Collections.emptyList();
-        if (context.getDatasetConstraintsProvider() != null) {
-            rls = convertToSupersetRls(context.getDatasetConstraintsProvider().getConstraints());
-        }
-
-        return GuestTokenBody.builder()
-                .withResource(new GuestTokenBody.Resource()
-                        .withId(context.getEmbeddedId())
-                        .withType(DASHBOARD_TYPE))
-                .withRowLevelRoles(rls)
-                .withUser(new GuestTokenBody.User()
-                        .withUsername(username))
-                .build();
-    }
-
-    private List<GuestTokenBody.RowLevelRole> convertToSupersetRls(List<DatasetConstraint> datasetConstraints) {
-        return CollectionUtils.isNotEmpty(datasetConstraints)
-                ? datasetConstraints.stream()
-                .map(dc -> new GuestTokenBody.RowLevelRole()
-                        .withClause(dc.clause())
-                        .withDataset(dc.dataset()))
-                .toList()
-                : Collections.emptyList();
-    }
-}
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/CustomGuestTokenProvider.java[tags=custom-guest-token-provider]
 ----
+
 WARNING: This example uses internal API of Jmix Superset add-on and does not pretend to be a production ready solution. Usage of internal API is not recommended since it can be changed in future releases.
 
 In a view controller inject this Spring Bean into a view controller and then use the *Generate Handler* action to generate a method handler.
 
-[source, java]
+[source, java, indent=0]
 ----
-@Autowired
-private CustomGuestTokenProvider customGuestTokenProvider;
-
-@Install(to = "dashboard", subject = "guestTokenProvider")
-private void dashboardGuestTokenProvider(SupersetGuestTokenProvider.FetchGuestTokenContext context,
-                                         Consumer<String> callback) {
-    customGuestTokenProvider.fetchGuestToken(context, callback);
-}
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/customguesttokenprovider/CustomGuestTokenProviderView.java[tags=custom-guest-token-provider]
 ----
