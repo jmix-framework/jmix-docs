@@ -1,0 +1,131 @@
+= Dashboard component
+
+The `SupersetDashboard` UI component displays an embedded dashboards configured in the Superset.
+
+== SupersetDashboard
+
+To add the component on the view, use Jmix Studio.
+
+Click *Add Component* in the actions panel, then find the `SupersetDashboard` item and double-click it.
+
+image::adding-component.png[align="center"]
+
+The new `dashboard` element will be added in both the *Jmix UI* hierarchy panel and in the XML. You can configure attributes like xref:flow-ui:vc/common-attributes.adoc#id[id], xref:flow-ui:vc/common-attributes.adoc#height[height], xref:flow-ui:vc/common-attributes.adoc#width[width], etc., in the same way as it is done for other xref:flow-ui:vc/components.adoc[UI components].
+
+[source,xml,indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
+----
+
+If you don’t use the view designer, declare the `superset` namespace in your view’s XML descriptor manually:
+
+[source,xml,indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=superset-schema]
+----
+
+[[how-to-inject]]
+You can inject the UI component into the controller by utilizing the *Inject to Controller* action in the *Jmix UI Hierarchy* panel:
+
+image::inject-dashboard-from-hierarchy.png[align="center", width="368"]
+
+Alternatively, you can employ the *Inject* button available in the actions panel:
+
+image::inject-dashboard.png[align="center", width="682"]
+
+NOTE: For the component to be injectable into the controller, it must have the `id` attribute specified.
+
+Now you can interact with the `SupersetDashboard` component programmatically by accessing its methods directly:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
+----
+
+== Attributes
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<chartControlsVisible,chartControlsVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+<<embeddedId,embeddedId>> -
+<<filtersExpanded,filtersExpanded>> -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+<<titleVisible,titleVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[chartControlsVisible]]
+=== chartControlsVisible
+Sets the visibility of chart controls.
+
+image::chart-controls-example.png[]
+
+[[embeddedId]]
+=== embeddedId
+The embedded dashboard ID. You can take this ID from dashboard settings in Superset. The example of how to enable embedding dashboards you can find the in xref:dashboard.adoc#create-dashboard[Create Dashboard] section of xref:getting-started.adoc[Getting Started].
+
+NOTE: To enable embedding dashboards, do not forget to set feature flag in Superset configuration - `EMBEDDED_SUPERSET`. See xref:configuration.adoc#enable-embedding-dashboards[Embedded dashboards].
+
+The embedded ID is required for fetching Guest Token and loading a dashboard. After the embedded ID is changed, the component triggers reloading of the dashboard. Without an embedded ID, the component will show a stub image.
+
+[[filtersExpanded]]
+=== filtersExpanded
+
+Sets the filters bar expanded or not.
+
+[[titleVisible]]
+=== titleVisible
+Sets the visibility of title bar.
+
+image::title-visible-example.png[align="center"]
+
+== Dataset constraints
+
+A dashboard in Superset can contain multiple charts that have different datasets. The `SupersetDashboard` component provides the ability to add constraints to these datasets. It enables defining static constraints within an XML component tag or using a Spring Bean to calculate constraints.
+
+To provide a constraint, you need to define the ID of the dataset and provide the native SQL condition that will be appended to the result query's *WHERE* clause.
+
+TIP: It is not obviously from Superset UI where to find a dataset ID. There are two indirect ways to get an ID: from address bar when you click on dataset from datasets list or from browser tip when you hover the dataset.
+
+=== Static dataset constraints
+For instance, we have `Employees' salaries` dashboard from xref:getting-started.adoc[Getting Started]. It uses dataset that loads employees, departments and salaries. Let's limit the salary lower bound, e.g. by `80 000`.
+
+We can add a constraint to component using Jmix Studio. Click on the component in *Jmix UI Hierarchy* panel or move cursor to the `dashboard` tag in the view descriptor. Then choose *Add → DatasetConstraints → DatasetConstraint* from the inspector panel. Enter a dataset ID.
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
+----
+
+Now we can write a native SQL condition.
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint-closure]
+----
+
+The `salary` is the column in a dataset.
+
+=== Dataset constraints provider
+
+When a Jmix application has configured security roles, it would be great if these roles applied to datasets in Superset. For this case, the `SupersetDashboard` provides a method for setting a dataset constraints provider. This interface, `DatasetConstraintsProvider`, can be set as a Java lambda or implemented by a Spring Bean.
+
+For instance, let's say that every department manager can see information about salaries only in its own department. In this case, we can check that manager has a specific row-level role and build accordingly a constraint.
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[tags=dataset-constraint-provider]
+----
+
+To use this constraints provider in the component, we should inject this Spring Bean into a view controller and then use the *Generate Handler* action to generate a method handler.
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
+----

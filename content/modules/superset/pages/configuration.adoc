@@ -1,0 +1,199 @@
+= Configuration
+
+In this section, you will:
+
+* Install and configure the Superset to make it available in Jmix application.
+* Configure the Jmix application to connect with Superset.
+
+[[superset-installation]]
+== Superset installation
+According to the Superset https://superset.apache.org/docs/intro[documentation] it has many ways for installation:
+
+ * Kubernetes
+ * Docker compose
+ * Docker builds
+ * And others
+
+The simplest way to get acquainted with Apache Superset is using docker compose. This way provides demonstration data with already created dashboards and enables set custom configuration of the Superset. We will follow these https://superset.apache.org/docs/installation/docker-compose[instructions] to install Superset.
+
+WARNING: Apache Superset does not recommend to use docker compose for production case, since it is primarily designed to run a set of containers on a single host and can't support requirements for high availability.
+
+Firstly, clone the Superset repository with release tag. For now the latest release tag is 4.0.1.
+
+Create the `apache-superset` directory and use it as current directory in a terminal, then run the following command:
+
+[source, bash]
+----
+
+git clone --depth 1 --branch 4.0.1 https://github.com/apache/superset.git
+----
+
+As an image for Superset we will use specific version from Docker Hub. According to https://superset.apache.org/docs/installation/docker-compose/#docker-compose-tips--configuration[Superset docker-compose tips & configuration] we will replace an image version in `docker-compose-non-dev.yml`. This file is placed in the root directory of cloned repository.
+
+Open `docker-compose-non-dev.yml` file and set the following value to the `x-superset-image`:
+
+[source, yaml]
+----
+x-superset-image: &superset-image apache/superset:4.0.1
+----
+
+And it leaves the last step of the installation. To simplify the integration of Superset and the Jmix application, we will add to this file a database service that will be available for Superset and the Jmix application.
+
+Add the PostgreSQL service to the `docker-compose-non-dev.yml`:
+
+[source, yaml]
+----
+  superset-worker-beat:
+  # ...
+
+  jmix_database:
+    image: postgres:16.3
+    container_name: jmix_database
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: jmix
+      POSTGRES_PASSWORD: jmix
+
+volumes:
+# ...
+----
+
+CAUTION: If you have PostgreSQL on your host machine with the same port, you should expose another port to avoid conflicts. For instance: - 5433:5432.
+
+Now the Superset is ready to launch. Run the following command in terminal:
+
+[source, bash]
+----
+docker compose -f docker-compose-non-dev.yml up
+----
+
+Then the Superset will be available under `localhost:8088` address. The user credentials are `admin` / `admin`.
+
+image::superset-login.png[align="center", width="598"]
+
+[[superset-configuration]]
+== Superset configuration
+
+Superset has a lot of configurable parameters. The whole list you can find in the https://github.com/apache/superset/blob/master/superset/config.py[superset/config.py]. To make Superset available from Jmix application we need to provide a https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[CSP] configuration and
+enable default role with feature flags.
+
+Superset offers to define custom configuration in:
+
+* `docker/pythonpath_dev/superset_config.py` file
+* `docker/pythonpath_dev/superset_config_docker.py` file that is ignored by git.
+
+We will use the second option. Let's create the `superset_config_docker.py` file under `/apache-superset/superset/docker/pythonpath_dev/` path.
+
+=== Guest token
+
+The Jmix Superset add-on uses Guest Token to access embedded dashboards. Using this token Superset creates an Anonymous user object that has role from `GUEST_ROLE_NAME` property with default value - `Public`. To enable Anonymous users to see the dashboards we should use https://superset.apache.org/docs/security/#gamma[Gamma] role.
+
+Add to the `superset_config_docker.py` file the following property:
+
+[source, python]
+----
+GUEST_ROLE_NAME = 'Gamma'
+----
+
+[[enable-embedding-dashboards]]
+=== Embedded dashboards
+
+By default, Superset does not enable to embed dashboards into `IFrame`. We can enable it using `FEATURE_FLAGS` property.
+
+Add to the `superset_config_docker.py` file the following property:
+
+[source, python]
+----
+FEATURE_FLAGS = {
+    "EMBEDDED_SUPERSET": True,
+}
+----
+
+=== Content Security Policy (CSP)
+
+As Superset provides ability to embed dashboards into `IFrame` we need to configure Content Security Policy. The Superset uses the `Talisman` (it is an extension for `Flask` web framework) that enables to integrate additional security layer such as CSP, HTTPS, etc.
+
+Content Security Policy has the https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors] directive that specifies valid parents that may embed a page. The Superset has already defined a `TALISMAN_CONFIG` with default values in https://github.com/apache/superset/blob/7dd28a900366660e09b28157012ff75271acf165/superset/config.py#L1476[superset/config.py].
+
+Copy the `TALISMAN_CONFIG` property to `superset_config_docker.py` and add the `frame-ancestors` value:
+
+[source, python]
+----
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        # ...
+        "frame-ancestors": ["http://localhost:8080"]
+    },
+    # ...
+}
+----
+
+The result configuration in `superset_config_docker.py` file is the following:
+
+[source, python]
+----
+GUEST_ROLE_NAME = 'Gamma'
+FEATURE_FLAGS = {
+    "EMBEDDED_SUPERSET": True,
+}
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        "base-uri": ["'self'"],
+        "default-src": ["'self'"],
+        "img-src": [
+            "'self'",
+            "blob:",
+            "data:",
+            "https://apachesuperset.gateway.scarf.sh",
+            "https://static.scarf.sh/",
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "connect-src": [
+            "'self'",
+            "https://api.mapbox.com",
+            "https://events.mapbox.com",
+        ],
+        "object-src": "'none'",
+        "style-src": [
+            "'self'",
+            "'unsafe-inline'",
+        ],
+        "script-src": ["'self'", "'strict-dynamic'"],
+        "frame-ancestors": ["http://localhost:8080"]
+    },
+    "content_security_policy_nonce_in": ["script-src"],
+    "force_https": False,
+    "session_cookie_secure": False,
+}
+----
+
+WARNING: This configuration is used only for demonstration purpose and is not production ready. For production environment you should provide more precisely configuration with enabled CORS, HTTPS, etc.
+
+Now the Superset is configured and can be restarted. Stop running containers through the desktop application or gracefully stop them from terminal and start again:
+
+[source, bash]
+----
+docker compose -f docker-compose-non-dev.yml up
+----
+
+[[jmix-configuration]]
+== Jmix configuration
+
+Jmix Superset add-on requires to define the following properties for Superset integration:
+
+[source, properties, indent=0]
+----
+include::example$superset-ex1/src/main/resources/application.properties[tags=superset-properties]
+----
+
+Since we started `PostgreSQL` as a service in docker compose we need to change the https://docs.jmix.io/jmix/data-model/data-stores.html[Main Data Store] from `HSQLDB` to `PostgreSQL`.
+
+In the https://docs.jmix.io/jmix/studio/tool-window.html[Jmix Tool Window] expand `Data stores` section. Make a double click on `Main Data Store` and select `PostgreSQL` option in *Database type* field.
+
+TIP: If the `jmix_database` in container configuration defines other port than `5432` you need to specify it in the database URL. For instance, set port for `main.datasource.url = jdbc:postgresql://localhost:5433/onboarding` property in application.properties.
+
+Now the application is ready to communicate with Superset. Since the database is empty, it leaves us to apply migration scripts from our project and fill the database with demonstration data. Let’s start the application and check that we have users in the `Users` view.
+
+image::users-list.png[align="center", width="1318"]
