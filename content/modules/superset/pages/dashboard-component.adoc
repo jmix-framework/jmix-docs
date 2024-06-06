@@ -1,0 +1,117 @@
+= SupersetDashboard Component
+
+The `SupersetDashboard` UI component displays embedded dashboards configured in Apache Superset.
+
+[[usage]]
+== Usage
+
+The `SupersetDashboard` component is available in the *Add Component* palette of the Studio xref:studio:view-designer.adoc[View Designer] as soon as you install the add-on in your project.
+
+You should configure attributes like `id`, `height`, `width`, and specify the <<embeddedId,embeddedId>> obtained from the Apache Superset, for example:
+
+[source,xml,indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
+----
+
+Also, you can inject the component into the controller and interact with it programmatically:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
+----
+
+== Attributes
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<chartControlsVisible,chartControlsVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+<<embeddedId,embeddedId>> -
+<<filtersExpanded,filtersExpanded>> -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+<<titleVisible,titleVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[chartControlsVisible]]
+=== chartControlsVisible
+Sets the visibility of chart controls.
+
+image::chart-controls-example.png[]
+
+[[embeddedId]]
+=== embeddedId
+The embedded dashboard ID. You can take this ID from dashboard settings in Superset. See an example of how to enable embedding in the xref:dashboard.adoc#create-dashboard[Create Dashboard] section of the xref:getting-started.adoc[Getting Started] guide.
+
+NOTE: To enable embedding dashboards, do not forget to set the `EMBEDDED_SUPERSET` feature flag in Superset configuration. See xref:configuration.adoc#enable-embedding-dashboards[Embedded Dashboards].
+
+The embedded ID is required for fetching a _guest token_ and loading the dashboard. After the embedded ID is changed, the component reloads the dashboard. Without an embedded ID, the component will show a stub image.
+
+[[filtersExpanded]]
+=== filtersExpanded
+
+Sets whether the filters bar is expanded or not.
+
+[[titleVisible]]
+=== titleVisible
+Sets the visibility of the title bar.
+
+image::title-visible-example.png[align="center"]
+
+[[dataset-constraints]]
+== Dataset Constraints
+
+A dashboard in Superset can contain multiple charts that show data from different datasets. The `SupersetDashboard` component provides the ability to set constraints on these datasets. Constraints can be defined statically in the component's XML element or calculated dynamically at runtime.
+
+To provide a constraint, you need to define the ID of the dataset and write a native SQL condition that will be appended to the *WHERE* clause of the dataset query.
+
+TIP: It is not obvious from the Superset UI where to find a dataset ID. You can get it from the `datasource_id` parameter of the URL displayed in the address bar when you open the dataset from the datasets list.
+
+[[static-dataset-constraints]]
+=== Static Dataset Constraints
+
+Let's consider usage of static dataset constraints in the `Employees' salaries` dashboard created in the xref:getting-started.adoc[Getting Started] section. It uses the dataset that loads employees, departments and salaries. Suppose that you need to limit the salary lower bound, e.g. by `80,000`.
+
+Constraints are defined in the `datasetConstraint` nested elements of the `dashboard` component. They can be added using Studio *Add* action available for the component or manually in XML.
+
+The required constraint definition will look as follows:
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
+----
+
+`salary` here is the column of the dataset.
+
+[[dataset-constraints-provider]]
+=== Dataset Constraints Provider
+
+Dataset constraints can be calculated dynamically at runtime and passed to Superset when the dashboard is opened in the Jmix application. This allows you to filter out dashboard data based on the current user privileges or any other criteria.
+
+A dataset constraint is represented by the `DatasetConstraint` Java class. You can provide a list of constraints to the `SupersetDashboard` component in the following ways:
+
+* Create a `datasetConstraintsProvider` handler in the view and return the list of constraints from it.
+
+* Create a Spring bean implementing the `DatasetConstraintsProvider` interface and set it in the component using the `setDatasetConstraintsProvider()` method.
+
+Let's consider the following requirement: a department manager can see information about salaries only in their own department. A dataset constraint may take into account a row-level role assigned to the current user.
+
+In the example below uses the first approach with `datasetConstraintsProvider` handler in the view, but the logic is extracted to a regular Spring bean:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[]
+----
+
+The bean is used in the `datasetConstraintsProvider` handler that can be generated from the Jmix UI inspector panel:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
+----
