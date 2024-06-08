@@ -1,36 +1,36 @@
-= Configuration
+= Конфигурация
 
-In this section, you will:
+В этом разделе вы выполните следующие шаги:
 
-* Install and configure Apache Superset to make it available in Jmix applications.
-* Configure the Jmix application to connect to Apache Superset.
+* Установите и настроите Apache Superset так, чтобы сделать его доступным в приложениях Jmix.
+* Настроите приложение Jmix для подключения к Apache Superset.
 
 [[superset-installation]]
-== Apache Superset Installation
+== Установка Apache Superset
 
-According to the Apache Superset https://superset.apache.org/docs/intro[documentation^], there are different ways to install it.
+Согласно https://superset.apache.org/docs/intro[документации^] Apache Superset, существуют различные способы его установки.
 
-The simplest way to get acquainted with Apache Superset is https://superset.apache.org/docs/installation/docker-compose[using Docker Compose^]. This way provides demonstration data with already created dashboards and enables custom configuration of the Superset.
+Самый простой способ познакомиться с Apache Superset - https://superset.apache.org/docs/installation/docker-compose[использовать Docker Compose^]. Этот способ предоставляет демонстрационные данные с уже созданными дэшбордами и позволяет настраивать конфигурацию Superset.
 
-CAUTION: Apache Superset does not recommend using docker compose for production, since it is primarily designed to run a set of containers on a single host and can't support requirements for high availability.
+CAUTION: Apache Superset не рекомендует использовать Docker Compose в продакшн, так как он в основном предназначен для запуска набора контейнеров на одном хосте и не может поддерживать требования по высокой доступности.
 
-Firstly, clone the Superset repository with a release tag, for example 4.0.1:
+Во-первых, клонируйте репозиторий Superset с тегом релиза, например 4.0.1:
 
 [source, bash]
 ----
 git clone --depth 1 --branch 4.0.1 https://github.com/apache/superset.git
 ----
 
-Secondly, specify the same version for the Apache Superset docker image in the `docker-compose-non-dev.yml` file located in the root directory of cloned repository. Open the `docker-compose-non-dev.yml` file and set the following value to the `x-superset-image` property:
+Во-вторых, укажите эту же версию для docker-образа Apache Superset в файле `docker-compose-non-dev.yml`, расположенном в корневом каталоге клонированного репозитория. Откройте файл `docker-compose-non-dev.yml` и установите следующее значение для свойства `x-superset-image`:
 
 [source, yaml]
 ----
 x-superset-image: &superset-image apache/superset:4.0.1
 ----
 
-And finally, to simplify the integration of Superset with the Jmix application, configure a database service that will be accessible to both Superset and the application.
+И наконец, чтобы упростить интеграцию Superset с приложением Jmix, настройте сервис базы данных, который будет доступен как для Superset, так и приложению.
 
-Add the PostgreSQL service to the `docker-compose-non-dev.yml`:
+Добавьте сервис PostgreSQL в `docker-compose-non-dev.yml`:
 
 [source, yaml]
 ----
@@ -53,7 +53,7 @@ volumes:
 
 [CAUTION]
 ====
-If you already have local PostgreSQL using the standard port 5432, expose another port to avoid conflicts. For example, 5433:
+Если у вас уже есть локальный PostgreSQL, использующий стандартный порт 5432, откройте другой порт, чтобы избежать конфликтов. Например, 5433:
 
 [source,yaml]
 ----
@@ -62,36 +62,35 @@ If you already have local PostgreSQL using the standard port 5432, expose anothe
 ----
 ====
 
-Now Apache Superset is ready to launch. Run the following command in the root directory of the cloned repository:
+Теперь Apache Superset готов к запуску. Выполните следующую команду в корневом каталоге клонированного репозитория:
 
 [source, bash]
 ----
 docker compose -f docker-compose-non-dev.yml up
 ----
 
-The Superset web UI will be available at http://localhost:8088[^]. The user credentials are `admin` / `admin`.
+Веб-интерфейс Superset будет доступен по адресу http://localhost:8088[^]. Учетные данные пользователя: `admin` / `admin`.
 
 image::superset-login.png[align="center", width="598"]
 
 [[superset-configuration]]
-== Apache Superset Configuration
+== Конфигурация Apache Superset
 
-Superset has a lot of configuration parameters. You can find the whole list in the https://github.com/apache/superset/blob/master/superset/config.py[superset/config.py^] file. To make Superset accessible from Jmix applications you need to configure https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[Content Security Policy (CSP)^] and
-enable default role with feature flags.
+Superset имеет много параметров настройки. Вы можете найти полный список в файле https://github.com/apache/superset/blob/master/superset/config.py[config.py^]. Для доступа к Superset из приложений Jmix вам нужно настроить https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[Content Security Policy (CSP)^] и включить роль по умолчанию.
 
-Apache Superset supports custom configuration definition in:
+Apache Superset поддерживает определение настроек в следующих файлах:
 
-* `docker/pythonpath_dev/superset_config.py` file
-* `docker/pythonpath_dev/superset_config_docker.py` file that is ignored by git.
+* `docker/pythonpath_dev/superset_config.py`
+* `docker/pythonpath_dev/superset_config_docker.py` (игнорируется Git).
 
-In this guide, you will use the second option. Create the `superset_config_docker.py` file in the `/apache-superset/superset/docker/pythonpath_dev/` directory.
+В этом руководстве вы будете использовать второй вариант. Создайте файл `superset_config_docker.py` в директории `/apache-superset/superset/docker/pythonpath_dev/`.
 
 [[guest-token]]
-=== Guest Token
+=== Гостевой токен
 
-The Jmix Superset add-on uses a _guest token_ to access embedded dashboards. Using this token, Apache Superset creates an anonymous user object that has a role from the `GUEST_ROLE_NAME` property set to `Public` by default. To enable anonymous users to see the dashboards you should use the https://superset.apache.org/docs/security/#gamma[Gamma] role.
+Дополнение Jmix Superset использует гостевой токен (_guest token_) для доступа к встроенным дэшбордам. Используя этот токен, Apache Superset создает анонимный объект пользователя с ролью из свойства `GUEST_ROLE_NAME`, которое по умолчанию равно `Public`. Для того чтобы разрешить анонимным пользователям просматривать дэшборды, необходимо использовать роль `Gamma`.
 
-Add the following property to the `superset_config_docker.py` file:
+Добавьте следующее свойство в файл `superset_config_docker.py`:
 
 [source, python]
 ----
@@ -99,11 +98,11 @@ GUEST_ROLE_NAME = 'Gamma'
 ----
 
 [[enable-embedding-dashboards]]
-=== Embedded Dashboards
+=== Встраиваемые дэшборды
 
-By default, Superset does not enable embedding dashboards into `iframe`. You can enable it using the `FEATURE_FLAGS` property.
+По умолчанию Superset не позволяет встраивать дэшборды в `iframe`. Вы можете разрешить это с помощью свойства `FEATURE_FLAGS`.
 
-Add the following property to the `superset_config_docker.py` file:
+Добавьте следующее свойство в файл `superset_config_docker.py`:
 
 [source, python]
 ----
@@ -115,11 +114,11 @@ FEATURE_FLAGS = {
 [[content-security-policy]]
 === Content Security Policy (CSP)
 
-In order to embed dashboards into `iframe` you also need to configure Content Security Policy. Apache Superset uses Talisman (an extension for Flask web framework) that enables integrating additional security layers such as CSP, HTTPS, etc.
+Для встраивания дэшбордов в `iframe` необходимо также настроить Content Security Policy. Apache Superset использует Talisman (расширение для веб-фреймворка Flask), которое позволяет интегрировать дополнительные слои безопасности, такие как CSP, HTTPS и т.д.
 
-Content Security Policy has the https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors^] directive that specifies valid parents that may embed a page. The Superset has already defined the `TALISMAN_CONFIG` property with default values in `superset/config.py`.
+Content Security Policy имеет директиву https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors^], которая указывает допустимых родителей, которые могут встраивать страницу. Superset уже определяет свойство `TALISMAN_CONFIG` с значениями по умолчанию в файле `superset/config.py`.
 
-Copy the `TALISMAN_CONFIG` property to `superset_config_docker.py` and add the `frame-ancestors` value:
+Скопируйте свойство `TALISMAN_CONFIG` в файл `superset_config_docker.py` и добавьте значение `frame-ancestors`:
 
 [source, python]
 ----
@@ -132,7 +131,7 @@ TALISMAN_CONFIG = {
 }
 ----
 
-The resulting configuration in `superset_config_docker.py` file is the following:
+Результат настройки в файле `superset_config_docker.py` будет следующим:
 
 [source, python]
 ----
@@ -171,9 +170,9 @@ TALISMAN_CONFIG = {
 }
 ----
 
-CAUTION: This configuration is used only for demonstration purposes and is not production ready. For a production environment you should provide a more precise configuration with enabled CORS, HTTPS, etc.
+CAUTION: Это настройка используется только для демонстрационных целей. Для продакшн-среды вам нужно произвести более точную настройку с включенными CORS, HTTPS и т.д.
 
-Now the Superset is configured and can be restarted. Stop the running containers and start again:
+Теперь Superset настроен и может быть перезапущен. Остановите работающие контейнеры и запустите снова:
 
 [source, bash]
 ----
@@ -181,9 +180,9 @@ docker compose -f docker-compose-non-dev.yml up
 ----
 
 [[jmix-configuration]]
-== Jmix Configuration
+== Конфигурация Jmix
 
-Jmix Superset add-on requires you to define the following properties:
+Дополнение Jmix Superset требует определения следующих свойств:
 
 [source, properties, indent=0]
 .application.properties
@@ -191,10 +190,10 @@ Jmix Superset add-on requires you to define the following properties:
 include::example$superset-ex1/src/main/resources/application.properties[tags=superset-properties]
 ----
 
-Since you have started the application database as a `PostgreSQL` service in Docker Compose, change the https://docs.jmix.io/jmix/data-model/data-stores.html[Main Data Store] from `HSQLDB` to `PostgreSQL`.
+Так как вы запустили базу данных приложения как сервис `PostgreSQL` в Docker Compose, измените основное хранилище данных с `HSQLDB` на `PostgreSQL`.
 
-TIP: If the `jmix_database` in the container configuration defines a port other than `5432`, specify it in the database URL. For example, set `localhost:5433` in the field for the database host.
+TIP: Если в конфигурации контейнера `jmix_database` определен порт, отличный от `5432`, укажите его в URL базы данных. Например, установите `localhost:5433` в поле хоста базы данных.
 
-Now the application is ready to communicate with Superset. Since the database is empty, the application will run the schema migration scripts and fill the database with demonstration data. Start the application and open the `Users` view:
+Теперь приложение готово к взаимодействию с Superset. Поскольку база данных пуста, приложение выполнит скрипты миграции схемы и заполнит базу данных демонстрационными данными. Запустите приложение и откройте экран *Users*:
 
 image::users-list.png[align="center", width="1318"]
