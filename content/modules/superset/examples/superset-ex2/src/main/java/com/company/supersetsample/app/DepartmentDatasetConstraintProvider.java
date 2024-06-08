@@ -6,15 +6,14 @@ import com.company.supersetsample.security.DepartmentConstraintRole;
 import io.jmix.core.security.CurrentAuthentication;
 import io.jmix.security.SecurityProperties;
 import io.jmix.supersetflowui.component.dataconstraint.DatasetConstraint;
-import io.jmix.supersetflowui.component.dataconstraint.DatasetConstraintsProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// tag::dataset-constraint-provider[]
 @Component
-public class DepartmentDatasetConstraintProvider implements DatasetConstraintsProvider {
+public class DepartmentDatasetConstraintProvider {
+
     private final CurrentAuthentication currentAuthentication;
     private final SecurityProperties securityProperties;
 
@@ -24,7 +23,6 @@ public class DepartmentDatasetConstraintProvider implements DatasetConstraintsPr
         this.securityProperties = securityProperties;
     }
 
-    @Override
     public List<DatasetConstraint> getConstraints() {
         Department department = getDepartment();
         if (hasDepartmentConstraintRole() && department != null) {
@@ -46,4 +44,3 @@ public class DepartmentDatasetConstraintProvider implements DatasetConstraintsPr
         return user.getDepartment();
     }
 }
-// end::dataset-constraint-provider[]

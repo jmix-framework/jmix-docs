@@ -2,42 +2,33 @@
 
 In this section, you will:
 
-* Install and configure the Superset to make it available in Jmix application.
-* Configure the Jmix application to connect with Superset.
+* Install and configure Apache Superset to make it available in Jmix applications.
+* Configure the Jmix application to connect to Apache Superset.
 
 [[superset-installation]]
-== Superset installation
-According to the Superset https://superset.apache.org/docs/intro[documentation] it has many ways for installation:
+== Apache Superset Installation
 
- * Kubernetes
- * Docker compose
- * Docker builds
- * And others
+According to the Apache Superset https://superset.apache.org/docs/intro[documentation^], there are different ways to install it.
 
-The simplest way to get acquainted with Apache Superset is using docker compose. This way provides demonstration data with already created dashboards and enables set custom configuration of the Superset. We will follow these https://superset.apache.org/docs/installation/docker-compose[instructions] to install Superset.
+The simplest way to get acquainted with Apache Superset is https://superset.apache.org/docs/installation/docker-compose[using Docker Compose^]. This way provides demonstration data with already created dashboards and enables custom configuration of the Superset.
 
-WARNING: Apache Superset does not recommend to use docker compose for production case, since it is primarily designed to run a set of containers on a single host and can't support requirements for high availability.
+CAUTION: Apache Superset does not recommend using docker compose for production, since it is primarily designed to run a set of containers on a single host and can't support requirements for high availability.
 
-Firstly, clone the Superset repository with release tag. For now the latest release tag is 4.0.1.
-
-Create the `apache-superset` directory and use it as current directory in a terminal, then run the following command:
+Firstly, clone the Superset repository with a release tag, for example 4.0.1:
 
 [source, bash]
 ----
-
 git clone --depth 1 --branch 4.0.1 https://github.com/apache/superset.git
 ----
 
-As an image for Superset we will use specific version from Docker Hub. According to https://superset.apache.org/docs/installation/docker-compose/#docker-compose-tips--configuration[Superset docker-compose tips & configuration] we will replace an image version in `docker-compose-non-dev.yml`. This file is placed in the root directory of cloned repository.
-
-Open `docker-compose-non-dev.yml` file and set the following value to the `x-superset-image`:
+Secondly, specify the same version for the Apache Superset docker image in the `docker-compose-non-dev.yml` file located in the root directory of cloned repository. Open the `docker-compose-non-dev.yml` file and set the following value to the `x-superset-image` property:
 
 [source, yaml]
 ----
 x-superset-image: &superset-image apache/superset:4.0.1
 ----
 
-And it leaves the last step of the installation. To simplify the integration of Superset and the Jmix application, we will add to this file a database service that will be available for Superset and the Jmix application.
+And finally, to simplify the integration of Superset with the Jmix application, configure a database service that will be accessible to both Superset and the application.
 
 Add the PostgreSQL service to the `docker-compose-non-dev.yml`:
 
@@ -60,37 +51,47 @@ volumes:
 # ...
 ----
 
-CAUTION: If you have PostgreSQL on your host machine with the same port, you should expose another port to avoid conflicts. For instance: - 5433:5432.
+[CAUTION]
+====
+If you already have local PostgreSQL using the standard port 5432, expose another port to avoid conflicts. For example, 5433:
 
-Now the Superset is ready to launch. Run the following command in terminal:
+[source,yaml]
+----
+    ports:
+      - 5433:5432
+----
+====
+
+Now Apache Superset is ready to launch. Run the following command in the root directory of the cloned repository:
 
 [source, bash]
 ----
 docker compose -f docker-compose-non-dev.yml up
 ----
 
-Then the Superset will be available under `localhost:8088` address. The user credentials are `admin` / `admin`.
+The Superset web UI will be available at http://localhost:8088[^]. The user credentials are `admin` / `admin`.
 
 image::superset-login.png[align="center", width="598"]
 
 [[superset-configuration]]
-== Superset configuration
+== Apache Superset Configuration
 
-Superset has a lot of configurable parameters. The whole list you can find in the https://github.com/apache/superset/blob/master/superset/config.py[superset/config.py]. To make Superset available from Jmix application we need to provide a https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[CSP] configuration and
+Superset has a lot of configuration parameters. You can find the whole list in the https://github.com/apache/superset/blob/master/superset/config.py[superset/config.py^] file. To make Superset accessible from Jmix applications you need to configure https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[Content Security Policy (CSP)^] and
 enable default role with feature flags.
 
-Superset offers to define custom configuration in:
+Apache Superset supports custom configuration definition in:
 
 * `docker/pythonpath_dev/superset_config.py` file
 * `docker/pythonpath_dev/superset_config_docker.py` file that is ignored by git.
 
-We will use the second option. Let's create the `superset_config_docker.py` file under `/apache-superset/superset/docker/pythonpath_dev/` path.
+In this guide, you will use the second option. Create the `superset_config_docker.py` file in the `/apache-superset/superset/docker/pythonpath_dev/` directory.
 
-=== Guest token
+[[guest-token]]
+=== Guest Token
 
-The Jmix Superset add-on uses Guest Token to access embedded dashboards. Using this token Superset creates an Anonymous user object that has role from `GUEST_ROLE_NAME` property with default value - `Public`. To enable Anonymous users to see the dashboards we should use https://superset.apache.org/docs/security/#gamma[Gamma] role.
+The Jmix Superset add-on uses a _guest token_ to access embedded dashboards. Using this token, Apache Superset creates an anonymous user object that has a role from the `GUEST_ROLE_NAME` property set to `Public` by default. To enable anonymous users to see the dashboards you should use the https://superset.apache.org/docs/security/#gamma[Gamma] role.
 
-Add to the `superset_config_docker.py` file the following property:
+Add the following property to the `superset_config_docker.py` file:
 
 [source, python]
 ----
@@ -98,11 +99,11 @@ GUEST_ROLE_NAME = 'Gamma'
 ----
 
 [[enable-embedding-dashboards]]
-=== Embedded dashboards
+=== Embedded Dashboards
 
-By default, Superset does not enable to embed dashboards into `IFrame`. We can enable it using `FEATURE_FLAGS` property.
+By default, Superset does not enable embedding dashboards into `iframe`. You can enable it using the `FEATURE_FLAGS` property.
 
-Add to the `superset_config_docker.py` file the following property:
+Add the following property to the `superset_config_docker.py` file:
 
 [source, python]
 ----
@@ -111,11 +112,12 @@ FEATURE_FLAGS = {
 }
 ----
 
+[[content-security-policy]]
 === Content Security Policy (CSP)
 
-As Superset provides ability to embed dashboards into `IFrame` we need to configure Content Security Policy. The Superset uses the `Talisman` (it is an extension for `Flask` web framework) that enables to integrate additional security layer such as CSP, HTTPS, etc.
+In order to embed dashboards into `iframe` you also need to configure Content Security Policy. Apache Superset uses Talisman (an extension for Flask web framework) that enables integrating additional security layers such as CSP, HTTPS, etc.
 
-Content Security Policy has the https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors] directive that specifies valid parents that may embed a page. The Superset has already defined a `TALISMAN_CONFIG` with default values in https://github.com/apache/superset/blob/7dd28a900366660e09b28157012ff75271acf165/superset/config.py#L1476[superset/config.py].
+Content Security Policy has the https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors^] directive that specifies valid parents that may embed a page. The Superset has already defined the `TALISMAN_CONFIG` property with default values in `superset/config.py`.
 
 Copy the `TALISMAN_CONFIG` property to `superset_config_docker.py` and add the `frame-ancestors` value:
 
@@ -130,7 +132,7 @@ TALISMAN_CONFIG = {
 }
 ----
 
-The result configuration in `superset_config_docker.py` file is the following:
+The resulting configuration in `superset_config_docker.py` file is the following:
 
 [source, python]
 ----
@@ -169,9 +171,9 @@ TALISMAN_CONFIG = {
 }
 ----
 
-WARNING: This configuration is used only for demonstration purpose and is not production ready. For production environment you should provide more precisely configuration with enabled CORS, HTTPS, etc.
+CAUTION: This configuration is used only for demonstration purposes and is not production ready. For a production environment you should provide a more precise configuration with enabled CORS, HTTPS, etc.
 
-Now the Superset is configured and can be restarted. Stop running containers through the desktop application or gracefully stop them from terminal and start again:
+Now the Superset is configured and can be restarted. Stop the running containers and start again:
 
 [source, bash]
 ----
@@ -179,21 +181,20 @@ docker compose -f docker-compose-non-dev.yml up
 ----
 
 [[jmix-configuration]]
-== Jmix configuration
+== Jmix Configuration
 
-Jmix Superset add-on requires to define the following properties for Superset integration:
+Jmix Superset add-on requires you to define the following properties:
 
 [source, properties, indent=0]
+.application.properties
 ----
 include::example$superset-ex1/src/main/resources/application.properties[tags=superset-properties]
 ----
 
-Since we started `PostgreSQL` as a service in docker compose we need to change the https://docs.jmix.io/jmix/data-model/data-stores.html[Main Data Store] from `HSQLDB` to `PostgreSQL`.
+Since you have started the application database as a `PostgreSQL` service in Docker Compose, change the https://docs.jmix.io/jmix/data-model/data-stores.html[Main Data Store] from `HSQLDB` to `PostgreSQL`.
 
-In the https://docs.jmix.io/jmix/studio/tool-window.html[Jmix Tool Window] expand `Data stores` section. Make a double click on `Main Data Store` and select `PostgreSQL` option in *Database type* field.
+TIP: If the `jmix_database` in the container configuration defines a port other than `5432`, specify it in the database URL. For example, set `localhost:5433` in the field for the database host.
 
-TIP: If the `jmix_database` in container configuration defines other port than `5432` you need to specify it in the database URL. For instance, set port for `main.datasource.url = jdbc:postgresql://localhost:5433/onboarding` property in application.properties.
-
-Now the application is ready to communicate with Superset. Since the database is empty, it leaves us to apply migration scripts from our project and fill the database with demonstration data. Let’s start the application and check that we have users in the `Users` view.
+Now the application is ready to communicate with Superset. Since the database is empty, the application will run the schema migration scripts and fill the database with demonstration data. Start the application and open the `Users` view:
 
 image::users-list.png[align="center", width="1318"]
