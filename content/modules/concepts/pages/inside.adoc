@@ -294,36 +294,83 @@ private void usernameFieldValidator(final String value) {
 }
 ----
 
-=== Data Binding
+=== View State
 
 Jmix provides a set of abstractions for working with the view state. They allow for coordinated loading and saving data, as well as for declarative binding UI components to the loaded entities.
 
+==== Data Binding
+
 The central element of this feature are data containers that hold data loaded into the view. There are two types of data containers: `InstanceContainer` holds a single entity instance and `CollectionContainer` holds a list of entities.
 
-The view XML, apart from UI components, also usually declares data containers. It enables declarative binding of UI components to entities and their attributes loaded into data containers:
+Data containers are usually declared in the view XML, together with the UI components tree. This enables declarative binding of UI components to entities and their attributes loaded into data containers:
 
 [source,xml]
 ----
-<instance id="userDc" class="com.company.onboarding.entity.User"> <!--1-->
-    <collection id="stepsDc" property="steps"/> <!--2-->
-</instance>
+<data>
+    <instance id="userDc" class="com.company.onboarding.entity.User"> <!--1-->
+        <collection id="stepsDc" property="steps"/> <!--2-->
+    </instance>
+</data>
+<layout>
+    <textField id="usernameField" dataContainer="userDc" property="username"/> <!--3-->
 
-<textField id="usernameField" dataContainer="userDc" property="username"/> <!--3-->
-
-<dataGrid id="stepsDataGrid" dataContainer="stepsDc"> <!--4-->
-    <columns>...</columns>
-</dataGrid>
+    <dataGrid id="stepsDataGrid" dataContainer="stepsDc"> <!--4-->
+        <columns>...</columns>
+    </dataGrid>
 ----
 <1> The `userDc` data container holds an instance of `User` entity.
-<2> TODO
+<2> The nested `stepsDc` data container is associated with the `steps` collection property of the `User` entity. Nested data containers mirror the loaded object graph.
+<3> The text field edits the `username` property of the `User` entity located in the `userDc` data container.
+<4> The data grid displays the collection of `Step` instances located in the `stepsDc` data container.
 
+Apart from data binding for UI components, data containers provide state change events that can be used in the view logic. For example, `ItemPropertyChangeEvent` notifies that the value of an entity attribute has been changed. This event is not sent when the view is populated with initial values, so it is better suited to tracking state changes than value change events sent by UI components.
 
+==== Loading Data
 
-// === Loading and Saving Data
+Data containers can be populated programmatically using their `setItem()` and `setItems()` methods. But usually containers are combined with another Jmix UI abstraction - data loaders.
 
-// === Data Containers
+In view XML, data loaders are defined within associated data containers:
 
-// === DataContext
+[source,xml]
+----
+<collection id="departmentsDc" class="com.company.onboarding.entity.Department">
+    <loader id="departmentsDl">
+        <query>
+            <![CDATA[select e from Department e]]>
+        </query>
+    </loader>
+</collection>
+----
+
+In the example above, the loader contains a JPQL query that will be passed to `DataManager` to load JPA entities.
+
+A loader can delegate the loading logic to an annotated view method, for example:
+
+[source,java]
+----
+@Install(to = "departmentsDl", target = Target.DATA_LOADER)
+private List<Department> departmentsDlLoadDelegate(LoadContext<Department> loadContext) {
+    return departmentService.loadAllDepartments();
+}
+----
+
+Such a delegate enables loading entities from an arbitrary service or data repository.
+
+The purpose of the loader is to collect loading criteria (ID, query, conditions, pagination, sorting, fetch plan, etc.) in the `LoadContext` object, invoke the `DataManager` or a delegate, and populate the associated data container with the loaded entities.
+
+==== Saving Data
+
+Jmix UI offers a mechanism for automatically saving entities changed in a view. It is based on the `DataContext` interface.
+
+A view creates a single instance of `DataContext`, and all data loaders register entities with it before passing them to data containers.
+
+The standard `DataContext` implementation maintains an in-memory structure with references to all entities loaded into the view. When an entity is created, updated or deleted in UI, the data context marks this entity as "dirty".
+
+When the user saves the view (for example, by clicking the *OK* button), the view invokes the `DataContext.save()` method and data context saves the dirty entities using `DataManager` or by invoking a delegate method defined in the view.
+
+The Jmix data context functions similarly to the JPA persistence context, which tracks changes in loaded entities within a transaction and automatically saves changes upon transaction commit.
+
+`DataContext` objects can form hierarchies, where child contexts save changes to the parent ones instead of directly to the backend layer. This feature plays crucial role for editing aggregates, discussed in the next section.
 
 === Editing Aggregates
 
