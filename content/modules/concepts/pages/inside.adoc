@@ -374,7 +374,33 @@ The Jmix data context functions similarly to the JPA persistence context, which 
 
 === Editing Aggregates
 
-// todo
+A data model can contain complex structures called _aggregates_. This term was introduced in the Domain Driven Design approach. You can find a good explanation of it in https://martinfowler.com/bliki/DDD_Aggregate.html[this article^].
+
+Let's consider a model containing the Customer, Order, OrderLine and Product entities. Each OrderLine instance is created for a particular Order and becomes its part, it cannot belong to another Order. At the same time, Customer and Product are independent entities that can be referenced from different instances. So the Order and OrderLine entities form an aggregate, with Order being the aggregate root:
+
+*diagram: aggregate-1*
+
+The aggregate state should always be consistent, so OrderLine instances should be updated together with the owning Order in the same transaction. From the user's perspective, changes in order lines must be saved only when the user confirms the changes in the order.
+
+Jmix allows you to organize the editing of aggregates using simple CRUD views without the need to write any custom code. All you have to do is to mark the reference from the aggregate root to its components with the `@Composition` annotation. For example:
+
+[source,java]
+----
+@JmixEntity
+@Entity(name = "Order_")
+public class Order {
+    // ...
+
+    @Composition
+    @OneToMany(mappedBy = "order")
+    private List<OrderLine> lines;
+----
+
+This annotation is added when you specify `COMPOSITION` as the attribute type in the Studio entity designer.
+
+After that, when editing Order and OrderLine entities using their detail views, Jmix establishes a parent-child relationship between <<_saving_data,data contexts>> of these views. So, when the user confirms changes in the OrderLine detail view, it will update corresponding instances in the parent Order view. And only after confirming the Order, the entire aggregate is sent to the backend layer for saving in the database in a single transaction.
+
+Jmix supports aggregates with multiple levels. In the previous example, you might have a collection of notes for each OrderLine. To include this entity in the aggregate with the Order root, you would simply have to annotate the reference from OrderLine to Note with `@Composition`.
 
 == Security
 
