@@ -19,17 +19,150 @@ See xref:studio:project.adoc#upgrading-project[Upgrading Project] section for ho
 * Updates the version of Jmix BOM which in turn defines versions of all dependencies.
 * Updates the version of Jmix Gradle plugin.
 * Updates the version of Gradle wrapper to 8.7 in `gradle/wrapper/gradle-wrapper.properties`.
-* TODO
+* Add `lumoImports` property to `frontend/themes/<theme-name>/theme.json`.
+* Replaces `@Autowired` with `@ViewComponent` for injection of `MessageBundle` in views.
+* The `jmix.ui.component.filter-show-non-jpa-properties` application property is set to false.
+* Usages of `io.jmix.flowui.component.validation.group.UiCrossFieldChecks` are replaced with `io.jmix.core.validation.group.UiCrossFieldChecks`.
+* If the project uses an Oracle data store, `org.eclipse.persistence.oracle` dependency is added and JDBC driver dependency is updated.
 
 See also the full list of <<breaking-changes,breaking changes>> that can affect your project after the upgrade.
 
 [[new-features]]
 == New Features and Improvements
 
+[[superset-add-on]]
+=== Superset Add-on
+
+The new Superset add-on is designed to integrate Jmix applications with Apache Superset. It allows you to embed dashboards into application views.
+
+See the xref:superset:index.adoc[] section for more information.
+
+[[fragments]]
+=== Fragments
+
+A fragment is a new UI building block that can be used as a part of views and other fragments. It's a composite component with the following additional features:
+
+* Ability to define the content in XML.
+* The `fragment` XML allows you to include fragments in views and other fragments declaratively.
+* The fragment class (AKA controller) supports injection of Spring beans and fragment's UI components; and annotated methods as handlers.
+* The `ReadyEvent` is sent when a fragment is fully initialized.
+* You can define xref:flow-ui:actions.adoc[actions] and xref:flow-ui:data-components.adoc[data components] (data containers and loaders) in the fragment's XML. Data components can be marked as `provided` to obtain them from the host view.
+* Studio offers the `Blank facet` template to generate facets, shows them in the Jmix tool window and allows you to use the xref:studio:view-designer.adoc[visual designer] the same as for views.
+
+Unlike views, fragments currently do not support xref:flow-ui:facets.adoc[facets].
+
+See https://github.com/jmix-framework/jmix/issues/841[#841^] for more information.
+
+[[data-repositories-in-views]]
+=== Data Repositories in Views
+
+Now you can easily delegate loading and saving data in views to Spring Data repositories.
+
+When creating an entity list or detail view, select the *Use Data Repositories* checkbox in the *Advanced* section of the wizard's first page, and choose an existing data repository from the dropdown. The wizard will generate load and save delegates that invoke appropriate repository methods.
+
+Load methods of repositories inherited from `JmixDataRepository` now support an additional argument of the `JmixDataRepositoryContext` type. It allows you to pass the filtering, paging and sorting parameters collected from UI components to the `LoadContext` object. As a result, all the features of `genericFilter`, `simplePagination` and `dataGrid` components work seamlessly with data repositories.
+
+[[lazy-tabs-in-tabsheet]]
+=== Lazy Tabs in TabSheet
+
+A tab in a xref:flow-ui:vc/layouts/tabSheet.adoc[] can now be marked as `lazy`. The content of such a tab will not be loaded automatically, which improves performance for views with many tabs containing a lot of UI components.
+
+See https://github.com/jmix-framework/jmix/issues/3029[#3029^] for more information.
+
+[[navigation-requires-origin-view]]
+=== Navigation Requires Origin View
+
+In order to fix https://github.com/jmix-framework/jmix/issues/3157[#3157^], the API of `ViewNavigators` has been changed: the navigation now requires you to specify an origin view. Old methods are deprecated, and it is recommended to replace them with the new ones accepting an origin view.
+
+If the calling class is not a view, and you cannot pass `this` as an origin, use `UiComponentUtils.getCurrentView()`, for example:
+
+[source,java]
+----
+viewNavigators.view(UiComponentUtils.getCurrentView(), viewId).navigate();
+----
+
+In UI tests, the current view can be obtained by `UiTestUtils.getCurrentView()`, for example:
+
+[source,java]
+----
+View<?> parent = UiTestUtils.getCurrentView();
+viewNavigators.view(parent, UserListView.class).navigate();
+----
+
+[[authentication-principal-resolver]]
+=== AuthenticationPrincipalResolver
+
+A mechanism of resolving a current user object has been introduced. It delegates to the chain of `AuthenticationPrincipalResolver` implementations that try to return a correct user object. The standard implementation in the Authentication Server add-on fixes the https://github.com/jmix-framework/jmix/issues/2051[issue^] which prevented the use of xref:data-access:jpql-extensions.adoc#session-and-user-attributes[user attributes] in REST API requests.
+
+An application project can provide its own `AuthenticationPrincipalResolver` implementations if needed.
 
 [[breaking-changes]]
 == Breaking Changes
 
+[[explicit-lumo-imports]]
+=== Explicit Lumo Imports
+
+The application theme must explicitly declare imports from Lumo theme, for example:
+
+[source,json]
+.frontend/themes/onboarding/theme.json
+----
+{
+ "parent": "jmix-lumo",
+ "lumoImports": [
+  "typography",
+  "color",
+  "spacing",
+  "badge",
+  "utility"
+ ]
+}
+----
+
+The Studio migration process will automatically make this change.
+
+See https://github.com/jmix-framework/jmix/issues/3347[#3347^] for more information.
+
+[[viewcomponent-for-injecting-messagebundle]]
+=== @ViewComponent for Injecting MessageBundle
+
+The `@ViewComponent` annotation must be used to inject `MessageBundle` into a view. The Studio migration process will automatically update all existing views.
+
+See https://github.com/jmix-framework/jmix/issues/2812[#2812^] for more information.
+
+[[lazy-loaded-soft-deleted-onetoone-reference]]
+=== Lazy Loaded Soft Deleted OneToOne Reference
+
+The lazy loading of soft-deleted one-to-one references has been fixed. Now it behaves the same as eager loading with fetch plans:
+
+* Soft-deleted entities are loaded through one-to-one references from the owning side.
+
+* Soft-deleted entities are NOT loaded through one-to-one references from the `mappedBy` side.
+
+Previously, the behavior of lazy loading was opposite.
+
+See https://github.com/jmix-framework/jmix/issues/2466[#2466^] for more information.
+
+[[vectorlayer-default-style]]
+=== VectorLayer Default Style
+
+When using the Maps add-on, the default style is now removed with the `VectorLayer.removeAllStyles()` method. To restore the default style, add it explicitly before the others. For example:
+
+[source,java]
+----
+@ViewComponent("map.vector")
+private VectorLayer vector;
+
+@Subscribe
+private void onInit(final InitEvent event) {
+    vector.removeAllStyles();
+    vector.addStyles(
+            Style.createDefaultStyle(),
+            new Style());
+}
+----
+
+See https://github.com/jmix-framework/jmix/issues/3140[#3140^] for more information.
 
 [[changelog]]
 == Changelog
