@@ -16,17 +16,190 @@
 * Обновляет версию Jmix BOM, которая, в свою очередь, определяет версии всех зависимостей.
 * Обновляет версию Jmix Gradle plugin.
 * Обновляет версию Gradle wrapper до 8.7 в `gradle/wrapper/gradle-wrapper.properties`.
-* TODO
+* Добавляет свойство `lumoImports` в файл `frontend/themes/<theme-name>/theme.json`.
+* Заменяет `@Autowired` на `@ViewComponent` для инжекции `MessageBundle` в экранах.
+* Устанавливает свойство приложения `jmix.ui.component.filter-show-non-jpa-properties` в false.
+* Заменяет использование класса `io.jmix.flowui.component.validation.group.UiCrossFieldChecks` на `io.jmix.core.validation.group.UiCrossFieldChecks`.
+* Если в проекте используется хранилище на Oracle, добавляет зависимость `org.eclipse.persistence.oracle` и обновляет драйвер JDBC.
 
 См. полный список <<breaking-changes,опасных изменений>>, которые могут затронуть ваш проект после обновления.
 
 [[new-features]]
 == Новая и улучшенная функциональность
 
+[[superset-add-on]]
+=== Дополнение Superset
+
+Дополнение Superset предназначено для интеграции приложений Jmix с Apache Superset. Оно позволяет встраивать дэшборды, созданные в Apache Superset, в экраны приложений.
+
+Для получения полной информации см. xref:superset:index.adoc[документацию] по дополнению Superset.
+
+[[fragments]]
+=== Фрагменты
+
+Фрагмент - это новый структурный элемент пользовательского интерфейса, который можно использовать в качестве компонента экранов или других фрагментов. Фрагмент является композитным компонентом и имеет следующие дополнительные функции:
+
+* Возможность определять содержимое в формате XML.
+* Элемент XML `fragment` позволяет декларативно включать фрагменты в экраны и другие фрагменты.
+* Класс фрагмента (называемый также контроллер) поддерживает инжекцию бинов Spring и UI-компонентов фрагмента, а также аннотированные методы в качестве обработчиков.
+* Когда фрагмент полностью инициализирован, отправляется событие `ReadyEvent`.
+* В XML фрагмента можно определить xref:flow-ui:actions.adoc[действия] и xref:flow-ui:data-components.adoc[компоненты данных] (контейнеры и загрузчики). Компоненты данных можно пометить как `provided` для их получения из экрана-владельца.
+* Студия предлагает шаблон `Blank facet` для генерации фасетов, отображает их в окне инструментов Jmix и позволяет использовать xref:studio:view-designer.adoc[визуальный дизайнер] так же, как для экранов.
+
+В отличие от представлений, фрагменты в настоящее время не поддерживают xref:flow-ui:facets.adoc[фасеты].
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/841[#841^].
+
+[[data-repositories-in-views]]
+=== Репозитории данных в экранах
+
+Теперь вы можете легко делегировать загрузку и сохранение данных в экранах репозиториям Spring Data.
+
+При создании экрана списка или деталей сущности, выберите флажок *Use Data Repositories* на первой странице мастера в секции *Advanced* и выберите существующий репозиторий данных из выпадающего списка. Мастер сгенерирует делегаты загрузки и сохранения, которые будут вызывать соответствующие методы репозитория.
+
+Методы загрузки репозиториев, унаследованных от `JmixDataRepository`, теперь поддерживают дополнительный аргумент типа `JmixDataRepositoryContext`. Это позволяет передавать параметры фильтрации, пейджинга и сортировки, собранные в объект `LoadContext` из UI-компонентов. В результате все функции компонентов `genericFilter`, `simplePagination` и `dataGrid` будут полноценно работать с репозиториями данных.
+
+[[lazy-tabs-in-tabsheet]]
+=== Ленивые вкладки в TabSheet
+
+Вкладка (tab) компонента xref:flow-ui:vc/layouts/tabSheet.adoc[] теперь может быть помечена как `lazy`. Содержимое такой вкладки не загружается автоматически, что улучшает производительность для экранов с большим количеством вкладок и UI-компонентов на них.
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/3029[#3029^].
+
+[[navigation-requires-origin-view]]
+=== Указание исходного экрана при навигации
+
+Для устранения проблемы https://github.com/jmix-framework/jmix/issues/3157[#3157^] API `ViewNavigators` был изменен: теперь при навигации требуется указывать исходное представление. Старые методы навигации помечены как deprecated, и рекомендуется заменить их на новые, которые принимают исходный экран.
+
+Если вызывающий класс не является экраном, и вы не можете передать `this` в качестве источника, используйте `UiComponentUtils.getCurrentView()`, например:
+
+[source,java]
+----
+viewNavigators.view(UiComponentUtils.getCurrentView(), viewId).navigate();
+----
+
+В UI-тестах текущий экран можно получить с помощью `UiTestUtils.getCurrentView()`, например:
+
+[source,java]
+----
+View<?> parent = UiTestUtils.getCurrentView();
+viewNavigators.view(parent, UserListView.class).navigate();
+----
+
+[[navigation-to-bpm-process-forms]]
+=== Навигация к процессным формам BPM
+
+При навигации к процессной форме, Jmix теперь использует параметр запроса URL `taskId` или `processDefinitionId`. Это позволяет безопасно перезагружать веб-страницу и сохранять глубокую ссылку на форму.
+
+[[authentication-principal-resolver]]
+=== AuthenticationPrincipalResolver
+
+Новый механизм определения объекта текущего пользователя делегирует выполнение цепочке реализаций `AuthenticationPrincipalResolver`, которые пытаются вернуть правильный объект пользователя. Стандартная реализация в дополнении Authorization Server исправляет https://github.com/jmix-framework/jmix/issues/2051[проблему^], которая мешала использованию xref:data-access:jpql-extensions.adoc#session-and-user-attributes[атрибутов пользователя] в запросах REST API.
+
+Проект приложения при необходимости может предоставить собственные реализации `AuthenticationPrincipalResolver`.
+
+[[resource-owner-password-credentials-grant]]
+=== Resource Owner Password Credentials Grant
+
+Дополнение Authorization Server теперь поддерживает грант Resource Owner Password Credentials. Его можно использовать в доверенных, устаревших или строго контролируемых средах для простой аутентификации REST-клиентов в качестве зарегистрированных пользователей приложения Jmix.
+
+Для получения полной информации см. xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[документацию] по дополнению Authorization Server.
+
+[[exposing-services-in-generic-rest]]
+=== Публикация сервисов в универсальном REST
+
+Добавлен новый экспериментальный способ публикации методов сервисов в качестве эндпойнтов универсального REST.
+
+Вместо создания файла `rest-services.xml`, как описано в xref:rest:business-logic.adoc#exposing-a-service[документации] по дополнению Универсальный REST, вы можете использовать аннотации `io.jmix.rest.annotation.RestService` и `io.jmix.rest.annotation.RestMethod` на классах сервисов и их бизнес-методах соответственно.
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/1323[#1323^].
+
+[[liquibase-changelog-aggregation]]
+=== Агрегация файлов Liquibase changelog
+
+В контекстном меню хранилища данных Jmix Studio доступно новое действие: *Aggregate Liquibase Changelogs*. Оно позволяет объединить несколько последних файлов changelog в один, исключая дублирование действий в наборах изменений (changesets).
+
+Эта функция может быть использована разработчиками перед каждым коммитом изменений в общий репозиторий кода. Она помогает поддерживать аккуратную коллекцию файлов changelog и сокращает время запуска приложения за счет меньшего числа наборов изменений.
+
+[[generation-of-ui-exception-handlers]]
+=== Генерация обработчиков исключений UI
+
+Теперь xref:flow-ui:exception-handlers.adoc[обработчики исключений UI] можно создавать используя команду *New -> Advanced -> UI Exception Handler* панели инструментов Jmix.
+
+[[ui-component-structure-improvements]]
+=== Улучшения панели структуры Jmix UI
+
+* Вы можете легко преобразовать один компонент в другой, используя действие *Convert to* в контекстном меню структуры Jmix UI.
+
+* Несколько выбранных компонентов можно обернуть во вкладку TabSheet используя действия *Wrap into*.
 
 [[breaking-changes]]
 == Опасные изменения
 
+[[explicit-lumo-imports]]
+=== Явный импорт Lumo
+
+Тема приложения должна явно объявлять импорты из темы Lumo, например:
+
+[source,json]
+.frontend/themes/onboarding/theme.json
+----
+{
+ "parent": "jmix-lumo",
+ "lumoImports": [
+  "typography",
+  "color",
+  "spacing",
+  "badge",
+  "utility"
+ ]
+}
+----
+
+Процесс миграции Studio автоматически выполнит это изменение.
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/3347[#3347^].
+
+[[viewcomponent-for-injecting-messagebundle]]
+=== @ViewComponent для инжекции MessageBundle
+
+Для инжекции `MessageBundle` в экран должна использоваться аннотация `@ViewComponent`. Процесс миграции Studio автоматически обновит все существующие экраны.
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/2812[#2812^].
+
+[[lazy-loaded-soft-deleted-onetoone-reference]]
+=== Ленивые мягко удаленные ссылки один-к-одному
+
+Исправлена ленивая загрузка мягко удаленных ссылок один-к-одному. Теперь она ведет себя так же, как жадная загрузка с фетч-планами:
+
+* Мягко удаленные сущности загружаются через ссылки один-к-одному с владеющей стороны.
+
+* Мягко удаленные сущности НЕ загружаются через ссылки один-к-одному со стороны `mappedBy`.
+
+Ранее поведение ленивой загрузки было противоположным.
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/2466[#2466^].
+
+[[vectorlayer-default-style]]
+=== Стиль по умолчанию в VectorLayer
+
+При использовании дополнения Maps, стиль по умолчанию теперь удаляется методом `VectorLayer.removeAllStyles()`. Чтобы восстановить стиль по умолчанию, добавьте его явно перед другими. Например:
+
+[source,java]
+----
+@ViewComponent("map.vector")
+private VectorLayer vector;
+
+@Subscribe
+private void onInit(final InitEvent event) {
+    vector.removeAllStyles();
+    vector.addStyles(
+            Style.createDefaultStyle(),
+            new Style());
+}
+----
+
+Для получения более подробной информации см. https://github.com/jmix-framework/jmix/issues/3140[#3140^].
 
 [[changelog]]
 == Список изменений
