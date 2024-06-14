@@ -1,6 +1,7 @@
 package com.company.demo.security.api;
 
 import io.jmix.core.JmixSecurityFilterChainOrder;
+import io.jmix.security.util.JmixHttpSecurityUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -21,6 +22,7 @@ public class AnonymousControllerSecurityConfiguration {
                         authorize.anyRequest().permitAll() //<3>
                 )
                 .csrf(csrf -> csrf.disable()); //<4>
+        JmixHttpSecurityUtils.configureAnonymous(http); //<5>
         return http.build();
     }
 }
