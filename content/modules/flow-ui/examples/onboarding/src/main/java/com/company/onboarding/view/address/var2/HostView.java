@@ -22,10 +22,10 @@ public class HostView extends StandardView {
 
     @Subscribe
     public void onInit(InitEvent event) {
-        AddressFragment addressFragment = fragments.create(this, AddressFragment.class); // <2>
+        AddressFragment addressFragment = fragments.create(this, AddressFragment.class);
         addressFragment.setCitiesContainer(citiesDc); // <1>
         addressFragment.setZipcodePlaceholder("Zipcode");
-        getContent().add(addressFragment); // <3>
+        getContent().add(addressFragment);
     }
 // end::fragment-in-view[]
 }
