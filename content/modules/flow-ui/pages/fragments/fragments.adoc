@@ -1,0 +1,103 @@
+= Fragments
+
+A _fragment_ encapsulates a components tree to allow creation of new components by composing existing components. The main purpose of fragments is to be used as a part of views and other fragments. By encapsulating the component, its API can be hidden or presented in a different way for the user of the fragment.
+
+[[fragment-content]]
+== Fragment Content
+
+`@FragmentDescriptor` annotation specifies a string value that is a file path to an XML descriptor that can be used for a `Fragment` initialization. If the value contains a file name only (that is don't start with `/`), it is assumed that the file is located in the package of the fragment class.
+
+Elements available in XML descriptor:
+
+* `content` - required element that contains fragment layout (similar to view `layout` element). Since the root component of `Fragment` can be any component, content has no attributes and doesn't represent any component.
+* `actions` - optional fragment actions element (similar to view `actions` element). Actions defined for fragment have shortcut bound to root component of a fragment, that is shortcut can be triggered only if focus within fragment layout.
+* `data` - optional fragment data element (similar to view `data` element). A fragment can have its own data containers and loaders defined in the `data` XML element or get them by id from a host view or enclosing fragment as described in xref:flow-ui:fragments/using-fragments.adoc#using-data-components[Using Data Components].
+
+customer-list-fragment.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/customer/customer-list-fragment.xml[tags=fragment-xml]
+----
+
+[[fragment-api]]
+== Fragment API
+
+* `getFragmentData()` - returns an object defining methods for interacting with data API elements of a fragment. Similar to ViewData.
+* `getFragmentActions()` - returns an object defining methods for interacting with actions API of a fragment. Similar to ViewActions.
+* `getParentController()` - returns a parent FragmentOwner object. Currently, it may be View or Fragment.
+* `findInnerComponent()` / `getInnerComponent()` - return the inner component with given fragment id. These methods search among components added via an XML descriptor only.
+
+
+[[fragment-events]]
+== Fragment Events
+
+* `ReadyEvent` - the event that is fired after the fragment and all its declaratively defined inner components are created and fully initialized. In this event listener, you can make final configuration of the fragment and its inner components, e.g. obtain inner components using `getInnerComponent(String)` and add their specific event listeners.
+
+
+.CustomerListFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customer/CustomerListFragment.java[tags=fragment-java]
+----
+<1> Triggers `load()` method of all loaders registered in the fragment.
+
+
+[[fragment-autowiring]]
+== Autowiring
+
+Similar to views, fragments support for injection of components defined in XML and subscription on their events:
+
+[source,java,indent=0]
+----
+@ViewComponent
+public JmixButton button; // <1>
+
+@ViewComponent
+public CollectionContainer<Customer> collectionDc; // <2>
+
+@Subscribe
+public void onReady(ReadyEvent event) { // <3>
+    // ...
+}
+
+@Subscribe(value = "button", subject = "clickListener")
+public void onButtonClick(ClickEvent<JmixButton> event) { // <4>
+    // ...
+}
+
+@Install(to = "collectionDl", target = Target.DATA_LOADER)
+public List<Customer> collectionDlLoadDelegate(LoadContext<Customer> loadContext) { // <5>
+    // ...
+}
+
+@Supply(to = "dataGrid.name", subject = "renderer")
+public Renderer<Customer> dataGridNameRenderer() { // <6>
+    // ...
+}
+----
+<1> Injects a UI component
+<2> Inject a data component
+<3> Subscribes on the fragment's `ReadyEvent` event
+<4> Subscribes on the button's `ClickEvent`
+<5> Installs collection loader load delegate
+<6> Sets the dataGrid `Renderer`
+
+In addition to that, it's possible to subscribe on Host View events by defining `target = Target.HOST_CONTROLLER` for the `@Subscribe`:
+
+[source,java,indent=0]
+----
+@Subscribe(target = Target.HOST_CONTROLLER)
+public void onHostInit(View.InitEvent event) {
+    // ...
+}
+
+@Subscribe(target = Target.HOST_CONTROLLER)
+public void onHostBeforeShow(View.BeforeShowEvent event) {
+    // ...
+}
+
+@Subscribe(target = Target.HOST_CONTROLLER)
+public void onHostReady(View.ReadyEvent event) {
+    // ...
+}
+----
