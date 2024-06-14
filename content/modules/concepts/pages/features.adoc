@@ -1,13 +1,15 @@
-= Inside Jmix
+= Feature Overview
 
-In this section, we will discuss the inner workings of the framework that enable the implementation of the principles described in the xref:principles.adoc[previous section].
+In this section, we will discuss the features and inner workings of the framework that enable implementation of the principles outlined in the xref:principles.adoc[previous section].
 
 // todo Recommendations who should read this
 
+[[data-model-and-metadata]]
 == Data Model and Metadata
 
-The xref:principles.adoc#_lean_data_model[lean data model] approach allows you to avoid duplicating the data model across different layers and writing boilerplate code. This section explains how Jmix offers efficient methods for working with a single model of heterogeneous data.
+The xref:principles.adoc#unified-data-model[unified data model] approach allows you to avoid duplicating the data model across different layers and writing boilerplate code. This section explains how Jmix offers efficient methods for working with a single model of heterogeneous data.
 
+[[building-metadata]]
 === Building Metadata
 
 Let's take a look at the various options for application data sources, ranging from simple to more complex.
@@ -62,9 +64,10 @@ List<MetaProperty> singleValueProperties = metaClass.getProperties().stream()
 
 An entity in Jmix can even be defined dynamically at runtime by a set of key-value pairs. Such entities do not have a specific Java class, but nevertheless can be displayed and edited in user interface. UI components do not need a Java class, they need only an object that can read/write properties by name, and a corresponding `MetaClass` with the collection of `MetaProperty` to describe these properties.
 
-=== Enhancing Entities
+[[entity-enhancement]]
+=== Entity Enhancement
 
-Now we'll briefly discuss another aspect of the unified data model maintained by Jmix: _enhancing_ of entity classes, which is also known as bytecode modification. Jmix enhances entity classes at build time to provide required characteristics for all types of entities. These characteristics include the presence of an identifier, suitable `equals()` and `hashCode()` methods, ability to read/write entity attributes by name and listen to changes in attribute values.
+Now we'll briefly discuss another aspect of the unified data model maintained by Jmix: _enhancement_ of entity classes, which is also known as bytecode modification or weaving. Jmix enhances entity classes at build time to provide required characteristics for all types of entities. These characteristics include the presence of an identifier, suitable `equals()` and `hashCode()` methods, ability to read/write entity attributes by name and listen to changes in attribute values.
 
 For example, a DTO entity can have no identifier attribute if it is not stored in any persistent storage and exists purely in memory. But for uniformity with persistent entities, Jmix modifies the entity bytecode and adds an identifier field with automatically generated value. The same with `equals()` and `hashCode()` - they are added to the entity classes at build time with the implementation based on comparing identifiers.
 
@@ -74,10 +77,12 @@ The following diagram shows that after enhancement the `User` entity class imple
 
 The most interesting feature that all entities acquire from enhancing is their observability. It is possible to register listeners with an entity instance and get notified about changes in its attributes. It simplifies working with data on UI layer: any changes in entities made by the application code, like `user.setFirstName("Joe")` are immediately shown by the linked UI components, and the changed entities are automatically saved in the database. The application developer doesn't need to write any special code for this, it happens because the framework components listen to changes in entities.
 
+[[data-access]]
 == Data Access
 
 // todo intro
 
+[[data-manager]]
 === DataManager
 
 Jmix provides its own abstraction for loading and saving entities: xref:data-access:data-manager.adoc[DataManager]. It has a simple fluent API:
@@ -152,10 +157,12 @@ So the DataManager itself serves mostly as a gateway, providing a convenient API
 
 // The complete set of Jmix features listed above is implemented by `JpaDataStore` for JPA entities, that is for data located in relational databases. A custom data store can provide similar features
 
+[[jpa-specifics]]
 === JPA Specifics
 
 Let's discuss the DataManager features provided by `JpaDataStore` and what Jmix adds on top of the standard JPA capabilities.
 
+[[loading-object-graphs]]
 ==== Loading Object Graphs
 
 Jmix offers advanced ways of retrieving object graphs that are not available in the mainstream implementation of JPA based on Hibernate. Below you can see an overview and motivation behind these features. For more details, see the xref:data-access:fetching.adoc[] section.
@@ -168,6 +175,7 @@ The Jmix fetch plans provide a completely dynamic way to eagerly load your data 
 
 The ability to load partial entities for improving performance is the main reason why Jmix uses EclipseLink as a JPA implementation. On top of EclipseLink capabilities, Jmix adds convenient definition of fetch plans, automatic selection of fetch modes (JOIN or BATCH), and lazy loading that delegates to DataManager.
 
+[[soft-deletion]]
 ==== Soft Deletion
 
 Another distinctive Jmix feature implemented at the JPA level is soft deletion. This is a popular approach in enterprise applications, as it helps to reduce the risk of data loss due to incorrect user actions.
@@ -180,19 +188,12 @@ Moreover, the soft deletion in Jmix can be dynamically switched off for a partic
 
 See more information in the xref:data-model:soft-deletion.adoc[] section.
 
+[[user-interface]]
 == User Interface
 
-// - Server-driven UI
-// - What's the difference from pure Vaadin?
-//      - View abstraction, navigation and dialogs
-//      - UI descriptors and controllers
-//      - Event listeners and delegates
-//      - Data containers
-//      - Data context
-//      - Editing compositions
+To adhere to the full-stack development xref:principles.adoc#full-stack-development[principle], Jmix uses the https://vaadin.com/[Vaadin^] framework for user interface development. In this section, we describe features that Jmix adds on top of Vaadin to maximize the productivity of creating enterprise applications with large data models and UI.
 
-To adhere to the full-stack development xref:principles.adoc#_full_stack_development[principle], Jmix uses the https://vaadin.com/[Vaadin^] framework for user interface development. In this section, we describe features that Jmix adds on top of Vaadin to maximize the productivity of creating enterprise applications with large data models and UI.
-
+[[views]]
 === Views
 
 A Jmix application UI consists of a number of views. A view is a separate part of UI that serves a specific function. For example, a view can display a list of customers or manage customer attributes.
@@ -207,13 +208,14 @@ Jmix provides a set of base classes for views, typical for enterprise applicatio
 
 The views in Jmix have several distinctive features, which are discussed in detail below.
 
+[[navigation-and-dialogs]]
 ==== Navigation and Dialogs
 
 A view can be mapped to a URL and opened inside the main layout by navigating to this URL. In addition, Jmix allows you to open the same view in a dialog window popped up on the current page without changing the URL. In the former case, the previous view will be closed, while the latter will keep the URL unchanged and the previous view open.
 
 This feature is designed to satisfy two typical requirements in enterprise applications: selecting related entities and editing aggregates.
 
-Let's discuss the first requirement below and the second one in the <<_editing_aggregates,subsequent section>>.
+Let's discuss the first requirement below and the second one in the <<editing-aggregates,subsequent section>>.
 
 Usually web applications offer dropdown lists for selecting related entities. For example, when a user creates an order, they can select a related customer from a dropdown list displaying the names of all customers. But what if the customer should be found not by its name but by their VAT number or some other attribute? Or the customer isn't registered yet and need to be entered along with the order?
 
@@ -223,6 +225,7 @@ Opening a lookup view in a dialog, which doesn't destroy the original view, make
 
 Dialog windows with lookup views can automatically stack on top of each other, providing the way to drill down into your data model without losing the initial context. For example, when creating an order, a user can open the list of customers in a dialog, then create a customer in a separate dialog, then create a customer's contact in its own dialog, and finally select the customer and continue editing the order. Jmix provides this functionality out-of-the-box by reusing the CRUD views created for managing entities.
 
+[[xml-descriptors]]
 ==== XML Descriptors
 
 The content of a view can be defined in XML. This approach significantly reduces the amount of code needed to create a proper UI component structure. Also, for non-trivial views the readability of XML is much higher than that of imperative code which instantiates components, sets their properties, adds components to containers, and assigns event listeners.
@@ -237,6 +240,7 @@ XML was chosen because it has the following advantages:
 
 A Jmix view usually points to its XML definition file using the `@ViewDescriptor` annotation on the view class. After instantiating the view, the framework reads the XML and builds the corresponding component tree. The view class can contain methods, associated with the components: event listeners and delegates, which are discussed in the next section. The view components can be injected into class fields, so the methods can easily access the components and their properties.
 
+[[handlers]]
 ==== Handlers
 
 A view has a specific set of lifecycle events and provides a declarative way to handle all UI events (generated by the view and its components) using annotated methods.
@@ -294,10 +298,12 @@ private void usernameFieldValidator(final String value) {
 }
 ----
 
+[[view-state]]
 === View State
 
 Jmix provides a set of abstractions for working with the view state. They allow for coordinated loading and saving data, as well as for declarative binding UI components to the loaded entities.
 
+[[data-binding]]
 ==== Data Binding
 
 The central element of this feature are data containers that hold data loaded into the view. There are two types of data containers: `InstanceContainer` holds a single entity instance and `CollectionContainer` holds a list of entities.
@@ -325,6 +331,7 @@ Data containers are usually declared in the view XML, together with the UI compo
 
 Apart from data binding for UI components, data containers provide state change events that can be used in the view logic. For example, `ItemPropertyChangeEvent` notifies that the value of an entity attribute has been changed. This event is not sent when the view is populated with initial values, so it is better suited to tracking state changes than value change events sent by UI components.
 
+[[loading-data]]
 ==== Loading Data
 
 Data containers can be populated programmatically using their `setItem()` and `setItems()` methods. But usually containers are combined with another Jmix UI abstraction - data loaders.
@@ -358,6 +365,7 @@ Such a delegate enables loading entities from an arbitrary service or data repos
 
 The purpose of the loader is to collect loading criteria (ID, query, conditions, pagination, sorting, fetch plan, etc.) in the `LoadContext` object, invoke the `DataManager` or a delegate, and populate the associated data container with the loaded entities.
 
+[[saving-data]]
 ==== Saving Data
 
 Jmix UI offers a mechanism for automatically saving entities changed in a view. It is based on the `DataContext` interface.
@@ -372,6 +380,7 @@ The Jmix data context functions similarly to the JPA persistence context, which 
 
 `DataContext` objects can form hierarchies, where child contexts save changes to the parent ones instead of directly to the backend layer. This feature plays crucial role for editing aggregates, discussed in the next section.
 
+[[editing-aggregates]]
 === Editing Aggregates
 
 A data model can contain complex structures called _aggregates_. This term was introduced in the Domain Driven Design approach. You can find a good explanation of it in https://martinfowler.com/bliki/DDD_Aggregate.html[this article^].
@@ -398,10 +407,32 @@ public class Order {
 
 This annotation is added when you specify `COMPOSITION` as the attribute type in the Studio entity designer.
 
-After that, when editing Order and OrderLine entities using their detail views, Jmix establishes a parent-child relationship between <<_saving_data,data contexts>> of these views. So, when the user confirms changes in the OrderLine detail view, it will update corresponding instances in the parent Order view. And only after confirming the Order, the entire aggregate is sent to the backend layer for saving in the database in a single transaction.
+After that, when editing Order and OrderLine entities using their detail views, Jmix establishes a parent-child relationship between <<saving-data,data contexts>> of these views. So, when the user confirms changes in the OrderLine detail view, it will update corresponding instances in the parent Order view. And only after confirming the Order, the entire aggregate is sent to the backend layer for saving in the database in a single transaction.
 
 Jmix supports aggregates with multiple levels. In the previous example, you might have a collection of notes for each OrderLine. To include this entity in the aggregate with the Order root, you would simply have to annotate the reference from OrderLine to Note with `@Composition`.
 
+[[security]]
 == Security
 
-// todo
+Effective security and data access control are essential components of any enterprise application. Jmix is built with security in mind and offers the following features:
+
+* Out-of-the-box configuration for authentication based on Spring Security.
+* Sophisticated data access control mechanism.
+* Built-in roles and permissions management.
+
+The Jmix security concepts are thoroughly described in the dedicated xref:security:index.adoc[] section. Here we will just discuss its relation to the basic Jmix xref:principles.adoc[principles].
+
+* The full-stack nature of Jmix with Java all the way from backend to UI enables fully integrated declarative security, which is also very easy to manage.
++
+For example, if you want to disable an entity attribute to a user, you just remove the permission to this attribute from a role granted to the user. The views displaying this attribute in UI components (text fields, data grid columns, etc.) will automatically make these components invisible. As a result, the attribute value will not be transferred over the wire and won't be present in the user's browser.
++
+The same is for row-level security: you write a JPQL-based and/or predicate policy, and <<data-manager,DataManager>> filters out the entity lists no matter where and how you request this entity: through the DataManager or data repository, using eager or lazy loading, as a root entity or as a collection attribute of another entity.
+
+* The unified data model contributes to the simplicity of the security management. Data access control is not scattered over the entire codebase in the form of annotations and "if" statements. Instead, it's concentrated around a consistent structure of entities, their attributes and operations.
+
+* The security subsystem is a widely used ready-made component of Jmix. It works out-of-the-box in most scenarios.
+
+* The authentication mechanism of Jmix security is based on the mainstream Spring Security framework and allows developers to use their existing knowledge to configure it and integrate with third-party authentication solutions.
+
+* The Jmix security subsystem is highly extensible. Its authentication part plays on the Spring Security rules. The authorization mechanism allows you to build your own attribute-based access control (ABAC) if needed.
+* The Jmix security subsystem is highly extensible. Its authentication part can be configured to its core thanks to Spring Security. The xref:security:authorization.adoc#access-constraints[authorization mechanism] allows you to implement custom attribute-based access control (ABAC) if needed.
