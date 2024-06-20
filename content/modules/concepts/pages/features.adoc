@@ -22,7 +22,7 @@ image::metadata-2.svg[]
 
 So in the source code, you can have separate collections of Java classes, differently structured and annotated, and handled by different mechanisms of loading and saving data.
 
-But Jmix also combines all these fragments into a common data model and treats all classes as just "entities" with equal characteristics:
+Jmix combines all these fragments into a common data model and treats all classes as just "entities" with equal characteristics:
 
 image::metadata-3.svg[]
 
@@ -38,7 +38,7 @@ Note that the `employeeCount` attribute here is transient and is not handled by 
 
 You may notice that the Java classes have some unusual annotations: `@JmixEntity`, `@InstanceName`, `@Secret`. They are specific to Jmix: `@JmixEntity` is required, it indicates that the class should be included in the metadata, the others are optional and just provide additional information about attributes.
 
-You can add the `@JmixEntity` to any POJO, thus including it in the metadata as an entity. This is how the common data model is built - by annotating all data model classes regardless of their storage technology.
+You can add the `@JmixEntity` to any POJO, thus including it in the metadata as an entity. This is how the common data model is built - by annotating all model classes regardless of their storage technology.
 
 Actually, the metadata API is rarely used in the application code. When you write business logic and code for loading and saving entities, you use Java classes and their getter/setter methods and enjoy static typing and coding assistance in the IDE.
 
@@ -69,7 +69,7 @@ The following diagram shows that after enhancement the `User` entity class imple
 
 image::entity-enhancement-1.svg[]
 
-The most interesting feature that all entities acquire from enhancing is their observability. It is possible to register listeners with an entity instance and get notified about changes in its attributes. It simplifies working with data on UI layer: any changes in entities made by the application code, like `user.setFirstName("Joe")` are immediately shown by the linked UI components, and the changed entities are automatically saved in the database. The application developer doesn't need to write any special code for this, it happens because the framework components listen to changes in entities.
+An interesting feature that all entities acquire from enhancing is their observability. It is possible to register listeners with an entity instance and get notified about changes in its attributes. It simplifies working with data on UI layer: any changes in entities made by the application code, like `user.setFirstName("Joe")` are immediately shown by the linked UI components, and the changed entities are automatically saved in the database. The application developer doesn't need to write any special code for this, it happens because the framework components listen to changes in entities.
 
 [[data-access]]
 == Data Access
@@ -103,13 +103,13 @@ Customer customer = dataManager.load(Customer.class)
 dataManager.save(customer);
 ----
 
-The main reason for introducing DataManager was not its API, but the need to establish a central point through which all data could flow in and out of data stores. It serves as a hub that provides additional data processing to enable Jmix functionality.
+However, the main reason for introducing DataManager was not its API, but the need to establish a central point through which all data could flow in and out of data stores. It serves as a hub that provides additional data processing to enable Jmix functionality.
 
 In a typical scenario, DataManager is invoked directly from UI views and REST controllers (if you build a REST API in your application). Both can delegate to a service layer, which in turn works with entities through the DataManager:
 
 image::data-manager-1.svg[]
 
-Jmix also supports the popular Spring Data API, which allows all data access methods for a particular entity to be concentrated in a repository. In this case, the repository interface should be extended from `JmixDataRepository`, and its implementation will delegate to the DataManager as well:
+Jmix also supports the popular Spring Data API, which allows all data access methods for a particular entity to be concentrated in a repository. In this case, the repository interface should extend `JmixDataRepository`, then its implementation will delegate to the DataManager as well:
 
 image::data-manager-2.svg[]
 
@@ -139,13 +139,13 @@ String cityName = order.getCustomer().getAddress().getCity().getName();
 
 . DataManager supports a pluggable mechanism for integrating add-ons into the process of loading and saving data. It is used, for example, by the xref:dyn-attr:index.adoc[Dynamic Attributes] add-on to mix in dynamic attributes to entity instances and by the xref:search:index.adoc[Search] add-on to automatically send changed instances to indexing.
 
-The DataManager does not perform all the work on its own. Instead, it delegates the actual loading and saving tasks to the DataStore implementations. The DataStore interface is an abstraction for a concrete storage system, such as a database or other service that can store entities.
+The DataManager does not perform all the work on its own. Instead, it delegates the actual loading and saving tasks to the DataStore implementations. The `DataStore` interface is an abstraction for a concrete storage system, such as a database or other service that can store entities.
 
-Jmix contains a single built-in implementation of the DataStore interface: `JpaDataStore`. It can work with entities located in a relational database, using the EntityManager provided by JPA (Jakarta Persistence API).
+Jmix contains a single built-in implementation of the `DataStore` interface: `JpaDataStore`. It can work with entities located in a relational database, using the EntityManager provided by JPA (Jakarta Persistence API).
 
 An application or an add-on can provide custom DataStore implementations to work with entities from non-relational databases or from various web services.
 
-So the DataManager itself serves mostly as a gateway, providing a convenient API and dispatching requests between DataStore implementations:
+So the DataManager itself serves mostly as a gateway, providing a convenient API and dispatching requests to DataStore implementations:
 
 image::data-manager-4.svg[]
 
@@ -172,18 +172,18 @@ The ability to load partial entities for improving performance is the main reaso
 
 Another distinctive Jmix feature implemented at the JPA level is soft deletion. This is a popular approach in enterprise applications, as it helps to reduce the risk of data loss due to incorrect user actions.
 
-Soft deletion in Jmix is fully transparent and easy to use. You can just add a couple of annotated attributes to your entity, and Jmix will record who and when "deleted" the entity instance in these attributes, instead of physically removing the row from the database table.
+Soft deletion in Jmix is fully transparent for a developer and easy to use. You can just add a couple of annotated attributes to your entity, and Jmix will record who and when "deleted" the entity instance in these attributes, instead of physically removing the row from the database table.
 
-When loading entities by any JPQL query, the soft deleted instances will be automatically filtered out from the list of the root entity instances and from all nested collections (to-many references).
+When loading entities by any JPQL query, the soft deleted instances will be automatically filtered out from the list of the root entity instances and from all nested collections (one-to-many and many-to-many references).
 
-Moreover, the soft deletion in Jmix can be dynamically switched off for a particular operation. So depending on your requirements, you can load only non-deleted instances or mix them with soft deleted ones. When the soft deletion is off, the delete operation removes the row from the database.
+Moreover, the soft deletion in Jmix can be dynamically switched off for a particular operation. So depending on the situation, you can load either only non-deleted instances or both non-deleted and soft deleted ones. When the soft deletion is off, the delete operation actually removes the row from the database.
 
 See more information in the xref:data-model:soft-deletion.adoc[] section.
 
 [[user-interface]]
 == User Interface
 
-To adhere to the full-stack development xref:principles.adoc#full-stack-development[principle], Jmix uses the Vaadin framework for user interface development. In this section, we describe features that Jmix adds on top of Vaadin to maximize the productivity of creating enterprise applications with large data models and UI.
+To adhere to the xref:principles.adoc#full-stack-development[full-stack development] principle, Jmix uses the Vaadin framework for user interface development. In this section, we describe features that Jmix adds on top of Vaadin to maximize the productivity of creating enterprise applications with large data models and UI.
 
 [[views]]
 === Views
@@ -211,7 +211,7 @@ Let's discuss the first requirement below and the second one in the <<editing-ag
 
 Usually web applications offer dropdown lists for selecting related entities. For example, when a user creates an order, they can select a related customer from a dropdown list displaying the names of all customers. But what if the customer should be found not by its name but by their VAT number or some other attribute? Or the customer isn't registered yet and need to be entered along with the order?
 
-Jmix offers a universal solution to the problem of advanced selection of related entities: it allows users to open a CRUD list view for the desired entity in a dialog window, find the entity instance and return it from there. This feature is implemented by the xref:flow-ui:actions/entity-picker-actions.adoc[lookup action]. By default, it uses the same CRUD view as for managing entities, but you can create a specific variant for the lookup.
+Jmix offers a universal solution to the problem of advanced selection of related entities: it allows users to open a CRUD list view for the desired entity in a dialog window, find the entity instance and return it from there. This feature is implemented by a special action in the UI components for xref:flow-ui:actions/entity-picker-actions.adoc[selecting entities]. By default, it uses the same CRUD view as for managing entities, but you can create a specific view for the lookup.
 
 Opening a lookup view in a dialog, which doesn't destroy the original view, makes returning results from the opened view straightforward - they are just passed as Java objects on the server side.
 
@@ -225,17 +225,17 @@ The content of a view can be defined in XML. This approach significantly reduces
 XML was chosen because it has the following advantages:
 
 * Provides complete syntax for describing the UI component tree: elements for components and attributes for their properties. Supports comments.
-* Can be validated using XSD. An IDE provides code completion based on XSD without any additional effort.
+* Can be validated using XSD. An IDE provides code completion based on XSD without any additional tooling.
 * Is extensible with namespaces.
 * Can be easily generated, parsed and transformed.
 * Is widely known by developers.
 
-A Jmix view usually points to its XML definition file using the `@ViewDescriptor` annotation on the view class. After instantiating the view, the framework reads the XML and builds the corresponding component tree. The view class can contain methods, associated with the components: event listeners and delegates, which are discussed in the next section. The view components can be injected into class fields, so the methods can easily access the components and their properties.
+A Jmix view usually points to its XML definition file using the `@ViewDescriptor` annotation on the view class. After instantiating the view, the framework reads the XML and builds the corresponding component tree. The view class can contain methods, associated with the components: event listeners and delegates, which are discussed in the next section. The view components can be injected into class fields, so the view methods can easily access the components and their properties.
 
 [[handlers]]
 ==== Handlers
 
-A view has a specific set of lifecycle events and provides a declarative way to handle all UI events (generated by the view and its components) using annotated methods.
+A view has a specific set of lifecycle events and provides a declarative way to subscribe to all UI events (generated by the view and its components) using annotated methods.
 
 Event listeners are marked with the `@Subscribe` annotation, for example:
 
@@ -377,7 +377,7 @@ The Jmix data context functions similarly to the JPA persistence context, which 
 
 A data model can contain complex structures called _aggregates_. This term was introduced in the Domain Driven Design approach. You can find a good explanation of it in https://martinfowler.com/bliki/DDD_Aggregate.html[this article^].
 
-Let's consider a model containing the Customer, Order, OrderLine and Product entities. Each OrderLine instance is created for a particular Order and becomes its part, it cannot belong to another Order. At the same time, Customer and Product are independent entities that can be referenced from different instances. So the Order and OrderLine entities form an aggregate, with Order being the aggregate root:
+Let's consider a model containing the Customer, Order, OrderLine and Product entities. Each OrderLine instance is created for a particular Order and becomes its part, it cannot belong to another Order. At the same time, Customer and Product are independent entities that can be referenced from multiple instances of different entities. So the Order and OrderLine entities form an aggregate, with Order being the aggregate root:
 
 image::aggregate-1.svg[]
 
@@ -401,7 +401,7 @@ This annotation is added when you specify `COMPOSITION` as the attribute type in
 
 After that, when editing Order and OrderLine entities using their detail views, Jmix establishes a parent-child relationship between <<saving-data,data contexts>> of these views. So, when the user confirms changes in the OrderLine detail view, it will update corresponding instances in the parent Order view. And only after confirming the Order, the entire aggregate is sent to the backend layer for saving in the database in a single transaction.
 
-Jmix supports aggregates with multiple levels. In the previous example, you might have a collection of notes for each OrderLine. To include this entity in the aggregate with the Order root, you would simply have to annotate the reference from OrderLine to Note with `@Composition`.
+Jmix supports aggregates with multiple levels. In the previous example, you might have a collection of notes for each OrderLine. Then to include the Note entity in the aggregate with the Order root, you would simply have to annotate the reference from OrderLine to Note with `@Composition`.
 
 [[security]]
 == Security
@@ -414,7 +414,7 @@ Effective security and data access control are essential components of any enter
 
 The Jmix security concepts are thoroughly described in the dedicated xref:security:index.adoc[] section. Here we will just discuss its relation to the basic Jmix xref:principles.adoc[principles].
 
-* The full-stack nature of Jmix with Java all the way from backend to UI enables fully integrated declarative security, which is also very easy to manage.
+* The full-stack nature of Jmix with Java all the way from backend to UI enables fully integrated declarative access control, which is also very easy to manage.
 +
 For example, if you want to disable an entity attribute to a user, you just remove the permission to this attribute from a role granted to the user. The views displaying this attribute in UI components (text fields, data grid columns, etc.) will automatically make these components invisible. As a result, the attribute value will not be transferred over the wire and won't be present in the user's browser.
 +
