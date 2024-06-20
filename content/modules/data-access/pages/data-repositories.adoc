@@ -7,6 +7,8 @@ Jmix data repositories are built on top of Spring Data and use xref:data-access:
 [[working-with-data-repositories]]
 == Working with Data Repositories
 
+You can create a Jmix data repository in two ways: using the xref:studio:data-repository-wizard.adoc[Data Repository Wizard] or following the steps below.
+
 . Create an interface extending `JmixDataRepository`. Use the entity class and the entity identifier class as type parameters for `JmixDataRepository`. For example:
 +
 --
@@ -40,12 +42,37 @@ The `JmixDataRepository` interface extends the standard Spring Data https://docs
 * Load methods, such as `findById()` or `findAll()`, can accept a xref:data-access:fetching.adoc#fetch-plan[fetch plan].
 * `create()` method xref:data-model:entities.adoc#instantiation[instantiates] a new entity.
 * `getById()` method with the non-optional result loads an entity by id and throws the exception if the entity is not found.
+* `getDataManager()` method returns xref:data-access:data-manager.adoc[DataManager] to use in default methods.
+* `save()` method persists the provided entity and returns saved instance, loaded with the specified fetch plan. The method accepts the entity to be saved and fetch plan to apply when reloading the saved entity. The entity cannot be null, and fetch plan must be applicable to the entity.
+
+[[JmixDataRepositoryContext]]
+You can pass `io.jmix.core.querycondition.Condition` and other Jmix-specific parameters to Jmix Data Repositories using the `JmixDataRepositoryContext` parameter. This parameter is applicable to both standard and query methods of Jmix Data Repositories, allowing for dynamic changes at runtime.
+
+You can apply the `io.jmix.core.repository.ApplyConstraints` annotation to your data repository. If the value of the annotation is `false`, the repository uses `UnconstrainedDataManager` instead of `DataManager`.
 
 You can use the following annotations on custom query methods:
 
 * `@io.jmix.core.repository.Query` defines a JPQL query string, similar to the Spring Data JPA `@Query` annotation.
 * `@io.jmix.core.repository.FetchPlan` defines a fetch plan to be used when loading data.
 * `@io.jmix.core.repository.QueryHints` and `@jakarta.persistence.QueryHint` allow you to specify hints for xref:data-model:soft-deletion.adoc#turn-soft-deletion-off[turning soft deletion off] and xref:cache.adoc#query-cache[using query cache].
+
+[NOTE]
+====
+If a method name/query and method parameters specify different values for fetch plan and hints, the final values are based on priority, from highest to lowest.
+
+*FetchPlan:*
+
+. `FetchPlan` parameter. The fetch plan explicitly provided as a parameter to the method takes highest priority.
+. `JmixDataRepositoryContext#fetchPlan` parameter.
+. `@FetchPlan` annotation value.
+
+*Hints:*
+
+. `JmixDataRepositoryContext` parameter.
+. `@QueryHints` annotation value.
+
+For hints with the same key, the value from the higher priority source will override the value from the lower priority source. Different keys will be merged.
+====
 
 [[query-method-examples]]
 == Query Method Examples
