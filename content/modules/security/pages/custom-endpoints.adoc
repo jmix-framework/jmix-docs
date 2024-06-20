@@ -1,0 +1,134 @@
+= Кастомные эндпойнты
+
+Запросы к приложению Jmix защищаются фреймворком Spring Security. В этом разделе объясняется, как настроить доступ к кастомным эндпойнтам приложения.
+
+[[general-information]]
+== Общие сведения
+
+Для глубокого понимания работы endpoint security, прочитайте соответствующие разделы документации Spring Security:
+
+* {spring-security-doc}/servlet/architecture.html[High-level architecture within Servlet-based applications^]
+* {spring-security-doc}/servlet/authorization/authorize-http-requests.html[Authorize HttpServletRequests^]
+
+Spring Security использует специальные бины типа {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] для определения того, какие URL должны быть защищены. Каждый `SecurityFilterChain` конфигурируется с помощью билдера {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^]. Приложение может иметь несколько бинов `SecurityFilterChain`. В этом случае очень важно указать их правильный порядок. См. раздел {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] в документации Spring Security для информации о настройке нескольких объектов `HttpSecurity`.
+
+Каждое приложение Jmix по умолчанию содержит конфигурацию безопасности, которая расширяет класс {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^]. Эта конфигурация настраивает доступ к внутренним эндпойнтам Vaadin и передает все запросы на авторизацию механизмам Jmix и Vaadin (предоставляет доступ к экранам с помощью аннотации на классе экрана или анализа ресурсных ролей пользователя). `SecurityFilterChain`, созданный этой конфигурацией, всегда имеет наименьший приоритет и всегда вызывается последним.
+
+Дополнения, такие как xref:oidc:index.adoc[OpenID Connect] или xref:authorization-server:index.adoc[Authorization Server], добавляют свои бины `SecurityFilterChain`, которые защищают эндпойнты авторизационного или ресурсного сервера. Эти бины всегда вызываются до тех, которые предоставлены модулем UI.
+
+[[custom-endpoints-security]]
+== Безопасность кастомных эндпойнтов
+
+Для определения кастомных правил безопасности для эндпойнтов объявите новый бин `SecurityFilterChain`. Важно, чтобы порядок этого бина был меньше, чем у бинов `SecurityFilterChain`, предоставленных фреймворком Jmix.
+
+Вы можете найти значения порядка, используемые Jmix, в интерфейсе `JmixSecurityFilterChainOrder`. Практическое правило — использовать `JmixSecurityFilterChainOrder.CUSTOM`, `JmixSecurityFilterChainOrder.CUSTOM - 10` и аналогичные значения для своих фильтров безопасности.
+
+Пример простого бина `SecurityFilterChain` может выглядеть следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/SimplePublicSecurityConfiguration.java[tags=public-filter-chain]
+----
+
+Данная конфигурация предоставляет доступ к всем запросам для эндпойнтов, соответствующих шаблону `/public/**`.
+
+[[examples]]
+== Примеры
+
+[[public-endpoints-example]]
+=== Публичные эндпойнты
+
+Допустим у вас есть контроллер с двумя методами, и вы хотите, чтобы эти методы были доступны для любого пользователя без аутентификации.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
+----
+
+Доступ к публичным эндпойнтам можно настроить с помощью следующей конфигурации:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/AnonymousControllerSecurityConfiguration.java[tags=whole-class]
+----
+<1> `JmixSecurityFilterChainOrder.CUSTOM` — порядок меньше любого другого порядка безопасности фильтра Jmix.
+<2> {spring-security-doc}/servlet/authorization/authorize-http-requests.html#security-matchers[securityMatcher()^] используется для определения, должен ли быть применен `HttpSecurity` к запросу. Matcher запроса из примера будет соответствовать запросам с URL, которые соответствуют шаблону `/greeting/**`. Запросы для других URL будут обрабатываться по умолчанию фильтром безопасности модуля Jmix UI.
+<3> Инструкция `permitAll()` предоставляет доступ к эндпойнтам.
+<4> Отключает CSRF для запросов POST.
+<5> Вызов `JmixHttpSecurityUtils.configureAnonymous(http)` настраивает анонимную аутентификацию, установив анонимного пользователя, возвращенного Jmix `UserRepository`, в контекст безопасности.
+
+[[http-basic-authentication-example]]
+=== Аутентификация HTTP Basic
+
+Данный пример демонстрирует, как защищать эндпойнты контроллера с помощью HTTP Basic аутентификации.
+
+Класс контроллера:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/BasicGreetingController.java[tags=whole-class]
+----
+
+Запросы с URL, соответствующими шаблону `pass:[/api/**]`, должны быть защищены HTTP Basic аутентификацией, а запросы к `pass:[/api/public/**]` должны быть доступны для любого пользователя. Этого можно достичь с помощью конфигурации ниже:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/BasicControllerSecurityConfiguration.java[tags=whole-class]
+----
+
+<1> `JmixSecurityFilterChainOrder.CUSTOM` — порядок меньше любого другого порядка безопасности фильтра Jmix.
+<2> Матчер безопасности указывает, что `HttpSecurity` будет применяться только для запросов `pass:[/api/**]`.
+<3> Если запрос соответствует матчеру безопасности, то мы можем предоставить дополнительные правила. Все запросы для `pass:[/api/public/**]` должны быть разрешены без аутентификации.
+<4> Все запросы, которые не соответствуют шаблону `pass:[/api/public/**]`, должны быть аутентифицированы.
+<5> Включает HTTP Basic аутентификацию.
+<6> Использует `AuthenticationManager`, настроенный Jmix для HTTP Basic аутентификации.
+
+Запросы к эндпойнтам `pass:[/api/**]` должны содержать заголовок в формате `Authorization: Basic <credentials>`, где `<credentials>` — Base64-кодированная строка, состоящая из имени пользователя и пароля, разделенных одиночным знаком двоеточия. Например:
+
+[source]
+----
+GET /api/hello HTTP/1.1
+Host: server.example.com
+Authorization: Basic YWRtaW46YWRtaW4=
+----
+
+TIP: В этом примере доступ к `pass:[/api/public/**]` можно альтернативно настроить с помощью другого бина `SecurityFilterChain`, который имеет матчер безопасности `pass:[/api/public/**]` и порядок меньше текущего, например, `JmixSecurityFilterChainOrder.CUSTOM - 10`.
+
+[[token-based-authentication-example]]
+=== Аутентификация с помощью токенов
+
+Вы можете защищать кастомные эндпойнты с помощью токенов, выданных xref:authorization-server:index.adoc[Authorization Server]. Конфигурация безопасности Authorization Server добавляет точки расширения, которые можно использовать для этого.
+
+Допустим у вас есть следующий REST-контроллер:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
+----
+
+Чтобы сделать эндпойнты `pass:[/greeting/**]` защищенными с помощью токена доступа, вам нужно объявить бин, реализующий интерфейс `io.jmix.core.security.AuthorizedUrlsProvider`, и возвращать список шаблонов URL из метода `getAuthenticatedUrlPatterns()`:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/GreetingAuthorizedUrlsProvider.java[tags=whole-class]
+----
+
+После создания такой конфигурации все запросы к эндпойнтам `pass:[/greeting/**]` будут требовать токена доступа в заголовке `Authorization`. Например:
+
+[source]
+----
+GET /greeting/hello HTTP/1.1
+Host: server.example.com
+Authorization: Bearer <ACCESS_TOKEN>
+----
+
+[[troubleshooting]]
+== Устранение проблем
+
+Если вы столкнулись с HTTP-ошибкой 401 Unauthorized или 403 Forbidden или с какими-либо другими проблемами, связанными с безопасностью эндпойнтов, то включите {spring-security-doc}/servlet/architecture.html#servlet-logging[логгирование^] Spring Security. Для этого добавьте следующее свойство с значением DEBUG или TRACE в файл `application.properties`:
+
+[source,properties]
+----
+logging.level.org.springframework.security = TRACE
+----
+
