@@ -36,6 +36,8 @@ Prefixes can be configured by adding the following property to your `application
 include::example$/search-ex1/src/main/resources/application.properties[tags=prefix]
 ----
 
+Also you can specify full index name in `indexName` attribute of `@JmixEntitySearchIndex`.
+
 [[existing-data-indexing]]
 == Existing Data Indexing
 
@@ -56,7 +58,7 @@ Also, you can completely disable automatic indexing by adding the following appl
 
 [source,properties]
 ----
-jmix.search.enqueueIndexAllOnStartupIndexRecreationEnabled = false
+jmix.search.enqueue-index-all-on-startup-index-recreation-enabled = false
 ----
 
 [[tracking-changes]]
@@ -68,7 +70,7 @@ This behavior can be disabled by adding the following application property:
 
 [source,properties]
 ----
-jmix.search.changedEntitiesIndexingEnabled = false
+jmix.search.changed-entities-indexing-enabled = false
 ----
 
 [[roles]]
@@ -78,3 +80,32 @@ To utilize the functionality of the Search add-on, users with limited access to 
 
 * *Search: edit filter* provides permissions to add full-text search conditions to the filter.
 * *Search: view search results* provides permissions to access the Search Results view.
+
+[[index-settings]]
+== Index Settings and Analysis
+Add-on allows to configure index settings including analysis.
+
+NOTE: This configuration depends on used search platform (OpenSearch or Elasticsearch) and should be recreated accordingly if you switch between them.
+
+* Create spring bean that implements `OpenSearchIndexSettingsConfigurer` (or `ElasticsearchIndexSettingsConfigurer` in case of Elasticsearch usage).
+* Implement method `configure(OpenSearchIndexSettingsConfigurationContext)`.
+
+=== Implementation
+
+Settings can be configured via settings builder (belongs to OpenSearch\Elasticsearch Java API client).
+
+Configuration context provides two types of settings builder:
+
+* *Common* - allows to configure settings that will be applied to all indexes. Can be acquired via `context.getCommonSettingsBuilder()`.
+* *Entity specific* - allows to configure settings that will be applied only to index for specific entity.
+Entity specific settings has higher priority and _override the common settings_.
+Can be acquired via `context.getEntitySettingsBuilder(Class)`.
+
+Use builder's methods to set corresponding index settings.
+
+Use `.analysis()` to start building chain that allows to create custom analyzers, tokenizers, etc.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchIndexSettingsConfigurer.java[tags=index-settings-configurer;configure;configure-body]
+----
