@@ -9,12 +9,18 @@ A Java interface defining an index must adhere to these requirements:
 
 * It can be named arbitrarily.
 * It must be annotated with the `@JmixEntitySearchIndex` annotation.
-* The annotation should include the `entity` parameter specifying the entity associated with this Index Definition. It is recommended to have one Index Definition per searchable entity.
 
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition]
 ----
+
+[[interface-annotation]]
+=== `@JmixEntitySearchIndex`
+Attributes
+
+* `entity` - specifies the entity class associated with this Index Definition. Mandatory.
+* `indexName` - specifies the full name of index that will be used for that entity. Optional. If not set index name is based on xref:search-properties.adoc#jmix.search.searchIndexNamePrefix[prefix and entity name].
 
 Indexed entity properties are specified using methods within the interface. These methods must adhere to the following guidelines:
 
@@ -38,7 +44,7 @@ The `@AutoMappedField` annotation enables you to map specific entity attributes 
 
 * `excludeProperties` - a list of entity attributes to be excluded from indexing. It accepts dot notation to specify attributes of related entities. By default, none are excluded.
 
-* `analyzer` - the name of an analyzer defined in Elasticsearch to be used in index field mapping. If not specified, the Elasticsearch https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html#:\~:text=Standard%20analyzeredit,works%20well%20for%20most%20languages[default analyzer^] is used.
+* `analyzer` - the name of an analyzer defined in Elasticsearch/OpenSearch to be used in index field mapping. If not specified, the `standard` analyzer is used.
 
 * `indexFileContent` - a boolean flag that determines if the content of a file found in matched file properties should be indexed. By default, it is set to `true`.
 
@@ -112,7 +118,7 @@ The wildcard encompasses all these attribute types.
 
 These attributes are of the `String` type. It is the most common case, a value of an attribute is used as the indexed value.
 
-The field in the Elasticsearch index appears as follows:
+The field in the index appears as follows:
 
 [source,json]
 ----
@@ -131,7 +137,7 @@ In case of multiple values:
 
 These are references to related entities. The indexed value comprises solely the instance name of the associated entity, omitting any nested properties. To index nested properties of a related entity, make sure to explicitly incorporate `refProperty.nestedProperty` or `refProperty.*` into your mapping.
 
-The field in the Elasticsearch index appears as follows:
+The field in the index appears as follows:
 
 [source,json]
 ----
@@ -159,7 +165,7 @@ These are attributes of the `FileRef` type referring files in xref:files:file-st
 include::example$/search-ex1/src/main/java/com/company/demo/service/EventIndexDefinition.java[tags=file]
 ----
 
-The field in the Elasticsearch index appears as follows:
+The field in the index appears as follows:
 
 [source,json]
 ----
@@ -190,7 +196,7 @@ In case of multiple values:
 
 In the case of xref:data-model:enumerations.adoc[enumeration] attributes, the indexed values include xref:localization:message-bundles.adoc#localizing-data-model[localized values] for all available locales.
 
-An entry in the Elasticsearch index appears as:
+An entry in the index appears as:
 
 [source,json]
 ----
@@ -207,7 +213,7 @@ If multiple enumeration values are present, each value in all available locales 
 [[embedded-attributes]]
 === Embedded Attributes
 
-These are references to embedded JPA entities. Adding an embedded attribute implies including all its nested attributes `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. IThe index value is determined by the type of the nested attribute, and unsupported types will be ignored.
+These are references to embedded JPA entities. Adding an embedded attribute implies including all its nested attributes `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. The index value is determined by the type of the nested attribute, and unsupported types will be ignored.
 
 For instance, imagine a root entity with a `customer` attribute linked to the embedded `Customer` entity, which holds the `firstName` and `lastName` attributes. If you choose to include the `customer` attribute, it will automatically trigger the inclusion of the `customer.firstName` and `customer.lastName` attributes.
 
@@ -239,7 +245,7 @@ To do this, you will need to define a method in your index definition interface.
 * It must be a default method.
 * It can be named arbitrarily.
 * It can accept Spring beans as parameters for custom configuration.
-* It should return the `MappingDefinition` type.
+* It must return the `MappingDefinition` type.
 * It must be annotated with `@ManualMappingDefinition`.
 
 Within the method body, you can create a mapping definition using `MappingDefinition.builder()`.
@@ -256,3 +262,28 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerInde
 <6> An explicit property value extractor. For example, a `FilePropertyValueExtractor` instance can be used for processing attributes of the `FileRef` type.
 
 NOTE: There can be only one method with programmatic mapping. If a method with programmatic mapping exists, all mapping annotations are ignored.
+
+[[indexable-predicate]]
+== Indexable Predicate
+
+Indexing process can have additional instance-level condition.
+It can be added by configuring Indexable Predicate. This predicate applies to each entity instance during indexing and defines if it should be indexed or not.
+
+It doesn't apply during deletion.
+
+To configure Indexable Predicate add method that fulfils the following requirements:
+
+* With default modifier.
+* With any name.
+* With return type - `Predicate<TargetEntity>`, where 'TargetEntity' is the value of `entity()` parameter of current annotation.
+* With Spring beans required for predicate logic as parameters.
+* Annotated with `@IndexablePredicate`.
+
+Actual predicate should be created within method body and returned as a result.
+
+NOTE: Instance passed to predicate includes only declared indexable properties, others are unfetched. To get access to them you need to reload instance with proper fetch plan within predicate.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=interface;method;predicate]
+----
