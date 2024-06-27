@@ -58,7 +58,7 @@ public class UserDetailView extends StandardDetailView<User> {
 
     @Autowired
     private EntityStates entityStates;
-    @Autowired
+    @ViewComponent
     private MessageBundle messageBundle;
     @Autowired
     private Notifications notifications;

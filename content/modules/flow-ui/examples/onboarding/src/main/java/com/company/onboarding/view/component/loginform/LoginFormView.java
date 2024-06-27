@@ -30,7 +30,7 @@ public class LoginFormView extends StandardView {
     @ViewComponent
     private JmixLoginForm login;
 
-    @Autowired
+    @ViewComponent
     private MessageBundle messageBundle;
 
 

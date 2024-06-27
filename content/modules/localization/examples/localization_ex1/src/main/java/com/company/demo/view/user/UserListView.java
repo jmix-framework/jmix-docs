@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class UserListView extends StandardListView<User> {
 
     //tag::inject-message-bundle[]
-    @Autowired
+    @ViewComponent
     private MessageBundle messageBundle;
     //end::inject-message-bundle[]
 
