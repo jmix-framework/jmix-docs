@@ -1,6 +1,6 @@
 package com.company.demo.user;
 
-import com.company.demo.DynAttrEx1Application;
+import com.company.demo.DemoApplication;
 import com.company.demo.entity.User;
 import com.company.demo.view.user.UserDetailView;
 import com.company.demo.view.user.UserListView;
@@ -26,7 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * Sample UI integration test for the User entity.
  */
 @UiTest
-@SpringBootTest(classes = {DynAttrEx1Application.class, FlowuiTestAssistConfiguration.class})
+@SpringBootTest(classes = {DemoApplication.class, FlowuiTestAssistConfiguration.class})
 public class UserUiTest {
 
     @Autowired
@@ -38,7 +38,7 @@ public class UserUiTest {
     @Test
     void test_createUser() {
         // Navigate to user list view
-        viewNavigators.view(UserListView.class).navigate();
+        viewNavigators.view(UiTestUtils.getCurrentView(), UserListView.class).navigate();
 
         UserListView userListView = UiTestUtils.getCurrentView();
 

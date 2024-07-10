@@ -1,0 +1,134 @@
+= 5. 数据访问控制
+
+在我们的应用程序中，已经有了 _Employees_ 和 _HR Managers_ 角色。本节我们将演示如何通过添加新的约束来修改这些角色。
+
+[[employees-resource-role]]
+== 员工的资源角色
+
+员工需要读取 `WebdavDocumentWrapper` 实体实例，以便能在 UI 中查看。
+
+在 *Jmix* 工具窗口中，双击 *Security -> EmployeeRole* xref:security:resource-roles.adoc[资源角色]。
+
+切换到 *User Interface* tab 定义视图许可。在菜单树中选择 `WebdavDocumentWrapper.list` 和 `WebdavDocumentWrapper.detail`，然后勾选右侧的 *Allow* 复选框：
+
+image::employee-role.png[align="center", width="959"]
+
+之后，切换至 *Entities* tab，按如下选择许可：
+
+image::employee-role-2.png[align="center", width="1083"]
+
+[[managers-resource-role]]
+== HR 经理的资源角色
+
+HR 经理需要能上传、删除文档，以及编辑文档内容。
+
+在 *Jmix* 工具窗口中，双击 *Security -> HRManagerRole* xref:security:resource-roles.adoc[资源角色]。
+
+切换到 *User Interface* tab 允许 `WebdavDocumentWrapper.list` 和 `WebdavDocumentWrapper.detail` 视图。
+
+image::hr-manager-role.png[align="center", width="946"]
+
+切换至 *Entities* tab。
+
+赋予 `WebdavDocumentWrapper` 实体的所有权限。
+
+image::hr-manager-role-2.png[align="center", width="946"]
+
+[[webdav-document-restrictions-role]]
+== 行级角色 WebDavDocumentsDepartmentRole
+
+这里我们要添加一个行级角色，限制员工对于 WebDAV 文档的访问。
+
+如果员工具有 _HR Manager_ 或 _Administrator_ 角色，则显示全部 WebDAV 文档。
+
+如果员工具有 _Employee_ 角色，则仅显示其部门的文档。
+
+在 *Jmix* 工具窗口中，点击 *New*（image:add.svg[]）-> *Row-level Role*。在对话框中输入：
+
+* *Role name*：`WebDav documents department`
+* *Role code*：`web-dav-documents-department`
+* *Class*：`com.company.onboarding.security.WebDavDocumentsDepartmentRole`
+
+点击 *OK*。
+
+Studio 会自动创建并打开一个带注解的接口：
+
+[source,java,indent=0]
+----
+@RowLevelRole(name = "WebDav documents department", code = WebDavDocumentsDepartmentRole.CODE)
+public interface WebDavDocumentsDepartmentRole {
+    String CODE = "web-dav-documents-department";
+}
+----
+
+点击顶部操作面板的 *Add Policy → JPQL Policy*：
+
+image::add-jpql-policy.png[align="center", width="833"]
+
+在对话框中输入：
+
+* *Entity*：`WebdavDocumentWrapper`
+* *Where clause*：`\{E}.department = :current_user_department`
+
+image::add-jpql-policy-2.png[align="center", width="636"]
+
+点击 *OK*。
+
+[[assigning-roles]]
+== 分配角色
+
+现在我们为用户分配角色。
+
+启动应用程序并打开 *Users* 列表视图。选择用户 `alice` 并点击 *Role assignments* 按钮：
+
+image::role-assign-1.png[align="center", width="1451"]
+
+在 *Role assignments* 视图中，点击 *Resource roles* 面板的 *Add* 按钮。
+
+在对话框中，选择 `WebDAV: minimal access` 角色，点击 *Select*。
+
+TIP: `WebDAV: minimal access` 角色是所有需要使用 WebDAV 功能用户的必需角色。赋予 WebDAV 相关实体的的基本权限。
+
+用户 `alice` 应具有下列资源和行级角色：
+
+image::role-assign-2.png[align="center", width="1451"]
+
+为用户 `bob` 添加 `WebDAV: minimal access` 资源角色。
+
+点击 *Row-level roles* 面板的 *Add* 按钮。
+
+在 *Select row-level roles* 对话框中，选择 `web-dav-documents-department` 角色，并点击 *Select*。
+
+用户 `bob` 应具有下列资源和行级角色：
+
+image::role-assign-3.png[align="center", width="1451"]
+
+以 `alice` 的身份登录系统。
+
+`alice` 是 HR 经理。因此可以查看上传到系统的所有 WebDAV 文档，并能上传新文档、删除文档或编辑文档内容。
+
+可以通过访问 *Knowledge base* 视图验证权限。
+
+image::view-by-alice.png[align="center", width="1432"]
+
+以 `bob` 的身份登录系统。
+
+`bob` 是普通员工。因此只能查看与其部门相关的 WebDAV 文档。此类用户只能使用 *Download* 按钮下载 Web DAV 文档，不能创建或删除文档。
+
+可以通过访问 *Knowledge base* 视图验证权限。
+
+image::view-by-bob.png[align="center", width="1432"]
+
+可以看到，用户无法使用 *Create* 和 *Remove* 按钮。
+
+[[summary]]
+== 总结
+
+在本节中，我们修改了“HR 经理”和“员工”角色，以便限制不同用户组对应用程序的访问权限。
+
+我们了解到：
+
+* 一个 xref:security:resource-roles.adoc[资源角色] 可以授予用户访问视图和与特定实体交互的能力。
+* 一个 xref:security:row-level-roles.adoc[行级角色] 用于限制用户读取特定数据行。
+* 在运行时使用 `User.detail` 视图中提供的 *Role assignment* 视图为用户分配角色。
+* 所有需要使用 WebDAV 功能的用户都需要 `WebDAV: minimal access` 角色。

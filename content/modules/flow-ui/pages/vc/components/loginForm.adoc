@@ -6,7 +6,7 @@
 </div>
 ++++
 
-`loginForm` 是一个可以使用用户名和密码验证用户的表单。
+用于填写认证凭据的表单。
 
 * XML 元素：`loginForm`
 
@@ -14,56 +14,89 @@
 
 == 基本用法
 
-默认情况下，`loginForm` 包含用户名和密码字段、登录按钮以及 3 个可选元素：地区语言下拉框、**Remember me（记住我）** 复选框以及 **Forgot password（忘记密码）** 按钮。可以通过配置属性显示或隐藏可选元素。
+基本的 `loginForm` 包含用户名和密码字段以及一个登录按钮。表单也可以包含一些可选元素：例如，地区语言下拉框、“记住我”复选框以及“忘记密码”按钮。
 
 image::visual-components/components/login-form.png[align="center", width="320"]
 
-下面是一个简单用例，用户可以通过登录表单进行身份验证：
+[[labels-messages]]
+=== 标签和消息
 
-[source,xml,indent=0]
-----
-<loginForm id="loginForm"/>
-----
+添加 `form` 元素可以设置表单的标题、输入框的标签以及按钮的文本。
 
-[source,java,indent=0]
-----
-include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=login-view-support;on-login-handler]
-----
-
-<1> 使用选择的地区语言。
-<2> 根据复选框的值检查是否在多个会话中记住用户。
-
-[[Customization]]
-== 自定义
-
-表单支持自定义标题、字段名以及登录失败的错误消息。使用内部的 XML 元素 `form` 和 `errorMessage` 并指定属性值即可：
+TIP: 表单中的文字信息可以是字符串或 xref:localization:message-bundles.adoc[消息包] 中的键值。
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
 ----
 
-TIP: 属性值可以是文本或者 xref:localization:message-bundles.adoc[消息包] 中的键值。
+上面的示例中还添加了一个 `errorMessage` 元素，用于显示登录失败的错误信息，以及一个 `additionalInformation`，用于显示登录过程的相关详细信息。
 
-[[Change-locale]]
-== 修改应用程序的地区语言
+=== 可远元素
 
-用户可以在进入应用程序之前选择地区语言。需要 xref:localization:message-bundles.adoc#setting-locales[配置地区语言]，然后用户可以在地区下拉框进行选择。
+可以通过属性配置是否显示可选的一些元素，例如语言选择框、“记住我”复选框、或 “忘记密码”按钮：
 
-在登录表单中，可以使用 <<LocaleChangedEvent,LocaleChangedEvent>> 处理器修改语言而无需重新加载页面。读取 xref:localization:message-bundles.adoc[消息包] 中本地化的信息并设置：
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
+----
+
+[[authentication]]
+== 认证
+
+标准的登录视图会包含用户登录认证的必要逻辑：
 
 [source,java,indent=0]
 ----
-include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=on-locale-changed]
+include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=login-form;on-login-handler]
+----
+<1> 注入 `loginForm`，以便在控制器中可以通过 id 访问登录表单。
+<2> 为应用程序设置所选的语言。
+<3> 检查是否选择了在会话中 “记住我”。
+
+== 异常处理
+
+为了帮助用户定位登录失败的原因，可以扩展默认逻辑，为每种异常类型添加可读的信息：
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=exception-handling]
 ----
 
-这种方法能直接修改语言，提升用户体验。
+<1> 根据登录失败异常显示错误消息，特别是 `LockedException`，表示帐户被暂时锁定。
+<2> 记录一条警告消息，表示特定用户尝试登录失败。
+
+[[locale]]
+== 地区语音
+
+登录表单可以包含一个 combobox，用户能选择其区域设置。需要先在应用程序中 xref:localization:message-bundles.adoc#setting-locales[配置地区语言]，然后用户才能选择。
+
+image::visual-components/components/login-form-locales.png[align="center", width="480"]
+
+每当用户从列表中选择新的区域设置时，都会触发 <<LocaleChangedEvent,LocaleChangedEvent>> 事件。通过此事件的处理方法，立即更新登录表单的消息，而无需重新加载页面。这也是标准登录视图中使用的方式：
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=on-locale-changed]
+----
+
+== 登录视图的样式
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/custom-login" class="live-demo-btn" target="_blank">在线示例</a>
+</div>
+++++
+
+可以使用 CSS 样式对应用程序中登录视图的外观和布局做修改。比如，常见的一个需求是添加背景图片，可以展示登录的系统封面。
 
 == XML 属性
 
 xref:vc/common-attributes.adoc#id[id] -
 xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:vc/common-attributes.adoc#classNames[classNames] -
 xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#css[css] -
 xref:vc/common-attributes.adoc#enabled[enabled] -
 <<forgotPasswordButtonVisible,forgotPasswordButtonVisible>> -
 <<localesVisible,localesVisible>> -
@@ -92,7 +125,8 @@ xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
 <<ForgotPasswordEvent,ForgotPasswordEvent>> -
 <<LocaleChangedEvent,LocaleChangedEvent>> -
 <<LoginEvent,LoginEvent>> -
-<<RememberMeChangedEvent,RememberMeChangedEvent>>
+<<RememberMeChangedEvent,RememberMeChangedEvent>> -
+<<localeItemLabelGenerator, localeItemLabelGenerator>>
 
 include::../handler-generation-tip.adoc[]
 
@@ -115,6 +149,20 @@ include::../handler-generation-tip.adoc[]
 === RememberMeChangedEvent
 
 当 **Remember me（记住我）** 复选框的选择状态发生变化时发送 `RememberMeChangedEvent` 事件。
+
+[[localeItemLabelGenerator]]
+=== localeItemLabelGenerator
+
+自定义地区语音选项的名称。例如，可以用3个大写字母缩写的方式替换默认的完整名称。
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=localeItemLabelGenerator]
+----
+
+== XML 内部元素
+
+<<labels-messages, additionalInformation>> - <<labels-messages, form>> - <<labels-messages, errorMessage>>
 
 == 参考
 

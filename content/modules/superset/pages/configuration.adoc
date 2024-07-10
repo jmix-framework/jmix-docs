@@ -1,0 +1,199 @@
+= 配置
+
+本章节中，我们将：
+
+* 安装并配置 Apache Superset，使之能在 Jmix 应用程序中使用。
+* 配置 Jmix 应用程序连接至 Apache Superset。
+
+[[superset-installation]]
+== 安装 Apache Superset
+
+根据 Apache Superset 的 https://superset.apache.org/docs/intro[文档^]，有多种安装方式。
+
+其中，最简单的一种方式是使用 https://superset.apache.org/docs/installation/docker-compose[Docker Compose^]。这种方式提供一些已经配置好的仪表板和示例数据，也支持自定义配置。
+
+CAUTION: Apache Superset 不推荐在生产环境中使用 Docker Compose，因为这种方式的主要目的是在单一服务中运行多个 docker 容器，从而无法满足高可用性要求。
+
+首先，克隆 Superset 的仓库，使用特定的 release tag，例如对于 4.0.1：
+
+[source, bash]
+----
+git clone --depth 1 --branch 4.0.1 https://github.com/apache/superset.git
+----
+
+然后，在克隆的仓库根目录的 `docker-compose-non-dev.yml` 文件中配置 Apache Superset docker 镜像的版本与下载的版本一致：
+
+[source, yaml]
+----
+x-superset-image: &superset-image apache/superset:4.0.1
+----
+
+最后，为了简化在 Jmix 中集成 Superset 的过程，我们配置 Superset 与 Jmix 使用同一数据源服务。
+
+在 `docker-compose-non-dev.yml` 中添加 PostgreSQL 服务：
+
+[source, yaml]
+----
+  superset-worker-beat:
+  # ...
+
+  jmix_database:
+    image: postgres:16.3
+    container_name: jmix_database
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: jmix
+      POSTGRES_PASSWORD: jmix
+
+volumes:
+# ...
+----
+
+[CAUTION]
+====
+如果你本地已经有运行在标准端口 5432 的 PostgreSQL，为了避免冲突，可以开放另一个端口，例如，5433：
+
+[source,yaml]
+----
+    ports:
+      - 5433:5432
+----
+====
+
+现在可以启动 Apache Superset 了，在克隆仓库的根目录运行下面的命令：
+
+[source, bash]
+----
+docker compose -f docker-compose-non-dev.yml up
+----
+
+然后可以从 http://localhost:8088[^] 访问 Superset 的 web UI。凭证为：`admin` / `admin`。
+
+image::superset-login.png[align="center", width="598"]
+
+[[superset-configuration]]
+== 配置 Apache Superset
+
+Superset 有很多配置参数。完整参数列表在 https://github.com/apache/superset/blob/master/superset/config.py[superset/config.py^] 文件中。为了让 Jmix 应用程序能访问 Superset，需要配置 https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP[Content Security Policy (CSP) - 内容安全策略^] 并启用带功能标签（feature flag）的默认角色。
+
+Apache Superset 支持在下列文件中的自定义配置：
+
+* `docker/pythonpath_dev/superset_config.py`
+* `docker/pythonpath_dev/superset_config_docker.py`（Git 忽略该文件）。
+
+本示例中，我们使用第二个方法。在 `/apache-superset/superset/docker/pythonpath_dev/` 中创建 `superset_config_docker.py` 文件。
+
+[[guest-token]]
+=== 访客 Token
+
+Jmix Superset 扩展组件使用 _访客 token_ 访问集成的仪表板。使用这个 token 时，Superset 会创建一个匿名对象，该对象具有一个 `GUEST_ROLE_NAME` 属性默认设置为 `Public` 的角色。为了让匿名用户能看到仪表板，我们需要使用 https://superset.apache.org/docs/security/#gamma[Gamma] 角色。
+
+在 `superset_config_docker.py` 文件添加以下内容：
+
+[source, python]
+----
+GUEST_ROLE_NAME = 'Gamma'
+----
+
+[[enable-embedding-dashboards]]
+=== 嵌入仪表板
+
+默认情况下，Superset 没有启用在 `iframe` 集成仪表板的功能。需要通过 `FEATURE_FLAGS` 属性配置。
+
+在 `superset_config_docker.py` 文件添加以下内容：
+
+[source, python]
+----
+FEATURE_FLAGS = {
+    "EMBEDDED_SUPERSET": True,
+}
+----
+
+[[content-security-policy]]
+=== 内容安全策略（CSP）
+
+为了在 `iframe` 中集成仪表板，需要配置内容安全策略（CSP）。Apache Superset 使用 Talisman（一个 Flask web 框架的扩展），支持集成额外的安全层，例如 CSP、HTTPS 等。
+
+内容安全策略具有 https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors[frame-ancestors^] 指令，该指令指定可嵌入网页的父地址。Superset 已经在 `superset/config.py` 中定义了带默认值的 `TALISMAN_CONFIG` 属性。
+
+复制 `TALISMAN_CONFIG` 到 `superset_config_docker.py` 文件，并添加 frame-ancestors` 值：
+
+[source, python]
+----
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        # ...
+        "frame-ancestors": ["http://localhost:8080"]
+    },
+    # ...
+}
+----
+
+下面是 `superset_config_docker.py` 文件的最终配置：
+
+[source, python]
+----
+GUEST_ROLE_NAME = 'Gamma'
+FEATURE_FLAGS = {
+    "EMBEDDED_SUPERSET": True,
+}
+TALISMAN_CONFIG = {
+    "content_security_policy": {
+        "base-uri": ["'self'"],
+        "default-src": ["'self'"],
+        "img-src": [
+            "'self'",
+            "blob:",
+            "data:",
+            "https://apachesuperset.gateway.scarf.sh",
+            "https://static.scarf.sh/",
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "connect-src": [
+            "'self'",
+            "https://api.mapbox.com",
+            "https://events.mapbox.com",
+        ],
+        "object-src": "'none'",
+        "style-src": [
+            "'self'",
+            "'unsafe-inline'",
+        ],
+        "script-src": ["'self'", "'strict-dynamic'"],
+        "frame-ancestors": ["http://localhost:8080"]
+    },
+    "content_security_policy_nonce_in": ["script-src"],
+    "force_https": False,
+    "session_cookie_secure": False,
+}
+----
+
+CAUTION: 该配置仅用于演示，不能用户生产环境。如需在生产环境使用，还需提供更详细的配置，如 CORS、HTTPS 等。
+
+Superset 已经配置好了，我们可以停止容器并重启：
+
+[source, bash]
+----
+docker compose -f docker-compose-non-dev.yml up
+----
+
+[[jmix-configuration]]
+== Jmix 配置
+
+Jmix Superset 扩展组件需要定义以下属性：
+
+[source, properties, indent=0]
+.application.properties
+----
+include::example$superset-ex1/src/main/resources/application.properties[tags=superset-properties]
+----
+
+由于已在 Docker Compose 中启动了 `PostgreSQL` 服务，因此需要将 https://docs.jmix.io/jmix/data-model/data-stores.html[主数据存储] 从 `HSQLDB` 改为 `PostgreSQL`。
+
+TIP: 如果容器配置中的 `jmix_database` 定义的端口并非 `5432`，则需要在数据库 URL 中指定该端口。例如，数据库 host 字段设置为：`localhost:5433`。
+
+现在，应用程序已经可以与 Superset 进行通信了。由于数据库还是空的，应用程序会自动运行数据库结构创建脚本，并用添加演示数据。启动应用程序并打开 *Users* 视图：
+
+image::users-list.png[align="center", width="1318"]

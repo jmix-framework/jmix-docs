@@ -1,0 +1,159 @@
+= 2. 使用 WebDav 组件
+
+在此阶段，应用程序的知识库管理系统主要由 `Knowledge base` 视图展示。
+
+在本章节中，我们将：
+
+* 优化 WebDAV 文档的数据网格，显示 WebDAV 文档的链接，而非文档标识符。
+* 使用 WebDAV 文档详情视图的 xref:webdav:ui-components.adoc#webdav-document-upload-field[webdavDocumentUpload] 组件将 WebDAV 文档上传到系统。
+
+[[add-webdavDocumentUploadField]]
+== 添加 WebdavDocumentUploadField
+
+在 *Jmix* 工具窗口中找到 `webdav-document-wrapper-detail-view.xml` 并双击打开视图设计器：
+
+image::wdw-detail-view.png[align="center",width="1425"]
+
+可以看到，`webdavDocument` 属性通过 `entityPicker` 组件展示。
+如果要显示处理文档的特殊组件，需要在 XML 中包含 xref:webdav:ui-components.adoc#webdav-document-upload-field[WebdavDocumentUploadField] UI 组件。
+
+从 XML 中删除 `entityPicker` 组件，并将光标放在 `departmentField` 之后。接下来，点击操作面板中的 *Add Component*，然后找到 `WebdavDocumentUploadField` 并双击。
+
+image::add-wd-upload-field.png[align="center",width="926"]
+
+会在 XML 和 *Jmix UI* 层级结构面板中的 `formLayout` 底部添加新的 `webdavDocumentUpload` 组件。按照如下示例配置 `id`、`colspan` 和 `property` 属性：
+
+[source,xml,indent=0]
+----
+        <formLayout id="form" dataContainer="webdavDocumentWrapperDc">
+            <textField id="descriptionField" property="description"
+                       colspan="2"/>
+            <entityPicker id="departmentField" property="department"
+                          colspan="2">
+                <actions>
+                    <action id="entityLookup" type="entity_lookup"/>
+                    <action id="entityClear" type="entity_clear"/>
+                </actions>
+            </entityPicker>
+            <webdav:webdavDocumentUpload id="webdavDocumentField"
+                                         property="webdavDocument"
+                                         colspan="2"/>
+        </formLayout>
+----
+
+[[displaying-webdav-document-link]]
+== 在表格中展示 WebdavDocumentLink
+
+现在我们需要在数据网格中显示文档的链接，而不是标识符。
+
+打开 `webdav-document-wrapper-list-view.xml` 并找到 `webdavDocumentWrappersDataGrid`。
+
+选择 `webdavDocument` 列，切换到组件属性面板的的 *Handlers* tab，然后创建 `renderer` 处理方法：
+
+[source,java,indent=0]
+----
+    @Supply(to = "webdavDocumentWrappersDataGrid.webdavDocument", subject = "renderer")
+    private Renderer<WebdavDocumentWrapper> webdavDocumentWrappersDataGridWebdavDocumentRenderer() {
+        return null;
+    }
+----
+
+在控制器类中注入 `UiComponents` 对象：
+
+[source,java,indent=0]
+----
+    @Autowired
+    private UiComponents uiComponents;
+----
+
+TIP: 可以使用编辑器顶部操作面板中的 *Inject* 按钮将依赖注入到视图控制器和 Spring Bean 中。
+
+实现 `webdavDocumentWrappersDataGridWebdavDocumentRenderer` 方法：
+
+[source,java,indent=0]
+----
+include::example$/webdav-ex1/src/main/java/com/company/onboarding/view/webdavdocumentwrapper/WebdavDocumentWrapperListView.java[tags=webdavDocument-renderer]
+----
+<1> 方法返回一个 `Renderer` 对象，用于创建渲染列的 UI 组件。
+<2> 使用 `UiComponents` 工厂创建 xref:webdav:ui-components.adoc#webdav-document-link[WebdavDocumentLink] 组件实例。
+
+[[running-application]]
+== 运行应用程序
+
+下面我们运行应用程序查看新加的功能。
+
+使用浏览器打开 `++http://localhost:8080++` ，然后用 `admin/admin` 登录。
+
+从主菜单中选择 `Knowledge base`。打开 `Webdav document wrapper.list` 视图。
+
+image::wd-wrapper-list.png[align="center", width="1271"]
+
+*Webdav document* 列包含了 WebDAV 文档的链接，以及一个按钮可以用来打开标准的 *WebDAV document versions* 视图。
+
+点击 *Create* 打开 `Webdav document wrappers.detail` 视图。除了文件描述的文本控件和选择部门的选择器外，还可以看到用于上传文件的内置 WebDAV 组件。可以用该组件尝试上传一个文件：
+
+image::wd-wrapper-detail.png[align="center", width="1271"]
+
+点击 *OK* 按钮后，会切换回列表视图。
+
+将鼠标悬停在 WebDAV 文档名称上。在左下角，可以看到文档在 WebDAV 服务器的链接。
+
+image::wd-wrapper-list-try-open-doc.png[align="center", width="1271"]
+
+但是，如果尝试打开文档，浏览器会显示一个消息，说无法连接服务器。
+
+这是因为有一些必要的配置还没有完成，我们将在下一章节继续。
+
+[[summary]]
+== 总结
+
+在本节中，我们学习了如何使用 WebDAV 扩展组件提供的 UI 组件。
+
+我们了解到：
+
+* xref:ui-components.adoc#webdav-document-upload-field[WebDAVDocumentUploadField] 组件查看和上传 WebDAV 文档的便捷内置工具。
+* 可以通过数据网格列的 xref:flow-ui:vc/components/dataGrid.adoc#component-renderer[ComponentRenderer] 使用 xref:ui-components.adoc#webdav-document-link[WebDavDocumentLink] 组件。
+
+// [[improving-webdav-document-wrapper-data-grid]]
+// == Improving WebdavDocumentWrapper Data Grid
+//
+//
+// * In the `lastModifiedBy` column, let's configure the display of the author of the latest changes to the WebDAV file.
+// +
+// Select the `lastModifiedBy` column, switch to the *Handlers* tab of the component inspector and create the `renderer` handler method:
+// +
+// [source,java,indent=0]
+// ----
+//     @Supply(to = "webdavDocumentWrappersDataGrid.lastModifiedBy", subject = "renderer")
+//     private Renderer<WebdavDocumentWrapper> webdavDocumentWrappersDataGridLastModifiedByRenderer() {
+//         return null;
+//     }
+// ----
+// +
+// Implement the `webdavDocumentWrappersDataGridLastModifiedByRenderer` method:
+// +
+// [source,java,indent=0]
+// ----
+// include::example$/webdav-ex1/src/main/java/com/company/onboarding/view/webdavdocumentwrapper/WebdavDocumentWrapperListView.java[tags=lastModifiedBy-renderer]
+// ----
+// <1> The method returns a `TextRenderer` object.
+// <2> The renderer returns the name of the user who made changes to the latest version of the WebDAV document.
+// * In the `lastModifiedDate` column, let's configure the display of the date of the latest changes to the WebDAV file.
+// +
+// Select the `lastModifiedDate` column, switch to the *Handlers* tab of the component inspector and create the `renderer` handler method:
+// +
+// [source,java,indent=0]
+// ----
+// include::example$/webdav-ex1/src/main/java/com/company/onboarding/view/webdavdocumentwrapper/WebdavDocumentWrapperListView.java[tags=lastModifiedDate-renderer]
+// ----
+//
+// [[set-up-view-opening]]
+// === Set Up View Opening
+//
+// Let's configure the `WebdavDocumentWrapper` detail view so that it opens as a dialog.
+//
+// Open `webdav-document-wrapper-list-view.xml` and find `webdavDocumentWrappersDataGrid`. Select the `create` action and set the *DIALOG* `openMode` property in the *Jmix UI Inspector* panel.
+//
+// image::wd-wrapper-open-dialog.png[align="center", width="1080"]
+//
+// Follow the same steps for the `edit` action.

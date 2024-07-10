@@ -59,13 +59,13 @@ public class SampleView extends StandardView {
 
     // tag::navigateToView[]
     private void navigateToView() {
-        viewNavigators.view(MyOnboardingView.class).navigate();
+        viewNavigators.view(this, MyOnboardingView.class).navigate();
     }
     // end::navigateToView[]
 
     // tag::navigateToViewThenBack[]
     private void navigateToViewThenBack() {
-        viewNavigators.view(MyOnboardingView.class)
+        viewNavigators.view(this, MyOnboardingView.class)
                 .withBackwardNavigation(true)
                 .navigate();
     }
@@ -78,13 +78,13 @@ public class SampleView extends StandardView {
 
     // tag::navigateToListView[]
     private void navigateToListView() {
-        viewNavigators.listView(Department.class).navigate();
+        viewNavigators.listView(this, Department.class).navigate();
     }
     // end::navigateToListView[]
 
     // tag::navigateToListViewWithClass[]
     private void navigateToListViewWithClass() {
-        viewNavigators.listView(Department.class)
+        viewNavigators.listView(this, Department.class)
                 .withViewClass(DepartmentListView.class)
                 .navigate();
     }
@@ -99,7 +99,7 @@ public class SampleView extends StandardView {
 
     // tag::navigateToCreateEntity[]
     private void navigateToCreateEntity() {
-        viewNavigators.detailView(Department.class)
+        viewNavigators.detailView(this, Department.class)
                 .newEntity()
                 .navigate();
     }
@@ -107,7 +107,7 @@ public class SampleView extends StandardView {
 
     // tag::navigateToEditEntity[]
     private void navigateToEditEntity(Department entity) {
-        viewNavigators.detailView(Department.class)
+        viewNavigators.detailView(this, Department.class)
                 .editEntity(entity)
                 .navigate();
     }
@@ -218,7 +218,7 @@ public class SampleView extends StandardView {
 
     // tag::navigateToViewWithAfterNavigationHandler[]
     private void navigateToViewWithAfterNavigationHandler() {
-        viewNavigators.view(FancyMessageView.class)
+        viewNavigators.view(this, FancyMessageView.class)
                 .withAfterNavigationHandler(afterViewNavigationEvent -> {
                     FancyMessageView view = afterViewNavigationEvent.getView();
                     view.setMessage("Hello World!");
@@ -234,7 +234,7 @@ public class SampleView extends StandardView {
 
     // tag::navigateToViewWithQueryParameters[]
     private void navigateToViewWithQueryParameters() {
-        viewNavigators.view(FancyMessageView.class)
+        viewNavigators.view(this, FancyMessageView.class)
                 .withQueryParameters(QueryParameters.of("message", "Hello World!"))
                 .navigate();
     }

@@ -2,12 +2,12 @@
 
 当一个 Jmix 应用程序创建完成后，会自带一个主 xref:data-model:data-stores.adoc[数据存储]，可以从 xref:studio:tool-window.adoc[Jmix 工具窗口] 访问。
 
-image::data-tree.png[align="center",width="422"]
+image::data-tree.png[align="center",width="363"]
 
 双击可以打开数据存储的属性对话框。默认选择 HSQLDB 数据库类型。
 
 [[database-properties]]
-image::data-properties.png[align="center",width="843"]
+image::data-properties.png[align="center",width="851"]
 
 主数据存储和附加数据存储都有下列属性：
 
@@ -21,9 +21,11 @@ image::data-params.png[align="center",width="636"]
 ** *Integrated Security* - 当连接至 Microsoft SQL Server 2012+ 数据库时，启用相应的认证选项。
 * *Database user* 和 *Password* - 数据库连接凭证。
 
+如果您使用 xref:studio:profile-specific-properties.adoc[profile-specific 配置文件]，则 xref:studio:data-stores.adoc[数据存储属性] 编辑器会从 profile 中读写配置，而非 `application.properties`。
+
 可以用 `${VAR:default_value}` 这种格式的占位符，其中 `VAR` 是用于设置数据库属性的环境变量。
 
-image::data-vars.png[align="center",width="828"]
+image::data-vars.png[align="center",width="851"]
 
 Studio 会解析占位符，并将结果值用于数据库的所有操作：测试连接、重新创建、更新、Liquibase 差异比较等。
 
@@ -41,12 +43,12 @@ Studio 会解析占位符，并将结果值用于数据库的所有操作：测�
 
 如需创建附加数据存储，可以使用数据存储右键菜单的 <<data-store-actions,操作>>。另一种方式是从 *Advanced* 菜单选取：
 
-image::data-advanced.png[align="center",width="422"]
+image::data-advanced.png[align="center",width="447"]
 
 参阅上面的 <<database-properties,数据库属性>> 内容，适用于主/附加数据存储。
 
 [[db-schema-management]]
-image::data-schema.png[align="center",width="736"]
+image::data-schema.png[align="center",width="776"]
 
 对于附加数据存储，指定 *Data store name（数据存储名称）* 并在 *DB Schema Management* 选择数据库结构管理类型：
 
@@ -54,12 +56,43 @@ image::data-schema.png[align="center",width="736"]
 * *Update Only* - 仅提供更新操作，并创建 Liquibase 变更日志。
 * *Create and Update* - 提供更新和重建操作，并创建 Liquibase 变更日志。
 
+[[unsupported-database]]
+=== 连接不支持的数据库
+
+您可以定义一个附件存储连接至一个 Jmix 原生不支持的数据库。
+
+该功能目前处于预览状态，并默认禁用。如需启用，按下 2 次 `Shift`，选择 *Jmix Features*，并勾选 *Generic Database Support for Additional Data Store*。
+
+启用后，在创建附件数据存储时，可以看到 *Database type* 下拉框中有 `Generic DB` 选项。选择该选项后，Studio 会让输入以下参数：
+
+* *DBMS type* - 为该数据库类型定义一个名称。这个名称会用在与该数据库相关的类上（下面会解释）。最好尽量简短，且只包含小写字母，例如 `foo`。
+* *Database URL* - JDBC 连接的完整 URL，例如，`jdbc:foosql://localhost/database`。
+* *Driver class name* - JDBC 驱动类名。例如，`org.foosql.Driver`。
+* *Driver artifact* - JDBC 驱动制件的坐标，例如，`org.foosql:foosql:1.0.0`。
+* *Connection test query* - 测试连接的 SQL，例如，`select 1`。
+* *Database platform* - 扩展 `org.eclipse.persistence.platform.database.DatabasePlatform` 的类名，用于为 EclipseLink ORM 框架描述这个数据库。可以选择已有的能兼容该数据库的类，或者选择 `Create DatabasePlatform class` 创建一个新类。
+
+image::data-store-unsupported.png[align="center",width="776"]
+
+点击 *OK*。
+
+Studio 会在根包中创建 `Myds1StoreConfiguration` 类，包含所需的 bean。还会在 `<base-package>/dbms` 包中创建下列桩代码：
+
+* `FooPlatform` - 扩展 `DatabasePlatform`。为 EclipseLink ORM 框架描述这个数据库。
+* `FooDbmsFeatures` - 实现 `DbmsFeatures` 接口。为 Jmix 框架描述这个数据库。
+* `FooSequenceSupport` - 实现 `SequenceSupport` 接口。描述如何在该数据库中处理序列（sequence）。
+* `FooDbTypeConverter` - 实现 `DbTypeConverter` 接口。定义在 Java 对象和 JDBC 参数/结果之间互相转换的方法。
+
+Studio 还会在 `build.gradle` 文件中添加 `org.foosql:foosql:1.0.0` 依赖。
+
+现在可以在桩代码中实现那些需要实现的方法了。可以参考框架中的 `JmixPostgreSQLPlatform`、`PostgresqlDbmsFeatures` 等，作为示例。
+
 [[data-store-actions]]
 == 数据存储操作
 
 在 Jmix 项目树中右键点击一个数据存储，打开右键菜单：
 
-image::data-actions.png[align="center",width="422"]
+image::data-actions.png[align="center",width="623"]
 
 菜单中操作的数量与数据存储的类型和数据库结构管理类型有关。
 

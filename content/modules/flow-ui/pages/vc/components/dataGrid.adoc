@@ -136,6 +136,11 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 
 设置列的 flex grow 比例。当设置成 `0` 时，列宽固定。
 
+[[filterable]]
+=== filterable
+
+设置列的 <<column-filtering,filtering>> 属性。如果某列启用了过滤，则会在列的表头中添加一个过滤按钮。默认禁用列过滤。
+
 [[footer]]
 === footer
 
@@ -259,6 +264,30 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 
 使用 CSS 字符串设置列宽。
 
+[[column-filtering]]
+== 表头过滤
+
+CAUTION: 该功能目前是预览状态。其显示以及实现细节可能会在未来的版本中发生重大变化。
+
+`dataGrid` 中的数据可以使用列标题中嵌入的 xref:flow-ui:vc/components/propertyFilter.adoc[属性过滤器] 进行过滤。
+
+可以通过 XML 中的 `filterable` 属性定义哪些列可以进行过滤。可过滤的列表头中带有“漏斗”图标（image:visual-components/components/funnel.svg[]）。用户点击图标时，会显示一个包含属性过滤条件的对话框。如果设置了过滤条件，则该列中的图标将高亮显示。
+
+若要确保过滤器图标始终正常显示，请使用 `width` 或 `autoWidth` 属性为列设置适当的宽度。最好不要让用户能调整列宽，否则用户有可能调小列宽导致过滤器图标不可见。
+
+示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=filterable]
+----
+
+表头中的属性过滤器与独立属性过滤器或 xref:flow-ui:vc/components/genericFilter.adoc[] 的工作方式相同 - 都是在 xref:flow-ui:data/data-loaders.adoc[数据加载器] 中添加查询条件。在标准流程中，过滤条件将转换为 JPQL 查询语句，并在数据库级别筛选数据。
+
+可过滤的列可以与 `propertyFilter` 和 `genericFilter` 组件一起使用。所有过滤器的条件都由以 `AND` 逻辑运算进行组合。
+
+目前，列过滤条件还没有绑定到页面的 URL 中。也就是说，如果用户使用了表头过滤器，然后导航到详情视图并返回，则表头过滤器将被清除。
+
 [[actions]]
 == 操作
 
@@ -295,28 +324,155 @@ image::visual-components/components/data-grid-actions.png[align="center", width=
 </div>
 ++++
 
-使用 `addColumn()` 和 `addComponentColumn()` 方法可以添加列。
+渲染器（Renderers）用来为数据网格中的数据实现自定义的展示方式。例如，可以用渲染器：
 
-为更好地展示数据，可以使用渲染器对添加的列进行配置。
+* 格式化日期或数字。
+* 显示自定义的图标或图片。
+* 创建可交互的元素，比如按钮、链接等。
+* 根据单元格值的不同显示不同的内容。
 
-下面示例中，我们创建了一个生成列，并用 `LocalDateRenderer` 展示用户的入职时间。
+渲染器可以通过三种方式定义：
+
+* *在 XML 中声明式定义*
++
+XML 中可以使用一些预定义的列渲染器：
+
+** `numberRenderer`
+** `localDateRenderer`
+** `localDateTimeRenderer`
++
+这些渲染器需要传入一个 `format` 字符串。示例：
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
++
+[TIP]
+====
+如需通过 Jmix Studio 添加一个渲染器，在视图 XML 或 *Jmix UI* 的层级面板中选中 `column` 元素并点击属性面板中的 xref:studio:view-designer.adoc#component-inspector[Add-><Some>Renderer]。
+====
+
+* *使用 @Supply 注解定义*
++
+渲染器可以在视图控制器中通过 `@Supply` 注解提供。使用 `@Supply` 注解的方法需要返回一个值，该值传递给“主体”中定义的一个方法。
++
+[TIP]
+====
+自定义的列渲染器可以用列的 `renderer` 处理方法定义，该方法可以在 Jmix Studio 中通过 `column` 元素属性面板的 *Handlers* 标签页创建。
+====
++
+[TIP]
+====
+<<column,column>> 元素定义时，可以不使用 <<property,property>> 属性，即不直接绑定实体的某个属性。此时，`column` 元素必须带具有唯一值的 <<key,key>> 属性。
+====
++
+可以参考 <<text-renderer>> 和 <<component-renderer>> 示例。
+
+* *通过 addColumn() 和 addComponentColumn() 方法定义*
++
+`addColumn()` 和 `addComponentColumn()` 方法可以在数据网格中添加列。
++
+可以配置新添加的列使用渲染器展示数据。
++
+下面的示例中，我们添加一列用于展示用户的图片：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=usersDtGr;fileStorage;onInit;addComponentColumn]
+----
+<1> 添加一列，显示 `image` 组件。
+<2> `Image` 组件的实例使用 `UiComponents` 工厂创建。
+<3> `image` 从给定的 `StreamResource` 获取内容，存储在 `User` 实体的 `picture` 属性中。
+<4> `addComponentColumn()` 方法返回的可视化组件展示在列单元格中。
+
+[[local-date-renderer]]
+=== 本地日期渲染器
+
+`LocalDateRenderer` 用于以 `LocalDate` 值的形式展示日期。
+
+在数据网格的 `column` 元素中，支持 `localDateRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 字符串属性。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
+
+`nullRepresentation` 属性用于展示 `null` 值的文本。
+
+下面的示例中，在 `addColumn()` 方法使用了 `LocalDateRenderer`：
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=usersDtGr;onInit;addJoiningDate]
 ----
 
-下面的示例中，我们添加一列展示用户的头像：
+[[local-date-time-renderer]]
+=== 本地日期时间渲染器
+
+`LocalDateTimeRenderer` 用于以 `LocalDateTime` 值的形式展示日期。
+
+在数据网格的 `column` 元素中，支持 `localDateTimeRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 字符串属性。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateTimeRenderer]
+----
+
+`nullRepresentation` 属性用于展示 `null` 值的文本。
+
+[[number-renderer]]
+=== 数字渲染器
+
+`NumberRenderer` 用于在单元格中以指定的格式显示数字。
+
+在数据网格的 `column` 元素中，支持 `numberRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 或 `numberFormat` 字符串属性。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=numberFormat]
+----
+
+`nullRepresentation` 属性用于展示 `null` 值的文本。
+
+`numberFormat` 属性需按照 `java.text.DecimalFormat` 类规定的格式和语法进行配置。
+
+[NOTE]
+====
+`numberRenderer` 需且仅需定义一个格式，`format` 或 `numberFormat`。如果未定义或两者都定义会抛出 `GuiDevelopmenException` 异常。
+====
+
+[[text-renderer]]
+=== 文本渲染器
+
+`TextRenderer` 渲染器用于展示文本。
+
+下面的示例中，列展示了一个自定义的文本：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=textRenderer]
+----
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=usersDtGr;fileStorage;onInit;addComponentColumn]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=textRenderer]
 ----
 
-<1> 添加一列，显示 `image` 组件。
-<2> `Image` 组件的实例使用 `UiComponents` 工厂创建。
-<3> `image` 从给定的 `StreamResource` 获取内容，存储在 `User` 实体的 `picture` 属性中。
-<4> `addComponentColumn()` 方法返回的可视化组件展示在列单元格中。
+[[component-renderer]]
+=== 组件渲染器
+
+下面的示例显示如何在列中使用一个自定义的渲染器显示一个复选框：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=completed]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=ComponentRenderer]
+----
 
 [[inline-editing]]
 == 行内编辑
@@ -405,6 +561,88 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
 ----
 
+[[multiple-sorting]]
+== 多列排序
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://vaadin.com/docs/latest/components/grid#sorting-by-multiple-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+</div>
+++++
+
+`dataGrid` 支持按多个列进行排序。可以用下列 XML 属性配置：
+
+[[multiSort]]
+=== multiSort
+
+启用多列排序。
+
+[[multiSortOnShiftClickOnly]]
+=== multiSortOnShiftClickOnly
+
+当设置为 `true` 时，仅当按住 `Shift` 键并单击列标题时，才会激活多列排序。默认值为 `false`。
+
+[[multiSortPriority]]
+=== multiSortPriority
+
+设置为 `APPEND` 时，单击的列将添加到排序列列表的末尾。如果设置为 `PREPEND`（默认值），则单击的列将添加到列表的开头。
+
+示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=multiSort]
+----
+
+[[aggregating]]
+== 聚合
+
+`dataGrid` 可以对行内值进行聚合。
+
+[[type]]
+支持下列运算：
+
+* `SUM` - 求和；
+* `AVG` - 求平均；
+* `COUNT` - 计算总数；
+* `MIN` - 最小值；
+* `MAX` - 最大值。
+
+[[aggregatable]]
+如需启用数据网格的聚合功能，需要：
+
+. 设置 `aggregatable` 属性为 `true`。
+. 为需要进行聚合运算的列设置 `aggregation` 元素。
+. 设置 `aggregation` 元素的 `type` 属性，定义聚合运算的类型。
+
+TIP: Jmix Studio 中可以定义聚合，在 XML 或 *Jmix UI* 层级面板中选择需要聚合的列，然后点击属性面板中的 *Add→Aggregation* 按钮。
+
+聚合值在附加的新一行中显示。
+
+[[aggregationPosition]]
+`aggregationPosition` 属性可以定义附加聚合行的位置：`TOP` 或 `BOTTOM`。默认为 `BOTTOM`。
+
+示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-dataGrid]
+----
+<1> `cellTitle` 属性定义当用户光标悬停至聚合值时需要显示的提示信息。
+<2> 可以通过 xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter] 设置该数据类型自定义的显示格式。
+
+`aggregation` 元素还有 `strategyClass` 属性，可以指定实现 `AggregationStrategy` 接口的类。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridUserStatusAggregation.java[tags=aggregatable-grid]
+----
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-grid]
+----
+
 == XML 属性
 
 xref:vc/common-attributes.adoc#id[id] -
@@ -413,6 +651,7 @@ xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
 xref:vc/common-attributes.adoc#classNames[classNames] -
 xref:vc/common-attributes.adoc#colspan[colspan] -
 <<columnReorderingAllowed,columnReorderingAllowed>> -
+xref:vc/common-attributes.adoc#css[css] -
 xref:vc/common-attributes.adoc#dataContainer[dataContainer] -
 <<detailsVisibleOnClick,detailsVisibleOnClick>> -
 <<dropMode,dropMode>> -
@@ -424,7 +663,9 @@ xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
 xref:vc/components/entityPicker.adoc#metaClass[metaClass] -
 xref:vc/common-attributes.adoc#minHeight[minHeight] -
 xref:vc/common-attributes.adoc#minWidth[minWidth] -
-// <<multiSort,multiSort>> -
+<<multiSort,multiSort>> -
+<<multiSortOnShiftClickOnly,multiSortOnShiftClickOnly>> -
+<<multiSortPriority,multiSortPriority>> -
 <<nestedNullBehavior,nestedNullBehavior>> -
 <<pageSize,pageSize>> -
 <<rowDraggable,rowDraggable>> -

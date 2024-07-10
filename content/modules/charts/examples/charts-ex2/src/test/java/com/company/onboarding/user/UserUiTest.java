@@ -1,6 +1,6 @@
 package com.company.onboarding.user;
 
-import com.company.onboarding.OnboardingApplication;
+import com.company.onboarding.OnboardingChartsApplication;
 import com.company.onboarding.entity.User;
 import com.company.onboarding.view.user.UserDetailView;
 import com.company.onboarding.view.user.UserListView;
@@ -29,7 +29,7 @@ import java.util.Optional;
  * Sample UI integration test for the User entity.
  */
 @UiTest
-@SpringBootTest(classes = {OnboardingApplication.class, FlowuiTestAssistConfiguration.class})
+@SpringBootTest(classes = {OnboardingChartsApplication.class, FlowuiTestAssistConfiguration.class})
 public class UserUiTest {
 
     @Autowired
@@ -41,7 +41,7 @@ public class UserUiTest {
     @Test
     void test_createUser() {
         // Navigate to user list view
-        viewNavigators.view(UserListView.class).navigate();
+        viewNavigators.view(UiTestUtils.getCurrentView(), UserListView.class).navigate();
 
         UserListView userListView = UiTestUtils.getCurrentView();
 

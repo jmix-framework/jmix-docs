@@ -9,12 +9,18 @@
 
 * 命名无限制。
 * 必须使用 `@JmixEntitySearchIndex` 注解。
-* 注解必须有 `entity` 参数，表示索引定义关联的实体。建议每个可搜索的实体对应一个索引定义。
 
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition]
 ----
+
+[[interface-annotation]]
+=== `@JmixEntitySearchIndex`
+属性：
+
+* `entity` - 必需属性。指定该索引定义关联的实体类。
+* `indexName` - 可选属性。指定实体索引的全名。如果没设置，则索引名依据 xref:search-properties.adoc#jmix.search.searchIndexNamePrefix[前缀和实体名] 生成。
 
 实体属性索引通过接口的方法定义。方法需要满足下列条件：
 
@@ -38,7 +44,7 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDe
 
 * `excludeProperties` - 不需要建立索引的实体属性列表。支持使用点标记指定关联实体的属性。默认不包含任何属性。
 
-* `analyzer` - ES 中定义的分析器（Analyzer）名称，用在索引字段映射中。如果未指定，则使用 ES 的 https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html#:\~:text=Standard%20analyzeredit,works%20well%20for%20most%20languages[默认分析器^]。
+* `analyzer` - ES/OpenSearch 中定义的分析器（Analyzer）名称，用在索引字段映射中。如果未指定，则使用 `standard` 分析器。
 
 * `indexFileContent` - 定义是否对文件属性的文件内容建立索引。默认 `true`。
 
@@ -112,7 +118,7 @@ public interface OrderIndexDefinition {
 
 `String` 类型的属性是最常见的情况，属性值即用作索引值。
 
-ES 中的索引字段类似这样：
+索引字段类似这样：
 
 [source,json]
 ----
@@ -131,7 +137,7 @@ ES 中的索引字段类似这样：
 
 这类属性是关联实体的引用。只有关联实体的实例名用作索引值，不包含关联实体的任何内部属性。如需对关联实体的内部属性建立索引，需要在映射中显式添加 `refProperty.nestedProperty` 或 `refProperty.*`。
 
-ES 中的索引字段类似这样：
+索引字段类似这样：
 
 [source,json]
 ----
@@ -159,7 +165,7 @@ ES 中的索引字段类似这样：
 include::example$/search-ex1/src/main/java/com/company/demo/service/EventIndexDefinition.java[tags=file]
 ----
 
-ES 中的索引字段类似这样：
+索引字段类似这样：
 
 [source,json]
 ----
@@ -190,7 +196,7 @@ ES 中的索引字段类似这样：
 
 对于 xref:data-model:enumerations.adoc[枚举类型] 属性，会使用其全部语言环境的 xref:localization:message-bundles.adoc#localizing-data-model[本地化值] 作为索引值。
 
-ES 中的索引字段类似这样：
+索引字段类似这样：
 
 [source,json]
 ----
@@ -236,10 +242,10 @@ ES 中的索引字段类似这样：
 
 需要在索引定义接口中创建满足下列条件的方法：
 
-* 必须是 default 方法。
+* 是 default 方法。
 * 命名无限制。
 * 为了自定义配置，可以使用 Spring bean 作为参数。
-* 需要返回 `MappingDefinition` 类型。
+* 必须返回 `MappingDefinition` 类型。
 * 必须使用 `@ManualMappingDefinition` 注解。
 
 方法体中，可以使用 `MappingDefinition.builder()` 创建映射定义。
@@ -256,3 +262,28 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerInde
 <6> 显式指定属性值解析器。例如，`FilePropertyValueExtractor` 可用于处理 `FileRef` 类型的属性。
 
 NOTE: 只能有一个编程式映射的方法。如果存在此方法，则会忽略所有的映射注解。
+
+[[indexable-predicate]]
+== 可索引谓词
+
+建立索引的过程中，可以使用额外的实体级别的条件。
+条件是通过配置可索引谓词（Indexable Predicate）进行添加。在建立索引的过程中，这个谓词会在每个实体实例上做检查，判断实例是否能加入索引。
+
+谓词不会在删除时使用。
+
+如需配置可索引谓词，请添加满足下列条件的方法：
+
+* 是 default 方法 
+* 命名无限制。
+* 返回类型为 `Predicate<TargetEntity>`，这里 'TargetEntity' 是当前注解中 `entity()` 参数的值。
+* 谓词逻辑需要的 Spring bean 可以作为参数。
+* 带 `@IndexablePredicate` 注解。
+
+在方法体中创建实际的谓词并作为结果返回。
+
+NOTE: 传递给谓词的实体实例仅包含声明用于索引的属性，其他属性均未定义。如需访问其他属性，需要在谓词中用合适的 fetch plan 重新加载。
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=interface;method;predicate]
+----

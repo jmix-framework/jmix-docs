@@ -1,0 +1,134 @@
+= 自定义端点
+
+对 Jmix 应用程序的请求受到 Spring Security 框架的保护。本章节介绍如何配置对自定义 API 端点的访问。
+
+[[general-information]]
+== 要点信息
+
+要深入了解端点安全性的原理，请阅读 Spring Security 文档的相关部分：
+
+* {spring-security-doc}/servlet/architecture.html[基于 Servlet 的应用程序中的高级架构^]
+* {spring-security-doc}/servlet/authorization/authorize-http-requests.html[授权 HttpServletRequests^]
+
+Spring Security 使用特殊的 {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] bean 来确定需要保护哪些 URL。每个 `SecurityFilterChain` bean 都由 {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^] builder 配置。一个应用程序可以声明多个 `SecurityFilterChain` bean。此时，多个 bean 之间的顺序非常重要。请参阅 Spring Security 文档的 {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[多 HttpSecurity 实例^] 部分，了解如何配置多个 `HttpSecurity` 对象。
+
+默认情况下，每个 Jmix 应用程序都包含一个安全配置，该配置扩展了 {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^] 类。该配置设置对 Vaadin 内部端点的访问，并将所有请求的授权委托给 Jmix 和 Vaadin 机制实现（使用视图控制器注解或分析用户的资源角色授予对视图的访问权限）。该配置创建的 `SecurityFilterChain` 具有最低优先级，并且永远在最后调用。
+
+像 xref:oidc:index.adoc[OpenID 连接] 或 xref:authorization-server:index.adoc[授权服务] 这样的扩展组件中，也包含了组件自有的 `SecurityFilterChain` bean，用于保护授权或资源服务的端点。这些 bean 的顺序要先于 UI 模块中的 bean。
+
+[[custom-endpoints-security]]
+== 自定义端点安全性
+
+如需为端点定义自定义的安全规则，需要声明一个新的 `SecurityFilterChain` bean。重要的是，这个 bean 的顺序必须小于 Jmix 框架中 `SecurityFilterChain` bean 的顺序。
+
+Jmix 使用的顺序值常量在 `JmixSecurityFilterChainOrder` 接口中定义。经验规则是使用 `JmixSecurityFilterChainOrder.CUSTOM`、`JmixSecurityFilterChainOrder.CUSTOM - 10` 之类的值作为自定义 chain 的顺序。
+
+下面是一个简单的 `SecurityFilterChain` bean 示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/SimplePublicSecurityConfiguration.java[tags=public-filter-chain]
+----
+
+上面的配置授予对 `/public/**` 匹配端点的所有请求的访问权限。
+
+[[examples]]
+== 示例
+
+[[public-endpoints-example]]
+=== 公共端点
+
+假设在一个控制器中有两个方法，这两个方法需要开放给任何用户，无需认证。
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
+----
+
+公共端点的访问可以用下列配置：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/AnonymousControllerSecurityConfiguration.java[tags=whole-class]
+----
+<1> `JmixSecurityFilterChainOrder.CUSTOM` 的顺序值小于其他 Jmix chain 的顺序，因此会在其他 Jmix chain 之前使用。
+<2> {spring-security-doc}/servlet/authorization/authorize-http-requests.html#security-matchers[securityMatcher()^] 用于确定是否将 `HttpSecurity` 应用于请求。示例中的请求将匹配符合 `/greeting/**` 的 URL。对其他 URL 的请求将由 Jmix UI 模块的默认 chain 处理。
+<3> `permitAll()` 指令授予访问权限。
+<4> 为 POST 请求禁用 CSRF。
+<5> 调用 `JmixHttpSecurityUtils.configureAnonymous(http)` 配置匿名认证，将 `UserRepository` 返回的匿名用户设置到安全上下文中。
+
+[[http-basic-authentication-example]]
+=== HTTP 基本认证
+
+示例演示如何使用 https://en.wikipedia.org/wiki/Basic_access_authentication[HTTP 基本认证^] 保护控制器的端点。
+
+控制器类：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/BasicGreetingController.java[tags=whole-class]
+----
+
+所有能匹配 `pass:[/api/**]` URL 的请求需要使用 HTTP 基本认证进行保护，而能匹配 `pass:[/api/public/**]` 的请求则对所有用户开放。这可以通过以下配置实现：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/BasicControllerSecurityConfiguration.java[tags=whole-class]
+----
+<1> `JmixSecurityFilterChainOrder.CUSTOM` 的顺序值小于其他 Jmix chain 的顺序，因此会在其他 Jmix chain 之前使用。
+<2> HttpSecurity 仅用于 `pass:[/api/**]` 的请求。
+<3> 如果 matcher 匹配成功，则我们可以配置进一步的规则。所有 `pass:[/api/public/**]` 的请求都无需认证。
+<4> 所有不能匹配 `pass:[/api/public/**]` 的请求都需要认证。
+<5> 启用基本认证。
+<6> 使用 Jmix 配置的 `AuthenticationManager` 做基本认证。
+
+对 `pass:[/api/**]` 端点的请求必须包含一个请求头 - `Authorization: Basic <credentials>`，其中 `<credentials>` 是用户名和密码以冒号连接后的 Base64 编码。示例：
+
+[source]
+----
+GET /api/hello HTTP/1.1
+Host: server.example.com
+Authorization: Basic YWRtaW46YWRtaW4=
+----
+
+TIP: 在这个示例中，`pass:[/api/public/**]` 的公开访问也可以通过另一个 `SecurityFilterChain` bean 配置，带有 `pass:[securityMatcher("/api/public/**")]` 且顺序要小于当前的 bean，例如，`JmixSecurityFilterChainOrder.CUSTOM - 10`。
+
+[[token-based-authentication-example]]
+=== 基于 Token 的认证
+
+可以使用由 xref:authorization-server:index.adoc[授权服务] 颁发的 token 来保护自定义端点。授权服务扩展组件的安全配置提供了专门的扩展点。
+
+假设有以下 REST 控制器：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
+----
+
+如需用 token 保护 `pass:[/greeting/**]` 端点，需要定义一个实现 `io.jmix.core.security.AuthorizedUrlsProvider` 接口的 bean，并从 `getAuthenticatedUrlPatterns()` 方法返回 URL 模式列表：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/GreetingAuthorizedUrlsProvider.java[tags=whole-class]
+----
+
+完成上述配置后，所有对 `pass:[/greeting/**]` 端点的请求都需要在 `Authorization` 头中带 access token。例如：
+
+[source]
+----
+GET /greeting/hello HTTP/1.1
+Host: server.example.com
+Authorization: Bearer <ACCESS_TOKEN>
+----
+
+[[troubleshooting]]
+== 问题排查
+
+如果遇到 `401 Unauthorized`、`403 Forbidden HTTP` 错误或任何其他与端点安全行相关的问题，那么很可能 Spring Security {spring-security-doc}/servlet/architecture.html#servlet-logging[logging^] 会记录下一些蛛丝马迹。
+
+要启用日志记录，可在 `application.properties` 配置以下应用程序属性值为 DEBUG 或 TRACE：
+
+[source,properties]
+----
+logging.level.org.springframework.security = TRACE
+----

@@ -35,14 +35,17 @@ public class LoginView extends StandardView implements LocaleChangeObserver {
     @Autowired
     private LoginViewSupport loginViewSupport;
 
-    @Autowired
+    @ViewComponent
     private MessageBundle messageBundle;
 
     @Autowired
     private MessageTools messageTools;
 
+    // tag::login-form[]
     @ViewComponent
-    private JmixLoginForm login;
+    private JmixLoginForm login; // <1>
+
+    // end::login-form[]
 
     @Value("${ui.login.defaultUsername:}")
     private String defaultUsername;
@@ -73,20 +76,23 @@ public class LoginView extends StandardView implements LocaleChangeObserver {
         }
     }
 
+    // tag::on-login-handler[]
     @Subscribe("login")
     public void onLogin(final LoginEvent event) {
         try {
             loginViewSupport.authenticate(
                     AuthDetails.of(event.getUsername(), event.getPassword())
-                            .withLocale(login.getSelectedLocale())
-                            .withRememberMe(login.isRememberMe())
+                            .withLocale(login.getSelectedLocale()) // <2>
+                            .withRememberMe(login.isRememberMe()) // <3>
             );
         } catch (final BadCredentialsException | DisabledException | LockedException | AccessDeniedException e) {
             log.info("Login failed", e);
             event.getSource().setError(true);
         }
     }
+    // end::on-login-handler[]
 
+    // tag::on-locale-changed[]
     @Override
     public void localeChange(final LocaleChangeEvent event) {
         UI.getCurrent().getPage().setTitle(messageBundle.getMessage("LoginView.title"));
@@ -109,4 +115,5 @@ public class LoginView extends StandardView implements LocaleChangeObserver {
 
         login.setI18n(loginI18n);
     }
+    // end::on-locale-changed[]
 }

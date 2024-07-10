@@ -22,7 +22,7 @@ public class PasswordFieldView extends StandardView {
 
     @Subscribe("createPasswordButton")
     protected void onButtonClick(ClickEvent<Button> event) {
-        if (passwordField.getValue().isEmpty() == false)
+        if (!passwordField.getValue().isEmpty())
             notifications.create("Password created")
                     .show();
         }
@@ -31,7 +31,7 @@ public class PasswordFieldView extends StandardView {
     // tag::validator[]
     @Install(to = "passwordField", subject = "validator")
     private void passwordFieldValidator(String value) {
-        if (value != null && String.valueOf(value).length() < 8)
+        if (value != null && value.length() < 8)
             throw new ValidationException("Password must be at least 8 characters long");
     }
     // end::validator[]

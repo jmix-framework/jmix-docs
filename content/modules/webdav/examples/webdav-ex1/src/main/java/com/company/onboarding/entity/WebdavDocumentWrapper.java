@@ -6,12 +6,12 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.webdav.entity.WebdavDocument;
 import jakarta.persistence.*;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @JmixEntity
 @Table(name = "WEBDAV_DOCUMENT_WRAPPER", indexes = {
-        @Index(name = "IDX_WEBDAV_DOCUMENT_WRAPPER_WEBDAV_DOCUMENT", columnList = "WEBDAV_DOCUMENT_ID")
+        @Index(name = "IDX_WEBDAV_DOCUMENT_WRAPPER_WEBDAV_DOCUMENT", columnList = "WEBDAV_DOCUMENT_ID"),
+        @Index(name = "IDX_WEBDAV_DOCUMENT_WRAPPER_DEPARTMENT", columnList = "DEPARTMENT_ID")
 })
 @Entity
 public class WebdavDocumentWrapper {
@@ -20,19 +20,25 @@ public class WebdavDocumentWrapper {
     @Id
     private UUID id;
 
+    @JoinColumn(name = "DEPARTMENT_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Department department;
+
     @InstanceName
     @Column(name = "DESCRIPTION")
     private String description;
 
-    @Column(name = "LAST_MODIFIED_BY")
-    private String lastModifiedBy;
-
-    @Column(name = "LAST_MODIFIED_DATE")
-    private OffsetDateTime lastModifiedDate;
-
     @JoinColumn(name = "WEBDAV_DOCUMENT_ID")
     @OneToOne(fetch = FetchType.LAZY)
     private WebdavDocument webdavDocument;
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
 
     public WebdavDocument getWebdavDocument() {
         return webdavDocument;
@@ -40,22 +46,6 @@ public class WebdavDocumentWrapper {
 
     public void setWebdavDocument(WebdavDocument webdavDocument) {
         this.webdavDocument = webdavDocument;
-    }
-
-    public OffsetDateTime getLastModifiedDate() {
-        return lastModifiedDate;
-    }
-
-    public void setLastModifiedDate(OffsetDateTime lastModifiedDate) {
-        this.lastModifiedDate = lastModifiedDate;
-    }
-
-    public String getLastModifiedBy() {
-        return lastModifiedBy;
-    }
-
-    public void setLastModifiedBy(String lastModifiedBy) {
-        this.lastModifiedBy = lastModifiedBy;
     }
 
     public String getDescription() {

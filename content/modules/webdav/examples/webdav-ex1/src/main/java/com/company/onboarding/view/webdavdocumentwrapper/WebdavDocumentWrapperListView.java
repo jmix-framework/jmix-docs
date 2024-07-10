@@ -4,12 +4,26 @@ import com.company.onboarding.entity.WebdavDocumentWrapper;
 
 import com.company.onboarding.view.main.MainView;
 
+import com.vaadin.flow.component.grid.ItemClickEvent;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.Renderer;
 import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.router.Route;
+import io.jmix.core.AccessManager;
+import io.jmix.core.FileRef;
+import io.jmix.core.Metadata;
+import io.jmix.core.accesscontext.CrudEntityContext;
+import io.jmix.core.metamodel.model.MetaClass;
 import io.jmix.flowui.UiComponents;
+import io.jmix.flowui.action.list.CreateAction;
+import io.jmix.flowui.action.list.EditAction;
+import io.jmix.flowui.action.list.RemoveAction;
 import io.jmix.flowui.component.formatter.DateFormatter;
+import io.jmix.flowui.component.grid.DataGrid;
+import io.jmix.flowui.download.Downloader;
+import io.jmix.flowui.kit.action.ActionPerformedEvent;
+import io.jmix.flowui.kit.action.BaseAction;
+import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
 import io.jmix.webdav.entity.WebdavDocument;
 import io.jmix.webdav.entity.WebdavDocumentVersion;
@@ -25,6 +39,19 @@ import java.util.Date;
 @LookupComponent("webdavDocumentWrappersDataGrid")
 @DialogMode(width = "64em")
 public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocumentWrapper> {
+    @Autowired
+    private UiComponents uiComponents;
+    // tag::webdavDocumentWrappersDataGrid[]
+    @ViewComponent
+    private DataGrid<WebdavDocumentWrapper> webdavDocumentWrappersDataGrid;
+
+    // end::webdavDocumentWrappersDataGrid[]
+
+    // tag::downloader[]
+    @Autowired
+    private Downloader downloader; // <1>
+
+    // end::downloader[]
     // tag::lastModifiedDate-renderer[]
     @Autowired
     private ApplicationContext applicationContext;
@@ -40,13 +67,12 @@ public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocume
 
             WebdavDocumentVersion lastVersion = webdavDocument.getLastVersion();
             Date lastModifiedDate = lastVersion.getCreatedDate();
+            dateFormatter.setFormat("MMM dd, yyyy");
             return dateFormatter.apply(lastModifiedDate);
         });
     }
 
     // end::lastModifiedDate-renderer[]
-    @Autowired
-    private UiComponents uiComponents;
 
     // tag::webdavDocument-renderer[]
     @Supply(to = "webdavDocumentWrappersDataGrid.webdavDocument", subject = "renderer")
@@ -77,4 +103,21 @@ public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocume
     }
 
     // end::lastModifiedBy-renderer[]
+    // tag::download[]
+    @Subscribe("webdavDocumentWrappersDataGrid.download")
+    public void onWebdavDocumentWrappersDataGridDownload(final ActionPerformedEvent event) {
+        WebdavDocumentWrapper webdavDocumentWrapper = webdavDocumentWrappersDataGrid.getSingleSelectedItem();
+        if (webdavDocumentWrapper == null) {
+            return;
+        }
+
+        WebdavDocument webdavDocument = webdavDocumentWrapper.getWebdavDocument();
+        if (webdavDocument == null) {
+            return;
+        }
+        WebdavDocumentVersion lastVersion = webdavDocument.getLastVersion(); // <2>
+        FileRef fileReference = lastVersion.getFileReference(); // <3>
+        downloader.download(fileReference); // <4>
+    }
+    // end::download[]
 }

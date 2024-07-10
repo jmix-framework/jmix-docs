@@ -1,0 +1,282 @@
+= 获取 token
+
+客户端获取一个 access token 的方式称为一种授权方式，access token 用于访问受保护的资源。授权服务扩展组件支持 OAuth 2.1 规范中描述的授权类型（且包含在 Spring Authorization Server 框架中）。此外，Jmix 授权服务扩展组件还添加了 https://datatracker.ietf.org/doc/html/rfc6749#section-4.3[资源所有者密码凭证] 授权类型，该类型原来存在 OAuth 2.0 规范中，后在 OAuth 2.1 中删除。
+
+支持的授权类型如下：
+
+* 客户端凭证（Client Credentials）
+* 授权码（Authorization code）
+* 资源所有者密码凭证（Resource Owner Password Credentials）
+* 刷新 Token（Refresh Token）
+
+[[client-credentials-grant]]
+== 客户端凭证授权
+
+{oauth-specification-page}#name-client-credentials-grant[客户端凭证授权^] 支持通过在请求中提供已注册客户端凭证的方式向授权服务获取 access token。
+
+TIP: 客户端凭证授权可用于不涉及用户交互的机器与机器之间的通信。
+
+主要步骤：
+
+* 在 Jmix 应用程序中注册客户端的 id 和密码。
+* 为客户端分配 Jmix 资源和行级角色。
+* 客户端应用程序使用客户端 id 和密码通过特定的 HTTP 请求获取 access token。
+* 客户端应用程序可以通过获取的 token 访问受保护的 API 端点，但受限于客户端所分配的角色。
+
+注册客户端的最简单方式就是添加标准的 Spring Authorization Server 应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/authserver-ex1/src/main/resources/application.properties[tags=my-client-registration]
+----
+
+还有一组应用程序书库是 Jmix 特有的，用于定义为客户端所分配的资源和行级角色。该示例中，我们分配了两个资源角色：
+
+* `rest-minimal` (REST: minimal access) - 启用支持访问 REST API 端点。
+* `user-management` (User management) - 允许通过 REST API 操作 User 实体。
+
+[source,properties,indent=0]
+----
+include::example$/authserver-ex1/src/main/resources/application.properties[tags=my-client-role-assignment]
+----
+
+`user-management` 角色内容如下：
+
+[source,java,indent=0]
+----
+include::example$/authserver-ex1/src/main/java/com/company/demo/security/UserManagementRole.java[tags=user-management-role]
+----
+<1> API scope 定义角色用于 REST API 请求。
+
+在应用程序中定义了这些属性后，可以通过发送请求获取 access token 了。这里我们用 `curl` 命令行工具与 REST API 交互。
+
+[source, bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user my-client:my-secret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=client_credentials"
+----
+
+TIP: 在 Windows 上需要删除 `\` 符号，并将命令写在一行内。
+
+结果：
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token":"hKhgNyGMTqaKd6prH-GoHF8zFVTSr9tKKyE3OnMoafRO4FT4Xq_cewHr28cIRITaRmF0olRXpVTyFdxcOPTAl8Vc7xopHrdNuXNXwEeBn7NSiEMvQXW5zO0dwMn_H8FQ",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+`access_token` 属性中的 token 值就是可以用来在后续其他请求的 `Authorization` 请求头中使用的 access token了。Token 是有时效的，可以临时访问应用程序的资源。
+
+除了在 `application.properties` 文件中注册客户端外，还可以通过提供 `RegisteredClientRepository` bean 的方式注册。参阅 {spring-authorization-server-docs}/core-model-components.html#registered-client-repository[Spring Authorization Server 文档^] 。
+
+NOTE: 如果创建了 `RegisteredClientRepository`，则 `application.properties` 中的配置会失效。
+
+[[authorization-code-grant]]
+== 授权码授权
+
+请参阅 {oauth-specification-page}#name-authorization-code-grant[OAuth 2.1 规范^] 了解更多关于授权码的内容。
+
+通过这个流程可以获取 Jmix 应用程序中真实用户授权的 access token。这种场景用在比如通过 Google 或 Facebook 登录其他网站。Jmix 会展示一个登录表单，用户输入正确的凭证之后，access token 会通过客户端应用程序和 Jmix 应用程序之间的一系列请求发放。这种授权类型的好处是，客户端不需要处理用户的凭证。
+
+TIP: 授权码授权可用于现代 Web 和移动应用程序，这些场景对安全性的要求非常高，且可以支持网页重定向的操作。
+
+如需在 Jmix 应用程序中启用该授权类型，需要定义一个支持该类型的客户端。
+
+[source,properties,indent=0]
+----
+include::example$/authserver-ex1/src/main/resources/application.properties[tags=myapp-client-registration]
+----
+
+需要注意的是，默认情况下，Spring Authorization 服务器已经配置以下端点 URL：
+
+* 授权端点：`/oauth2/authorize`，例如，`http://localhost:8080/oauth2/authorize`
+* token 端点：`/oauth2/token`，例如，`http://localhost:8080/oauth2/token`
+
+下面的示例中，我们使用 https://oauthdebugger.com[^] 网站测试 token 的发放。该网站可以模拟一个需要访问 Jmix 资源并需要获取 access token 的外部应用。在我们自己的应用程序中，需要实现 OAuth 2.1 协议规范中的几个步骤：向授权端点发送请求、处理重定向、从中提取授权码、请求 token 端点将授权代码替换为 access token 等。
+
+打开 https://oauthdebugger.com[^]。按如下填写字段：
+
+* *Authorize URI*: ++http://localhost:8080/oauth2/authorize++
+* *Client ID*: myapp
+* *Scope*: 留空
+* *Use PKCE?*: 勾选
+
+image::oauthdebugger-website.png[align="center"]
+
+请记录下 Code Verifier 字段的内容，我们后续会用到。
+
+点击页面底部的 *SEND REQUEST* 按钮。
+
+这里应该会打开一个由 Jmix 应用程序提供的特殊登录表单，可以输入已有账号的凭证。
+
+image::authserver-login-form.png[align="center"]
+
+完成后续所有步骤后，拿到的 access token 是与填写的用户相关联，之后的所有对 Jmix REST API 的请求也都会考虑该用户的权限（资源角色和行级角色）。
+
+如果凭证有效，则会自动重定向到 https://oauthdebugger.com/debug[^] 网页，这是在 `application.properties` 中配置的。授权码必须添加在 URL 中的 `code` 参数中，例如，`++https://oauthdebugger.com/debug?code=BdgQArzTaj_xna_a0-PoUIQwszMR0xPkToxcktd5wPe4SbO18qBYStqJePOPNaoe9cuIJe0nac0cw0yVC9Iv3SeofEYbMZhMKldoJQQwcBUnBTfp2AyQayDlaE8KPaCf&state=sujodv3j7eh++`
+
+用该授权码交换 access token 时，需要执行另一个对 Jmix token 端点的 HTTP 请求。我们这里用 `curl` 命令，其中会用到之前记录的 `code_verifier` 值：
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=authorization_code" \
+   -d "redirect_uri=https://oauthdebugger.com/debug" \
+   -d "code=c9ehHTJyT84mX-v2v2Q8sbAxkAFYg-gjfZDJImu5ExZVGLUyWn_J2-afs_m7kiv7MwjD-XXVRQtwz_6H-JTb4NvuWiUw6-5vrF75LtyNYAovuvSJQ680nQwv3PbhB4Y-" \
+   -d "code_verifier=zdhRZIStXgwonFfvNYo2oI6nYuYt022LdcZF8eh3LGE" \
+   -d "code_challenge_method=S256"
+----
+
+结果如下：
+
+[source,json]
+----
+{
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "refresh_token":"DSINNaxmYykPrs3bDaKqaRgnrQDeZYInEF0yjtj2Vzkf5Nbf7OA0N09uQFN97MUmqaHBIXVxJFPQHtIbn-BM6Di035P68NqiIVfCawR5m6qQ6HbD6pQsCqAo-FBYAMqv",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+[[custom-login-form]]
+=== 自定义登录表单
+
+本节介绍如何将授权服务扩展组件提供的标准登录页面替换为自定义的页面。
+
+首先，创建一个登录表单模板。授权服务扩展组件中包含了 https://www.thymeleaf.org[Thymeleaf^] 模板引擎，可以直接用于自己的登录表单。
+
+在 `src/main/resources/templates` 目录创建一个名为 my-as-login.html` 的新文件。这是 Thymeleaf 搜索模板的默认位置。
+
+.my-as-login.html
+[source,html]
+----
+include::example$/authserver-ex1/src/main/resources/templates/my-as-login.html[]
+----
+
+这里表单用到了分别位于 `+/my-as-login/styles/**+` 和 `+/my-as-login/icons/**+` 路径中的样式和图片资源。
+
+下载已经编译好的 https://getbootstrap.com/docs/5.3/getting-started/download/[Bootstrap^] CSS 文件并复制 `bootstrap.min.css` 到 `src/main/resources/META-INF/resources/my-as-login/styles` 目录：
+
+NOTE: `META-INF/resources` 是 Spring 搜索静态资源的默认位置之一。
+
+在 `src/main/resources/META-INF/resources/my-as-login/styles` 目录创建 `as-login.css` 文件：
+
+.as-login.css
+[source,css]
+----
+include::example$/authserver-ex1/src/main/resources/META-INF/resources/my-as-login/styles/as-login.css[]
+----
+
+任意找一个图标（例如，可以用 Jmix 的 logo），重命名为 `as-login-icon.png`，然后放置于 `src/main/resources/META-INF/resources/my-as-login/icons` 目录。
+
+下一步，需要配置 Spring Security，允许访问样式和图片文件。创建一个 Spring 配置开放登录表单的资源 URL。
+
+.MySecurityConfiguration.java
+[source,java]
+----
+include::example$/authserver-ex1/src/main/java/com/company/demo/config/MySecurityConfiguration.java[tags=whole-class]
+----
+<1> 这个 bean 的优先级必须高于 `FlowuiSecurityConfiguration`。
+
+最后，应用程序需要使用新的登录表单而非授权服务组件提供的默认表单，使用下面的属性配置：
+
+.application.properties
+[source,properties]
+----
+include::example$/authserver-ex1/src/main/resources/application-custom-login-form.properties[tags=login-page-view-name]
+----
+
+完成了上述步骤后，授权服务的登录页应该与下面的类似：
+
+image::custom-login-form.png[align="center"]
+
+[[resource-owner-password-credentials-grant]]
+== 资源所有者密码凭证授权
+
+资源所有者密码凭证授权已从 OAuth 2.1 规范中删除，因为不够安全（用户凭证应直接在客户端应用程序中输入）。但是，在某些情况下可能还是需要使用这种方式，因此 Jmix 框架依然提供支持。可以在 {oauth-2_0-specification-page}#section-4.3[OAuth 2.0 规范^] 中查阅有关资源所有者密码凭证授权的更多信息。
+
+简单来说，这个流程可以获取一个具有真实 Jmix 应用用户权限的 access token。Jmix 用户凭证在请求体中传递。
+
+TIP: 资源所有者密码凭证授权可以用在信任、旧版或高度可控的环境中，并且此时没有其他更加安全的选择。
+
+若要使用这个流程，需要在 `application.properties` 文件中为客户端注册 “password” 授权类型：
+
+[source,properties]
+----
+include::example$/authserver-ex1/src/main/resources/application-password-grant.properties[tags=authorization-grant-types]
+----
+
+完整的应用程序属性配置如下：
+
+[source,properties]
+----
+include::example$/authserver-ex1/src/main/resources/application-password-grant.properties[tags=password-grant-all-props]
+----
+
+获取 token 时，客户端需要发送一个 token 端点的请求。请求的 content 必须是 `application/x-www-form-urlencoded`。`grant_type` 参数必须是 `password`。`username` 和 `password` 参数分别使用 Jmix 用户的用户名和密码。请求头中的 `Authorization` 需要使用 `application.properties` 中注册的 client id 和 secret 基本认证。下面的示例中，client id 和 secret 分别是 `myapp` 和 `mysecret`。
+
+`curl` 请求如下：
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:mysecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=password" \
+   -d "username=user1" \
+   -d "password=pass1"
+----
+
+结果如下：
+
+[source,json]
+----
+{
+  "access_token":"Q6zvq8qGMUrN1VgouerOp4TJrry2f8oqL6mix8lDW-VKD_JHZXx0xv-ZZ_Zg_qgaHNw_wmeX6Qs0SlvEiFCyHqJ-PjqsnNkfF1XNKCAV43GQO0QeqmuV2sMiLgzY-m5r",
+  "token_type":"Bearer",
+  "expires_in":3599
+}
+----
+
+如果需要请求中返回一个刷新 token，请为客户端注册 "refresh_token" 授权：
+
+[source,properties]
+----
+spring.security.oauth2.authorizationserver.client.myclient.registration.authorization-grant-types=password,refresh_token
+----
+
+
+[[refresh-token-grant]]
+== 刷新 token 授权
+
+刷新 token 授权的内容可以参阅 {oauth-specification-page}#name-refresh-token-grant[OAuth 2.1 规范^]。
+
+TIP: 刷新 token 授权可以使用已有的刷新 token 获取新的 access token 而无需用户操作。
+
+客户端需要注册 "refresh_token" 授权：
+
+[source,properties]
+----
+include::example$/authserver-ex1/src/main/resources/application.properties[tags=myapp-client-registration-authorization-grant-type]
+----
+
+用刷新 token 获取新的 access token 时，需要发送一个 token 端点的请求。`curl` 命令如下：
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user myapp:myappsecret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=refresh_token" \
+   -d "refresh_token=zN2i5JooLfi0iqNJzaE-iiEiC2oHStv_X-kOaLuqX6ZNyRCs0EaNLik1xZrz-TPHfNEahLS2c402S_1kAO09K2x6oi3LFgpFoyr9snwE3ZXJ3Lp5AVH7s4YUBOXi0VRc"
+----

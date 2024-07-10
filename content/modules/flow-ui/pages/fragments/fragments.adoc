@@ -1,0 +1,81 @@
+= Fragments
+
+一个 _fragment_ 是一个 UI 块，可以作为视图的一部分或其他 fragment 的一部分使用。由不同的 UI 组件构成，但是还提供了下列附加功能：
+
+* 可以在 XML 中定义内容。
+* 视图和其他 fragment 中可以用 `fragment` XML 元素声明式引入 fragment。
+* Fragment 类（也称控制器）中可以注入 Spring bean 或 fragment 的 UI 组件，并能使用带注解的方法作为事件处理方法。
+* `ReadyEvent` 在 fragment 初始化完成时发送。
+* Fragment 的 XML 中可以定义 xref:flow-ui:actions.adoc[操作] 和 xref:flow-ui:data-components.adoc[数据组件]（数据容器或加载器）。数据组件可以标记为 `provided`，表示由父视图提供。
+* Studio 提供了 `Blank fragment` 模板可以生成空的 fragment，然后在 Jmix 工具窗口展示，与视图一样，也可以使用 xref:studio:view-designer.adoc[可视化设计器]。
+
+Fragments 目前不支持 xref:flow-ui:facets.adoc[facets]。
+
+[[fragment-content]]
+== Fragment 内容
+
+`@FragmentDescriptor` 注解可以设置一个字符串值，表示用于初始化 fragment 的 XML 路径。如果该值仅设置了文件名（并且不以 `/` 开头），则假定文件位于 fragment 类的同名包中。
+
+XML 中可设置的元素：
+
+* `content` - 必需元素，设置 fragment 的布局（是视图的 `layout` 元素类似）。由于 fragment 的根组件可以是任何组件，因此 `content` 没有属性，也不表示任何组件。
+
+* `actions` - 可选元素，设置 fragment 内的操作（与视图的 `actions` 元素类似）。如果操作有快捷键，则将与片段的根组件绑定。也就是说，只有当焦点位于片段布局内时，才能触发快捷键。
+
+* `data` - 可选元素，设置 fragment 内的数据（与视图的 `data` 元素类似）。fragment 可以定义自己的数据容器和加载器，也可以通过 id 从父视图或 fragment 中获取，参阅 xref:flow-ui:fragments/using-fragments.adoc#using-data-components[使用数据组件] 部分。
+
+Fragment 的 XML 示例：
+
+[source,xml,indent=0]
+.customer-list-fragment.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/customer/customer-list-fragment.xml[tags=fragment-xml]
+----
+
+[[fragment-api]]
+== Fragment API
+
+* `getFragmentData()` - 返回 `FragmentData` 对象，该对象的方法可以与 fragment 的数据组件交互。
+
+* `getFragmentActions()` - 返回 `FragmentActions` 对象，该对象的方法可以与 fragment 的操作交互。与 `ViewActions` 类似。
+
+* `getParentController()` - 返回 `FragmentOwner` 父对象。父对象可能是 `View` 或 `Fragment`。
+
+* `findInnerComponent()` / `getInnerComponent()` - 返回给定 id 的内部组件。该方法仅搜索通过 XML 添加的内部组件。
+
+
+[[fragment-events]]
+== Fragment 事件
+
+* `ReadyEvent` - 在 fragment 及所有声明式定义的内部组件创建并初始化完成后触发的事件。在此事件监听器中，可以对 fragment 及其内部组件进行最终配置。示例：
++
+.CustomerListFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customer/CustomerListFragment.java[tags=fragment-java]
+----
+<1> 触发 fragment 中注册的所有加载器（包括 xref:fragments/using-fragments.adoc#provided-data-components[provided]）的 `load()` 方法。
+
+
+[[fragment-autowiring]]
+== 注入
+
+与视图一样，fragment 也支持注入 XML 中定义的组件或调用带注解的事件处理方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customer/CustomerListFragment2.java[tags=autowire]
+----
+<1> 注入一个 UI 组件。
+<2> 注入一个数据容器。
+<3> 订阅 fragment 的 `ReadyEvent` 事件。
+<4> 订阅一个按钮的 `ClickEvent` 事件。
+<5> 安装加载器代理。
+<6> 为数据表格提供一个 `Renderer`。
+
+此外，还可以订阅父视图的事件。在 `@Subscribe` 注解中定义 `target = Target.HOST_CONTROLLER`：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customer/CustomerListFragment2.java[tags=host]
+----

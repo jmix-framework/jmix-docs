@@ -1,0 +1,128 @@
+= 3. 配置使用桌面应用程序
+
+若要对桌面应用程序进行身份验证，服务器必须启用 HTTPS。以下是在开发环境中配置 HTTPS 的简单说明。
+
+[IMPORTANT]
+====
+使用自签名的证书仅适合测试。生产环境的应用程序必须使用由信任机构颁发的 SSL 证书。
+====
+
+[[keystore-file]]
+== 创建 Keystore 文件
+
+. 使用 JDK 提供的 https://docs.oracle.com/en/java/javase/11/tools/keytool.html[keytool 工具^] 生成 Keystore 文件：
++
+[source,text]
+----
+keytool -genkey -keyalg RSA -alias localhost -keystore localhost.jks -validity 365 -keysize 2048
+----
++
+会要求你设置 keystore 的密码和名称。记录输入的密码和名称。
+
+. 从 keystore 导出证书：
++
+[source,text]
+----
+keytool -export -keystore localhost.jks -storepass <password> -alias localhost -file localhost.cer
+----
++
+使用第一步输入的密码替换 `<password>`。
+
+. 在操作系统注册并信任证书。
++
+* Windows 操作系统：
++
+1. 按下 `Win + R` 打开 *Run* 对话框，输入 `"certmgr.msc"` 并回车，打开 *Certificate Manager*。
+
+2. 在 *Certificate Manager* 左侧的面板中，展开 *受信任的根证书颁发机构* 文件夹。
+
+3. 右键点击文件夹并选择 *所有任务 > 导入...*，打开 *证书导入向导*。
+
+4. 在 *证书导入向导* 中，点击 *下一步*，然后选择证书文件点击 *下一步*。
+
+5. 选择导入至 *受信任的根证书颁发机构* 点击 *下一步*。
+
+6. 检查信息正确并点击 *完成*。
+
+7. 此时会显示一个导入成功的提示，关闭导入向导。
++
+完成这些步骤后，证书会注册成功并收系统信任。
+* macOS：
+1. 在 Finder（访达）中双击 `localhost.cer` 文件。会自动打开 *Keychain Access（钥匙串访问）* 应用程序。
+2. 在 *Certficates（证书）* 标签页找到第一步输入名称下的证书。
+3. 双击证书，并选择 *Trust（信任） -> When using this certificate: Always Trust（使用此证书时：始终信任）*。
+
+[[configuring-server]]
+== 服务配置
+
+本节介绍当从 IDE 运行应用程序或者用可执行 JAR 运行时，如何使用上一节生成的证书。
+
+. 创建 `src/main/resources/<base-package>/keystore` 目录，并将 `localhost.jks` 复制到该目录。
+
+. 在 `application.properties` 文件设置下列应用程序属性，用真实值替换 `<base-package>` 和 `<password>`：
++
+[source,properties,indent=0]
+----
+# 启用 HTTPS
+server.ssl.enabled=true
+# keystore 的格式
+server.ssl.key-store-type = JKS
+# 包含证书的 keystore 路径
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# 生成 keystore 的密码
+server.ssl.key-store-password = <password>
+# 证书的映射别名
+server.ssl.key-alias = localhost
+
+# 服务端口
+server.port = 8443
+----
++
+[NOTE]
+====
+keystore 路径的 `<base-package>` 部分（`server.ssl.key-store` 配置中）应该是由斜杠分隔的路径：
+----
+server.ssl.key-store = classpath:com/example/demo/keystore/localhost.jks
+----
+====
+. 打开主应用程序类，并修改 `printApplicationUrl()` 方法。由于配置了 HTTPS，URL 需要修改为 `https://`：
++
+[source,java,indent=0]
+----
+@EventListener
+    public void printApplicationUrl(final ApplicationStartedEvent event) {
+        LoggerFactory.getLogger(DemoApplication.class).info("Application started at "
+                + "https://localhost:"
+                + environment.getProperty("local.server.port")
+                + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+    }
+----
+
+[[running-application]]
+== 运行应用程序
+
+完成了上面的步骤后，可以在 `++https://localhost:8443++` 打开应用程序。
+
+从应用程序菜单中选择 *Knowledge base*。点击 WebDAV 文档链接。
+
+image::open-webdav-doc1.png[align="center", width="1432"]
+
+浏览器将显示一个对话框，提示用户在桌面 office 应用中打开 WebDAV 文件。
+
+image::open-webdav-doc2.png[align="center", width="1432"]
+
+同意打开文件并确保 WebDAV 文档在桌面 office 应用程序中打开。
+
+image::open-office.png[align="center", width="1080"]
+
+编辑并保存 WebDAV 文档后，将创建该文档的一个新版本，也是最新的版本。
+
+image::open-webdav-doc3.png[align="center", width="1169"]
+
+[[summary]]
+== 总结
+
+我们了解到：
+
+* 要使用桌面 office应用程序打开和编辑 WebDAV 文档，必须为 Web 应用程序配置 HTTPS。以确保桌面 office 应用程序和 WebDAV 服务器之间的安全通信，尤其是编辑和保存敏感文档时。
+* HTTPS 加密为数据的传输提供了安全通道，防止未经授权的访问并保证文档编辑过程的完整性。

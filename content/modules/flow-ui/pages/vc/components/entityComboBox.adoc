@@ -6,7 +6,7 @@
 </div>
 ++++
 
-`entityComboBox` 支持用户从一个下拉列表中选择单一 xref:data-model:entities.adoc[实体] 实例。该组件还可以提供针对该实例进行的额外操作。
+支持用户从下拉列表中选择单一 xref:data-model:entities.adoc[实体] 实例并进行相关操作。操作可以是预定义的操作，例如更新实例的详细信息，或自定义的操作以完成其他一些任务。
 
 事实上，`entityComboBox` 是 xref:flow-ui:vc/components/comboBox.adoc[comboBox] 和 xref:flow-ui:vc/components/entityPicker.adoc[entityPicker] 的组合。
 
@@ -16,30 +16,75 @@
 
 == 基本用法
 
-满足下列情况可以使用 `entityComboBox`：
+当字段值是实体对象时，通常使用 `entityComboBox` 组件。支持用户选择特定实体实例并执行相关操作。
 
-* 字段值是实体实例。
-* 用户需要选择单一选项。
-* 如果选项列表对于 xref:flow-ui:vc/components/radioButtonGroup.adoc[radioButtonGroup] 或 xref:flow-ui:vc/components/listBox.adoc[listBox] 太长时，用下拉列表更方便。
-* 用户需要对关联的实体实例做一些操作。
+点击控件或箭头按钮可以打开一个显示实体实例的下拉框：
 
-`entityComboBox` 是一个带有实体实例滚动列表的文本控件。支持自定义和预定义的操作：
+[cols="a,a" grid=none, frame=none]
+|===
+| image::visual-components/components/entity-combobox-basics.png[align="center", width="220"]
+| image::visual-components/components/entity-combobox-basics-2.png[align="center", width="220"]
+|===
 
-image::visual-components/components/entity-combobox-basics.png[align="center", width="280"]
+请注意，除非您配置了<<lazy-loading,懒加载>>，否则该组件会将选项中所有实例的列表加载到浏览器的内存和服务器的内存中。这可能会消耗更多系统资源，特别是加载大量选项时，甚至会影响性能。此外，选项过多也会让用户难以找到特定的实例。
 
-如需创建连接至数据的 `entityComboBox`，可以用 XML 的 xref:vc/common-attributes.adoc#dataContainer[dataContainer] 和 xref:vc/common-attributes.adoc#property[property] 属性。而 <<itemsContainer,itemsContainer>> 属性用来创建选项列表：
+TIP: 如果选项过多，例如几千或更多，又或者在选择实例时需要提供更多的信息，那么建议使用 xref:flow-ui:vc/components/entityPicker.adoc[entityPicker]。
+
+// === When to use
+//
+// Use `entityComboBox` if:
+//
+// * The field value is a reference to an entity instance.
+// * Users need to select a single item.
+// * The number of items is too large for xref:flow-ui:vc/components/radioButtonGroup.adoc[radioButtonGroup] or xref:flow-ui:vc/components/listBox.adoc[listBox].
+// * Users need to perform actions on the selected entity instance.
+
+[[quick-start]]
+== 简单用例
+
+下面的示例演示如何使用 `entityCombobox` 组件选择用户所属的部门：
 
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=data;userDc;departmentsDc;layout;basics]
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=data;userDc;departmentsDc;dataLoadCoordinator;layout;basics]
 ----
 
-<1> `InstanceContainer` - `User` 主实体。
-<2> 数据容器内实体的 fetch plan。
-<3> `CollectionContainer` - `Department` 实体列表容器。
-<4> `entityComboBox` 将 `departmentsDc` 作为选项容器，展示部门列表。
+<1> 保存当前正在编辑的 `User` 实例的数据容器。
+<2> 扩展了 fetch plan，以获取 `Department` 实例集合作为选项。
+<3> 保存所有现有 `Department` 实例集合的数据容器。
+<4> 数据加载协调器，自动为组件提供实例选项。
+<5> 将组件与数据容器和属性绑定。指定选项列表的容器。
+<6> 添加预定义操作，用于清除所选内容。
 
-NOTE: 如果选项数量很大（数千或更多），请不要使用 `entityComboBox`。`entityComboBox` 会将全部选项列表加载到用户的浏览器和服务器内存中。如需从大量选项列表中进行选择，请使用 xref:flow-ui:vc/components/entityPicker.adoc[EntityPicker]。
+有关 `entityComboBox` 及其变体的更多交互式示例，请参阅：
+
+* https://demo.jmix.io/ui-samples/sample/entity-combobox-simple[带操作的 entityCombobox^]
+* https://demo.jmix.io/ui-samples/sample/entity-combobox-items-query[通过 fetchCallback 获取选项的 entityComboBox^]
+
+[[data-binding]]
+== 数据绑定
+
+数据绑定是指将组件与数据容器进行关联。可视化组件或相应数据容器中的更改可以触发彼此的更新。有关详细信息，请参阅 xref:data/data-examples.adoc[]。
+
+=== 选择一个实例
+
+如果只是简单的需要选择一个实体实例，那么可以通过 `metaClass` 属性指定实体。如果需要从一组特定的实体实例中选择，则可以通过 <<itemsContainer,itemsContainer>> 属性指定。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=binding-metaclass]
+----
+
+=== 更新关联属性
+
+选择实体实例通常用来更新另一个实体中的一个属性。在 <<quick-start, 上面的示例>> 中，通过选择 `Department` 实例更新了 `User` 实例中的部门属性。
+
+此时，需要将组件绑定至父实体的数据容器，并指定需要更新的属性，这两个步骤分别通过 xref:vc/common-attributes.adoc#dataContainer[dataContainer] 和 xref:vc/common-attributes.adoc#property[property] 属性实现。通过 <<itemsContainer,itemsContainer>> 属性指定选项列表。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=binding-container]
+----
 
 [[actions]]
 == 操作
@@ -58,6 +103,59 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 
 自定义和预定义操作的详细信息请参阅 `entityPicker` 的 xref:flow-ui:vc/components/entityPicker.adoc#actions[操作] 部分。
 
+[[lazy-loading]]
+== 延迟加载
+
+该组件支持根据用户输入批量加载选项，而不是一次加载全部选项。这样可以确保流畅的用户体验，即便选项数量非常庞大。
+
+[[declarative-lazy-loading]]
+=== 声明式配置
+
+若要在视图 XML 中实现延迟加载，需要配置 `itemsQuery` 属性，而不是 `itemsContainer`。例如，要最多加载 30 个选项并在列表中显示，可按照下列代码：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=items-query]
+----
+
+<1> `pageSize` 属性定义每次批量加载的数据量。默认为 50。
+<2> `itemsQuery` 中的属性可以控制加载的过程。解释如下：
+    * `class` - 指定需要加载实体的全限定名称。
+    * `searchStringFormat` - 包含变量占位符的一个字符串，占位符后续会替换为具体值。
+    * `escapeValueForLike` - 设置是否搜索包含特定符号的值。默认为 `false`。
+    * `fetchPlan` - 可选参数，指定 fetch plan。
+<3> JPQL 查询语句。
+
+[[programmatic-lazy-loading]]
+=== 编程式配置
+
+选项的加载过程也可以通过代码在 `itemsFetchCallback` 处理方法中配置。示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/entitycombobox/entity-combobox-view.xml[tags=programmatic-fetching]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/entitycombobox/EntityComboBoxView.java[tags=departmentField;itemsFetchCallback]
+----
+
+示例中，数据通过 xref:data-access:data-manager.adoc[DataManager] 获取，但是也可以修改为通过自定义服务获取。
+
+[[renderer]]
+== 自定义渲染器
+
+默认情况下，下拉框中的实体实例是以纯文本进行显示。可以自定义渲染器，实现下拉框选项的渲染逻辑，比如可以包含组件、图标、甚至布局。
+
+例如，定义下面的渲染器在部门名称前添加一个图标：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/entitycombobox/EntityComboBoxView.java[tags=renderer]
+----
+
+
 // [[filtering]]
 // == 自定义过滤
 
@@ -73,17 +171,20 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 xref:vc/common-attributes.adoc#id[id] -
 xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
 <<allowCustomValue,allowCustomValue>> -
+xref:vc/common-attributes.adoc#ariaLabel[ariaLabel] -
+xref:vc/common-attributes.adoc#ariaLabelledBy[ariaLabelledBy] -
 xref:vc/common-attributes.adoc#allowedCharPattern[allowedCharPattern] -
 xref:vc/components/comboBox.adoc#autoOpen[autoOpen] -
 xref:vc/common-attributes.adoc#autofocus[autofocus] -
 xref:vc/common-attributes.adoc#classNames[classNames] -
 xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#css[css] -
 xref:vc/common-attributes.adoc#dataContainer[dataContainer] -
 xref:vc/common-attributes.adoc#enabled[enabled] -
 xref:vc/common-attributes.adoc#errorMessage[errorMessage] -
+xref:vc/common-attributes.adoc#focusShortcut[focusShortcut] -
 xref:vc/common-attributes.adoc#height[height] -
 xref:vc/common-attributes.adoc#helperText[helperText] -
-xref:vc/common-attributes.adoc#invalid[invalid] -
 <<itemsContainer,itemsContainer>> -
 xref:vc/common-attributes.adoc#label[label] -
 xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
@@ -92,13 +193,13 @@ xref:vc/components/entityPicker.adoc#metaClass[metaClass] -
 xref:vc/common-attributes.adoc#minHeight[minHeight] -
 xref:vc/common-attributes.adoc#minWidth[minWidth] -
 <<opened,opened>> -
+xref:vc/common-attributes.adoc#overlayClass[overlayClass] -
 xref:vc/components/comboBox.adoc#pageSize[pageSize] -
 xref:vc/common-attributes.adoc#pattern[pattern] -
 xref:vc/common-attributes.adoc#placeholder[placeholder] -
 xref:vc/common-attributes.adoc#property[property] -
 xref:vc/common-attributes.adoc#readOnly[readOnly] -
 xref:vc/common-attributes.adoc#required[required] -
-xref:vc/common-attributes.adoc#requiredIndicatorVisible[requiredIndicatorVisible] -
 xref:vc/common-attributes.adoc#requiredMessage[requiredMessage] -
 xref:vc/common-attributes.adoc#tabIndex[tabIndex] -
 xref:vc/common-attributes.adoc#themeNames[themeNames] -
@@ -143,7 +244,8 @@ xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
 xref:vc/common-handlers.adoc#FocusEvent[FocusEvent] -
 xref:vc/components/comboBox.adoc#itemLabelGenerator[itemLabelGenerator] -
 xref:vc/common-handlers.adoc#statusChangeHandler[statusChangeHandler] -
-xref:vc/components/textField.adoc#validator[validator]
+xref:vc/components/textField.adoc#validator[validator] -
+<<renderer, renderer>>
 
 include::../handler-generation-tip.adoc[]
 
@@ -169,5 +271,7 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 == XML 内部元素
 
 <<actions,actions>> -
+<<declarative-lazy-loading, itemsQuery>> -
+xref:vc/components/passwordField.adoc#prefix[prefix] -
 xref:vc/components/tooltip.adoc[tooltip] -
 xref:vc/miscellaneous/validator.adoc[validator]
