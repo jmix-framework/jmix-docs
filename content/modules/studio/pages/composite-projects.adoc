@@ -1,21 +1,42 @@
 = Composite Projects
 
-Studio allows you to develop multiple add-ons and applications as a single IDE project, even if they are located in different source code repositories.
+A composite project in Jmix refers to a project structure that organizes multiple related xref:jmix::add-ons.adoc[add-ons] and applications into a single IDE project, even if they are located in different source code repositories.
 
-To create a composite project, start the project wizard and select the *Composite Project* template. Studio will create a project with the following structure (provided that the project name is `demo`):
+[[creating-composite-project]]
+== Creating Composite Project
+
+To create an empty composite project, start the xref:studio:project.adoc#creating-new-project[project wizard] and select the *Composite Project* template. Studio will create a project with the following structure (provided that the project name is `sales`):
 
 ----
 root-dir/
-    demo-all/
+    sales-all/
         build.gradle
         settings.gradle
 ----
 
-After that, you can create or add subprojects using the *New -> Subproject* actions of the Jmix Tool Window. We recommend placing subprojects inside the project root next to the `<project-name>-all` aggregator project.
+Then you can add subprojects by creating new add-ons or applications, checking out an existing project from VCS or just adding an existing folder with a project. Use *New -> Subproject* actions of the Jmix Tool Window:
+
+image::studio:new-subprojects.png[align="center",width="360"]
+
+We recommend placing subprojects within the project's root directory, alongside the `<project-name>-all` aggregator project.
 
 Studio shows the composite project and all subprojects as top-level nodes in the Jmix Tool Window:
 
-image::studio:composite-projects-structure.png[align="center",width="558"]
+image::studio:composite-projects-structure.png[align="center",width="1063"]
+
+As you can see, the aggregator composite project's `settings.gradle` file uses `includeBuild` instructions. These instructions leverage Gradle's https://docs.gradle.org/current/userguide/composite_builds.html[composite build^] feature, which helps structure projects effectively.
+
+In a composite build, Gradle replaces dependencies on artefacts with direct dependencies between subprojects. This means that changes made to an add-on immediately impact dependent add-ons and the application. IntelliJ IDEA perfectly imports such a project, recognizing the Gradle-defined dependencies. As a result, you get a composite project structure that enables transparent refactoring and eliminates the need for the "publish locally" workflow.
+
+[[opening-composite-project]]
+== Opening Composite Project
+
+When xref:studio:project.adoc#opening-existing-project[opening] a composite project, make sure to navigate to the `<project-name>-all` aggregator project directory and open the `build.gradle` file within that directory:
+
+image::open-composite-project.png[align="center",width="1078"]
+
+[[managing-properties]]
+== Managing Properties
 
 You can edit common properties of all subprojects. Click *Settings->Project Properties* on the toolbar of the Jmix Tool Window. Select *All subprojects* when Studio asks you which project you want to edit:
 
@@ -23,23 +44,30 @@ image::studio:composite-project-edit-properties.png[align="center",width="436"]
 
 The common properties include the artifact repository settings and Jmix framework version. So, you can upgrade all subprojects to a newer Jmix version at once.
 
+[[configuring-dependencies]]
+== Configuring Dependencies
+
+The most useful feature for large composite projects is the ability to configure dependencies between subprojects in a simple dialog.
+
+You can open it from the *Settings -> Dependencies Between Subprojects* action of the *Jmix* Tool Window.
+
+image::studio:composite-project-dependencies.png[align="center",width="787"]
+
+Here *customers* is an add-on which depends on the *users* add-on. According to changes you make in this dialog, Studio adds artefact dependencies to `build.gradle` files of the subprojects, and also configures the `@JmixModule` annotations of the add-ons. It also prevents you from introducing circular dependencies. In the screenshot below you can see that the dialog doesn’t allow you to make the *users* add-on dependent on *customers* because *customers* already depends on *users*:
+
+image::studio:composite-project-dependencies-2.png[align="center",width="787"]
+
+[[managing-data-stores]]
+== Managing Data Stores
+
 Studio can generate Liquibase changelogs in add-ons, including when working with them in composite projects.
 
 To generate a changelog, you first need to define a xref:studio:data-stores.adoc[Data Store] in the add-on. It will be displayed in the Jmix tree:
 
-image::studio:add-on-data-store.png[align="center",width="272"]
+image::studio:add-on-data-store.png[align="center",width="484"]
 
 Its settings will be stored in the `jmix-studio.xml` file instead of the Java configuration.
 
 Now, you can execute the *Generate Liquibase Changelog* action on the Data Store.
 
 In a composite project, you should specify a Data Store for the same add-on again, because the composite project has its own `jmix-studio.xml` file located in the `<project-name>-all` aggregator project. So, data store settings will be stored separately for when you are working on the add-on in a standalone project and in a composite project, but the set of generated changelogs will be the same.
-
-[IMPORTANT]
-====
-*How to open a composite project?*
-
-When opening a composite project, make sure to navigate to the `<project-name>-all` aggregator project directory and open the `build.gradle` file within that directory:
-
-image::open-composite-project.png[align="center",width="1078"]
-====
