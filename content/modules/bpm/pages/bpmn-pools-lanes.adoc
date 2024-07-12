@@ -1,13 +1,149 @@
 = Pools and Lanes
 
-In BPMN, a swimming pool is a graphical element used to represent a participant in a business process.
+== Overview
+In BPMN, a *swimming pool* is a graphical element used to represent a xref:bpmn-concepts.adoc#participants[participant] in a xref:bpmn-concepts.adoc#collaboration[collaboration].
 
-It is typically used to show the boundaries of a specific organization or department involved in the process.
+A swimming pool may have *lanes*, which represent different xref:bpmn-concepts.adoc#actors[actors] within the process. Each lane contains the activities (task or subprocesses).
 
-A swimming pool consists of one or more lanes, which represent different roles or actors within the organization. Each lane contains the activities and tasks that are performed by that particular role or actor.
+Usually, lanes are used in high-level analytical models helping to visualize zones of responsibility for each actor.
+Overall, swimming pools and lanes in BPMN help are aimed to improve communication and collaboration between different stakeholders involved in a business process.
 
-Swimming pools are useful for visually organizing and understanding complex business processes by showing the interactions between different participants and their responsibilities.
+[TIP]
+====
+Avoid using lanes in executable models.
+====
 
-They help to clarify the roles and responsibilities of each participant and provide a clear overview of how the process flows between them.
+[[adding-pool]]
+== Adding a Pool
 
-Overall, swimming pools in BPMN help to improve communication and collaboration between different stakeholders involved in a business process.
+Initial process template doesn't have a pool. You can add it later using a tool palette.
+The newly added pool automatically covers all elements on the diagram.
+
+image::bpmn-pool-lanes/adding-pool.png[]
+
+Once added, the pool cannot be removed from the diagram.
+Deletion of the pool deletes ALL elements inside it.
+
+=== Pool Properties
+
+When the pool is created, a simple process diagram becomes a *collaboration diagram*. As well, the behavior of the *BPMN Inspector* be changed.
+
+First, now when you select nothing, properties of the collaboration would be shown:
+
+image::bpmn-pool-lanes/collaboration-properties.png[,400]
+
+When you select the pool element, properties of the participant and the process will be shown:
+
+image::bpmn-pool-lanes/process-properties.png[,550]
+
+Don't miss participant id/name with the process id/name. Participant (pool) is just the graphical object, whereas the process is to be executed.
+
+So, when you need to start the process manually or via API, look for process id.
+
+[NOTE]
+====
+In the web application, the term _key_ is used instead of _id_, particularly in the process definitions list.
+====
+
+=== XML Representation
+
+In the XML file, the collaboration definition section  appears when you add a pool.
+
+[source,xml]
+----
+  <collaboration id="Collaboration_16sinaz"> <1>
+    <participant id="Participant_1txu04k" processRef="pool-demo" /> <2>
+  </collaboration> 
+  <process id="pool-demo" name="Pool demo" isExecutable="true"> <3>
+    <startEvent id="Event_0yeospn">
+      <outgoing>Flow_1snk2tn</outgoing>
+    </startEvent>
+    <sequenceFlow id="Flow_1snk2tn" sourceRef="Event_0yeospn" targetRef="Activity_187mecy" />
+    <userTask id="Activity_187mecy">
+      <incoming>Flow_1snk2tn</incoming>
+    </userTask>
+  </process>
+----
+<1> -- Collaboration definition section
+<2> -- Participant (pool) included in collaboration
+<3> -- Process definition (as it was before adding the pool)
+
+[NOTE]
+====
+Attribute `isExecutable` is ignored by process engine.
+====
+
+
+[[multiple-pools]]
+=== Multiple Pools
+
+Collaboration may include many processes as shown in the picture below:
+
+image::bpmn-pool-lanes/collaboration-two-processes.png[,700]
+
+When you deploy a collaboration model, each process will be deployed separately with its own _id_, and it will be visible in the process definitions list. So you will be able to start any process from the collaboration.
+
+image::bpmn-pool-lanes/process-definitions-wiindow.png[,650]
+
+[TIP]
+====
+Use this technique when you create several processes communicating with each other. Or when you have the main process and call activities.
+====
+
+=== Empty Pool
+//todo - сейчас есть ошибка и стрелки не рисуются
+
+
+[[lanes]]
+== Lanes
+
+In BPMN, *Lanes* are used to organize and categorize xref:bpmn-concepts.adoc#activities[Activities] within a *Pool*.
+
+You can divide a pool by lanes using the context tool menu on the right of selected object; as well, you can add lanes above or below:
+
+image::bpmn-pool-lanes/adding-lanes.png[,650]
+
+To delete lane, use the deletion tool. It removes only the lane itself, but not elements placed on it.
+
+image::bpmn-pool-lanes/lane-properties.png[,400]
+
+=== Lane Properties
+
+Select a single lane element to see its properties:
+
+image::bpmn-pool-lanes/lanes.png[]
+
+image::bpmn-pool-lanes/single-lane-properties.png[,400]
+
+Here you can set lane id and name, that will be shown on the diagram.
+
+Besides, you can assign a performer like for a xref:bpm:user-task.adoc[user task]. Then, all user tasks placed in this lane will be assigned to the same performer if you leave the task assignee section empty.
+
+[NOTE]
+====
+Subprocesses are not supported.
+====
+
+=== XML Representation
+
+Lanes are represented in the XML file by the <laneSet> element and corresponding <lane> elements. Each lane contains properties and list of activities placed on it.
+
+[source,xml]
+----
+  <process id="pool-and-lanes" name="Pool and lanes" isExecutable="true">
+    <laneSet id="LaneSet_1lxq2l3">
+      <lane id="Lane_1" name="User 1">
+        <extensionElements>
+          <jmix:assignmentDetails assigneeSource="expression" assigneeValue="user1" assignee="user1" candidateUsersSource="users" candidateGroupsSource="userGroups" />
+          <jmix:conditionDetails conditionSource="userTaskOutcome" />
+        </extensionElements>
+        <flowNodeRef>Activity_0n34ol9</flowNodeRef>
+        <flowNodeRef>Activity_0758bjc</flowNodeRef>
+        <flowNodeRef>Event_1mkoyrv</flowNodeRef>
+      </lane>
+      <lane id="Lane_2" name="User 2">
+        ...
+      </lane>
+    </laneSet>
+----
+
