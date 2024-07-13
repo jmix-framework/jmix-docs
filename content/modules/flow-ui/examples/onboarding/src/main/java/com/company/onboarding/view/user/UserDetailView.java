@@ -19,10 +19,7 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
-import io.jmix.core.DataManager;
-import io.jmix.core.EntityStates;
-import io.jmix.core.FileRef;
-import io.jmix.core.FileStorage;
+import io.jmix.core.*;
 import io.jmix.flowui.Notifications;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.grid.DataGrid;
@@ -31,6 +28,7 @@ import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.CollectionPropertyContainer;
 import io.jmix.flowui.model.DataContext;
 import io.jmix.flowui.model.InstanceContainer;
+import io.jmix.flowui.util.OperationResult;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -77,6 +75,8 @@ public class UserDetailView extends StandardDetailView<User> {
     // tag::filter[]
     @ViewComponent
     private CollectionPropertyContainer<UserStep> stepsDc;
+    @Autowired
+    private MetadataTools metadataTools;
 
     private void filterByDueDate(LocalDate dueDate) {
         List<UserStep> filtered = getEditedEntity().getSteps().stream()
@@ -191,4 +191,25 @@ public class UserDetailView extends StandardDetailView<User> {
             user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
         }
     }
+
+    // tag::page-title[]
+    @Override
+    public String getPageTitle() {
+        User user = getEditedEntity();
+        return entityStates.isNew(user)
+                ? messageBundle.getMessage("newUserTitle")
+                : messageBundle.formatMessage("editUserTitle", metadataTools.getInstanceName(user));
+
+    }
+    // end::page-title[]
+
+    // tag::overridden-save-method[]
+    @Override
+    public OperationResult save() {
+        return super.save()     // <1>
+                .then(() -> {
+                    // ...      // <2>
+                });
+    }
+    // end::overridden-save-method[]
 }

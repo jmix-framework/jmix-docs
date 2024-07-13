@@ -1,0 +1,321 @@
+= Views
+
+A _view_ is a basic building block of the application UI. It is a root of the hierarchy of visual components and can also contain data components, actions and facets.
+
+A view is defined by a Java class. The class usually has a corresponding XML file called _descriptor_, which defines the view content. So there is a clear separation between declarative layout of components defined in XML and programmatic initialization and event handling logic written in Java.
+
+[[view-classes]]
+== View Classes
+
+Jmix provides the following base classes for views:
+
+image::views/views-diagram.svg[align="center"]
+
+[[view]]
+=== View
+
+`View` defines the state and behavior of all varieties of existing views.
+
+[[standard-main-view]]
+=== StandardMainView
+
+`StandardMainView` is a root application view which is opened after login. It contains the {vaadin-docs}/components/app-layout[AppLayout^] component with the main menu.
+
+image::views/main-view-1.png[align="center"]
+
+[[standard-view]]
+=== StandardView
+
+`StandardView` is a base class for regular views. Such views can be shown either inside the main view using navigation to the view URL or in a popup dialog window.
+
+Below is a standard view opened using the `/my-onboarding` URL:
+
+image::views/standard-view-1.png[align="center"]
+
+[[standard-list-view]]
+=== StandardListView
+
+`StandardListView` is a base class for CRUD views displaying a list of entities. It can also be used as a lookup view to select entity instances from the list and return them to the caller. A list view usually uses the xref:vc/components/dataGrid.adoc[] or xref:vc/components/treeDataGrid.adoc[] components.
+
+Below is a list view opened using the `/departments` URL:
+
+image::views/list-view-1.png[align="center"]
+
+The same view opened in a dialog for selecting entities:
+
+image::views/list-view-2.png[align="center"]
+
+[[standard-detail-view]]
+=== StandardDetailView
+
+`StandardDetailView` is a base class for CRUD views displaying a single entity instance. A detail view usually uses the xref:vc/layouts/formLayout.adoc[] component.
+
+Below is a detail view opened using entity id in the URL:
+
+image::views/detail-view-1.png[align="center"]
+
+The same view opened in a dialog:
+
+image::views/detail-view-2.png[align="center"]
+
+[[view-annotations]]
+== View Annotations
+
+Annotations on view classes provide information about the views to the framework. Some annotations are applicable to any type of view, some of them can be used only on entity list or detail views.
+
+[[common-annotations]]
+=== Common Annotations
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=annotations]
+----
+
+* `@ViewController` annotation indicates that the class is a view. The value of the annotation is the view id which can be used to refer to the view from the xref:menu-config.adoc[main menu] or when opening the view programmatically.
+
+* `@ViewDescriptor` annotation connects the view class to the XML descriptor. The value of the annotation specifies the path to the descriptor file. If the value contains a file name only, it is assumed that the file is located in the same package as the view class.
+
+* `@com.vaadin.flow.router.Route` defines a URL path for navigation to this view. As long as the view should be opened inside the main view, the `layout` attribute specifies the main view class.
+
+* `@DialogMode` annotation defines parameters of the dialog window when the view is opened as a dialog.
+
+* `@com.vaadin.flow.server.auth.AnonymousAllowed` makes the view available without authentication. By default, only the login view is available to the anonymous (not authenticated) session.
++
+TIP: See the https://github.com/jmix-framework/jmix-samples-2/tree/main/user-registration[User Registration^] sample project for how the `@AnonymousAllowed` annotation is used in a view for self-registration of users.
+
+[[list-view-annotations]]
+=== List View Annotations
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=annotations]
+----
+
+[[lookup-component]]
+* `@LookupComponent` annotation specifies an id of a UI component to be used for getting a value returned from the lookup.
+
+* `@PrimaryLookupView` annotation indicates that this view is the default lookup view for the specified entity. The annotation has greater priority than the `\{entity_name}.lookup` / `\{entity_name}.list` xref:views/opening-views.adoc#view-inference-conventions[name convention].
+
+[[detail-view-annotations]]
+=== Detail View Annotations
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentDetailView.java[tags=annotations]
+----
+
+[[edited-entity-container]]
+* `@EditedEntityContainer` annotation specifies a data container that contains the edited entity.
+
+* `@PrimaryDetailView` annotation indicates that this view is the default detail view for the specified entity. The annotation has greater priority than the `\{entity_name}.detail` xref:views/opening-views.adoc#view-inference-conventions[name convention].
+
+[[view-controller-methods]]
+== View Controller Methods
+
+In this section, we describe some methods of view controller base classes that can be invoked or overridden in the application code.
+
+[[methods-of-all-views]]
+=== Methods of All Views
+
+* `close()` - requests closing the view with the passed `StandardOutcome` enum value or a `CloseAction` object.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=close-with-discard]
+----
+
+//todo links to events
+The parameter value is propagated to the `BeforeCloseEvent` and `AfterCloseEvent`, so the information about the reason why the view was closed can be obtained in the listeners.
+
+* `closeWithDefaultAction()` - requests closing the view with `StandardOutcome.CLOSE`.
+
+* `setPreventBrowserTabClosing()` - sets whether this view should prevent the browser tab from closing accidentally if the xref:ui-properties.adoc#jmix.ui.view.preventBrowserTabClosing[jmix.ui.view.preventBrowserTabClosing] property is set to `true` (which is `false` by default). Enabled by default for xref:views/views.adoc#standard-detail-view[detail views].
+
+* `getViewData()` - returns the `ViewData` object that serves as a registry for all xref:data-components.adoc[data components] defined in the view XML descriptor. You can use its `loadAll()` method to trigger all data loaders of the view:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=view-data]
+----
+
+* `getViewAttributes()` - returns the `ViewAttributes` object that serves as a storage of values associated with their names. Uses `VaadinSession` as a store. For example, xref:views/views.adoc#standard-detail-view[detail view] uses `ViewAttributes` to store *read-only state* and *locked status* and revert these settings if a view is refreshed.
+
+* `getPageTitle()` - returns the title of a view. By default, returns localized value defined in a view descriptor. Can be overridden to provide dynamic title.
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=page-title]
+----
+
+* `beforeLeave()` - a callback that is executed before navigating to another view is made. Part of Vaadin *Navigation Lifecycle*.
+** The event allows the navigation to be _postponed_, _canceled_, or _changed_ to a different destination.
+** Isn't executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super` method as it executes framework related code.
+
+* `beforeEnter()` - a callback that is executed before navigating to a view. Part of Vaadin *Navigation Lifecycle*.
+** Can be used to obtain `Location` object and allows changing the navigation target to go to a different destination from the original one.
+** Isn't executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super` method as it executes framework related code.
+
+* `afterNavigation()` - a callback that is executed after navigation has been completed. Part of Vaadin *Navigation Lifecycle*.
+** Can be used to obtain `Location` object.
+** Isn't executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super` method as it executes framework related code.
+
+
+[[methods-of-standard-list]]
+=== Methods of StandardListView
+
+* `closeWithDiscard()` - requests closing the view with `StandardOutcome.DISCARD`.
+
+* `getLookupComponent() / findLookupComponent()` - returns a component to be used for getting a value returned from this xref:views/views.adoc#standard-list-view[lookup view]. By default, returns a component with an `id` specified by the xref:views/views.adoc#lookup-component[@LookupComponent] annotation.
+
+* `setSelectionValidator()` - sets a predicate that tests if selected items can be processed by `SelectionHandler`.
+
+* `setSelectionHandler()` - sets a callback that handles selected items. By default, adds items to a xref:data/collection-container.adoc[collection container] if a xref:views/views.adoc#standard-list-view[lookup view] is opened for a xref:vc/components/dataGrid.adoc[DataGrid] component or sets a single value if a xref:views/views.adoc#standard-list-view[lookup view] is opened for a field, for example xref:vc/components/entityPicker.adoc[EntityPicker].
++
+[source,java,indent=0]
+----
+DialogWindow<View<?>> dialog = dialogWindows.lookup(ProjectDetailView.this, User.class) // <1>
+        .withSelectHandler(users -> { // <2>
+            for (User user : users) {
+                ProjectParticipant projectParticipant = dataManager.create(ProjectParticipant.class);
+                projectParticipant.setUser(user);
+                projectParticipant.setProject(getEditedEntity());
+                projectParticipant.setRole(projectRole);
+                participantsDc.getMutableItems().add(projectParticipant);
+            }
+        })
+        .build();
+
+View<?> view = dialog.getView();
+if (view instanceof MultiSelectLookupView multiSelectLookupView) { // <3>
+    multiSelectLookupView.setLookupComponentMultiSelect(true);
+}
+
+dialog.open();
+----
+<1> - Create a lookup view builder not bound to any UI component.
+<2> - Define selection handler for the lookup view.
+<3> - Check if actual lookup view supports multiple selection.
+
+[[methods-of-standard-detail]]
+=== Methods of StandardDetailView
+
+* `getEditedEntity()` - when the view is shown, returns an instance of the entity being edited. It’s the instance that is set in the data container specified in the xref:views/views.adoc#edited-entity-container[@EditedEntityContainer] annotation. +
+// todo: links to events
+In the `InitEvent` listener, this method returns `null`. In the `BeforeShowEvent` listener, this method returns the instance passed to the view for editing (later in the view opening process the entity is reloaded and a different instance is set to the data container).
+
+The following methods can be used to close the edit screen:
+
+[[close-with-save-method]]
+* `closeWithSave()` - validates and saves changes, then closes the view with `StandardOutcome.SAVE`. You can call this method from a custom event listener or add the built-in `detail_saveClose` action to the view.
+
+* `closeWithDiscard()` - ignores any unsaved changes and closes the view with `StandardOutcome.DISCARD`. You can call this method from a custom event listener or add the built-in `detail_discard` action to the view.
+
+If the view has unsaved changes in xref:data/data-context.adoc[DataContext], a dialog with a corresponding message will be displayed before the view is closed. You can adjust the notification type using the xref:ui-properties.adoc#jmix.ui.view.use-save-confirmation[jmix.ui.view.use-save-confirmation] application property. If you use the `closeWithDiscard()` or `close(StandardOutcome.DISCARD)` methods, unsaved changes are ignored without any message.
+
+
+* `save()` - validates and saves changes without closing the view. You can call this method from a custom event listener or add the built-in `detail_save` action to the view. Also, you can override the `save()` method to perform some operations after the data has been saved, for example:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=overridden-save-method]
+----
+<1> - Call super method to execute the default logic.
+<2> - You can perform actions after the data has been saved.
+
+
+* `setReloadSaved(boolean)` - sets whether edited entity should be reloaded after the xref:views/views.adoc#close-with-save-method[closeWithSave()] method invoked. The default value is `false`. It's set to `true` if a view is opened in a dialog mode.
+
+* `setShowSaveNotification(boolean)` - sets whether a notification should be shown in case of a successful save. The default value is `true`.
+
+* `setShowValidationErrors(boolean)` - sets whether to indicate about errors after components validation using the xref:views/view-validation.adoc#showValidationErrors[showValidationErrors()] method. The default value is `true`.
+
+* `setCrossFieldValidationEnabled(boolean)` - sets whether cross-field validation should be performed before saving changes. It uses `UiCrossFieldChecks` constraint group to validate bean instance. The default value is `true`.
+
+* `getLockStatus()` - Returns lock status of the currently edited entity instance. Possible variants:
+** `LockStatus.NOT_SUPPORTED` - if the entity does not support lock.
+** `LockStatus.LOCKED` - if the entity instance is successfully locked.
+** `LockStatus.FAILED` - if lock failed because the entity is already locked by someone else.
+
+
+//[[events]]
+//== View Events
+//
+//This section describes the screen lifecycle events that can be handled in controllers.
+//
+//[[init-event]]
+//=== InitEvent
+//
+//`InitEvent` is sent when the screen controller and all its declaratively defined components are created, and dependency injection is completed. Nested fragments are not initialized yet. Some visual components are not fully initialized, for example, buttons are not linked with actions.
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=init-event]
+//----
+//
+//[[init-entity-event]]
+//== InitEntityEvent
+//
+//`InitEntityEvent` is sent in screens inherited from `StandardEditor` and `MasterDetailScreen` before the new entity instance is set to edited entity container.
+//
+//Use this event listener to initialize default values in the new entity instance, for example:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=init-entity]
+//----
+//
+//[[before-show-event]]
+//== BeforeShowEvent
+//
+//`BeforeShowEvent` is sent right before the screen is shown, for example, it is not added to the application UI yet. Security restrictions are applied to UI components. In this event listener, you can load data, check permissions and modify UI components. For example:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=before-show1;before-show2]
+//----
+//
+//[[after-show-event]]
+//== AfterShowEvent
+//
+//`AfterShowEvent` is sent right after the screen is shown, for example, when it is added to the application UI. In this event listener, you can show notifications, dialogs or other screens. For example:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderBrowse1.java[tags=after-show1;after-show2]
+//----
+//
+//[[before-close-event]]
+//== BeforeCloseEvent
+//
+//`BeforeCloseEvent` is sent right before the screen is closed by its `close(CloseAction)` method. The screen is still displayed and fully functional. In this event listener, you can check any conditions and prevent screen closing using the `preventWindowClose()` method of the event, for example:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit1.java[tags=before-close1;before-close2]
+//----
+//
+//The `Window` interface has also an event with the same name. It is sent before the screen is closed by an external (relative to the controller) action, like clicking on the button in the window tab or by pressing the *Escape* key. The way the window is closed can be obtained using the `getCloseOrigin()` method which returns a value implementing the `CloseOrigin` interface. Its default implementation `CloseOriginType` has three values:
+//
+//* `BREADCRUMBS` - the screen is closed by clicking on the breadcrumbs link.
+//* `CLOSE_BUTTON` - the screen is closed by the close button in the window header or by the window tab close button or context menu actions: Close, Close All, Close Others.
+//* `SHORTCUT` - the screen is closed by the keyboard shortcut defined in the xref:ui:app-properties.adoc#jmix.ui.screen.close-shortcut[jmix.ui.screen.close-shortcut] application property.
+//
+//You can subscribe to `Window.BeforeCloseEvent` by specifying `Target.FRAME` in the `@Subscribe` annotation:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit3.java[tags=before-close]
+//----
+//
+//[[after-close-event]]
+//== AfterCloseEvent
+//
+//`AfterCloseEvent` is sent after the screen is closed by its `close(CloseAction)` method and after `Screen.AfterDetachEvent`. In this event listener, you can show notifications or dialogs after closing the screen, for example:
+//
+//[source,java,indent=0]
+//----
+//include::example$/ex1/src/main/java/ui/ex1/screen/screens/OrderEdit3.java[tags=after-close1;after-close2]
+//----
