@@ -2,7 +2,7 @@
 
 Functionality of framework subsystems and add-ons can be extended and modified by the application or by other add-ons located lower in the xref:creating-add-ons.adoc#hierarchy[hierarchy].
 
-For declaratively created elements, such as data model entities and XML layout of UI screens, Jmix offers its own extension mechanism. Business logic defined by Spring beans can be extended using standard Java and Spring features.
+For declaratively created elements, such as data model entities and XML layout of UI views, Jmix offers its own extension mechanism. Business logic defined by Spring beans can be extended using standard Java and Spring features.
 
 [[data-model]]
 == Extending Data Model
@@ -51,9 +51,9 @@ Also, the `ExtDepartment` entity meta-class will be returned by the xref:data-mo
 [[ui]]
 == Extending UI
 
-If you replace an entity of an add-on by an extended version, most probably you will also need to override UI screens of this entity to display the extended attributes. Below we consider an example of overriding the browse screen of the `Department` entity replaced by `ExtDepartment` as described in the <<data-model,previous section>>.
+If you replace an entity of an add-on by an extended version, most probably you will also need to override UI views of this entity to display the extended attributes. Below we consider an example of overriding the list view of the `Department` entity replaced by `ExtDepartment` as described in the <<data-model,previous section>>.
 
-To extend and override a screen provided by an add-on, select *Override an existing screen* template in the Studio screen creation wizard. Studio will create new XML descriptor and controller files. The XML descriptor will contain the `extends` attribute referring to the base screen descriptor:
+To extend and override a view provided by an add-on, select *Override an existing view* template in the Studio view creation wizard. Studio will create new XML descriptor and controller files. The XML descriptor will contain the `extends` attribute referring to the base view descriptor:
 
 [source,xml,indent=0]
 ----
@@ -67,34 +67,41 @@ After that, you can add components to display the extended attributes:
 include::example$/ext/src/main/resources/com/company/sample/ext/view/department/ext-department-list-view.xml[tags=extends;extends1]
 ----
 
-You don't have to repeat all elements and attributes of the base screen, only the changed part is required. The resulting XML will be merged from the base and extended descriptors - see more about it <<descriptor-extension,below>>.
+You don't have to repeat all elements and attributes of the base view, only the changed part is required. The resulting XML will be merged from the base and extended descriptors - see more about it <<descriptor-extension,below>>.
 
-In our case, one of extended attributes (`manager`) is a reference to another entity. This reference will be loaded on demand due to the automatic xref:data-access:fetching.adoc#lazy-loading[lazy loading], but you may want to include the reference to the xref:data-access:fetching.adoc#fetch-plan[fetch plan] of the screen to avoid the possible "N+1 queries" problem:
+In our case, one of extended attributes (`manager`) is a reference to another entity. This reference will be loaded on demand due to the automatic xref:data-access:fetching.adoc#lazy-loading[lazy loading], but you may want to include the reference to the xref:data-access:fetching.adoc#fetch-plan[fetch plan] of the view to avoid the possible "N+1 queries" problem:
 
 [source,xml,indent=0]
 ----
 include::example$/ext/src/main/resources/com/company/sample/ext/view/department/ext-department-list-view.xml[tags=extends;extends1;extends2]
 ----
 
-The controller of the extended screen will be inherited from the base controller class:
+The controller of the extended view will be inherited from the base view class:
 
 [source,java,indent=0]
 ----
 include::example$/ext/src/main/java/com/company/sample/ext/view/department/ExtDepartmentListView.java[tags=extend]
 ----
 
-Note that the `@ViewController` annotation has the same value as in the base screen. This is important because we actually need to _override_ the base screen, meaning that everywhere in the system the extended screen will be used instead of the base one, as is done for replaced entities.
+[IMPORTANT]
+====
+Note that the `@ViewController` annotation has the same value as in the base view. This is important because we actually need to _override_ the base view, meaning that everywhere in the system the extended view will be used instead of the base one, as is done for replaced entities.
+====
 
-You can override public and protected methods of the base controller to extend the screen logic if needed.
+You can override public and protected methods of the base controller to extend the view logic if needed.
 
 [[descriptor-extension]]
 === Rules of XML Descriptor Extension
 
-Extension of XML descriptors doesn't take into account the semantics of the screen and works purely on the XML level. It merges two XML files according to the following rules:
+Extension of XML descriptors doesn't take into account the semantics of the view and works purely on the XML level. It merges two XML files according to the following rules:
 
 . If the extending descriptor has a certain element, the corresponding element will be searched for in the parent descriptor using the following algorithm:
 
-.. If the overriding element has the `id` attribute, the corresponding element with the same `id` will be searched for.
+.. If the overriding element has the `id` attribute, the corresponding element with the same `id` will be searched for. Some elements are analyzed also for other attributes that serve as unique identifiers instead of `id`:
+
+... For `button` element: `action` attribute.
+... For `column` element: `property` and `key` attributes.
+... For `property` element: `name` attribute.
 
 .. If the search is successful, the found element is overridden.
 
