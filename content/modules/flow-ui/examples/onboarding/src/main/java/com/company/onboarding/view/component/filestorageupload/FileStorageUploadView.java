@@ -12,10 +12,16 @@ import io.jmix.flowui.component.upload.receiver.FileTemporaryStorageBuffer;
 import io.jmix.flowui.kit.component.upload.event.*;
 import io.jmix.flowui.upload.TemporaryStorage;
 import io.jmix.flowui.view.*;
+import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
+
+import static org.reflections.Reflections.log;
 
 @Route(value = "FileStorageUploadView", layout = MainView.class)
 @ViewController("FileStorageUploadView")
@@ -62,5 +68,32 @@ public class FileStorageUploadView extends StandardView {
                 .show();
     }
     // end::FailedEvent[]
-    
+// tag::FileUploadSucceededEvent[]
+    @Subscribe("fileRefField")
+    public void onFileRefFieldFileUploadSucceeded(
+            final FileUploadSucceededEvent<FileStorageUploadField> event) {
+        if (event.getReceiver() instanceof FileTemporaryStorageBuffer buffer) {
+            UUID fileId = buffer.getFileData().getFileInfo().getId();
+            log.info("FileId: " + fileId);
+
+            File file = temporaryStorage.getFile(fileId); // <1>
+            log.info("File from temp storage: " + file);
+            try { // <2>
+                List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+                for (String line : lines) {
+                    log.info("Read line: " + line);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            temporaryStorage.deleteFile(fileId); // <3>
+            log.info("File is deleted from temp storage: " + file);
+        }
+    }
+    // end::FileUploadSucceededEvent[]
+    @Subscribe("fileRefField")
+    public void onFileRefFieldFileUploadFailed(final FileUploadFailedEvent<FileStorageUploadField> event) {
+        notifications.create("File upload error")
+                .show();
+    }
 }
