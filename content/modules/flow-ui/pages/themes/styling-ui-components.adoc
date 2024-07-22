@@ -1,0 +1,172 @@
+= Styling UI Components
+
+UI components provide additional features (for example label, helper text, error message, tooltip, etc.), which make them more complex than native HTML elements. They also utilize an HTML feature called https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM[shadow DOM^], which encapsulates their internal HTML structure, and isolates it from the page’s global CSS.
+
+.Component HTML element structure
+image::themes/element-shadow-dom.png[align="center", width="698"]
+
+Because of this, UI components cannot be styled using native HTML element selectors like `input {…}` and `button {…}`. Instead, each component exposes a number of _parts_ and _states_ that can be used as selectors in CSS style blocks.
+
+For example, if you want to apply a background color and a border to a xref:vc/components/textField.adoc[TextField], you need to apply styles to the *shadow part* called `input-field`:
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+  background: white;
+  border: 1px solid black;
+}
+----
+
+.TextField with background and border
+image::themes/styled-textfield.png[align="center", width="226"]
+
+[[stylable-parts]]
+== Stylable Parts of Components
+
+There are several primary types of parts, each of which is associated with a different type of CSS selector.
+
+[[root-elements]]
+=== Root Elements
+
+Each UI component has a root HTML element whose name begins with the `vaadin-` or `jmix-` prefix, for example `vaadin-button` or `jmix-value-picker`. The background color of a button can be changed, for example, as follows:
+
+[source,css,indent=0]
+----
+vaadin-button {
+  background: gray;
+}
+----
+
+[[shadow-parts]]
+=== Shadow Parts
+
+Shadow parts are elements inside the component’s shadow DOM and are styled using the `::part()` selector. For example:
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+    background: white;
+    border: 1px dotted black;
+}
+----
+
+[[regular-child-elements]]
+=== Regular Child Elements
+
+Regular (Light DOM) HTML child elements are styled using the `>` selector. For example, a `label` element of a `TextField` component can be styled as follows:
+
+[source,css,indent=0]
+----
+vaadin-text-field > label {
+    font-weight: bold;
+}
+----
+
+[[component-states]]
+== Component States
+
+Most states of component root elements and their various parts are exposed through state attributes and styled using https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors[attribute selectors^] of the form `component-name[state]`. For example, disabled buttons are identified by the `[disabled]` selector:
+
+[source,css,indent=0]
+----
+vaadin-button[disabled] {
+  background: lightgray;
+  color: darkgray;
+}
+----
+
+[[style-variants]]
+== Component Style Variants
+
+Many UI components come with built-in style variants, that can be used to change the color, size or other visual aspects of individual component instances through the `addThemeVariants`/`addThemeNames` Java API or the `themeNames` XML attribute:
+
+[source,xml,indent=0]
+----
+<hbox>
+    <button text="Primary" themeNames="primary"/>
+    <button text="Success" themeNames="success"/>
+    <button text="Tertiary" themeNames="tertiary"/>
+</hbox>
+----
+
+.Button with applied theme variants
+image::themes/button-theme-variants.png[align="center", width="316"]
+
+These variants are applied to the `theme` attribute of the root elements of components, and can be targeted using CSS attribute selectors:
+
+[source,css,indent=0]
+----
+vaadin-button[theme~="primary"] {
+    background-color: purple;
+}
+----
+
+[[styling-component-instances]]
+== Styling Component Instances
+
+In you need to apply styles to a specific component instance, you can use the `classNames` attribute, for example:
+
+[source,xml,indent=0]
+----
+<textField classNames="bordered"/>
+----
+
+[source,css,indent=0]
+----
+vaadin-text-field.bordered::part(input-field) {
+    background: white;
+    border: 1px solid black;
+}
+----
+
+[[generating-styles-dynamically]]
+== Generating Styles Dynamically
+
+If you need to dynamically generate styles based on some custom logic, you can use the `Style` API.
+
+One approach is to set inline CSS properties on the root element of the component, for example:
+
+[source,java,indent=0]
+----
+@ViewComponent
+private JmixButton myBtn;
+
+@Subscribe
+public void onInit(final InitEvent event) {
+    myBtn.getStyle().set("color", "white");
+    myBtn.getStyle().set("background-color", "purple");
+}
+----
+
+A drawback with this approach is that it’s not possible to apply styles to parts of components, or based on their states.
+
+Another option is to use CSS properties – either the built-in https://vaadin.com/docs/latest/styling/lumo/lumo-style-properties[Lumo properties^] or custom ones – that are statically applied using CSS, but whose values are set through application logic:
+
+[source,css,indent=0]
+----
+html {
+    --my-button-text-color: darkblue;
+    --my-button-bg-color: yellow;
+}
+
+vaadin-button.my-button {
+  color: var(--my-button-text-color);
+  background-color: var(--my-button-bg-color);
+}
+----
+
+[source,xml,indent=0]
+----
+<button id="myBtn" text="Button" classNames="my-button"/>
+----
+
+[source,java,indent=0]
+----
+@Subscribe
+public void onInit(final InitEvent event) {
+    UI.getCurrent().getElement().getStyle().set("--my-button-text-color", "white");
+    UI.getCurrent().getElement().getStyle().set("--my-button-bg-color", "purple");
+}
+----
+
+The benefit of this approach is that you can target component parts and multiple components using the same style property. This can be used for example to allow users to customize UI styles, save them in a database, and load them when they log in.
