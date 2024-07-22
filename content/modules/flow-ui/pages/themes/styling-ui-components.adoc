@@ -1,0 +1,172 @@
+= Стилизация компонентов UI
+
+Компоненты Jmix UI предоставляют дополнительную функциональность (например, надпись, текст помощи, сообщение об ошибке, всплывающую подсказку и т.д.), которые делают их более сложными, чем нативные HTML-элементы. Они также используют возможность HTML под названием https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM[shadow DOM^], которая инкапсулирует их внутреннюю HTML-структуру и изолирует ее от глобального CSS страницы.
+
+.Структура HTML-элемента компонента
+image::themes/element-shadow-dom.png[align="center", width="698"]
+
+В связи с этим UI-компоненты не могут быть стилизованы с использованием нативных селекторов элементов HTML, таких как `input \{…}` и `button \{…}`. Вместо этого каждый компонент предоставляет набор _частей_ (parts) и _состояний_ (states), которые могут использоваться в качестве селекторов в блоках стилей CSS.
+
+Например, если вы хотите применить цвет фона и границу к xref:vc/components/textField.adoc[textField], вам нужно применить стили к *теневой части* (shadow part) под названием `input-field`:
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+  background: white;
+  border: 1px solid black;
+}
+----
+
+.TextField с фоном и границей
+image::themes/styled-textfield.png[align="center", width="226"]
+
+[[stylable-parts]]
+== Стилизуемые части компонентов
+
+Существует несколько основных типов частей, каждая из которых связана с разным типом селектора CSS.
+
+[[root-elements]]
+=== Корневые элементы
+
+Каждый компонент пользовательского интерфейса имеет корневой HTML-элемент, название которого начинается с префикса `vaadin-` или `jmix-`, например `vaadin-button` или `jmix-value-picker`. Например, цвет фона кнопки можно изменить следующим образом:
+
+[source,css,indent=0]
+----
+vaadin-button {
+  background: gray;
+}
+----
+
+[[shadow-parts]]
+=== Теневые части
+
+Теневые части - это элементы внутри shadow DOM компонента, стилизуемые с помощью селектора `::part()`. Например:
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+    background: white;
+    border: 1px dotted black;
+}
+----
+
+[[regular-child-elements]]
+=== Обычные дочерние элементы
+
+Обычные (Light DOM) дочерние HTML-элементы стилизуются с помощью селектора `>`. Например, элемент `label` компонента `TextField` можно стилизовать следующим образом:
+
+[source,css,indent=0]
+----
+vaadin-text-field > label {
+    font-weight: bold;
+}
+----
+
+[[component-states]]
+== Состояния компонентов
+
+Большинство состояний корневых элементов компонентов и их различных частей предоставляются через атрибуты состояния и стилизуются с использованием https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors[селекторов атрибутов^] вида `component-name[state]`. Например, отключенные кнопки идентифицируются селектором `[disabled]`:
+
+[source,css,indent=0]
+----
+vaadin-button[disabled] {
+  background: lightgray;
+  color: darkgray;
+}
+----
+
+[[style-variants]]
+== Варианты стилей компонентов
+
+Многие UI-компоненты поставляются со встроенными вариантами стилей, которые можно использовать для изменения цвета, размера или других визуальных аспектов отдельных экземпляров компонентов через Java API `addThemeVariants()`/`addThemeNames()` или XML-атрибут `themeNames`:
+
+[source,xml,indent=0]
+----
+<hbox>
+    <button text="Primary" themeNames="primary"/>
+    <button text="Success" themeNames="success"/>
+    <button text="Tertiary" themeNames="tertiary"/>
+</hbox>
+----
+
+.Кнопки с примененными вариантами темы
+image::themes/button-theme-variants.png[align="center", width="316"]
+
+Эти варианты применяются к атрибуту `theme` корневых элементов компонентов, и могут быть адресованы с помощью селекторов атрибутов CSS:
+
+[source,css,indent=0]
+----
+vaadin-button[theme~="primary"] {
+    background-color: purple;
+}
+----
+
+[[styling-component-instances]]
+== Стилизация экземпляров компонентов
+
+Если вам нужно применить стили к конкретному экземпляру компонента, вы можете использовать атрибут `classNames`, например:
+
+[source,xml,indent=0]
+----
+<textField classNames="bordered"/>
+----
+
+[source,css,indent=0]
+----
+vaadin-text-field.bordered::part(input-field) {
+    background: white;
+    border: 1px solid black;
+}
+----
+
+[[generating-styles-dynamically]]
+== Динамическая генерация стилей
+
+Если вам нужно динамически генерировать стили на основе какой-либо пользовательской логики, вы можете использовать API `Style`.
+
+Один подход заключается в установке встроенных свойств CSS на корневой элемент компонента, например:
+
+[source,java,indent=0]
+----
+@ViewComponent
+private JmixButton myBtn;
+
+@Subscribe
+public void onInit(final InitEvent event) {
+    myBtn.getStyle().set("color", "white");
+    myBtn.getStyle().set("background-color", "purple");
+}
+----
+
+Недостатком этого подхода является то, что невозможно применить стили к частям компонентов или на основе их состояний.
+
+Другой вариант - использовать свойства CSS, будь то встроенные https://vaadin.com/docs/latest/styling/lumo/lumo-style-properties[свойства Lumo^] или пользовательские, которые статически применяются с помощью CSS, но значения которых устанавливаются через логику приложения:
+
+[source,css,indent=0]
+----
+html {
+    --my-button-text-color: darkblue;
+    --my-button-bg-color: yellow;
+}
+
+vaadin-button.my-button {
+  color: var(--my-button-text-color);
+  background-color: var(--my-button-bg-color);
+}
+----
+
+[source,xml,indent=0]
+----
+<button id="myBtn" text="Button" classNames="my-button"/>
+----
+
+[source,java,indent=0]
+----
+@Subscribe
+public void onInit(final InitEvent event) {
+    UI.getCurrent().getElement().getStyle().set("--my-button-text-color", "white");
+    UI.getCurrent().getElement().getStyle().set("--my-button-bg-color", "purple");
+}
+----
+
+Преимуществом этого подхода является то, что вы можете адресовать части компонентов и несколько компонентов с помощью одного и того же свойства стиля. Это можно использовать, например, для того, чтобы позволить пользователям настраивать стили интерфейса, сохранять их в базе данных и загружать при входе в систему.

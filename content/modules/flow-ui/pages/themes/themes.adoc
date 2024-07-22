@@ -1,0 +1,110 @@
+= Темы
+
+[[applying-theme]]
+== Применение темы
+
+Тема приложения применяется с помощью аннотации `@Theme` с именем папки темы в качестве параметра. Аннотация `@Theme` должна быть размещена на классе, который реализует интерфейс `AppShellConfigurator`, обычно это основной класс приложения.
+
+[source,java,indent=0]
+----
+@Theme(value = "my-theme")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+Вариант темы может быть указан в качестве дополнительного параметра, например *dark* или *light*.
+
+[source,java,indent=0]
+----
+@Theme(value = "my-theme", variant = "dark")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+NOTE: Темы не могут быть переключены во время выполнения. Хотя проект может иметь несколько тем, для UI приложения может быть применена только одна. Однако существуют способы https://vaadin.com/docs/latest/styling/advanced/runtime-theme-switching[переключения между вариантами^] одной и той же темы и https://vaadin.com/docs/latest/styling/advanced/loading-styles-dynamically[динамической загрузки дополнительных стилей^] поверх темы.
+
+[[application-theme]]
+== Тема приложения
+
+Для использования в приложении папка темы размещается внутри папки `frontend/themes`, с именем на ваш выбор. Проекты Jmix, созданные с помощью Studio, имеют предопределенную папку темы с таким же именем, как и сам проект.
+
+.Структура файлов папки темы
+image::themes/theme-folder-structure.png[align="center", width="285"]
+
+* `my-project` - папка темы, также используется как имя темы
+* `styles.css` - основной файл стилей
+* `my-project.css` - точка входа для пользовательских стилей и импортов
+* `theme.json` - файл конфигурации темы, который определяет *jmix-lumo* в качестве темы по умолчанию.
+
+Файл `styles.css` является точкой входа для стилей темы. Весь CSS, включая значения свойств *Lumo* и стили пользовательских компонентов, можно добавить в этот файл.
+
+Можно также разделить CSS на несколько файлов, чтобы избежать загромождения основного файла стилей. Дополнительные файлы CSS загружаются с помощью директив `@import`. По умолчанию основной файл стилей проекта содержит единственный импорт файла `<theme-name>.css`, который определяет ваши стили и любые другие импорты.
+
+[source,css,indent=0]
+.styles.css
+----
+@import url('./my-project.css');
+----
+
+[[reusable-theme]]
+== Переиспользуемая тема
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://vaadin.com/docs/latest/styling/advanced/multi-app-themes" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+</div>
+++++
+
+Тема может быть использована в нескольких приложениях путем упаковки ее в виде JAR-зависимости.
+
+Структура проекта c темой выглядит следующим образом:
+
+.Структура проекта с темой
+image::themes/theme-addon-structure.png[align="center", width="296"]
+
+* `cobalt` - папка темы, также используется как имя темы
+* `styles.css` - основной файл стилей
+* `theme.json` - файл конфигурации темы. Рекомендуется определить *jmix-lumo* в качестве родительской темы, чтобы ваша пользовательская тема включала стили *jmix-lumo*, необходимые для правильной работы компонентов и экранов Jmix UI.
+
+После того, как JAR c темой добавлен в качестве зависимости в проект, упакованную тему можно использовать как самостоятельную тему:
+
+[source,java,indent=0]
+----
+@Theme(value = "cobalt")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+или как родительскую для тем проекта, например:
+
+[source,json,indent=0]
+.theme.json
+----
+{
+  "parent": "cobalt",
+  "lumoImports":["typography","color","spacing","badge","utility"]
+}
+----
+
+В этом случае тема проекта будет загружаться поверх базовой темы, расширяя ее.
+
+[[pluggable-styles]]
+== Подключаемые стили
+
+xref:ROOT:add-ons.adoc[Дополнение] может содержать файл с пользовательскими стилями в каталоге `src/main/resources/META-INF/resources/`. Чтобы добавить эти стили в результирующее приложение, определите свойство `jmix.ui.export-styles` в файле `module.properties`. Значением этого свойства является путь относительно `src/main/resources/META-INF/resources/`, например, `jmix.ui.export-styles = addon-styles/my-addon-styles.css`.
+
+Пользовательские стили добавляются как `<style type="text/css">` в элемент `<head>`, например:
+
+[source,html,indent=0]
+----
+<style type="text/css">
+.test {
+    color: red;
+}
+</style>
+----
+
+IMPORTANT: Используйте этот подход только для небольшого набора стилей, которые нельзя применить к определенному UI-компоненту. Например, для утилитных CSS-классов для экранов внутри дополнения.
