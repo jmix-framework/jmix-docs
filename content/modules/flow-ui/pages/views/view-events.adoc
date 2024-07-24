@@ -1,21 +1,13 @@
 = View Events
 
-This section describes the view lifecycle events that can be handled in controllers.
+This section describes the view lifecycle events that can be handled in controllers. To gain a general understanding of the sequence of events, see the <<diagrams,diagrams>> at the end of the section.
 
-The diagram below shows the process of opening and closing a xref:views/view-classes.adoc#standard-view[standard view]:
+[TIP]
+====
+To generate a view event handler stub in Jmix Studio, select the root `view` element in the *Jmix UI* structure panel and use the *Handlers* tab of the inspector panel.
 
-.Opening and closing a standard view
-image::views/standard-view-lifecycle.svg[align="center"]
-
-The diagram below shows the process of opening a xref:views/view-classes.adoc#standard-detail-view[detail view], either through navigation or as a dialog:
-
-.Opening a detail view for entity editing
-image::views/open-detail-view.svg[align="center"]
-
-The diagram below shows the process of saving changes and closing a detail view:
-
-.Closing the view with xref:actions/view-actions.adoc#detail_saveClose[detail_saveClose] action
-image::views/detail-view-close-with-save.svg[align="center"]
+Alternatively, execute the *Generate Handler* action available in the top panel of the view class and through the *Code* -> *Generate* menu (*Alt+Insert* / *Cmd+N*).
+====
 
 [[init-event]]
 == InitEvent
@@ -27,7 +19,7 @@ image::views/detail-view-close-with-save.svg[align="center"]
 include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-event]
 ----
 
-NOTE: The event is triggered only once after the view is created. This means that if the navigation to the view occurs for the first time, the event triggers. However, if navigation is performed to the same view that is currently open more than once, for example, by clicking on the same menu item multiple times, the event will not be triggered because the view instance has already been created.
+NOTE: The event is triggered only once after the view is created. This means that if the navigation to the view occurs for the first time, the event triggers. However, if navigation is performed to a view that is currently open, for example, by clicking on the same menu item multiple times, the event will not be triggered because the view instance has already been created.
 
 [[before-show-event]]
 == BeforeShowEvent
@@ -39,8 +31,14 @@ NOTE: The event is triggered only once after the view is created. This means tha
 include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=users-loader;before-show-event]
 ----
 
-NOTE: Consequent navigation to the same view that is currently open, leads to triggering `View.BeforeShowEvent` again for the same instance of the view. For example, the user navigates to a view for the first time, then a view instance is created and `View.BeforeShowEvent` triggers. Then, the user clicks on the same menu item, navigating to the same opened view again. We have the same view instance, but `View.BeforeShowEvent` triggers again. +
-If the `View.BeforeShowEvent` listener contains logic to add components or load data, it will be done performed, which could lead to adding duplicate components or reloading data.
+[NOTE]
+====
+Consequent navigation to a view that is currently open, leads to triggering `BeforeShowEvent` again for the same instance of the view.
+
+For example, the user navigates to a view for the first time, the view instance is created and `BeforeShowEvent` is triggered. Then, the user clicks on the same menu item, navigating to the same opened view again, and `BeforeShowEvent` is triggered again for the same view instance. If the `BeforeShowEvent` listener adds components or loads data, it will be done twice, which could lead to duplicating components or reloading data.
+
+`BeforeShowEvent` works this way, because in case of navigation, it is fired by Vaadin's `BeforeEnterEvent` lifecycle event handler.
+====
 
 [[ready-event]]
 == ReadyEvent
@@ -52,10 +50,14 @@ If the `View.BeforeShowEvent` listener contains logic to add components or load 
 include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;ready-event]
 ----
 
-NOTE: Consequent navigation to the same view that is currently open, leads to triggering `View.ReadyEvent` again for the same instance of the view. For example, the user navigates to a view for the first time, then a view instance is created and `View.ReadyEvent` triggers. Then, the user clicks on the same menu item, navigating to the same opened view again. We have the same view instance, but `View.ReadyEvent` triggers again. +
-If the `View.ReadyEvent` listener contains logic to add components or load data, it will be done performed, which could lead to adding duplicate components or reloading data.
+[NOTE]
+====
+Consequent navigation to a view that is currently open, leads to triggering `View.ReadyEvent` again for the same instance of the view.
 
-IMPORTANT: Both `BeforeShowEvent` and `ReadyEvent` work this way, because in case of navigation, they are fired by Vaadin's `BeforeEnterEvent` and `AfterNavigationEvent` lifecycle event handlers respectively.
+For example, the user navigates to a view for the first time, the view instance is created and `View.ReadyEvent` is triggered. Then, the user clicks on the same menu item, navigating to the same opened view again, and `View.ReadyEvent` is triggered again for the same view instance. If the `View.ReadyEvent` listener adds components or loads data, it will be done twice, which could lead to duplicating components or reloading data.
+
+`ReadyEvent` works this way, because in case of navigation, it is fired by Vaadin's `AfterNavigationEvent` lifecycle event handler.
+====
 
 [[attach-event]]
 == AttachEvent
@@ -79,8 +81,7 @@ NOTE: This event is fired by Vaadin, since a view is a UI component too.
 include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=before-close-event]
 ----
 
-NOTE: If you prevent closing the view, in case of navigation you need to postpone it too. Check the type of action and if it's `NavigateCloseAction`, then obtain Vaadin's `BeforeLeaveEvent` and call its `postpone()` method. A more complex example that considering both *dialog* mode and *navigation* can be found in the `io.jmix.flowui.view.StandardDetailView#preventUnsavedChanges` method which handles the default `preventUnsavedChanges` logic.
-
+NOTE: If you prevent closing the view, in case of navigation you need to postpone it too. Check the type of action and if it's `NavigateCloseAction`, then obtain Vaadin's `BeforeLeaveEvent` and call its `postpone()` method.
 
 [[after-close-event]]
 == AfterCloseEvent
@@ -107,7 +108,7 @@ NOTE: This event is fired by Vaadin, since a view is a UI component too.
 [[query-parameters-change-event]]
 == QueryParametersChangeEvent
 
-`QueryParametersChangeEvent` is an event that informs which query parameters a view was opened with.
+`QueryParametersChangeEvent` informs which query parameters a view was opened with. It is sent after `InitEvent` if the view was opened by navigation.
 
 [source,java,indent=0]
 ----
@@ -117,7 +118,7 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/user/User
 [[init-entity-event]]
 == InitEntityEvent
 
-`InitEntityEvent` is fired in views inherited from xref:views/view-classes.adoc#standard-detail-view[StandardDetailView] before the new entity instance is set to edited entity container.
+`InitEntityEvent` is fired in views inherited from xref:views/view-classes.adoc#standard-detail-view[StandardDetailView] before the new entity instance is set to the edited entity container.
 
 Use this event listener to initialize default values in the new entity instance, for example:
 
@@ -157,3 +158,34 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/user/User
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=notifications-bean;after-save-event]
 ----
+
+[[diagrams]]
+== Diagrams
+
+[[opening-standard-view]]
+=== Opening Standard View
+
+The following diagram shows the process of opening a xref:views/view-classes.adoc#standard-view[standard view]:
+
+image::views/open-standard-view.svg[align="center"]
+
+[[closing-standard-view]]
+=== Closing Standard View
+
+The following diagram shows the process of closing a xref:views/view-classes.adoc#standard-view[standard view]:
+
+image::views/close-standard-view.svg[align="center"]
+
+[[opening-entity-detail-view]]
+=== Opening Entity Detail View
+
+The following diagram shows the process of opening a xref:views/view-classes.adoc#standard-detail-view[detail view]:
+
+image::views/open-detail-view.svg[align="center"]
+
+[[closing-entity-detail-view]]
+=== Closing Entity Detail View
+
+The following diagram shows the process of saving changes and closing a detail view by the xref:actions/view-actions.adoc#detail_saveClose[detail_saveClose] action:
+
+image::views/detail-view-close-with-save.svg[align="center"]

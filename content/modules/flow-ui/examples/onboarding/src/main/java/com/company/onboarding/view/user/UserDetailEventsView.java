@@ -42,7 +42,8 @@ public class UserDetailEventsView extends StandardDetailView<User> {
     // tag::init-entity-event[]
     @Subscribe
     public void onInitEntity(final InitEntityEvent<User> event) {
-        event.getEntity().setOnboardingStatus(OnboardingStatus.NOT_STARTED);
+        User user = event.getEntity();
+        user.setOnboardingStatus(OnboardingStatus.NOT_STARTED);
     }
     // end::init-entity-event[]
 
