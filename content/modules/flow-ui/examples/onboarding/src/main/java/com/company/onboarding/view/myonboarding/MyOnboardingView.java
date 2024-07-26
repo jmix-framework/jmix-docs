@@ -122,10 +122,12 @@ public class MyOnboardingView extends StandardView {
         close(StandardOutcome.SAVE);
     }
 
+    // tag::close-with-discard[]
     @Subscribe("discardButton")
     public void onDiscardButtonClick(ClickEvent<Button> event) {
         close(StandardOutcome.DISCARD);
     }
+    // end::close-with-discard[]
 
     @Install(to = "stepsDataGrid", subject = "classNameGenerator")
     private String stepsDataGridClassNameGenerator(UserStep entity) {

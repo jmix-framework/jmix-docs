@@ -1,0 +1,197 @@
+= События экранов
+
+Этот раздел описывает события жизненного цикла экранов, которые можно обрабатывать в контроллерах. Для получения общего представления о последовательности событий, см. <<diagrams,диаграммы>> в конце раздела.
+
+[TIP]
+====
+Для генерации обработчика события экрана в Jmix Studio, выберите корневой элемент `view` в панели структуры *Jmix UI* и используйте вкладку *Handlers* панели инспектора.
+
+В качестве альтернативы, выполните действие *Generate Handler*, доступное в верхней панели класса экрана и через меню *Code* -> *Generate* (*Alt+Insert* / *Cmd+N*).
+====
+
+[[init-event]]
+== InitEvent
+
+`InitEvent` — это первое событие в процессе открытия экрана. Экран и все его компоненты, определенные декларативно, созданы, инжекция зависимостей выполнена. Некоторые визуальные компоненты не полностью инициализированы, например, кнопки не связаны с действиями. В этом событии можно создавать и/или инициализировать визуальные компоненты и компоненты данных.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-event]
+----
+
+[NOTE]
+====
+Событие отсылается только один раз после создания экрана. Это означает, что если навигация на экран происходит впервые, то событие отсылается. Однако, если навигация выполняется на экран, который уже открыт, например, при повторном клике на один и тот же элемент меню, событие не будет отослано снова, потому что экран уже создан.
+====
+
+[[before-show-event]]
+== BeforeShowEvent
+
+`BeforeShowEvent` — это второе событие (после `View.InitEvent`) в процессе открытия экрана. Все компоненты завершили внутреннюю процедуру инициализации. xref:data/data-loaders.adoc[Загрузчики данных] вызваны автоматически настроенным фасетом xref:facets/dataLoadCoordinator.adoc[DataLoadCoordinator]. Политики безопасности применены к UI-компонентам. В этом событии можно загружать данные, проверять разрешения и модифицировать UI-компоненты. Например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=users-loader;before-show-event]
+----
+
+[NOTE]
+====
+Повторная навигация на экран, который уже открыт, приводит к отсылке `BeforeShowEvent` снова для одного и того же экземпляра экрана.
+
+Например, пользователь переходит на экран впервые, создается экземпляр экрана и отсылается `BeforeShowEvent`. Затем пользователь нажимает на тот же элемент меню, переходя на этот же открытый экран снова, и `BeforeShowEvent` отсылается снова для этого же экземпляра экрана. Если обработчик `BeforeShowEvent` добавляет компоненты или загружает данные, это произойдет дважды, что может привести к дублированию компонентов или повторной загрузке данных.
+
+`BeforeShowEvent` работает так потому, что в случае навигации это событие отсылается в обработчике события жизненного цикла Vaadin `BeforeEnterEvent`.
+====
+
+[[ready-event]]
+== ReadyEvent
+
+`ReadyEvent` — это последнее событие (после `View.BeforeShowEvent`) в процессе открытия экрана. В обработчике этого события можно выполнить окончательную конфигурацию экрана в соответствии с загруженными данными и показать уведомления или диалоги.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;ready-event]
+----
+
+[NOTE]
+====
+Повторная навигация на экран, который уже открыт, приводит к отсылке `View.ReadyEvent` снова для того же экземпляра экрана.
+
+Например, пользователь переходит на экран впервые, создается экземпляр экрана и отсылается `ReadyEvent`. Затем пользователь нажимает на тот же элемент меню, переходя на этот же открытый экран снова, и `ReadyEvent` отсылается снова для этого же экземпляра экрана. Если обработчик `ReadyEvent` добавляет компоненты или загружает данные, это произойдет дважды, что может привести к дублированию компонентов или повторной загрузке данных.
+
+`ReadyEvent` работает так потому, что в случае навигации  это событие отсылается в обработчике события жизненного цикла Vaadin `AfterNavigationEvent`.
+====
+
+[[attach-event]]
+== AttachEvent
+
+`AttachEvent` отсылается после того, как экран прикреплен к UI.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=attach-event]
+----
+
+[NOTE]
+====
+Это событие отсылается Vaadin, поскольку экран также является UI-компонентом.
+====
+
+[[before-close-event]]
+== BeforeCloseEvent
+
+`BeforeCloseEvent` - это первое событие в процессе закрытия экрана. Экран все еще отображается и полностью функционален. В обработчике этого события вы можете проверить любые условия и предотвратить закрытие с помощью метода `preventClose()` события.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=before-close-event]
+----
+
+NOTE: Если вы предотвращаете закрытие экрана, в случае навигации вам нужно ее отложить. Проверьте тип действия, и если это `NavigateCloseAction`, получите `BeforeLeaveEvent` Vaadin и вызовите его метод `postpone()`.
+
+[[after-close-event]]
+== AfterCloseEvent
+
+`AfterCloseEvent` - это второе событие (после `View.BeforeCloseEvent`) в процессе закрытия экрана. В обработчике этого события вы можете показывать уведомления или диалоги после закрытия экрана, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;after-close-event]
+----
+
+[[detach-event]]
+== DetachEvent
+
+`DetachEvent` срабатывает перед отсоединением экрана от пользовательского интерфейса. Этот обработчик событий можно использовать для освобождения ресурсов, захваченных экраном.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=detach-event]
+----
+
+NOTE: Это событие генерируется Vaadin, поскольку экран также является UI-компонентом.
+
+[[query-parameters-change-event]]
+== QueryParametersChangeEvent
+
+`QueryParametersChangeEvent` информирует, с какими параметрами запроса был открыт экран. Он отсылается после `InitEvent`, если экран был открыт навигацией.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=query-parameters-change-event]
+----
+
+[[init-entity-event]]
+== InitEntityEvent
+
+`InitEntityEvent` отсылается в экранах, унаследованных от xref:views/view-classes.adoc#standard-detail-view[StandardDetailView], перед установкой нового экземпляра сущности в контейнер редактируемой сущности.
+
+Используйте обработчик этого события для инициализации значений в новом экземпляре сущности, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-entity-event]
+----
+
+[[validation-event]]
+== ValidationEvent
+
+`ValidationEvent` отсылается в экранах, унаследованных от `StandardDetailView`, когда экран проходит валидацию при сохранении xref:data/data-context.adoc[DataContext] экрана. Используйте обработчик этого события для выполнения дополнительной проверки экрана.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=validation-event]
+----
+
+[[before-save-vent]]
+== BeforeSaveEvent
+
+`BeforeSaveEvent` отсылается в экранах, унаследованных от `StandardDetailView`, перед сохранением `DataContext` экрана. Используйте обработчик этого события для предотвращения сохранения, изменения значений атрибутов сущности перед сохранением и/или взаимодействия с пользователем перед сохранением.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=before-save-event]
+----
+<1> Прервать процесс сохранения, если пароли не совпадают.
+<2> Установить закодированный пароль в сущность.
+
+[[after-save-event]]
+== AfterSaveEvent
+
+`AfterSaveEvent` отсылается в экранах, унаследованных от `StandardDetailView`, после сохранения `DataContext` экрана. Используйте обработчик этого события для уведомления пользователей после сохранения, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=notifications-bean;after-save-event]
+----
+
+[[diagrams]]
+== Диаграммы
+
+[[opening-standard-view]]
+=== Открытие стандартного экрана
+
+На следующей диаграмме показан процесс открытия xref:views/view-classes.adoc#standard-view[стандартного экрана]:
+
+image::views/open-standard-view.svg[align="center"]
+
+[[closing-standard-view]]
+=== Закрытие стандартного экрана
+
+На следующей диаграмме показан процесс закрытия xref:views/view-classes.adoc#standard-view[стандартного экрана]:
+
+image::views/close-standard-view.svg[align="center"]
+
+[[opening-entity-detail-view]]
+=== Открытие экрана деталей сущности
+
+На следующей диаграмме показан процесс открытия xref:views/view-classes.adoc#standard-detail-view[экрана деталей]:
+
+image::views/open-detail-view.svg[align="center"]
+
+[[closing-entity-detail-view]]
+=== Закрытие экрана деталей сущности
+
+На следующей диаграмме показан процесс сохранения изменений и закрытия экрана деталей действием xref:actions/view-actions.adoc#detail_saveClose[detail_saveClose]:
+
+image::views/detail-view-close-with-save.svg[align="center"]

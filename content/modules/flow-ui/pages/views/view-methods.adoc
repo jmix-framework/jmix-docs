@@ -1,0 +1,128 @@
+= Методы экранов
+
+В этой секции описаны некоторые методы базовых классов экранов, которые можно вызывать или переопределять в коде приложения.
+
+[[methods-of-all-views]]
+== Методы всех экранов
+
+* `close()` - запрашивает закрытие экрана с переданным результатом - значением перечисления `StandardOutcome` или объектом `CloseAction`.
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=close-with-discard]
+----
++
+Значение параметра передается в события xref:views/view-events.adoc#before-close-event[BeforeCloseEvent] и xref:views/view-events.adoc#after-close-event[AfterCloseEvent], поэтому информация о причине закрытия экрана может быть получена в слушателях.
+
+* `closeWithDefaultAction()` - запрашивает закрытие экрана с результатом `StandardOutcome.CLOSE`.
+
+[[prevent-browser-tab-closing]]
+* `setPreventBrowserTabClosing()` - устанавливает, должен ли этот экран предотвращать случайное закрытие вкладки браузера, если свойство xref:ui-properties.adoc#jmix.ui.view.prevent-browser-tab-closing[jmix.ui.view.prevent-browser-tab-closing] установлено в `true` (по умолчанию `false`). Включено по умолчанию для xref:views/view-classes.adoc#standard-detail-view[экранов деталей].
+
+* `getViewData()` - возвращает объект `ViewData`, который служит реестром всех xref:data-components.adoc[компонентов данных], определенных в XML-дескрипторе экрана. Вы можете использовать его метод `loadAll()`, чтобы запустить все загрузчики данных экрана:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=view-data]
+----
+
+* `getViewAttributes()` - возвращает объект `ViewAttributes`, который служит хранилищем именованных значений. Использует `VaadinSession` для хранения. Например, экран деталей использует `ViewAttributes` для хранения _состояния только чтение_ и _статуса блокировки_ и возвращения этих установок при обновлении экрана.
+
+* `getPageTitle()` - возвращает заголовок экрана. По умолчанию возвращает локализованное значение, определенное в XML-дескрипторе экрана. Может быть переопределен для динамического предоставления заголовка, например:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=page-title]
+----
+
+* `beforeLeave()` - callback, который выполняется перед переходом на другой экран. Часть {vaadin-docs}/flow/routing/lifecycle/[жизненного цикла навигации^] Vaadin.
+** Событие позволяет отложить, отменить или изменить адрес перехода.
+** Не выполняется, когда экран открывается в диалоговом режиме.
+** Не должен быть переопределен без вызова метода `super()`, т.к. базовая реализация выполняет код, связанный с фреймворком.
+
+* `beforeEnter()` - callback, который выполняется перед переходом на экран. Часть жизненного цикла навигации Vaadin.
+** Может использоваться для получения объекта `Location` и изменения адреса для перехода на другой экран.
+** Не выполняется, когда экран открывается в диалоговом режиме.
+** Не должен быть переопределен без вызова метода `super()`, т.к. базовая реализация выполняет код, связанный с фреймворком.
+
+* `afterNavigation()` - callback, который выполняется после завершения навигации. Часть жизненного цикла навигации Vaadin.
+** Может использоваться для получения объекта `Location`.
+** Не выполняется, когда экран открывается в диалоговом режиме.
+** Не должен быть переопределен без вызова метода `super()`, т.к. базовая реализация выполняет код, связанный с фреймворком.
+
+[[methods-of-standard-list]]
+== Методы StandardListView
+
+* `closeWithDiscard()` - запрашивает закрытие экрана с результатом `StandardOutcome.DISCARD`.
+
+* `getLookupComponent() / findLookupComponent()` - возвращает компонент для получения значения из данного xref:views/view-classes.adoc#standard-list-view[экрана списка]. По умолчанию, возвращает компонент с `id`, указанным в аннотации xref:views/view-annotations.adoc#lookup-component[@LookupComponent].
+
+* `setSelectionValidator()` - устанавливает предикат, который проверяет, могут ли выбранные элементы быть обработаны `SelectionHandler`.
+
+* `setSelectionHandler()` - устанавливает callback, который обрабатывает выбранные элементы. По умолчанию, добавляет элементы в xref:data/collection-container.adoc[collection container], если просмотр списка открыт для компонента xref:vc/components/dataGrid.adoc[] или устанавливает одиночное значение, если экран списка открыт для поля, например xref:vc/components/entityPicker.adoc[].
++
+[source,java,indent=0]
+----
+DialogWindow<View<?>> dialog = dialogWindows.lookup(ProjectDetailView.this, User.class) // <1>
+        .withSelectHandler(users -> { // <2>
+            for (User user : users) {
+                ProjectParticipant projectParticipant = dataManager.create(ProjectParticipant.class);
+                projectParticipant.setUser(user);
+                projectParticipant.setProject(getEditedEntity());
+                projectParticipant.setRole(projectRole);
+                participantsDc.getMutableItems().add(projectParticipant);
+            }
+        })
+        .build();
+
+View<?> view = dialog.getView();
+if (view instanceof MultiSelectLookupView multiSelectLookupView) { // <3>
+    multiSelectLookupView.setLookupComponentMultiSelect(true);
+}
+
+dialog.open();
+----
+<1> Создание билдера экрана списка, не связанного с каким-либо UI-компонентом.
+<2> Задание обработчика выбора для экрана списка.
+<3> Проверка, поддерживает ли данный экран списка множественный выбор.
+
+[[methods-of-standard-detail]]
+== Методы StandardDetailView
+
+* `getEditedEntity()` - когда экран открыт, возвращает экземпляр
+редактируемой сущности. Это экземпляр, который установлен в контейнер данных, указанный в аннотации xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer].
++
+В слушателе xref:views/view-events.adoc#init-event[InitEvent] этот метод возвращает `null`. В слушателе xref:views/view-events.adoc#before-show-event[BeforeShowEvent] этот метод возвращает экземпляр, переданный экрану для редактирования (позже в процессе открытия экрана сущность перезагружается и в контейнер данных устанавливается другой экземпляр).
+
+Методы, которые можно использовать для закрытия экрана деталей:
+
+[[close-with-save-method]]
+* `closeWithSave()` - проверяет и сохраняет изменения, затем закрывает экран с результатом `StandardOutcome.SAVE`. Вы можете вызвать этот метод из слушателя события (например, xref:vc/components/button.adoc#ClickEvent[ClickEvent]) или добавить в экран встроенное действие `detail_saveClose`.
+
+* `closeWithDiscard()` - игнорирует любые несохраненные изменения и закрывает экран с результатом `StandardOutcome.DISCARD`. Вы можете вызвать этот метод из слушателя события (например, xref:vc/components/button.adoc#ClickEvent[ClickEvent]) или добавить в экран встроенное действие `detail_discard`.
+
+Если экран закрывается с помощью `close(StandardOutcome.CLOSE)` или `closeWithDefaultAction()` и имеет несохраненные изменения в xref:data/data-context.adoc[DataContext], то перед закрытием экрана будет отображен диалог с соответствующим сообщением. Тип уведомления можно настроить с помощью свойства приложения xref:ui-properties.adoc#jmix.ui.view.use-save-confirmation[jmix.ui.view.use-save-confirmation]. Если вы используете методы `closeWithDiscard()` или `close(StandardOutcome.DISCARD)`, несохраненные изменения игнорируются без какого-либо сообщения.
+
+* `save()` - валидирует и сохраняет изменения без закрытия экрана. Вы можете вызвать этот метод из слушателя события (например, xref:vc/components/button.adoc#ClickEvent[ClickEvent]) или добавить в экран встроенное действие `detail_save`. Кроме того, метод `save()` можно переопределить для выполнения некоторых операций после сохранения данных, например:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=overridden-save-method]
+----
+<1> Вызов базового метода для выполнения стандартной логики.
+<2> Выполнение дополнительных действий после сохранения данных.
+
+* `setReloadSaved(boolean)` - устанавливает, должен ли редактируемый экземпляр сущности быть перезагружен после вызова xref:views/view-methods.adoc#close-with-save-method[closeWithSave()] метода. По умолчанию `false`.
++
+Этот метод вызывается фреймворком со значением `true`, когда экран открывается в диалоговом режиме, для возврата сохраненного экземпляра из открытого экрана. Если вам не нужно перезагружать сохраненный экземпляр в диалоговом режиме, вызовите `setReloadSaved(false)` в слушателе xref:views/view-events.adoc#ready-event[ReadyEvent].
+
+* `setShowSaveNotification(boolean)` - устанавливает, должно ли быть показано уведомление при успешном сохранении. По умолчанию `true`.
+
+* `setShowValidationErrors(boolean)` - устанавливает, должны ли быть показаны ошибки после валидации компонентов с помощью метода xref:views/view-validation.adoc#showValidationErrors[showValidationErrors()]. По умолчанию `true`.
+
+* `setCrossFieldValidationEnabled(boolean)` - устанавливает, должна ли выполняться кросс-проверка полей перед сохранением изменений. Использует xref:data-model:bean-validation.adoc#constraint-groups[группу ограничений] `UiCrossFieldChecks` для проверки экземпляра сущности. По умолчанию `true`.
+
+* `getLockStatus()` - Возвращает статус xref:pessimistic-lock:index.adoc[пессимистической блокировки] текущего редактируемого экземпляра сущности. Возможные варианты:
+** `LockStatus.NOT_SUPPORTED` - если сущность не поддерживает пессимистическую блокировку.
+** `LockStatus.LOCKED` - если экземпляр сущности успешно заблокирован.
+** `LockStatus.FAILED` - если блокировка не удалась из-за того, что сущность уже заблокирована другим пользователем.
