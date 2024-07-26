@@ -1,0 +1,191 @@
+= View Events
+
+This section describes the view lifecycle events that can be handled in controllers. To gain a general understanding of the sequence of events, see the <<diagrams,diagrams>> at the end of the section.
+
+[TIP]
+====
+To generate a view event handler stub in Jmix Studio, select the root `view` element in the *Jmix UI* structure panel and use the *Handlers* tab of the inspector panel.
+
+Alternatively, execute the *Generate Handler* action available in the top panel of the view class and through the *Code* -> *Generate* menu (*Alt+Insert* / *Cmd+N*).
+====
+
+[[init-event]]
+== InitEvent
+
+`InitEvent` is the first event in the view opening process. The view and all its declaratively defined components are created, and dependency injection is completed. Some visual components are not fully initialized, for example, buttons are not linked with actions. In this event listener, you can create visual and data components.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-event]
+----
+
+NOTE: The event is triggered only once after the view is created. This means that if the navigation to the view occurs for the first time, the event triggers. However, if navigation is performed to a view that is currently open, for example, by clicking on the same menu item multiple times, the event will not be triggered because the view instance has already been created.
+
+[[before-show-event]]
+== BeforeShowEvent
+
+`BeforeShowEvent` is the second event (after `View.InitEvent`) in the view opening process. All components have completed their internal initialization procedures. xref:data/data-loaders.adoc[Data loaders] have been triggered by the automatically configured xref:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] facet. Security restrictions are applied to UI components. In this event listener, you can load data, check permissions and modify UI components. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=users-loader;before-show-event]
+----
+
+[NOTE]
+====
+Consequent navigation to a view that is currently open, leads to triggering `BeforeShowEvent` again for the same instance of the view.
+
+For example, the user navigates to a view for the first time, the view instance is created and `BeforeShowEvent` is triggered. Then, the user clicks on the same menu item, navigating to the same opened view again, and `BeforeShowEvent` is triggered again for the same view instance. If the `BeforeShowEvent` listener adds components or loads data, it will be done twice, which could lead to duplicating components or reloading data.
+
+`BeforeShowEvent` works this way, because in case of navigation, it is fired by Vaadin's `BeforeEnterEvent` lifecycle event handler.
+====
+
+[[ready-event]]
+== ReadyEvent
+
+`ReadyEvent` is the last event (after `View.BeforeShowEvent`) in the view opening process. In this event listener, you can make final configuration of the view according to loaded data and show notifications or dialogs.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;ready-event]
+----
+
+[NOTE]
+====
+Consequent navigation to a view that is currently open, leads to triggering `View.ReadyEvent` again for the same instance of the view.
+
+For example, the user navigates to a view for the first time, the view instance is created and `View.ReadyEvent` is triggered. Then, the user clicks on the same menu item, navigating to the same opened view again, and `View.ReadyEvent` is triggered again for the same view instance. If the `View.ReadyEvent` listener adds components or loads data, it will be done twice, which could lead to duplicating components or reloading data.
+
+`ReadyEvent` works this way, because in case of navigation, it is fired by Vaadin's `AfterNavigationEvent` lifecycle event handler.
+====
+
+[[attach-event]]
+== AttachEvent
+
+`AttachEvent` is fired after a view is attached to the UI.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=attach-event]
+----
+
+NOTE: This event is fired by Vaadin, since a view is a UI component too.
+
+[[before-close-event]]
+== BeforeCloseEvent
+
+`BeforeCloseEvent` is the first event in the view closing process. The view is still displayed and fully functional. In this event listener, you can check any conditions and prevent closing using the `preventClose()` method of the event.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=before-close-event]
+----
+
+NOTE: If you prevent closing the view, in case of navigation you need to postpone it too. Check the type of action and if it's `NavigateCloseAction`, then obtain Vaadin's `BeforeLeaveEvent` and call its `postpone()` method.
+
+[[after-close-event]]
+== AfterCloseEvent
+
+`AfterCloseEvent` is the second event (after `View.BeforeCloseEvent`) in the view closing process. In this event listener, you can show notifications or dialogs after closing the view, for example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;after-close-event]
+----
+
+[[detach-event]]
+== DetachEvent
+
+`DetachEvent` is fired before a view is detached from the UI. This event listener can be used for releasing resources acquired by the view.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=detach-event]
+----
+
+NOTE: This event is fired by Vaadin, since a view is a UI component too.
+
+[[query-parameters-change-event]]
+== QueryParametersChangeEvent
+
+`QueryParametersChangeEvent` informs which query parameters a view was opened with. It is sent after `InitEvent` if the view was opened by navigation.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=query-parameters-change-event]
+----
+
+[[init-entity-event]]
+== InitEntityEvent
+
+`InitEntityEvent` is fired in views inherited from xref:views/view-classes.adoc#standard-detail-view[StandardDetailView] before the new entity instance is set to the edited entity container.
+
+Use this event listener to initialize default values in the new entity instance, for example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-entity-event]
+----
+
+[[validation-event]]
+== ValidationEvent
+
+`ValidationEvent` is fired in views inherited from `StandardDetailView` when the view is validated on saving the view xref:data/data-context.adoc[DataContext]. Use this event listener to perform additional validation of the view.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=validation-event]
+----
+
+[[before-save-vent]]
+== BeforeSaveEvent
+
+`BeforeSaveEvent` is fired in views inherited from `StandardDetailView` before saving the view `DataContext`. Use this event listener to prevent saving, alter entity attribute values before saving or/and interact with the user before save.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=before-save-event]
+----
+<1> - Interrupt the saving process if passwords do not match
+<2> - Set encoded password to the entity
+
+[[after-save-event]]
+== AfterSaveEvent
+
+`AfterSaveEvent` is fired in views inherited from `StandardDetailView` after saving the view `DataContext`. Use this event listener to notify users after save, for example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=notifications-bean;after-save-event]
+----
+
+[[diagrams]]
+== Diagrams
+
+[[opening-standard-view]]
+=== Opening Standard View
+
+The following diagram shows the process of opening a xref:views/view-classes.adoc#standard-view[standard view]:
+
+image::views/open-standard-view.svg[align="center"]
+
+[[closing-standard-view]]
+=== Closing Standard View
+
+The following diagram shows the process of closing a xref:views/view-classes.adoc#standard-view[standard view]:
+
+image::views/close-standard-view.svg[align="center"]
+
+[[opening-entity-detail-view]]
+=== Opening Entity Detail View
+
+The following diagram shows the process of opening a xref:views/view-classes.adoc#standard-detail-view[detail view]:
+
+image::views/open-detail-view.svg[align="center"]
+
+[[closing-entity-detail-view]]
+=== Closing Entity Detail View
+
+The following diagram shows the process of saving changes and closing a detail view by the xref:actions/view-actions.adoc#detail_saveClose[detail_saveClose] action:
+
+image::views/detail-view-close-with-save.svg[align="center"]

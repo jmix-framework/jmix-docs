@@ -1,0 +1,128 @@
+= View Methods
+
+In this section, we describe some methods of view controller base classes that can be invoked or overridden in the application code.
+
+[[methods-of-all-views]]
+== Methods of All Views
+
+* `close()` - requests closing the view with the passed `StandardOutcome` enum value or a `CloseAction` object.
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=close-with-discard]
+----
++
+The parameter value is propagated to the xref:views/view-events.adoc#before-close-event[BeforeCloseEvent] and xref:views/view-events.adoc#after-close-event[AfterCloseEvent], so the information about the reason why the view was closed can be obtained in the listeners.
+
+* `closeWithDefaultAction()` - requests closing the view with `StandardOutcome.CLOSE`.
+
+[[prevent-browser-tab-closing]]
+* `setPreventBrowserTabClosing()` - sets whether this view should prevent the browser tab from closing accidentally if the xref:ui-properties.adoc#jmix.ui.view.prevent-browser-tab-closing[jmix.ui.view.prevent-browser-tab-closing] property is set to `true` (which is `false` by default). Enabled by default for xref:views/view-classes.adoc#standard-detail-view[detail views].
+
+* `getViewData()` - returns the `ViewData` object that serves as a registry for all xref:data-components.adoc[data components] defined in the view XML descriptor. You can use its `loadAll()` method to trigger all data loaders of the view:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=view-data]
+----
+
+* `getViewAttributes()` - returns the `ViewAttributes` object that serves as a storage of values associated with their names. Uses `VaadinSession` as a store. For example, a detail view uses `ViewAttributes` to store the _read-only state_ and _locked status_ and revert these settings if a view is refreshed.
+
+* `getPageTitle()` - returns the title of a view. By default, returns localized value defined in a view descriptor. Can be overridden to provide the title dynamically, for example:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=page-title]
+----
+
+* `beforeLeave()` - a callback that is executed before the navigation to another view is performed. Part of Vaadin's {vaadin-docs}/flow/routing/lifecycle/[navigation lifecycle^].
+** The event allows the navigation to be _postponed_, _canceled_, or _changed_ to a different destination.
+** Is not executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super()` method as it executes framework related code.
+
+* `beforeEnter()` - a callback that is executed before navigating to a view. Part of Vaadin's navigation lifecycle.
+** Can be used to obtain the `Location` object and enables changing the navigation target to go to a different destination from the original one.
+** Is not executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super()` method as it executes framework related code.
+
+* `afterNavigation()` - a callback that is executed after navigation has been completed. Part of Vaadin's navigation lifecycle.
+** Can be used to obtain the `Location` object.
+** Is not executed when a view is opened in a dialog mode.
+** Must not be overridden without calling `super()` method as it executes framework related code.
+
+[[methods-of-standard-list]]
+== Methods of StandardListView
+
+* `closeWithDiscard()` - requests closing the view with `StandardOutcome.DISCARD`.
+
+* `getLookupComponent() / findLookupComponent()` - returns a component to be used for getting a value returned from this xref:views/view-classes.adoc#standard-list-view[lookup view]. By default, returns a component with an `id` specified by the xref:views/view-annotations.adoc#lookup-component[@LookupComponent] annotation.
+
+* `setSelectionValidator()` - sets a predicate that tests if selected items can be processed by `SelectionHandler`.
+
+* `setSelectionHandler()` - sets a callback that handles selected items. By default, adds items to a xref:data/collection-container.adoc[collection container] if a lookup view is opened for a xref:vc/components/dataGrid.adoc[] component or sets a single value if a lookup view is opened for a field, for example xref:vc/components/entityPicker.adoc[].
++
+[source,java,indent=0]
+----
+DialogWindow<View<?>> dialog = dialogWindows.lookup(ProjectDetailView.this, User.class) // <1>
+        .withSelectHandler(users -> { // <2>
+            for (User user : users) {
+                ProjectParticipant projectParticipant = dataManager.create(ProjectParticipant.class);
+                projectParticipant.setUser(user);
+                projectParticipant.setProject(getEditedEntity());
+                projectParticipant.setRole(projectRole);
+                participantsDc.getMutableItems().add(projectParticipant);
+            }
+        })
+        .build();
+
+View<?> view = dialog.getView();
+if (view instanceof MultiSelectLookupView multiSelectLookupView) { // <3>
+    multiSelectLookupView.setLookupComponentMultiSelect(true);
+}
+
+dialog.open();
+----
+<1> - Create a lookup view builder not bound to any UI component.
+<2> - Define selection handler for the lookup view.
+<3> - Check if actual lookup view supports multiple selection.
+
+[[methods-of-standard-detail]]
+== Methods of StandardDetailView
+
+* `getEditedEntity()` - when the view is shown, returns an instance of the entity being edited. It’s the instance that is set in the data container specified in the xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer] annotation.
++
+In the xref:views/view-events.adoc#init-event[InitEvent] listener, this method returns `null`. In the xref:views/view-events.adoc#before-show-event[BeforeShowEvent] listener, this method returns the instance passed to the view for editing (later in the view opening process the entity is reloaded and a different instance is set to the data container).
+
+The following methods can be used to close the edit screen:
+
+[[close-with-save-method]]
+* `closeWithSave()` - validates and saves changes, then closes the view with `StandardOutcome.SAVE`. You can call this method from a custom event listener or add the built-in `detail_saveClose` action to the view.
+
+* `closeWithDiscard()` - ignores any unsaved changes and closes the view with `StandardOutcome.DISCARD`. You can call this method from a custom event listener or add the built-in `detail_discard` action to the view.
+
+If the view is closed using `close(StandardOutcome.CLOSE)` or `closeWithDefaultAction()` and has unsaved changes in its xref:data/data-context.adoc[DataContext], a dialog with a corresponding message will be displayed before the view is closed. You can adjust the notification type using the xref:ui-properties.adoc#jmix.ui.view.use-save-confirmation[jmix.ui.view.use-save-confirmation] application property. If you use the `closeWithDiscard()` or `close(StandardOutcome.DISCARD)` methods, unsaved changes are ignored without any message.
+
+
+* `save()` - validates and saves changes without closing the view. You can call this method from a custom event listener or add the built-in `detail_save` action to the view. Also, you can override the `save()` method to perform some operations after the data has been saved, for example:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=overridden-save-method]
+----
+<1> - Call super method to execute the default logic.
+<2> - You can perform actions after the data has been saved.
+
+* `setReloadSaved(boolean)` - sets whether edited entity should be reloaded after the xref:views/view-methods.adoc#close-with-save-method[closeWithSave()] method is invoked. The default value is `false`.
++
+This method is invoked by the framework with `true` value when the view is opened in the dialog mode to return a result from the opened view. If you don't need to reload the saved entity in dialog mode, invoke `setReloadSaved(false)` in a xref:views/view-events.adoc#ready-event[ReadyEvent] listener.
+
+* `setShowSaveNotification(boolean)` - sets whether a notification should be shown in case of a successful save. The default value is `true`.
+
+* `setShowValidationErrors(boolean)` - sets whether to indicate about errors after components validation using the xref:views/view-validation.adoc#showValidationErrors[showValidationErrors()] method. The default value is `true`.
+
+* `setCrossFieldValidationEnabled(boolean)` - sets whether cross-field validation should be performed before saving changes. It uses `UiCrossFieldChecks` constraint group to validate bean instance. The default value is `true`.
+
+* `getLockStatus()` - Returns xref:pessimistic-lock:index.adoc[pessimistic lock] status of the currently edited entity instance. Possible variants:
+** `LockStatus.NOT_SUPPORTED` - if the entity does not support locking.
+** `LockStatus.LOCKED` - if the entity instance is successfully locked.
+** `LockStatus.FAILED` - if the lock failed because the entity is already locked by someone else.
