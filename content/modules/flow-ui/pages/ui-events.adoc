@@ -1,0 +1,59 @@
+= UI Events
+
+You can use the Spring's `ApplcationEvent` to notify about events that have occurred and to respond to them in different parts of the application.
+
+To deliver application events to UI components including opened xref:views.adoc[views] you need to use the `UiEventPublisher` bean provided by the framework.
+
+To correctly update the UI, the class that implements `AppShellConfigurator` must contain the `@Push` annotation. Usually, this is the main Spring Boot application class:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/OnboardingApplication.java[tags=main-class-push;main-class]
+----
+
+The `UiEventPublisher` bean provides the following methods:
+
+* `publishEventForCurrentUI()` - publishes event only to the currently active browser tab from which the event was sent.
+
+* `publishEvent()` - publishes event to all browser tabs for the current session.
+
+* `publishEventForUsers()` - publishes the event to all browser tabs for all sessions of the users specified in the `usernames` collection, which is passed as a second parameter. If the `usernames` collection is `null` the event will be published for all users.
+
+
+[[usage-example]]
+== Usage Example
+
+Consider the following development task: users need to complete the onboarding process by following some steps. Each step is represented by an entity instance and there is a view that shows information about completed steps. Also, users need a reminder about the number of uncompleted steps, which updates its value every time the steps are updated. For example, a badge in a menu item, so as not to go to a statistics view every time.
+
+Entity instances representing steps can be updated in entity detail views or in the business logic of the application. The menu item badge should be updated whenever an entity related to the current user changes.
+
+The solution to the task above is as follows:
+
+. Create an event class:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/event/OnboardingStatusChangedEvent.java[tags=application-event]
+----
+
+. Create an event listener in the view that should be notified. In the example below it’s the main view:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/main/MainView.java[tags=init-event;!init-initialLayout;ui-event-listener]
+----
+<1> Update onboarding status the first time a user opens the main view.
+<2> Annotate a method with the `@EventListener` annotation to enable handling of application events in the view.
+<3> Get uncompleted steps number from a service.
+<4> Set uncompleted steps number value as a badge to the menu item.
+
+. Send the event using the `UiEventPublisher` bean from the xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] listener:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/listener/UserStepEventListener.java[tags=ui-event-publisher-1;ui-event-publisher-2]
+----
+<1> Publish the event to all UIs for all sessions of the user specified in the `UserStep` entity that has been changed.
+
+.Menu item with a badge that displays the number of uncompleted steps
+image::ui-events/on-boarding-status.png[align="center",width="228"]
