@@ -1,0 +1,178 @@
+= User Task
+
+A *User Task* is a type of task that is assigned to a user or a group of users for manual completion within a business process.
+User tasks are integral to the workflow, allowing human participants to interact with the process by performing specific actions, making decisions, or providing input.
+
+== Graphical Notation
+
+A user task is visualized as a typical task (rounded rectangle), with a small user icon in the left upper corner.
+
+image::bpmn-user-task/user-task.png[,120]
+
+== Properties
+
+User task has three specific sections of properties:
+
+* *Assignee*, where you can assign a single task performer or group of potential performers;
+* *Form*, where you can define a user interface for the task;
+* *Task Listeners*, where you can add listeners triggered by task lifecycle events.
+
+And additional property in the _General_ section -- *Due Date* to inform the performer when the task must be completed.
+
+image::bpmn-user-task/user-task-properties.png[,500]
+
+[[assignee]]
+=== Assignee
+
+In order for a task to be ultimately completed, it must be assigned a performer.
+*Only one* user can be assigned as the human performer for the task, this user is called an *assignee*.
+
+[NOTE]
+====
+The `assignee` attribute can be empty. It means there is no user who sees this task in his task list. You can set the assignee at runtime -- using administrative functions or programmatically.
+====
+
+****
+*BPMN native task assignment*
+
+In the BPMN specification, there is a special construct *human performer* intended to store information about the user who must do this job, but it is too cumbersome.
+
+Therefore, the Flowable extension is used instead -- *assignee attribute* that allows direct assignment of a given user to a task.
+****
+
+[[assigne-sources]]
+==== Assignee Sources
+
+In Jmix BPM, the _assignee source_ refers to the mechanism used to determine which way the user will be selected to be an assignee for a specific user task in a business process.
+There are three options, how to do that:
+
+[horizontal]
+Expression:: -- here must be an expression that result is a String containing username;
+Process variable:: -- a variable that refers to _User_;
+User provider:: -- a special Java class with the method returning _User_.
+
+image::bpmn-user-task/assignee-sources.png[,350]
+
+==== Assigning Task by Expression
+
+Expression is a default assignee source.
+You will need to write an expression that evaluates a username of an assignee.
+For example, if the `User` entity is stored in a process variable called `manager`, then the expression will be `${manager.username}`:
+
+image::bpmn-user-task/assign-by-expression.png[,350]
+
+If you want to assign a task to a specific user, you can write a username directly:
+
+image::bpmn-user-task/assigne-by-expression-direct.png[,350]
+
+Also, you can invoke Spring bean method that returns username:
+
+ ${smpl_MyBean.evaluateManager(methodParam1, 'methodParam2')}
+
+[[process-variable]]
+==== Assigning Task by Process Variable
+
+If you select the _Process variable_ assignee source, the _ComboBox_ component will be displayed in the properties panel. This field displays those fields and process variables that are of the `Entity` type, and their entity class implements the `UserDetails` interface.
+
+The build-in `initiator` process variable is available for assigning tasks while modeling a process. It contains an entity of the user that started the process:
+
+image::bpmn-user-task/assignee-initiator.png[,350]
+
+[CAUTION]
+====
+If the process was started via API or by message/signal, `initiator` variable isn't defined. Using it may cause a runtime error.
+====
+
+You can disable the `initiator` process variable using the following property:
+
+[source,properties,indent=0]
+----
+jmix.bpm.process-initiator-variable-enabled=false
+----
+
+Also, you can change the name of the initiator property:
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=name]
+----
+
+==== Assigning Task by User Provider
+
+If you need to apply a complicated business logic to define a task performer, better to choose a _User provider_ option.
+In this case, the system offers to select an existing user provider Java class or allows to create a new one:
+
+image::bpmn-user-task/selecting-user-provider.png[,350]
+
+Then, select a method. If the class has the only method, it'd be applied automatically:
+
+image::bpmn-user-task/assign-by-user-provider.png[,350]
+
+A user provider is a common Spring bean, annotated by `@UserProvider` annotation. Here see an example:
+
+[source,java]
+----
+@UserProvider(value = "jbt_ContractApprover")
+public class ContractApprover {
+
+    public String getUser() {
+        String approver = "";
+
+        // Implement required business logic
+
+        return approver;
+    }
+}
+----
+
+In this class, you can implement any set of business rules.
+For example, select the less busy user from the role or from the department; select next in turn; at least, select a random user from the group.
+
+==== Assigning Task Programmatically
+
+To set the task _assignee_ programmatically, you can use the `setAssignee` method on the `TaskService`. Here's an example:
+
+[source,java]
+----
+Task task = taskService.createTaskQuery()
+                       .taskId("taskId")
+                       .singleResult(); <1>
+
+taskService.setAssignee(task.getId(), "jane"); <2>
+----
+<1> -- getting task object
+<2> -- setting assignee by username
+
+Tasks assigned to the certain user can be retrieved through the `TaskService` as follows:
+
+[source,java]
+----
+List<Task> tasks = taskService.createTaskQuery()
+    .taskAssignee("jane") <1>
+    .list();
+----
+<1> -- username
+
+=== Candidates
+
+*candidateUsers attribute*: this custom extension makes a given user a candidate for a task.
+
+<userTask id="theTask" name="my task" flowable:candidateUsers="kermit, gonzo" />
+
+This is exactly the same as using the *potentialOwner* construct as defined above. Note that it is not necessary to use the user(kermit) declaration, as with the case of the potential owner construct, since the attribute can only be used for users.
+
+*candidateGroups attribute*: this custom extension makes a given group a candidate for a task.
+
+<userTask id="theTask" name="my task" flowable:candidateGroups="management, accountancy" />
+
+This is exactly the same as using a *potentialOwner* construct as defined above.
+Note that it is not necessary to use the group(management) declaration, as with the case of the potential owner construct, since the attribute can only be used for groups.
+
+candidateUsers and candidateGroups can both be defined on the same user task.
+
+
+
+=== Task Listeners
+
+=== XML Representation
+As well, you can assign a task performer via API.
