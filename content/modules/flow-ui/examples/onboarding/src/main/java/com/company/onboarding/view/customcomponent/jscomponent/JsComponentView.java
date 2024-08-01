@@ -20,11 +20,19 @@ public class JsComponentView extends StandardView {
     @Autowired
     protected Notifications notifications;
 
-    @Subscribe("slider")
-    protected void onSliderChange(Slider.SlideChangedEvent event) {
-        notifications.create("New value is : " + event.getValue())
-                .withPosition(Notification.Position.MIDDLE)
-                .show();
+    @Subscribe
+    public void onInit(final InitEvent event) {
+        Slider slider = new Slider();
+        slider.setWidth("20em");
+        slider.setMin(10);
+        slider.setMax(100);
+
+        slider.addValueChangeListener(changedEvent ->
+                notifications.create("New value is : " + changedEvent.getValue())
+                        .withPosition(Notification.Position.MIDDLE)
+                        .show());
+
+        getContent().add(slider);
     }
     // end::js-component-usage[]
 }
