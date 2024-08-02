@@ -1,0 +1,66 @@
+= Интеграция JavaScript-библиотеки
+
+Собственные компоненты пользовательского интерфейса можно создавать на основе сторонних JavaScript-библиотек. Пример в данном разделе демонстрирует интеграцию виджета https://jqueryui.com/slider/[jQuery UI Slider^].
+
+[[web-component]]
+== Создание JavaScript веб-компонента
+
+Создайте файл `slider.js` в папке `frontend/src/component/slider`. Он содержит веб-компонент, оборачивающий виджет *jQuery UI Slider*. Его метод `ready()` используется для инициализации виджета.
+
+.slider.js
+[source,javascript,indent=0]
+----
+include::example$/onboarding/frontend/src/component/slider/slider.js[tags=js-component]
+----
+<1> Определяет базовые классы для пользовательского компонента.
+<2> Определяет имя HTML-элемента.
+<3> Определяет пользовательские свойства.
+<4> Определяет слушатель изменения свойства.
+<5> Получает ссылку на корневой элемент.
+<6> Инициализирует https://jqueryui.com/slider/[jQuery UI Slider^] на корневом элементе.
+<7> Генерирует пользовательское событие с именем `custom-slide-changed`.
+<8> Когда свойство изменяется, устанавливает новое значение для слайдера.
+<9> Экспортирует пользовательский HTML-элемент с именем, определенным в методе `static get is()`.
+
+[[creating-web-component-java-api]]
+== Создание Java API для веб-компонента
+
+Создайте файл `Slider.java`, который является классом пользовательского интерфейса. Он определяет API для серверного кода, методы доступа, слушатели событий и соединение с источниками данных.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/component/Slider.java[tags=js-component;!dom-event]
+----
+<1> Определяет корневой элемент, который создается автоматически классом `Component` и доступен с помощью метода `getElement()`. Должен совпадать с экспортами веб-компонента.
+<2> Аннотация `@NpmPackage` определяет зависимость от npm-пакета, который включает один или несколько JS-модулей.
+<3> Аннотация `@JsModule` определяет импорт модуля JavaScript.
+<4> Добавление аннотации `@Synchronize` к геттеру гарантирует, что браузер отправляет изменения свойств на сервер. Аннотация определяет имя DOM-события, которое инициирует синхронизацию, в данном случае событие `custom-slide-changed`.
+
+[[handling-client-side-events]]
+== Обработка событий на стороне клиента
+
+Событие компонента можно подключить к DOM-событию, которое вызывается элементом в браузере. Для этого используется аннотация `@DomEvent` в классе события, которая указывает имя DOM-события, на которое необходимо подписаться. Vaadin Flow автоматически добавит слушатель DOM-событий для элемента, если существует слушатель событий компонента.
+
+Событие может включать дополнительную информацию, такую как кнопка мыши, использованная в событии клика. Конструктор `@DomEvent` поддерживает дополнительные параметры. Вы можете использовать `@EventData`, чтобы указать, какие данные отправить из браузера.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/component/Slider.java[tags=dom-event]
+----
+
+<1> Использование аннотации `@DomEvent` для подключения компонента Slider к DOM-событию `custom-slide-changed`.
+<2> Использование аннотации `@EventData` для определения дополнительных данных события, в данном случае значения слайдера.
+
+TIP: Более подробную информацию о создании пользовательских компонентов можно найти в документации Vaadin: https://vaadin.com/docs/latest/flow/advanced/loading-resources#using-annotations[Импорт JavaScript и CSS^], https://vaadin.com/docs/latest/flow/create-ui/web-components[Интеграция веб-компонентов^], https://vaadin.com/docs/latest/flow/create-ui/element-api[API элементов^].
+
+[[usage-example]]
+== Пример использования
+
+После реализации компонента его можно использовать в экранах, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customcomponent/jscomponent/JsComponentView.java[tags=js-component-usage]
+----
+
+image::visual-components/creating-components/slider-usage.gif[align="center", width="350"]
