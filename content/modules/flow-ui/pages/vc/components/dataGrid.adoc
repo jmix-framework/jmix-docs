@@ -139,40 +139,87 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 </div>
 ++++
 
-The component supports inline editing, allowing users to directly modify the data. When a user starts editing, the grid cell will transform into a component suitable for editing that specific data type.
+The component supports inline editing, allowing users to switch between reading and editing table data. Inline editing can be activated through buttons in the <<actions-column, actions column>> or on <<double-click-editing,double click>>.
+
+NOTE: Inline edits require an explicit save action to commit the changes to the database. Provide users with a "Save" button or implement <<auto-save,auto-save>> to commit changes when the user leaves the current cell.
+
+[[actions-column]]
+=== Actions Column
+
+Use `editorActionsColumn` to provide *Edit* and *Close* buttons next to each row. These enable users to start and stop editing respectively.
+
+NOTE: The actions column is added relatively to other columns. When `includeAll="true"` is set, the editor column is placed at the far right.
 
 image::visual-components/components/data-grid-editing.gif[align="center"]
 
-To make a column editable:
-
-. Set the value of the <<editable,editable>> attribute to `true`.
-. Add the <<editorActionsColumn,editorActionsColumn>> element to enable users initiate editing.
-. (Optional) Set the editor mode of operation through its <<editorBuffered, editorBuffered>> attribute.
-
-TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin documentation^]
-
+.Show code
+[%collapsible]
+====
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-editable-simple]
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-non-buffered-editor]
 ----
+<1> Make appropriate columns <<editable, editable>>.
+<2> Button to initiate editing.
+<3> Button to stop editing.
+====
 
-[[editorActionsColumn]]
-=== Editor Column Configuration
+==== Buffered Mode
 
-Rows of the `editorActionsColumn` element can display up to four different buttons, each corresponding to a specific stage in the editing process:
+With <<editorBuffered, buffered mode>> on, users will have to confirm or cancel their edits reducing the risk of accidental modifications. Clicking on a different row discards edits.
 
+image::visual-components/components/data-grid-buffered-editor.gif[align="center"]
+
+.Show code
+[%collapsible]
+====
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=editorActionsColumn]
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-buffered-editor]
 ----
-<1> *Edit Button*: Initiates the editing process. Suitable for both buffered and non buffered mode.
-<2> *Save Button*: Saves the changes made during the editing process. Suitable for buffered mode only.
-<3> *Cancel Button*: Discards the changes and reverts the row to its original state. Suitable for buffered mode.
-<4> *Close Button*: closes the edit mode. Suitable for non buffered mode only.
+<1> Enable buffered mode.
+<2> Make appropriate columns <<editable, editable>>.
+<3> Button to initiate editing.
+<4> Button to confirm changes.
+<5> Button to cancel changes.
+====
+// TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin documentation^]
 
-Each of the buttons supports a limited set of attributes of a standard xref:vc/components/button.adoc[]. The `editorActionsColumn` element supports a limited set of attributes and handlers inherited from a standard <<column, column>>.
+[[double-click-editing]]
+=== Edit on Double Click
 
-// The editor column is added relatively to other columns. In case of `includeAll="true"`, the editor column is added at the end.
+Sometimes it is more convenient to start inline editing by double-clicking the item.
+
+image::visual-components/components/data-grid-double-click-editing.gif[align="center"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dblClickTable]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
+----
+====
+
+[[auto-save]]
+=== Auto-save Edits
+
+Visual components, including `dataGrid`, keep temporary changes in a data container until a confirmation action is triggered to commit them to the database.
+
+To automatically commit inline edits when the user leaves the current cell, create a handler for `ItemPropertyChangeEvent` and save the changes with `dataManager`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=auto-save]
+----
+
+
+
 
 [[DataGridEditor]]
 === DataGridEditor
@@ -198,21 +245,6 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 By default, field components (for example, xref:flow-ui:vc/components/textField.adoc[textField], xref:flow-ui:vc/components/comboBox.adoc[comboBox]) display error messages in a label above them. Such behaviour has disadvantages in case of limited area of edit cell. The `io.jmix.flowui.component.SupportsStatusChangeHandler` interface enables to define different way of displaying error messages. Components that implement this interface support error handling delegation.
 
 By default, the inline editor uses `StatusChangeHandler` to set error message of a component as its xref:flow-ui:vc/common-attributes.adoc#title[title].
-
-[[double-click-editing]]
-=== Double-click Editing
-
-Sometimes it is necessary to open the inline editor by double-clicking. See the example:
-
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dblClickTable]
-----
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
-----
 
 [[header-footer]]
 == Header and Footer
@@ -566,7 +598,7 @@ In Jmix there are many xref:vc/common-attributes.adoc[common attributes] that se
 |Determines rows where a drop can happen. Possible values: `BETWEEN`, `ON_TOP`, `ON_TOP_OR_BETWEEN`, `ON_GRID`. This feature might be used, for example, to reorder rows and to drag rows between grids.
 |–
 |[[editorBuffered]]editorBuffered
-|If `true`, sets the `Editor` to the buffered mode, meaning changes are only commited when the user clicks the save button. In unbuffered mode valid changes are automatically committed. See <<inline-editing, Inline Editing>>.
+|If `true`, activates buffered mode for <<inline-editing, inline editing>>,  meaning that the user must confirm making changes by clicking a confirm button. This mode also allows users to cancel their changes. In unbuffered mode changes are applied without the need for confirmation.
 |`false`
 |[[multiSort]]multiSort
 |If `true`, enables sorting by multiple columns.
