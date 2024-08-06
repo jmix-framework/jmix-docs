@@ -7,10 +7,13 @@ import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.grid.FooterRow;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.router.Route;
+import io.jmix.core.DataManager;
 import io.jmix.flowui.component.grid.DataGrid;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.CollectionLoader;
+import io.jmix.flowui.model.InstanceContainer;
 import io.jmix.flowui.view.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Collection;
 
@@ -19,7 +22,6 @@ import java.util.Collection;
 @ViewDescriptor("data-grid-features-view.xml")
 public class DataGridFeaturesView extends StandardView {
 
-
     // tag::injects[]
     @ViewComponent
     private DataGrid<User> dataGrid;
@@ -27,6 +29,8 @@ public class DataGridFeaturesView extends StandardView {
     private CollectionContainer<User> usersDc;
     @ViewComponent
     private CollectionLoader<User> usersDl;
+    @Autowired
+    private DataManager dataManager;
 
     // end::injects[]
 
@@ -73,5 +77,13 @@ public class DataGridFeaturesView extends StandardView {
     }
 
     // end::getActiveCount[]
+
+
+    // tag::auto-save[]
+    @Subscribe(id = "usersDc", target = Target.DATA_CONTAINER)
+    public void onUsersDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<User> event) {
+        dataManager.save(event.getItem());
+    }
+    // end::auto-save[]
 
 }
