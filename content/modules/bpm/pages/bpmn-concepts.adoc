@@ -97,6 +97,143 @@ Message, signal, and error definitions in XML file are located usually between _
 If you plan to use the same messages and signals in various processes, you have to create their definitions in each BPMN model.
 ====
 
+[[errors-handling]]
+== Errors Handling
+//todo: review required
+
+
+[[errors-catching]]
+=== Errors Catching
+
+Errors can be thrown by xref:bpmn-events.adoc#error-end-event[error end events] or programmatically.
+
+A thrown error *MUST* be caught by an error catch event, specifically using an error boundary event or an error event subprocess. Otherwise, it causes an exception.
+
+==== Catching Error by Boundary Event
+
+When an error event is caught, the activity on which the boundary event is defined is destroyed, also destroying all current executions within (concurrent activities, nested subprocesses, and so on). Process execution continues following the outgoing sequence flow of the boundary event.
+
+image::bpmn-events/error-catching-boundary.png[,300]
+
+==== Event Subprocess Priority
+
+Event subprocess has a priority over the error boundary event. So, when an error occurs, the subprocess starts, but the boundary error handler never be activated.
+
+image::bpmn-events/start-error-event-example-2.png[,500]
+
+
+==== Error Propagation
+
+Suppose, the process has parallel paths with call activities, each of them may throw an error. Then, it's possible to use error boundary events without outgoing flows if there is an event subprocess for handling errors:
+
+image::bpmn-events/parallel-errors catcing.png[,500]
+
+The error, thrown inside call activity will be propagated to the top-level process and caught by event subprocess.
+
+
+//todo -- непонятно у Флоубл
+// Such an error will propagate its parent scopes upwards until a scope is found on which a boundary error event is defined that matches the error event definition.
+
+
+==== Matching Errors
+
+Usually, error event has a code. Sometimes the code can be omitted, then `id` parameter will be used.
+
+*Single error catching event*
+
+When there is only one error catching event in the given scope, it catches *ALL* errors with any codes.
+
+In the example below, the single error catching event catches both errors with codes 1 and 2. If in the error catching event set parameter _Error_, it will be ignored.
+
+image::bpmn-events/error-one-catch-many.png[,600]
+
+An event subprocess with error start event works the same way -- it will catch any error.
+
+*Matched errors codes*
+
+In the other example, we can see designated error catching events for every type of errors:
+
+image::bpmn-events/matching-errors.png[,600]
+
+Respectively, if error #1 occurs, the first catching evens will be activated, if error #2 -- the second one.
+
+[NOTE]
+====
+The BPM engine considers the error events matching when they refer to the same _error definition_.
+====
+
+*Error code doesn't match*
+
+When a code of thrown error doesn't match any error catching event, the first defined error will be activated.
+
+image::bpmn-events/error-code-not-match.png[,600]
+
+The *first* means here which of boundary events is higher in the XML file:
+
+[source,xml]
+----
+...
+    <boundaryEvent id="Event_02" name="Catch error 2"
+        attachedToRef="Activity_13z00xo"> <1>
+      <outgoing>Flow_06d3rwf</outgoing>
+      <errorEventDefinition id="ErrorEventDefinition_0w90u2d" />
+    </boundaryEvent>
+    <sequenceFlow id="Flow_1b1df9j" sourceRef="Event_01" targetRef="Activity_0tcie7m" />
+    <sequenceFlow id="Flow_1trubue" sourceRef="Activity_0tcie7m" targetRef="Event_1073oeg" />
+    <boundaryEvent id="Event_01" name="Catch error 1"
+        attachedToRef="Activity_13z00xo"> <2>
+      <outgoing>Flow_1b1df9j</outgoing>
+      <errorEventDefinition id="ErrorEventDefinition_1aum1e6" />
+    </boundaryEvent>
+...
+----
+<1> -- Boundary event #2 defined first
+<2> -- Boundary event #1 defined second
+
+So, in our case, catching event #2 will be activated when the code of thrown error is "500".
+
+[NOTE]
+====
+The same is applicable to boundary events attached to task or call activity.
+====
+
+*Errors without code*
+
+The parameter `errorCode` can be omitted. In this case, `errorId` will be used instead.
+
+For example, thrown error has a code "green":
+
+[source,xml]
+----
+  <error id="err_green" name="Error green" errorCode="green" />
+----
+
+But catching event set to the error with id = "green" and without code:
+
+[source,xml]
+----
+  <error id="green" name="Err1"/>
+----
+
+Those errors will be matched.
+
+*Errors thrown programmatically*
+
+When the error is generated programmatically, it has only code but not id:
+
+[source,java]
+----
+throw new BpmnError("500");
+----
+
+
+[[unhandled-errors]]
+=== Unhandled errors
+
+When an error is thrown and not caught, a Flowable exception will be thrown.
+
+// image::bpmn-events/multi-errors-example.png[,600]
+
 
 [[expressions]]
 == Expressions

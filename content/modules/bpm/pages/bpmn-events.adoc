@@ -978,154 +978,59 @@ image::bpmn-events/error-boundary-event-properties.png[,350]
 ----
 
 
-
-
 [[error-end-event]]
 === Error End Event
 
-When process execution arrives at an _error end event_, the current process path ends and an error is thrown.
+When process execution arrives at an *error end event*, the current process path ends and an error is thrown.
+
+==== Graphical Notation
+
+An error end event is visualized as a typical end event (circle with a thick border), with the error icon inside. The error icon is filled to indicate its throwing semantics.
 
 image::bpmn-events/error-end-event.png[,140]
 
+
+==== Properties
+
+An error end event has a specific property _Error_ that isn't mandatory. When filled, it refers to the existing xref:bpmn-concepts.adoc#errors-definition[error definition].
+
+image::error-end-event-properties.png[,300]
+
+==== XML Representation
+
+An error end event is represented as an end event, with an `errorEventDefinition` child element.
+
+[source,xml]
+----
+    <endEvent id="Event_01" name="Error">
+      <incoming>Flow_1i3jqxp</incoming>
+      <errorEventDefinition id="ErrorEventDefinition_11xfxfw" <1>
+        errorRef="failure" /> <2>
+    </endEvent>
+----
+<1> -- Declaring error event
+<2> -- Reference to the error definition, it can be omitted.
+
+
+==== Using Error End Event
+
+The *error end event* is a throwing event and must have the corresponding catching event.
+It can be an error boundary event if the error end event belongs to a subprocess.
+
+image::error-end-event-in-subprocess.png[,500]
+
+Or error start event if there is an event subprocess.
+
+image::error-end-event-with-event-subprocess.png[,350]
+
 [WARNING]
 ====
-The *error end event* can be used only in subprocesses including call activities. Using error end event in the top-level process causes an exception.
+Using error end event without catching error event causes an exception at runtime.
 
 image::bpmn-events/error-end-event-bad-example.png[,350]
 ====
 
-
-[[errors-catching]]
-=== Errors Catching
-
-Errors can be thrown by xref:error-end-event[error end events] or programmatically.
-
-A thrown error *MUST* be caught by an error catch event, specifically using an error boundary event or an error event subprocess. Otherwise, it causes an exception.
-
-==== Catching Error by Boundary Event
-
-When an error event is caught, the activity on which the boundary event is defined is destroyed, also destroying all current executions within (concurrent activities, nested subprocesses, and so on). Process execution continues following the outgoing sequence flow of the boundary event.
-
-image::bpmn-events/error-catching-boundary.png[,300]
-
-==== Event Subprocess Priority
-
-Event subprocess has a priority over the error boundary event. So, when an error occurs, the subprocess starts, but the boundary error handler never be activated.
-
-image::bpmn-events/start-error-event-example-2.png[,500]
-
-
-==== Error Propagation
-
-Suppose, the process has parallel paths with call activities, each of them may throw an error. Then, it's possible to use error boundary events without outgoing flows if there is an event subprocess for handling errors:
-
-image::bpmn-events/parallel-errors catcing.png[,500]
-
-The error, thrown inside call activity will be propagated to the top-level process and caught by event subprocess.
-
-
-//todo -- непонятно у Флоубл
-// Such an error will propagate its parent scopes upwards until a scope is found on which a boundary error event is defined that matches the error event definition.
-
-
-==== Matching Errors
-
-Usually, error event has a code. Sometimes the code can be omitted, then `id` parameter will be used.
-
-*Single error catching event*
-
-When there is only one error catching event in the given scope, it catches *ALL* errors with any codes.
-
-In the example below, the single error catching event catches both errors with codes 1 and 2. If in the error catching event set parameter _Error_, it will be ignored.
-
-image::bpmn-events/error-one-catch-many.png[,600]
-
-An event subprocess with error start event works the same way -- it will catch any error.
-
-*Matched errors codes*
-
-In the other example, we can see designated error catching events for every type of errors:
-
-image::bpmn-events/matching-errors.png[,600]
-
-Respectively, if error #1 occurs, the first catching evens will be activated, if error #2 -- the second one.
-
-[NOTE]
-====
-The BPM engine considers the error events matching when they refer to the same _error definition_.
-====
-
-*Error code doesn't match*
-
-When a code of thrown error doesn't match any error catching event, the first defined error will be activated.
-
-image::bpmn-events/error-code-not-match.png[,600]
-
-The *first* means here which of boundary events is higher in the XML file:
-
-[source,xml]
-----
-...
-    <boundaryEvent id="Event_02" name="Catch error 2"
-        attachedToRef="Activity_13z00xo"> <1>
-      <outgoing>Flow_06d3rwf</outgoing>
-      <errorEventDefinition id="ErrorEventDefinition_0w90u2d" />
-    </boundaryEvent>
-    <sequenceFlow id="Flow_1b1df9j" sourceRef="Event_01" targetRef="Activity_0tcie7m" />
-    <sequenceFlow id="Flow_1trubue" sourceRef="Activity_0tcie7m" targetRef="Event_1073oeg" />
-    <boundaryEvent id="Event_01" name="Catch error 1"
-        attachedToRef="Activity_13z00xo"> <2>
-      <outgoing>Flow_1b1df9j</outgoing>
-      <errorEventDefinition id="ErrorEventDefinition_1aum1e6" />
-    </boundaryEvent>
-...
-----
-<1> -- Boundary event #2 defined first
-<2> -- Boundary event #1 defined second
-
-So, in our case, catching event #2 will be activated when the code of thrown error is "500".
-
-[NOTE]
-====
-The same is applicable to boundary events attached to task or call activity.
-====
-
-*Errors without code*
-
-The parameter `errorCode` can be omitted. In this case, `errorId` will be used instead.
-
-For example, thrown error has a code "green":
-
-[source,xml]
-----
-  <error id="err_green" name="Error green" errorCode="green" />
-----
-
-But catching event set to the error with id = "green" and without code:
-
-[source,xml]
-----
-  <error id="green" name="Err1"/>
-----
-
-Those errors will be matched.
-
-*Errors thrown programmatically*
-
-When the error is generated programmatically, it has only code but not id:
-
-[source,java]
-----
-throw new BpmnError("500");
-----
-
-
-[[unhandled-errors]]
-=== Unhandled errors
-
-When an error is thrown and not caught, a Flowable exception will be thrown.
-
-// image::bpmn-events/multi-errors-example.png[,600]
+See details it the xref:bpmn-concepts.adoc#errors-handling[Errors Handling] section.
 
 
 [[compensation-events]]
@@ -1142,18 +1047,66 @@ There are types of compensation events:
 [[compensation-intermediate-throw-event]]
 === Compensation Intermediate Throw Event
 
-Compensation intermediate throwing event can be used to trigger compensation.
+*Compensation intermediate throwing event* can be used to trigger compensation.
+
+==== Graphical Notation
+
+An intermediate compensation throw event is visualized as a typical intermediate event (circle with double outline), with the compensation icon inside. The compensation icon is filled to indicate its throw semantics.
 
 image::bpmn-events/compensation-throwing-event.png[,180]
+
+==== Properties
+
+A compensation throw event has no specific properties.
+
+image::compensation-throwing-event-properties.png[,350]
+
+==== XML Representation
+
+[source,xml]
+----
+    <intermediateThrowEvent id="Event_03">
+      <incoming>Flow_0ogytc4</incoming>
+      <outgoing>Flow_0p45b0g</outgoing>
+      <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo" /> <1>
+    </intermediateThrowEvent>
+----
+<1>
+
 
 [[compensation-boundary-event]]
 === Compensation Boundary Event
 
-_Compensation boundary event_ can be used to attach a compensation handler to an activity.
+*Compensation boundary event* can be used to attach a compensation handler to an activity.
+
+==== Graphical Notation
+
+A compensation boundary event is visualized as a typical intermediate event (circle with double outline) on the boundary, with the compensation icon inside. The compensation icon is unfilled to indicate its catching semantics.
+In addition to a compensation boundary event, the following figure shows a compensation handler associated with the boundary event using a unidirectional association.
 
 The compensation boundary event must reference a single compensation handler using a directed association.
 
 image::bpmn-events/compensation-boundary-event.png[,300]
+
+
+==== XML Representation
+
+A compensation boundary event is defined as a typical boundary event:
+
+[source,xml]
+----
+    <boundaryEvent id="Event_1" attachedToRef="Activity_1">
+      <compensateEventDefinition id="CompensateEventDefinition_05" />
+    </boundaryEvent>
+
+. . .
+
+  <association id="Association_02zt79e"
+    associationDirection="One"
+    sourceRef="Event_1" targetRef="Activity_1" />
+----
+
+
 
 // [[compensation-start-event]]
 // == Compensation Start Event
@@ -1293,6 +1246,7 @@ Be careful when importing BPMN models from 3rd party design tools: not supported
 
 [[message-throwing-event-workaround]]
 === Message Throwing Event
+//todo: write this
 
 [[signal-throwing-end-event-workaround]]
 === Signal Throwing End Event
@@ -1303,6 +1257,10 @@ image::bpmn-events/workaround-signal-end event.png[,400]
 
 [[compensation-end-event-workaround]]
 === Compensation End Event
+
+image::bpmn-events/compensation-end-event-workaround.png[,500]
+
+
 
 [[escalation-events-workaround]]
 === Escalation Events
