@@ -2,10 +2,7 @@ package com.company.demo.bean;
 
 import com.company.demo.entity.Customer;
 import com.company.demo.entity.CustomerGrade;
-import io.jmix.core.DataManager;
-import io.jmix.core.Id;
-import io.jmix.core.Sort;
-import io.jmix.core.UnconstrainedDataManager;
+import io.jmix.core.*;
 import io.jmix.core.querycondition.LogicalCondition;
 import io.jmix.core.querycondition.PropertyCondition;
 import io.jmix.core.session.SessionData;
@@ -222,5 +219,22 @@ public class CustomerService {
         });
     }
     // end::transaction-template-without-result[]
+
+    // tag::load-in-separate-transaction[]
+    Customer loadCustomerInSeparateTransaction(UUID customerId) {
+        return dataManager.load(Customer.class)
+                .id(customerId)
+                .joinTransaction(false)
+                .one();
+    }
+    // end::load-in-separate-transaction[]
+
+    // tag::save-in-separate-transaction[]
+    void saveCustomerInSeparateTransaction(Customer entity) {
+        SaveContext saveContext = new SaveContext().saving(entity)
+                .setJoinTransaction(false);
+        dataManager.save(saveContext);
+    }
+    // end::save-in-separate-transaction[]
 
 }
