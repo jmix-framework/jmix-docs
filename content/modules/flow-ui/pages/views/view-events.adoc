@@ -1,0 +1,191 @@
+= 视图事件
+
+本节介绍可以在控制器中处理的视图生命周期事件。如需了解事件的顺序，请参阅本节末尾的 <<diagrams,图表>>。
+
+[TIP]
+====
+如需在 Jmix Studio 中生成视图事件处理方法的桩代码，在 *Jmix UI* 结构面板中选择根 `view` 元素，然后使用属性面板的 *Handlers* 标签页。
+
+或者也可以通过视图类代码顶部操作面板的 *Generate Handler* 或 *Code* -> *Generate* 菜单（*Alt+Insert* / *Cmd+N*）。
+====
+
+[[init-event]]
+== InitEvent
+
+`InitEvent` 是视图打开过程中产生的第一个事件。此时，视图及其所有声明式定义的组件已经创建，并完成依赖项注入。某些可视化组件未完全初始化，例如，按钮还未与操作关联。在此事件监听器中，可以创建并初始化可视化组件和数据组件。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-event]
+----
+
+NOTE: 该事件仅在创建视图后触发一次。也就是说，如果首次导航到视图，则会触发该事件。但是，如果多次导航至当前的视图（例如，多次点击同一菜单），则不会触发该事件，因为视图实例已创建。
+
+[[before-show-event]]
+== BeforeShowEvent
+
+`BeforeShowEvent` 是视图打开过程中的第二个事件（在 `View.InitEvent` 之后）。此时所有组件均已完成其内部初始化过程。xref:data/data-loaders.adoc[数据加载器] 已通过自动配置的 xref:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] facet 触发。UI 组件中已经使用了安全策略。在此事件监听器中，可以加载数据、检查权限和修改 UI 组件。例如：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=users-loader;before-show-event]
+----
+
+[NOTE]
+====
+视图打开后，如果再次导航到已打开的视图将再次触发同一视图实例的 `BeforeShowEvent`。
+
+例如，用户首次导航到视图，会创建视图实例并触发 `BeforeShowEvent`。然后，用户点击同一菜单，再次导航到同一打开的视图，此时会再次触发 `BeforeShowEvent`。如果在 `BeforeShowEvent` 监听器中添加了组件或加载了数据，则会执行两次，可能会导致组件的重复或重新加载数据。
+
+`BeforeShowEvent` 之所以如此工作，是因为在导航时，由 Vaadin 的 `BeforeEnterEvent` 生命周期事件触发。
+====
+
+[[ready-event]]
+== ReadyEvent
+
+`ReadyEvent` 是视图打开过程中的最后一个事件（在 `View.BeforeShowEvent` 之后）。在该事件的监听器中，可以根据加载的数据对视图进行最终配置，并显示通知或对话框。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;ready-event]
+----
+
+[NOTE]
+====
+视图打开后，如果再次导航到已打开的视图将再次触发同一视图实例的 `View.ReadyEvent`。
+
+例如，用户首次导航到视图，会创建视图实例并触发 `View.ReadyEvent`。然后，用户点击同一菜单，再次导航到同一打开的视图，此时会再次触发 `View.ReadyEvent`。如果在 `View.ReadyEvent` 监听器中添加了组件或加载了数据，则会执行两次，可能会导致组件的重复或重新加载数据。
+
+`ReadyEvent` 之所以如此工作，是因为在导航时，由 Vaadin 的 `AfterNavigationEvent` 生命周期事件触发。
+====
+
+[[attach-event]]
+== AttachEvent
+
+`AttachEvent` 当视图添加至 UI 时发送。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=attach-event]
+----
+
+NOTE: 该事件由 Vaadin 触发，因为视图也是一个 UI 组件。
+
+[[before-close-event]]
+== BeforeCloseEvent
+
+`BeforeCloseEvent` 是视图关闭过程中的第一个事件。此时视图仍显示并完全正常运行。在该事件监听器中，可以使用事件的 `preventClose()` 方法在特定条件下阻止关闭视图。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=before-close-event]
+----
+
+NOTE: 如果在导航时需要阻止关闭视图，那也需要延迟导航。可以检查操作的类型，如果是 `NavigateCloseAction`，那么需要获取 Vaadin 的 `BeforeLeaveEvent` 并调用其 `postpone()` 方法。
+
+[[after-close-event]]
+== AfterCloseEvent
+
+`AfterCloseEvent` 是视图关闭过程中的第二个事件（在 `View.BeforeCloseEvent` 之后）。在该事件监听器中，可以在视图关闭之后显示通知或对话框，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=notifications-bean;after-close-event]
+----
+
+[[detach-event]]
+== DetachEvent
+
+`DetachEvent` 当视图中 UI 中移除时发送。在该事件监听器中可以释放视图占用的资源。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=detach-event]
+----
+
+NOTE: 该事件由 Vaadin 触发，因为视图也是一个 UI 组件。
+
+[[query-parameters-change-event]]
+== QueryParametersChangeEvent
+
+`QueryParametersChangeEvent` 事件可以获取视图打开时的 URL 查询参数。如果视图是通过导航打开的，那么该事件在 `InitEvent` 之后发送。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserListEventsView.java[tags=query-parameters-change-event]
+----
+
+[[init-entity-event]]
+== InitEntityEvent
+
+`InitEntityEvent` 在视图继承了 xref:views/view-classes.adoc#standard-detail-view[StandardDetailView]，新实体还未设置到被编辑实体的数据容器时发送。
+
+可以在该事件监听器中初始化新实体实例的默认值，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=init-entity-event]
+----
+
+[[validation-event]]
+== ValidationEvent
+
+`ValidationEvent` 在视图继承了 `StandardDetailView`，保存 xref:data/data-context.adoc[DataContext] 且完成验证时发送。使用该事件的监听器可以添加额外的视图验证。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=validation-event]
+----
+
+[[before-save-vent]]
+== BeforeSaveEvent
+
+`BeforeSaveEvent` 在视图继承了 `StandardDetailView` 保存 `DataContext` 之前发送。使用该事件的监听器可以阻止保存、在保存前修改实体的属性值或与用户交互。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=before-save-event]
+----
+<1> 如果密码不匹配则中断保存流程。
+<2> 为实体设置加密的密码。
+
+[[after-save-event]]
+== AfterSaveEvent
+
+`AfterSaveEvent` 在视图继承了 `StandardDetailView` 保存 `DataContext` 之后发送。使用该事件的监听器可以在保存成功后通知用户。示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailEventsView.java[tags=notifications-bean;after-save-event]
+----
+
+[[diagrams]]
+== 图表
+
+[[opening-standard-view]]
+=== 打开标准视图
+
+下面的图标展示打开 xref:views/view-classes.adoc#standard-view[标准视图] 的流程：:
+
+image::views/open-standard-view.svg[align="center"]
+
+[[closing-standard-view]]
+=== 关闭标准视图
+
+下面的图标展示关闭 xref:views/view-classes.adoc#standard-view[标准视图] 的流程：
+
+image::views/close-standard-view.svg[align="center"]
+
+[[opening-entity-detail-view]]
+=== 打开实体详情视图
+
+下面的图标展示打开 xref:views/view-classes.adoc#standard-detail-view[详情视图] 的流程：
+
+image::views/open-detail-view.svg[align="center"]
+
+[[closing-entity-detail-view]]
+=== 关闭实体详情视图
+
+下面的图标展示保存改动并通过 xref:actions/view-actions.adoc#detail_saveClose[detail_saveClose] 操作关闭详情视图的流程：
+
+image::views/detail-view-close-with-save.svg[align="center"]

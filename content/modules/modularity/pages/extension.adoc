@@ -2,7 +2,7 @@
 
 框架子系统和扩展组件的功能可以由位于 xref:creating-add-ons.adoc#hierarchy[模块层级结构] 更底层的应用程序或者其他扩展组件进行扩展并修改。
 
-对于声明式创建的元素，例如数据模型实体和 UI 界面的 XML 布局，Jmix 提供其自有的扩展机制。而对于由 Spring bean 定义的业务逻辑，则可以使用标准的 Java 和 Spring 机制扩展。
+对于声明式创建的元素，例如数据模型实体和 UI 视图的 XML 布局，Jmix 提供其自有的扩展机制。而对于由 Spring bean 定义的业务逻辑，则可以使用标准的 Java 和 Spring 机制扩展。
 
 [[data-model]]
 == 数据模型扩展
@@ -51,9 +51,9 @@ include::example$/ext/src/test/java/com/company/sample/ext/ExtApplicationTests.j
 [[ui]]
 == UI 扩展
 
-如果通过扩展版本替换了某个组件中的实体，那么很可能也需要对展示该实体的 UI 界面进行扩展，以便能展示新增的属性。下面的示例中，我们考虑 <<data-model,前一章>> 中使用 `ExtDepartment` 替换 `Department` 实体后，如何扩展实体的浏览界面。
+如果通过扩展版本替换了某个组件中的实体，那么很可能也需要对展示该实体的 UI 视图进行扩展，以便能展示新增的属性。下面的示例中，我们考虑 <<data-model,前一章>> 中使用 `ExtDepartment` 替换 `Department` 实体后，如何扩展实体的列表视图。
 
-如需扩展并覆盖由组件提供的界面，在 Studio 创建界面向导中选择 *Override an existing screen* 模板。然后 Studio 会创建新的 XML 描述和 Java 控制器文件。XML 描述中会包含 `extends` 属性，指向父界面的 XML：
+如需扩展并覆盖由组件提供的视图，在 Studio 创建视图向导中选择 *Override an existing screen* 模板。然后 Studio 会创建新的 XML 描述和 Java 控制器文件。XML 描述中会包含 `extends` 属性，指向父视图的 XML：
 
 [source,xml,indent=0]
 ----
@@ -67,34 +67,41 @@ include::example$/ext/src/main/resources/com/company/sample/ext/view/department/
 include::example$/ext/src/main/resources/com/company/sample/ext/view/department/ext-department-list-view.xml[tags=extends;extends1]
 ----
 
-不需要重复编写父界面中的所有元素和属性，只需要编写修改的部分即可。最后生成的 XML 会合并父模板和扩展的子模板内容，<<descriptor-extension,下面>> 会详细说明。
+不需要重复编写父视图中的所有元素和属性，只需要编写修改的部分即可。最后生成的 XML 会合并父模板和扩展的子模板内容，<<descriptor-extension,下面>> 会详细说明。
 
-我们的情景中，一个扩展的属性（`manager`）引用了其他实体。由于自动 xref:data-access:fetching.adoc#lazy-loading[懒加载] 机制，该实体引用会按需加载，但是建议最好在界面的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中包含该引用属性，避免可能引起的 "N+1 查询" 性能问题：
+我们的情景中，一个扩展的属性（`manager`）引用了其他实体。由于自动 xref:data-access:fetching.adoc#lazy-loading[懒加载] 机制，该实体引用会按需加载，但是建议最好在视图的 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 中包含该引用属性，避免可能引起的 "N+1 查询" 性能问题：
 
 [source,xml,indent=0]
 ----
 include::example$/ext/src/main/resources/com/company/sample/ext/view/department/ext-department-list-view.xml[tags=extends;extends1;extends2]
 ----
 
-扩展界面的控制器也从基类控制器继承：
+扩展视图的控制器也从基类视图继承：
 
 [source,java,indent=0]
 ----
 include::example$/ext/src/main/java/com/company/sample/ext/view/department/ExtDepartmentListView.java[tags=extend]
 ----
 
-请注意，`@ViewController` 注解的值与基类界面控制器的一样。这一点非常重要，因为我们需要 _覆盖_ 父界面，也就是说，在系统中的任何地方，都会使用我们扩展的界面而非原始父界面，与实体替换一样。
+[IMPORTANT]
+====
+请注意，`@ViewController` 注解的值与基类视图控制器的一样。这一点非常重要，因为我们需要 _覆盖_ 父视图，也就是说，在系统中的任何地方，都会使用我们扩展的视图而非原始父视图，与实体替换一样。
+====
 
-如需扩展界面逻辑，则可以重写控制器的 public 和 protected 方法。
+如需扩展视图逻辑，则可以重写控制器的 public 和 protected 方法。
 
 [[descriptor-extension]]
 === XML 描述扩展规则
 
-XML 描述的扩展中，不会考虑界面的语义，仅仅只是在纯 XML 级别的处理。按照下面的规则合并两个 XML 文件：
+XML 描述的扩展中，不会考虑视图的语义，仅仅只是在纯 XML 级别的处理。按照下面的规则合并两个 XML 文件：
 
 . 如果扩展描述中有某个元素，则会用下面的算法在父描述中搜索对应的元素：
 
-.. 如果覆盖的元素具有 `id` 属性，则会搜索具有相同 `id` 的元素。
+.. 如果覆盖的元素具有 `id` 属性，则会搜索具有相同 `id` 的元素。有些元素也会使用其他名称不是 `id` 的主键搜索：
+
+... `button` 元素，使用 `action` 属性。
+... `column` 元素，使用 `property` 和 `key` 属性。
+... `property` 元素，使用 `name` 属性。
 
 .. 如果找到相同 `id` 的元素，则覆盖该元素。
 

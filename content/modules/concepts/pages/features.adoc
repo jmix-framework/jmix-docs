@@ -1,4 +1,4 @@
-= 功能概览
+= 主要功能
 
 在本节中，我们将介绍框架的功能和内部工作原理，这些机制确保了 xref:principles.adoc[前一章节] 提到的设计理念能正确实施。
 
@@ -12,18 +12,21 @@ Jmix 中的 xref:principles.adoc#unified-data-model[统一数据模型] 方案�
 
 首先我们从简单到复杂了解一下应用程序中数据源的不同种类。
 
-在最简单的情况下，应用程序连接到单个关系数据库，其数据模型由许多互连的 JPA 实体组成：
+在最简单的情况下，应用程序连接到单个关系数据库，其数据模型由许多互连的 JPA（Jakarta Persistence API） 实体组成：
 
+.单一数据源
 image::metadata-1.svg[]
 
 有时数据位于多个数据库中。此时，就有多个持久化单元，每个单元里有多个 JPA 实体。如果需要连接到外部数据源，则还需要一些 POJO 或 DTO 来表示其数据：
 
+.多数据源
 image::metadata-2.svg[]
 
 因此，在源代码中，每个持久化单元对应单独的 Java 类集合，这些类有不同的结构和注解，并由不同的数据读写机制处理。
 
 Jmix 将所有这些细节组合成一个通用的数据模型，并将所有类视为具有相同特征的“实体”：
 
+.Jmix 数据模型
 image::metadata-3.svg[]
 
 数据模型中甚至可以包含来自不同存储（图中以虚线表示）实体之间的引用，在应用程序级别由 Jmix 负责维护这些引用关系。
@@ -32,29 +35,18 @@ image::metadata-3.svg[]
 
 下面的图中展示了两个实体如何反映在元数据中的：
 
+.实体类和元数据
 image::metadata-4.svg[]
 
 注意这里的 `employeeCount` 属性是 transient 的，JPA 不会处理这个属性。但是在元数据中，与其他属性拥有相同的一组特征。
 
-可以看到，这里的实体 Java 类有一些不一样的注解：`@JmixEntity`、`@InstanceName`、`@Secret`。这些注解是 Jmix 特有的，其中 `@JmixEntity` 是必需的，表示类应该包含在元数据中，其他的都是可选的，只提供属性的一些额外信息。
+可以看到，这里的实体 Java 类有一些 Jmix 特定的注解：`@JmixEntity`、`@InstanceName`、`@Secret`。其中 `@JmixEntity` 是必需的，表示类应该包含在元数据中，其他的都是可选的，只提供属性的一些额外信息。
 
 `@JmixEntity` 注解可以添加到任何 POJO 上，将其作为实体包含在元数据中。这就是通用数据模型的构建方式：通过注解表示所有模型类，而不考虑其存储技术。
 
 实际上，元数据 API 在应用程序代码中很少使用。在编写业务逻辑和读写实体时，可以直接使用 Java 类以及 getter/setter 方法，享受 IDE 中静态类型分析和代码辅助带来的好处。
 
-但是，对于框架的通用机制来说，通用数据模型的统一 API 是不可或缺的，首先就是在数据感知的 UI 组件中。元数据 API 提供了对数据模型中所需特征的各种方法的抽象，从而使得 UI 组件与 Java 类和注解完全没有关系。如果需要将存储数据转换之后在 UI 展示，可以同样有效地直接用在 JPA 实体或 POJO 上。
-
-数据模型的其他功能操作也可以通过元数据 API 完成。下面是实体审查时用于获取所有非集合属性的代码：
-
-[source, java]
-----
-Class<?> javaClass = // ...
-MetaClass metaClass = metadata.getClass(javaClass);
-List<MetaProperty> singleValueProperties = metaClass.getProperties().stream()
-        .filter(metaProperty ->
-                !metaProperty.getRange().getCardinality().isMany())
-        .toList();
-----
+但是，对于框架的通用机制来说，数据模型的统一 API 是不可或缺的，最重要的是用在数据感知的 UI 组件中。元数据 API 提供了对数据模型中所需特征的各种方法的抽象，从而使得 UI 组件与 Java 类和注解完全没有关系。UI 可以等价地使用 JPA 实体或 POJO 实体进行展示，只要这些实体带有 UI 所需的信息。
 
 Jmix 中的实体甚至可以在运行时通过键值对进行动态定义。这些实体没有特定的 Java 类，但仍然可以在用户界面中显示和编辑。UI 组件不需要 Java 类，只需要一个可以按名称读写属性的对象，以及一个对应的 `MetaClass`，其中带有 `MetaProperty` 集合描述这些属性。
 
@@ -67,9 +59,10 @@ Jmix 中的实体甚至可以在运行时通过键值对进行动态定义。这
 
 如下图所示，在实体增强后，`User` 实体类实现了 `Entity` 接口，包含了自动生成的 `equals()` 和 `hashCode()` 方法，以及对 `EntityEntry` 对象的引用，该对象提供了框架所需的常用方法：
 
+.实体增强
 image::entity-enhancement-1.svg[]
 
-所有实体在增强后，都获得了一个有趣的特性：可观察性。可以注册实体实例的监听器，在属性发生变化时收到通知。这简化了在 UI 层处理数据的过程：代码对实体所做的任何更改，例如 `user.setFirstName("Joe")` 都能在关联的 UI 组件中显示，且更改的实体会自动保存在数据库中。由于框架中的组件已经监听了实体的改动，开发人员不需要为此编写任何特殊处理的代码。
+所有实体在增强后，都获得了一个有趣的特性：可观察性。可以注册实体实例的监听器，在属性发生变化时收到通知。通过使用这个功能，简化了在 UI 层处理数据的过程：代码对实体所做的任何更改，例如 `user.setFirstName("Joe")` 都能在关联的 UI 组件中显示，且更改的实体会自动保存在数据库中。由于框架中的组件已经监听了实体的改动，开发人员不需要为此编写任何特殊处理的代码。
 
 [[data-access]]
 == 数据访问
@@ -103,27 +96,21 @@ Customer customer = dataManager.load(Customer.class)
 dataManager.save(customer);
 ----
 
-然而，引入 DataManager 的主要原因不是因为它的 API，而是需要建立一个中心点，所有数据都可以通过这个中心点与数据存储进行交换。DataManager 作为一个纽带，可以提供 Jmix 中需要的额外数据处理能力。
+然而，引入 DataManager 的主要原因是需要建立一个中心点，所有数据都可以通过这个中心点与数据存储进行交换。DataManager 作为一个纽带，可以提供 Jmix 中需要的额外数据处理能力。
 
 在一个典型的场景中，UI 视图和 REST 控制器（如果有 REST API 的话）直接调用了 DataManager。而两者又都可以委托给服务层，由服务层继而通过 DataManager 处理实体：
 
+.直接使用 DataManager
 image::data-manager-1.svg[]
 
 Jmix 还支持流行的 Spring Data API，这种方式可以将特定实体所有的数据访问方法集中在一个 Repository 中。此时，Repository 接口需要扩展 `JmixDataRepository`，然后 Repository 的实现也会委托给 DataManager：
 
+.通过 data repositories 使用 DataManager
 image::data-manager-2.svg[]
 
-Jmix 并没有要求一定要使用 DataManager，也可以绕过 DataManager 使用其他 API，例如 JPA EntityManager 或 JDBC：
+Jmix 通过 DataManager 提供的能力如下。
 
-image::data-manager-3.svg[]
-
-但是在这种情况下，Jmix 将无法拦截数据流提供额外的功能。
-
-现在我们了解一下 Jmix 的 DataManager 具体提供了哪些能力。
-
-. 其中一个关键的功能就是内置的数据访问控制机制。默认情况下，DataManager 会使用 xref:security:row-level-roles.adoc#policies[行级数据约束] 和 xref:security:resource-roles.adoc#entity-policy[实体操作策略]。当分页加载数据时，即使某些数据由于行级数据约束被过滤掉了，这个机制还是能确保每页加载的数据条数（最后一页除外）能满足请求所需的条数。
-+
-因此，在编写业务逻辑时，可以保证代码只处理了当前用户被允许访问的数据。
+. 其中一个关键的功能就是内置的数据访问控制机制。默认情况下，DataManager 会使用 xref:security:row-level-roles.adoc#policies[行级数据约束] 和 xref:security:resource-roles.adoc#entity-policy[实体操作策略]。因此，在编写业务逻辑时，可以保证代码只处理了当前用户被允许访问的数据。
 
 . DataManager 维护了 xref:data-model:entities.adoc#cross-data-store-ref[跨数据存储的引用]，可以支持不同数据库实体之间的关联关系，而无需编写额外的代码。
 
@@ -139,6 +126,13 @@ String cityName = order.getCustomer().getAddress().getCity().getName();
 
 . DataManager 支持一种可插拔的机制，用于在处理数据读写的过程中集成其他的插件。例如，在 xref:dyn-attr:index.adoc[动态属性] 扩展组件中，读写实体的过程中为实体实例增加了动态属性，以及在 xref:search:index.adoc[全文搜索] 扩展组件中，会自动将发生改变的实体实例发送给索引队列。
 
+Jmix 并没有要求一定要使用 DataManager，也可以绕过 DataManager 使用其他 API，例如 JPA EntityManager 或 JDBC：
+
+.绕过 DataManager
+image::data-manager-3.svg[]
+
+但是在这种情况下，Jmix 将无法拦截数据流提供上面介绍的额外功能。
+
 并不是所有工作都是 DataManager 自己完成。实际上，数据读写的任务是交给各种数据存储（DataStore）的具体实现去完成。`DataStore` 接口是实际存储系统的一种抽象，存储系统可以是一个数据库，或者是一个能保存实体的服务。
 
 Jmix 内只有 `DataStore` 接口的一个实现：`JpaDataStore`。是通过 JPA（Jakarta Persistence API）提供的 EntityManager 处理关系型数据库中的实体。
@@ -147,30 +141,31 @@ Jmix 内只有 `DataStore` 接口的一个实现：`JpaDataStore`。是通过 JP
 
 因此，DataManager 更像是一个网关（Gateway），提供便捷的 API 并将请求分发给数据存储的具体实现：
 
+.DataManager 和 DataStore 的实现
 image::data-manager-4.svg[]
 
 [[jpa-specifics]]
 === JPA 功能
 
-现在我们介绍 DataManager 中那些由 `JpaDataStore` 提供的功能以及 Jmix 在标准的 JPA 之上提供了哪些额外的能力。
+本小节介绍 DataManager 中那些由 `JpaDataStore` 提供的功能以及 Jmix 在标准的 JPA 之上提供了哪些额外的能力。
 
 [[loading-object-graphs]]
 ==== 加载对象图
 
-Jmix 提供了获取对象图的更优秀的方式，这些方式在主流的基于 Hibernate 的 JPA 实现中都是缺失的。下面有关于这些功能的概述以及设计目的。更多细节，请参阅 xref:data-access:fetching.adoc[] 部分。
+Jmix 提供了获取对象图的更优秀的方式，这些方式在广泛使用的基于 Hibernate 的 JPA 实现中都是缺失的。下面有关于这些功能的概述以及设计目的。更多细节，请参阅 xref:data-access:fetching.adoc[] 部分。
 
-首先，Jmix 为脱离（detached）对象的引用属性提供了 _延迟加载_，也就是说这个子实体属性不在初始的数据库事务中加载。在业务逻辑中或绑定 UI 组件时，可以随时访问引用属性来遍历整个对象图，Jmix 会按需从数据库中加载相关实体。
+第一个功能是 Jmix 为脱离（detached）对象的引用属性提供了 _延迟加载_，也就是说这个子实体属性不在初始的数据库事务中加载。在业务逻辑中或绑定 UI 组件时，可以随时访问引用属性来遍历整个对象图，Jmix 会按需从数据库中加载相关实体。
 
 第二个功能是关于 _预加载_。Jmix 提供了一种称之为 _Fetch Plan_ 的机制，与 JPA 的对象图类似。用 fetch plan 可以控制与根实体相关的实体加载，也可以控制对象图中每个实体的本地属性的加载。这个能力可以限制本地属性的加载数量，从而能大幅降低数据库的负载，特别是在企业级应用中，包含几十甚至几百个属性的实体并不罕见。
 
-Jmix fetch plan 提供了一种 _部分_ 预加载数据模型实体的完全动态的方式，而无需引入任何静态的 _部分实体_ 对象。与 Jmix 功能相反，Hibernate 的 JPA 实现只支持在关联实体级别定义加载的实体图。为了限制本地属性的获取数量，必须使用另外的机制，例如 Spring Data Projections。这种机制需要编写额外的样板代码，并使用 DTO 作为部分实体，这样数据模型又变得臃肿了。
+Jmix fetch plan 提供了一种 _部分_ 预加载数据模型实体的完全动态的方式，而无需引入任何静态的 _部分实体_ 对象。与 Jmix 功能相反，Hibernate 的 JPA 实现只支持在关联实体级别定义加载的实体图。为了限制本地属性的获取数量，必须使用另外的机制，例如 Spring Data Projections，但需要编写更多的样板代码。
 
 高性能地加载部分实体是 Jmix 使用 EclipseLink 作为 JPA 实现的主要原因。在 EclipseLink 的能力之上，Jmix 还添加了：方便定义 fetch plan、自动选择读取模式（JOIN 或 BATCH）以及委托给 DataManager 的延迟加载。
 
 [[soft-deletion]]
 ==== 软删除
 
-Jmix 在 JPA 级别实现的另一个独特的功能是软删除。这是企业应用中的一种流行的解决方案，因为这可以降低由于用户误操作而导致数据丢失的风险。
+Jmix 在 JPA 级别实现的另一个功能是软删除。这是企业应用中的一种流行的解决方案，因为这可以降低由于用户误操作而导致数据丢失的风险。
 
 Jmix 中的软删除对于开发者来说是完全透明的，并且非常易于使用。只需为实体添加几个带注解的属性，Jmix 就会在这些属性中记录谁以及何时“删除”了实例，而不会从数据库表中物理删除该行。
 
@@ -203,15 +198,23 @@ Jmix 中的视图有几个独特的功能，下面将详细讨论。
 [[navigation-and-dialogs]]
 ==== 导航和对话框
 
-一个视图可以映射至一个 URL，并通过 URL 在主布局中打开。此外，Jmix 也支持在当前页面弹出的对话框中打开相同的视图，而无需修改页面的 URL。在前一种情况下，打开新视图时将关闭前一个视图，而后一种情况中，原先打开的视图将保留，而且 URL 不变。
+一个视图可以映射至一个 URL，并通过 URL 在主布局中打开。
 
-这个功能的目的是满足企业应用中的两个典型需求：选择关联实体和编辑聚合。
+.通过 URL 导航打开视图
+image::ui-views-1.png[]
+
+此外，Jmix 也支持在当前页面弹出的对话框中打开相同的视图，而无需修改页面的 URL。在前一种情况下，打开新视图时将关闭前一个视图，而后一种情况中，原先打开的视图将保留，而且 URL 不变。
+
+.在对话框中打开视图
+image::ui-views-2.png[]
+
+提供可以在对话框中打开视图的目的是满足企业应用中的两个典型需求：选择关联实体和编辑聚合。
 
 这里我们先讨论第一个需求，并在 <<editing-aggregates, 后续部分>> 中讨论第二个需求。
 
 通常，Web 应用程序通过下拉列表选择关联实体。例如，当用户创建订单时，他们可以在显示客户名称的下拉列表中选择关联客户。但是，如果需求不是通过客户名称选择，而是通过他们的税号或其他属性来查找，该怎么办？或者客户还没注册，需要与订单一起创建呢？
 
-Jmix 为关联实体的高级查找问题提供了一个通用的解决方案：用户可以在对话框打开所需实体的 CRUD 列表视图，然后可以在这个功能完备的视图中按条件搜索或创建所需的实例。该功能是 UI 组件中的特殊操作实现的，该操作专门用于 xref:flow-ui:actions/entity-picker-actions.adoc[选择实体]。默认情况下，操作使用与管理实体相同的 CRUD 视图，但也可以为查找功能创建特定的视图。
+Jmix 为关联实体的高级查找问题提供了一个通用的解决方案：用户可以在对话框打开所需实体的 CRUD 列表视图，然后在这个视图中找到所需的实例并返回。该功能是 UI 组件中的特殊操作实现的，该操作专门用于 xref:flow-ui:actions/entity-picker-actions.adoc[选择实体]。默认情况下，操作使用与管理实体相同的 CRUD 视图，但也可以为查找功能创建特定的视图。
 
 在对话框中打开查找视图，不会销毁原始视图，这样更容易从打开的视图返回结果 - 只需将 Java 对象在服务端传递。
 
@@ -220,9 +223,10 @@ Jmix 为关联实体的高级查找问题提供了一个通用的解决方案：
 [[xml-descriptors]]
 ==== XML 描述
 
-视图的内容可以在 XML 中定义。这种方法大大减少了选择和创建 UI 组件结构的代码量。此外，UI 是应用程序中非常重要的部分，XML 的可读性要远高于命令式代码，比如创建一个组件，命令式代码需要实例化组件、设置属性、将组件添加到容器并分配事件监听器，而这些任务通过 XML 只需一行代码即可完成。
+视图的内容可以在 XML 中定义。这种方式可以简洁地通过描述式的方式编写页面 UI 组件的结构，并设置组件的属性。
+UI 是应用程序中非常重要的部分，XML 的可读性要远高于命令式代码，比如创建一个组件，命令式代码需要实例化组件、设置属性、将组件添加到容器并分配事件监听器，而这些任务通过 XML 只需一行代码即可完成。
 
-Jmix 选择 XML 是因为其具有以下优点：
+XML 与其他标记语言相比有以下优点：
 
 * 提供描述 UI 组件树的完整语法：用 XML 元素定义组件，用元素的属性定义组件的属性，并支持备注。
 * 可以使用 XSD 进行验证。IDE 提供可以基于 XSD 提供代码自动完成功能，无需任何额外的工具。
@@ -326,7 +330,7 @@ Jmix 提炼了一些处理视图状态的方案。例如协调视图中的数据
 [[loading-data]]
 ==== 加载数据
 
-两种类型的数据容器可以通过 `setItem()` 或 `setItems()` 方法编程式地填充数据。但是数据容器一般与另一个 Jmix UI 的抽象一起使用 - 数据加载器。
+数据容器一般与另一个 Jmix UI 的抽象一起使用 - 数据加载器。
 
 在视图的 XML 中，数据加载器在其关联的数据容器内部定义：
 
@@ -357,20 +361,24 @@ private List<Department> departmentsDlLoadDelegate(LoadContext<Department> loadC
 
 数据加载器的设计目的是为了，第一，搜集加载数据的规则（ID、查询语句、条件、分页、排序、fetch plan 等），数据规则在 `LoadContext` 对象中保存；第二，调用 `DataManager` 或代理方法加载数据；第三，将加载的数据填充到关联的数据容器中。
 
+数据容器也可以通过编码的方式不使用加载器填充，而是通过其 `setItem()` 和 `setItems()` 方法。
+
 [[saving-data]]
 ==== 保存数据
 
 Jmix UI 有一种可以自动保存视图中更改实体的机制。这个机制基于 `DataContext`（数据上下文）接口。
 
+不要将 `DataContext` 与 <<data-access,上面>> 介绍的 `DataManager` 混淆了。`DataContext` 是一个 UI 功能，而 `DataManager` 是可以在任何层使用的通用数据访问接口。
+
 一个视图创建一个 `DataContext` 的单例，所有数据加载器在将实体传递给数据容器之前会在 `DataContext` 内注册实体。
 
-标准的 `DataContext` 实现是在内存结构中维护视图中所有实体的引用。在实体在 UI 中创建、更新或删除时，数据上下文会将此实体标记为 “dirty”。
+`DataContext` 实现是在内存结构中维护视图中所有实体的引用。在实体在 UI 中创建、更新或删除时，数据上下文会将此实体标记为 “dirty”。
 
 当用户保存视图时（例如，点击 *OK* 按钮），视图会调用 `DataContext.save()` 方法，使用 `DataManager` 或调用视图中定义的代理方法保存脏实体。
 
 Jmix 数据上下文的功能与 JPA 持久化上下文类似，跟踪事务中已加载实体的变化，并在事务提交时自动保存更改。
 
-`DataContext` 对象也可以有层级结构，子 context 会将更改保存到父 context 中，而不是直接通过底层保存。该功能对于编辑聚合起着至关重要的作用，将在下一节中讨论。
+`DataContext` 对象也可以有层级结构，子 context 会将更改保存到父 context 中，而不是直接通过持久层保存。该功能对于编辑聚合起着至关重要的作用，将在下一节中讨论。
 
 [[editing-aggregates]]
 === 编辑聚合
@@ -379,6 +387,7 @@ Jmix 数据上下文的功能与 JPA 持久化上下文类似，跟踪事务中�
 
 我们看看一个包含 Customer（客户）、Order（订单）、OrderLine（订单项） 和 Product（产品） 实体的模型。每个 OrderLine 实例都是为特定 Order 创建的，并成为订单的一部分，不能属于另一个订单。同时，“客户”和“产品”是独立的实体，可以在不同实体中引用。因此，Order 和 OrderLine 实体构成一个聚合，Order 是聚合根：
 
+.Order/OrderLine 聚合
 image::aggregate-1.svg[]
 
 聚合的状态应始终保持一致，因此 OrderLine 实例应该与所属 Order 在同一个事务中一起更新。从用户的角度看，只有当用户确认订单中内容时，才能保存订单项中的更改。
@@ -400,14 +409,17 @@ public class Order {
 
 在 Jmix Studio 的实体设计器中指定属性的类型为 `COMPOSITION`（组合） 时，会自动添加这个注解。
 
-之后，当用户编辑 Order 和 OrderLine 实体的时候，Jmix 会在各自的详情视图的 <<saving-data,数据上下文>> 之间建立一个父子关系。当用户完成对 OrderLine 的修改后，会更新父视图 Order 中的实例。而且只有在完成对 Order 的修改后，整个聚合体才会发送给后端，在同一事务中保存至数据库。
+之后，当用户通过详情视图编辑 Order 和 OrderLine 实体的时候，Jmix 会在各自视图的 <<saving-data,数据上下文>> 之间建立一个父子关系。当用户完成对 OrderLine 的修改后，会更新父视图 Order 中的实例。而且只有在完成对 Order 的修改后，整个聚合体才会发送给 `DataManager`（或自定义服务），在同一事务中保存至数据库。
+
+.编辑 Order/OrderLine 聚合
+image::aggregate-2.png[]
 
 Jmix 支持多级的聚合。前一个示例中，一个 OrderLine 可能会有多个备注。为了将备注（Note）也包含在 Order 根实体的聚合中，只需要在 OrderLine 的 Notes 属性上加上 `@Composition` 注解。
 
 [[security]]
 == 安全
 
-数据访问控制和数据安全是任何企业应用的重要组成部分。Jmix 在设计时就非常注重安全性，并提供以下功能：
+数据访问控制和数据安全是任何企业应用的重要组成部分。Jmix https://en.wikipedia.org/wiki/Secure_by_design[基于安全设计^]，并提供以下功能：
 
 * 基于 Spring Security 的开箱即用的身份验证配置。
 * 成熟完善的数据访问控制机制。

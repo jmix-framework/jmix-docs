@@ -1,0 +1,66 @@
+= 集成 JavaScript 库
+
+可以基于第三方 JavaScript 库创建自定义的 UI 组件。本节中的示例演示了如何集成 https://jqueryui.com/slider/[jQuery UI Slider^]。
+
+[[web-component]]
+== 创建 JavaScript Web 组件
+
+在 `frontend/src/component/slider` 内创建如下 `slider.js` 文件，其中带有包装 *jQuery UI Slider* 小部件的 Web 组件。`ready()` 方法用于初始化小部件。
+
+.slider.js
+[source,javascript,indent=0]
+----
+include::example$/onboarding/frontend/src/component/slider/slider.js[tags=js-component]
+----
+<1> 定义自定义组件的基类。
+<2> 定义 HTML 元素的名称。
+<3> 自定义属性。
+<4> 定义属性更改的监听器。
+<5> 获取根元素的链接。
+<6> 在根元素初始化 https://jqueryui.com/slider/[jQuery UI Slider^]。
+<7> 发送 `custom-slide-changed` 名称的自定义事件。
+<8> 当属性改变时，为 slider 设置新值。
+<9> 使用在 `static get is()` 方法中定义的名称导出自定义 HTML 元素。
+
+[[creating-web-component-java-api]]
+== 为 Web 组件创建 Java API
+
+创建 `Slider.java` 文件，这是一个 UI 组件类。为服务端代码、访问方法、事件监听器和数据源连接定义了 API。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/component/Slider.java[tags=js-component;!dom-event]
+----
+<1> 定义由 Component` 类自动创建的 *根* 元素，可以通过 `getElement()` 方法访问。必须与 Web 组件导出的相同。
+<2> `@NpmPackage` 注解定义依赖的 npm 包，其中包含一个或多个 JS 模块。
+<3> `@JsModule` 注解定义需要导入 JavaScript 模块。
+<4> 为 getter 添加 `@Synchronize` 注解，确保浏览器将属性的更改发送到服务端。注解定义了触发同步的 DOM 事件的名称，在本例中为 `custom-slide-changed` 事件。
+
+[[handling-client-side-events]]
+== 在客户端处理事件
+
+可以将组件事件与浏览器中元素触发的 DOM 事件相关联。为此，需在事件类上使用 `@DomEvent` 注释来指定要监听的 DOM 事件的名称。如果存在组件事件的监听器，Vaadin Flow 将自动为元素添加 DOM 事件的监听器。
+
+事件可以包含其他附加信息，例如在单击事件中使用的鼠标键。`@DomEvent` 构造函数支持额外的参数。可以使用 `@EventData` 指定需要从浏览器发送的数据。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/component/Slider.java[tags=dom-event]
+----
+
+<1> 使用 `@DomEvent` 注解将 Slider 组件与 `custom-slide-changed` DOM 事件相关联
+<2> 使用 `@EventData` 注解定义附加的事件数据，本例中为 slider 的值。
+
+TIP: 关于创建自定义组件的更多内容可以参阅 Vaadin 文档： https://vaadin.com/docs/latest/flow/advanced/loading-resources#using-annotations[导入 JavaScript & CSS^]、 https://vaadin.com/docs/latest/flow/create-ui/web-components[集成 Web 组件^]、 https://vaadin.com/docs/latest/flow/create-ui/element-api[Element API^]。
+
+[[usage-example]]
+== 用例
+
+组件实现完成后，可以在视图中使用，示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/customcomponent/jscomponent/JsComponentView.java[tags=js-component-usage]
+----
+
+image::visual-components/creating-components/slider-usage.gif[align="center", width="350"]

@@ -1,0 +1,129 @@
+= 视图方法
+
+在本节中，我们将介绍一些可以在代码中调用或重写的视图控制器基类的方法。
+
+[[methods-of-all-views]]
+== 所有视图的方法
+
+* `close()` - 请求关闭视图，使用 `StandardOutcome` 枚举值或 `CloseAction` 对象作为参数。
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=close-with-discard]
+----
++
+参数值将传递给 xref:views/view-events.adoc#before-close-event[BeforeCloseEvent] 和 xref:views/view-events.adoc#after-close-event[AfterCloseEvent]，因此可以在监听器中获取视图关闭原因的信息。
+
+* `closeWithDefaultAction()` - 请求使用 `StandardOutcome.CLOSE` 关闭视图。
+
+[[prevent-browser-tab-closing]]
+* `setPreventBrowserTabClosing()` - 设置此视图是否应防止浏览器标签页意外关闭，如果设置了 xref:ui-properties.adoc#jmix.ui.view.prevent-browser-tab-closing[jmix.ui.view.prevent-browser-tab-closing] 属性为 `true`（默认为 `false`）。xref:views/view-classes.adoc#standard-detail-view[详情视图] 默认启用。
+
+* `getViewData()` - 返回 `ViewData` 对象，该对象中注册了视图 XML 中定义的所有 xref:data-components.adoc[数据组件]。可以使用其 `loadAll()` 方法触发视图的所有数据加载器：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=view-data]
+----
+
+* `getViewAttributes()` - 返回存储命名值（named value）的 `ViewAttributes` 对象。`VaadinSession` 可以作为一种存储。例如，详情视图中使用 `ViewAttributes` 来存储视图的 _只读状态_ 和 _锁定状态_，并在刷新视图时还原这些设置。
+
+* `getPageTitle()` - 返回视图的标题。默认情况下，返回在视图描述符中定义的本地化值。可以重写该方法提供动态标题，例如：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=page-title]
+----
+
+* `beforeLeave()` - 一个回调函数，在导航至其他视图之前调用。是 Vaadin {vaadin-docs}/flow/routing/lifecycle/[导航生命周期^] 的一部分。
+** 通过该事件可以 _延迟_、_取消_ 导航，或 _切换_ 导航目的地。
+** 当视图以对话框模式打开时不会执行。
+** 如果不调用 `super()` 方法则不能重写，因为该方法执行了框架相关的代码。
+
+* `beforeEnter()` - 一个回调函数，在导航进入视图之前调用。是 Vaadin 导航生命周期的一部分。
+** 可以用来获取 `Location` 对象，还可以更改导航目标以转到与原始目标不同的目标。
+** 当视图以对话框模式打开时不会执行。
+** 如果不调用 `super()` 方法则不能重写，因为该方法执行了框架相关的代码。
+
+* `afterNavigation()` - 一个回调函数，在导航完成时调用。是 Vaadin 导航生命周期的一部分。
+** 可以用来获取 `Location` 对象。
+** 当视图以对话框模式打开时不会执行。
+** 如果不调用 `super()` 方法则不能重写，因为该方法执行了框架相关的代码。
+
+[[methods-of-standard-list]]
+== StandardListView 的方法
+
+* `closeWithDiscard()` - 请求使用 `StandardOutcome.DISCARD` 关闭视图。
+
+* `getLookupComponent() / findLookupComponent()` - 返回该 xref:views/view-classes.adoc#standard-list-view[查找视图] 中用于获取值的组件。默认情况下，返回 xref:views/view-annotations.adoc#lookup-component[@LookupComponent] 注解中 `id` 属性指定的组件。
+
+* `setSelectionValidator()` - 设置一个谓词，用于测试所选条目是否可以由 `SelectionHandler` 处理。
+
+* `setSelectionHandler()` - 设置处理所选条目的回调方法。默认情况下，如果是为 xref:vc/components/dataGrid.adoc[] 组件打开的查找视图，则将选择的结果添加到 xref:data/collection-container.adoc[集合容器] 中，如果是为字段控件打开的查找视图，则将选择的结果设置回字段，例如 xref:vc/components/entityPicker.adoc[]。
++
+[source,java,indent=0]
+----
+DialogWindow<View<?>> dialog = dialogWindows.lookup(ProjectDetailView.this, User.class) // <1>
+        .withSelectHandler(users -> { // <2>
+            for (User user : users) {
+                ProjectParticipant projectParticipant = dataManager.create(ProjectParticipant.class);
+                projectParticipant.setUser(user);
+                projectParticipant.setProject(getEditedEntity());
+                projectParticipant.setRole(projectRole);
+                participantsDc.getMutableItems().add(projectParticipant);
+            }
+        })
+        .build();
+
+View<?> view = dialog.getView();
+if (view instanceof MultiSelectLookupView multiSelectLookupView) { // <3>
+    multiSelectLookupView.setLookupComponentMultiSelect(true);
+}
+
+dialog.open();
+----
+<1> 创建不绑定任何 UI 组件的查找视图 builder。
+<2> 为查找视图定义选择处理器。
+<3> 检查打开的查找视图是否支持多选。
+
+[[methods-of-standard-detail]]
+== StandardDetailView 的方法
+
+* `getEditedEntity()` - 视图显示时，返回正在编辑的实体实例。该实例是设置在带 xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer] 注解的数据容器中的实例。
++
+在 xref:views/view-events.adoc#init-event[InitEvent] 监听器中，此方法返回 `null`。在 xref:views/view-events.adoc#before-show-event[BeforeShowEvent] 监听器中，此方法返回传递给视图进行编辑的实例（之后，视图打开过程中，将重新加载实体，并为数据容器设置不同的实例）。
+
+详情视图可使用下列方法关闭：
+
+[[close-with-save-method]]
+* `closeWithSave()` - 验证并保存更改，然后使用 `StandardOutcome.SAVE` 关闭视图。可以在自定义事件监听器调用此方法，或在视图中添加内置的 `detail_saveClose` 操作。
+
+* `closeWithDiscard()` - 忽略任何未保存的更改，并使用 `StandardOutcome.DISCARD` 关闭视图。可以在自定义事件监听器调用此方法，或在视图中添加内置的 `detail_discard` 操作。
+
+如果使用 `close(StandardOutcome.CLOSE)` 或 `closeWithDefaultAction()` 关闭视图，并且 xref:data/data-context.adoc[DataContext] 中有未保存的更改，则在关闭视图之前将显示一个对话框，其中显示对应的消息。可以使用 xref:ui-properties.adoc#jmix.ui.view.use-save-confirmation[jmix.ui.view.use-save-confirmation] 应用程序属性调整通知的类型。如果使用 `closeWithDiscard()` 或 `close(StandardOutcome.DISCARD)` 方法，则将忽略未保存的更改，而不会显示任何消息。
+
+* `hasUnsavedChanges()` - 如果视图有未保存的更改，则返回 `true`。默认实现会检查 `DataContext` 中是否有已删除或已修改的实体。如果在 `DataContext` 中只有新实体标记为已修改，则检查这些实体自打开视图以来是否已被修改。可以重写此方法以提供额外的检查，或者完全跳过检查并返回 `false`。
+
+* `save()` - 在不关闭视图的情况下验证并保存更改。可以在自定义事件监听器调用此方法，或在视图中添加内置的 `detail_save` 操作。此外，还可以重写 `save()` 方法以在保存数据后执行某些操作，示例：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailView.java[tags=overridden-save-method]
+----
+<1> 调用父类方法执行默认逻辑。
+<2> 在保存数据后执行操作。
+
+* `setReloadSaved(boolean)` - 设置在调用 xref:views/view-methods.adoc#close-with-save-method[closeWithSave()] 方法后是否应重新加载已编辑的实体。默认值为 `false`。
++
+当以对话框模式打开视图时，框架会使用 `true` 值调用此方法，可以在打开视图的情况下返回已保存的实体实例。如果不需要在对话框模式中重新加载已保存的实体，可以在 xref:views/view-events.adoc#ready-event[ReadyEvent] 监听器中调用 `setReloadSaved(false)`。
+
+* `setShowSaveNotification(boolean)` - 设置在成功保存的情况下是否显示通知。默认值为 `true`。
+
+* `setShowValidationErrors(boolean)` - 组件验证后，是否使用 xref:views/view-validation.adoc#showValidationErrors[showValidationErrors()] 方法显示错误。默认值为 `true`。
+
+* `setCrossFieldValidationEnabled(boolean)` - 设置是否应在保存更改之前执行跨字段验证。使用 `UiCrossFieldChecks` xref:data-model:bean-validation.adoc#constraint-groups[约束组] 验证实体实例。默认值为 `true`。
+
+* `getLockStatus()` - 返回当前编辑实体实例的 xref:pessimistic-lock:index.adoc[悲观锁] 状态。可能值：
+** `LockStatus.NOT_SUPPORTED` - 实体不支持悲观锁。
+** `LockStatus.LOCKED` - 实体实例已成功锁定。
+** `LockStatus.FAILED` - 锁定失败，因为实体已被其他人锁定。

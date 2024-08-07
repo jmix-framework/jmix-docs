@@ -1,0 +1,58 @@
+= UI 事件
+
+Spring 的 `ApplcationEvent` 可以用来响应应用程序中不同的事件。
+
+如需为 UI 组件（包括打开的 xref:views/views.adoc[视图]）发送应用程序事件，需要使用框架提供的 `UiEventPublisher` bean。
+
+`UiEventPublisher` bean 支持下列方法：
+
+* `publishEventForCurrentUI()` - 仅在当前激活的浏览器标签页中发送事件。
+
+* `publishEvent()` - 在当前会话的所有浏览器标签页中发送事件。
+
+* `publishEventForUsers()` - 在 `usernames` 参数指定的用户所有会话的所有浏览器标签页中发送事件。如果 `usernames` 参数集合为 `null`，则事件会发送给所有用户。
+
+为了正确地更新 UI，实现了 `AppShellConfigurator` 接口的类必须包含 `@Push` 注解。这个类通常是 Spring Boot 应用程序主类：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/OnboardingApplication.java[tags=main-class-push;main-class]
+----
+
+[[usage-example]]
+== 用例
+
+假设有这么一个需求：用户需要按照相同的步骤完成入职流程。每个步骤由一个实体实例表示，且有一个视图展示已完成步骤的信息。用户还需要一个提示器，显示已未完成的步骤数量，每次入职流程的步骤发生变化时更新。这个提示器可以是一个菜单项的徽标，方便用户查看，不用每次打开统计页面。
+
+表示步骤的实体实例可以在应用程序的实体详情视图或业务逻辑中更新。徽标的值需要在用户相关的实体每次更新时自动更新。
+
+解决方案如下：
+
+. 创建一个事件类：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/event/OnboardingStatusChangedEvent.java[tags=application-event]
+----
+
+. 在需要接收通知的视图中创建一个事件监听器。该示例中，监听器位于主视图内：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/main/MainView.java[tags=init-event;!init-initialLayout;ui-event-listener]
+----
+<1> 用户打开主视图时更新入职流程的状态。
+<2> 带 `@EventListener` 注解的方法可以在视图内处理应用程序事件。
+<3> 通过一个服务获取未完成的入职步骤。
+<4> 设置菜单项的徽标值为未完成步骤的数量。
+
+. 在 xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] 监听器中使用 `UiEventPublisher` bean 发送事件：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/listener/UserStepEventListener.java[tags=ui-event-publisher-1;ui-event-publisher-2]
+----
+<1> 向用户的所有会话的所有 UI 发送事件。用户由发生变更的 `UserStep` 实体确定。
+
+.显示未完成步骤数量的菜单徽标
+image::ui-events/on-boarding-status.png[align="center",width="228"]

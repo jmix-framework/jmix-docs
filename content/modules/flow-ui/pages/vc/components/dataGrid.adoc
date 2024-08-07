@@ -1,4 +1,5 @@
 = dataGrid 数据网格
+:table-caption!:
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -6,39 +7,106 @@
 </div>
 ++++
 
-`dataGrid` 用于展示、排序表格类数据，由于使用了在滚动时加载数据的延迟加载方式，所以此组件具有更好的数据行、列操作性能。
+展示表格数据，可以支持编辑、排序、过滤以及基于列的聚合。在滚动展示大数据集时，使用了延迟加载保证效率。
+[cols="1h,6", grid=none]
+|===
+|XML 元素
+|`dataGrid`
+|Java 类
+|`DataGrid`
+|XML 属性
+|xref:vc/common-attributes.adoc#id[id] -
+<<aggregatable, aggregatable>> -
+<<aggregationPosition,aggregationPosition>> -
+xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<allRowsVisible,allRowsVisible>> -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+<<columnReorderingAllowed,columnReorderingAllowed>> -
+xref:vc/common-attributes.adoc#css[css] -
+xref:vc/common-attributes.adoc#dataContainer[dataContainer] -
+<<detailsVisibleOnClick,detailsVisibleOnClick>> -
+<<dropMode,dropMode>> -
+<<editorBuffered,editorBuffered>> -
+xref:vc/common-attributes.adoc#enabled[enabled] -
+xref:vc/common-attributes.adoc#focusShortcut[focusShortcut] -
+xref:vc/common-attributes.adoc#height[height] -
+xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:vc/components/entityPicker.adoc#metaClass[metaClass] -
+xref:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:vc/common-attributes.adoc#minWidth[minWidth] -
+<<multiSort,multiSort>> -
+<<multiSortOnShiftClickOnly,multiSortOnShiftClickOnly>> -
+<<multiSortPriority,multiSortPriority>> -
+<<nestedNullBehavior,nestedNullBehavior>> -
+<<pageSize,pageSize>> -
+<<rowDraggable,rowDraggable>> -
+<<selectionMode,selectionMode>> -
+xref:vc/common-attributes.adoc#tabIndex[tabIndex] -
+xref:vc/common-attributes.adoc#themeNames[themeNames] -
+xref:vc/common-attributes.adoc#visible[visible] -
+xref:vc/common-attributes.adoc#width[width]
+|事件和处理器
+|xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:vc/common-handlers.adoc#BlurEvent[BlurEvent] -
+<<CellFocusEvent,CellFocusEvent>> -
+<<ColumnReorderEvent,ColumnReorderEvent>> -
+<<ColumnResizeEvent,ColumnResizeEvent>> -
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
+xref:vc/common-handlers.adoc#FocusEvent[FocusEvent] -
+<<GridDragEndEvent,GridDragEndEvent>> -
+<<GridDragStartEvent,GridDragStartEvent>> -
+<<GridDropEvent,GridDropEvent>> -
+<<ItemClickEvent,ItemClickEvent>> -
+<<ItemDoubleClickEvent,ItemDoubleClickEvent>> -
+<<SortEvent,SortEvent>> -
+<<classNameGenerator-component,classNameGenerator>> -
+<<dataGenerator,dataGenerator>> -
+<<dragFilter,dragFilter>> -
+<<dropFilter,dropFilter>>
+<<enterPressHandler,enterPressHandler>> -
+<<tooltipGenerator,tooltipGenerator>>
+|XML 内部元素
+|<<actions,actions>> - <<columns,columns>> - <<column,column>>
+|===
 
-* XML 元素：`dataGrid`
-
-* Java 类：`DataGrid`
-
+[[basics]]
 == 基本用法
 
-一个在 XML 视图描述声明 `dataGrid` 的示例如下：
+创建该组件时，在 XML 中声明一个 `dataGrid` 元素，并与一个 xref:flow-ui:data/data-containers.adoc[数据容器] 绑定。组件支持集合数据容器和键值对数据容器。然后，设置需要在表格中展示的属性：
+
+* 如需展示 fetch plan 中的所有属性，添加一个带 `includeAll = true` 属性的 <<columns,columns>> 元素即可。排除不需要的属性，可以在 `exclude` 中以逗号分隔设置。
+* 如需展示部分属性，也可以先添加 <<columns,columns>> 元素，然后在其内部为所需的属性添加 <<column, column>> 元素。
+* 如果 fetch plan 包含引用属性，在该属性会显示其 xref:data-model:entities.adoc#instance-name[实例名称]。如需显示子实体的特定属性，需要在 fetch plan 和 `column` 元素中都添加子实体属性。
+
+下面的示例演示了 `dataGrid` 的基本用法：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=data;usersDc;layout;basics]
 ----
 
-<1> `User` 实体的 xref:flow-ui:data/collection-container.adoc[集合数据容器]。
-<2> `dataGrid` 使用 `dataContainer` 属性绑定 `usersDc` 数据容器。
-<3> `columns` 元素定义在数据网格中展示哪些实体属性。
+<1> 引用属性。
+<2> 显示根实体属性的列。
+<3> 显示引用实体属性的列，使用点（"."）访问引用属性。
 
-image::visual-components/components/data-grid-basics.png[align="center", width="732"]
+image::visual-components/components/data-grid-basics.png[align="center", width="804"]
 
 [[data-binding]]
 == 数据绑定
 
-[[declarative-binding]]
-=== 声明式绑定
+数据绑定是指将可视化组件与数据容器想关联。数据网格可以展示 xref:data/collection-container.adoc[集合数据容器] 或 xref:data/key-value-containers.adoc[键值对数据容器] 中的数据。
 
-通常，使用 `dataContainer` 属性在视图 XML 描述中将数据与 `dataGrid` 绑定。此时需要使用一个 xref:flow-ui:data/collection-container.adoc[集合数据容器]。
+[[collection-container]]
+=== 集合容器
+
+典型地，可以在 XML 中使用 `dataContainer` 属性将数据与 `dataGrid` 绑定。该属性需要指定一个 xref:flow-ui:data/collection-container.adoc[集合数据容器]，其中包含需要展示的数据。请参考之前小节的 <<basics, 示例>>。
 
 [[key-value-containers-binding]]
-=== 使用键值对容器
+=== 键值对容器
 
-数据网格还可以绑定至 xref:flow-ui:data/key-value-containers.adoc[键值对容器] 展示查询的纯数值和聚合值。示例：
+DataGrid 还可以绑定至 xref:flow-ui:data/key-value-containers.adoc[键值对容器] 展示查询的纯数值和聚合值。示例：
 
 [source,xml,indent=0]
 ----
@@ -48,221 +116,181 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 [[programmatic-binding]]
 === 编程式绑定
 
-如需以编程的方式在视图控制器定义数据容器，则可以在 XML 中设置 xref:flow-ui:vc/common-attributes.adoc#metaClass[metaClass] 属性而非 xref:flow-ui:vc/common-attributes.adoc#dataContainer[dataContainer]。
+如需以编程的方式在视图控制器定义数据容器，则需要设置 xref:flow-ui:vc/common-attributes.adoc#metaClass[metaClass] 属性而非 xref:flow-ui:vc/common-attributes.adoc#dataContainer[dataContainer]。
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=metaClass]
 ----
 
-视图控制器中，使用 `ContainerDataGridItems` 类将数据网格和数据容器绑定：
+然后，在视图控制器中，使用 `ContainerDataGridItems` 类将数据网格和数据容器绑定：
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dataGrid;usersDc;onInit;setItems]
 ----
 
-[[columns]]
-== columns 元素
+[[inline-editing]]
+== 行内编辑
 
-数据网格的列集合定义在 `columns` 元素中。`columns` 元素有如下属性：
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-inline-editor" class="live-demo-btn" target="_blank">在线示例</a>
+</div>
+++++
 
-[[includeAll]]
-* `includeAll` - 加载数据容器中 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 的所有属性。
-+
-在下面的例子中，我们显示了 `usersDc` 中使用 fetch plan 的所有属性：
-+
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=includeAll]
-----
-+
-如果实体的 fetch plan 包含引用属性，该属性会按照其 xref:data-model:entities.adoc#instance-name[实例名] 进行展示。如果需要展示一个特定的级联属性，则需要在 fetch plan 和 `column` 元素中定义：
-+
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=data;userStepsDc;layout;includeAllReference]
-----
+该组件支持行内编辑，用户可以在只读和编辑模式之间切换。行内编辑可以通过 <<actions-column, 操作列>> 中的按钮激活，或通过 <<double-click-editing,双击>> 激活。
 
-* `exclude` - 英文逗号分隔的属性列表，这些属性不会被加载到数据网格。
-+
-在下面的例子中，我们会显示除了 `id`、`version` 和 `sortValue` 之外的所有属性：
-+
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=exclude]
-----
+NOTE: 行内编辑需要通过显式的保存操作将数据提交至数据库。可以给用户提供一个 "保存" 按钮，或实现 <<auto-save,自动保存>>，当用户离开当前单元格时自动保存改动。
 
-[[column]]
-== column 元素
+[[actions-column]]
+=== 操作列
 
-每一列是在内部的 `column` 元素中描述。
+使用 `editorActionsColumn` 在每行中提供 *Edit* 和 *Close* 按钮。用户可以使用这些按钮开始或结束编辑。
 
-[TIP]
+NOTE: 操作列会添加在所有列的后面，如果使用了 `includeAll="true"`，操作列可能会在很远的最右边。
+
+image::visual-components/components/data-grid-editing.gif[align="center"]
+
+.显示代码
+[%collapsible]
 ====
-如需在 Jmix Studio 中添加 `column`，可以在视图 XML 或者 *Jmix UI* 结构面板中选择 `columns` 元素，然后点击组件面板的 xref:studio:view-designer.adoc#add-column[Add->Column] 按钮。
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-non-buffered-editor]
+----
+<1> 允许某些列 <<editable, 可编辑>>。
+<2> 开始编辑的按钮。
+<3> 完成编辑的按钮。
 ====
 
-[[autoWidth]]
-=== autoWidth
+==== 缓存模式
 
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-width" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
+当 <<editorBuffered,缓存模式>> 开启时，用户需要显式的确认或取消正在编辑的内容，以防止误操作。点击不同的表格行，会自动取消编辑。
 
-为该列启用/禁用自动列宽。
+image::visual-components/components/data-grid-buffered-editor.gif[align="center"]
 
-当 `autoWidth = true` 时，列的宽度依据内容自动调整。
-
-该属性默认为 `false`。
-
-[[editable]]
-=== editable
-
-为该列创建一个编辑器组件。
-
-参考 <<inline-editing,行内编辑>>。
-
-[[flexGrow]]
-=== flexGrow
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/flow/#setting-column-widths" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置列的 flex grow 比例。当设置成 `0` 时，列宽固定。
-
-[[filterable]]
-=== filterable
-
-设置列的 <<column-filtering,filtering>> 属性。如果某列启用了过滤，则会在列的表头中添加一个过滤按钮。默认禁用列过滤。
-
-[[footer]]
-=== footer
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-headers-footers" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置列的 footer 文本。
-
-该属性可以是文本本身或者 xref:localization:message-bundles.adoc[消息包] 中的一个键值。如果是消息包键值，则必须以 `msg://` 开头。
-
-[[frozen]]
-=== frozen
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-freezing" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置是否锁定该列。
-
-NOTE: 列锁定是 UI 层操作，如需锁定请从左往右锁定，以得到更流畅的展示。
-
-[[header]]
-=== header
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-headers-footers" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置列的 header。
-
-该属性可以是文本本身或者 xref:localization:message-bundles.adoc[消息包] 中的一个键值。如果是消息包键值，则必须以 `msg://` 开头。
-
-[[key]]
-=== key
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/flow/#column-keys" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置用户定义的列映射 id。这个键值可以用来通过 `getColumnByKey(String)` 方法获取该列。
-
-键值必须在同一个数据网格中唯一，设定后不能更改。
-
-[[property]]
-=== property
-
-`property` 指定列对应的实体属性。可以是数据容器实体的属性，也可以是关联实体的属性，关联实体属性前面需要加上关联类名字并通过 “.” 连接。例如：
-
+.显示代码
+[%collapsible]
+====
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=column-property]
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-buffered-editor]
+----
+<1> 启用缓存模式。
+<2> 允许某些列 <<editable, 可编辑>>。
+<3> 开始编辑的按钮。
+<4> 确认编辑的按钮。
+<5> 取消编辑的按钮。
+====
+// TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin documentation^]
+
+[[double-click-editing]]
+=== 双击编辑
+
+有时候通过双击的方式打开行内编辑器更加方便。
+
+image::visual-components/components/data-grid-double-click-editing.gif[align="center"]
+
+.显示代码
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dblClickTable]
 ----
 
-[[resizable]]
-=== resizable
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
+----
+====
+
+[[auto-save]]
+=== 自动保存改动
+
+包括 `dataGrid` 在内的可视化组件会将改动的数据暂存在数据容器中，直到有一个确认的操作将数据提交至数据库。
+
+如果需要在用户离开当前单元格时自动保存行内编辑的修改，可以创建一个 `ItemPropertyChangeEvent` 事件的处理器并通过 `dataManager` 保存数据：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=auto-save]
+----
+
+
+
+
+[[DataGridEditor]]
+=== DataGridEditor
+
+`io.jmix.flowui.component.grid.editor.DataGridEditor` 接口提供了额外的编辑器功能：配置一个编辑器、打开编辑器、保存或取消行编辑，以及定义列编辑组件的工具方法。
+
+WARNING: 为了支持框架的机制，例如数据容器、值来源等，列编辑器组件必须通过 `DataGridEditor` 的 `DataGridEditor#setColumnEditorComponent()` 方法添加，而不能直接使用列 API `Column#setEditorComponent()`。
+
+参考示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=uiComponents;editableUserTable;onInit;DataGridEditor]
+----
+<1> 获取 `DataGridEditor` 实例。
+<2> `JmixComboBox` 组件实例用 `UiComponents` 工厂创建。
+<3> 设置 <<SupportsStatusChangeHandler,StatusChangeHandler>>。
+<4> `setColumnEditorComponent()` 方法返回的可视化组件将作为列编辑组件。
+
+[[SupportsStatusChangeHandler]]
+=== SupportsStatusChangeHandler
+
+默认情况下，字段组件（例如，xref:flow-ui:vc/components/textField.adoc[textField]、xref:flow-ui:vc/components/comboBox.adoc[comboBox]）会在组件上方展示错误信息。但是在区域有限的单元格编辑器中，这种方式就不合适了。`io.jmix.flowui.component.SupportsStatusChangeHandler` 接口支持定义以不同的方式展示错误信息。实现了这个接口的组件支持错误信息代理。
+
+行内编辑器默认使用 `StatusChangeHandler`，会将错误信息作为组件的 xref:flow-ui:vc/common-attributes.adoc#title[title] 展示。
+
+[[header-footer]]
+== Header 和 Footer
 
 ++++
 <div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-reordering-resizing" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-header-footer" class="live-demo-btn" target="_blank">在线示例</a>
 </div>
 ++++
 
-当设置为 `true` 时，用户可以手动调整列宽。该属性默认为 `false`。
+组件可以包含 header 和 footer 以显示补充信息。补充信息可以是一行或多行，通过下列方法添加：
 
-列宽变化事件可以通过 <<ColumnResizeEvent>> 跟踪。
+[cols="1h,6", grid=rows]
+|===
+|*方法*
+|*描述*
+|`appendHeaderRow()`
+|在 header 块的底部添加一行。
+|`prependHeaderRow()`
+|在 header 块的顶部添加一行。
+|`appendFooterRow()`
+|在 footer 块的底部添加一行。
+|`prependFooterRow()`
+|在 footer 块的顶部添加一行。
+|===
 
-[[sortable]]
-=== sortable
+下面的示例中，`dataGrid` 的 header 显示合并的单元格，而 footer 显示一些计算值：
 
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#sorting" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
+image::visual-components/components/data-grid-header-footer.png[align="center", width="750"]
 
-设置用户是否能对该列排序。
+.显示代码
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=header-footer]
+----
 
-`dataGrid` 的排序事件可以通过 <<SortEvent>> 跟踪。
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=injects;onInit;initHeader;initFooter;getActiveCount]
+----
+<1> header 中的单元格可以合并。以提供关于列的通用信息。
+====
 
-[[textAlign]]
-=== textAlign
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-alignment" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置列的文字对齐。
-
-支持三种不同的对齐方式：`START`（默认）、`CENTER`、`END`。
-
-[[visible]]
-=== visible
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-visibility" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置列可见性。
-
-[[width]]
-=== width
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-width" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-使用 CSS 字符串设置列宽。
+TIP: header 和 footer 都可以包含丰富的内容和组件。参考 https://demo.jmix.io/ui-samples/sample/data-grid-header-footer[在线示例^]。
 
 [[column-filtering]]
 == 表头过滤
@@ -291,29 +319,25 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 [[actions]]
 == 操作
 
-`dataGrid` 组件实现了 `HasActions` 接口，可以包含自定义操作和标准列表操作。
+`dataGrid` 组件实现了 `HasActions` 接口，可以包含标准 xref:flow-ui:actions/list-actions.adoc[列表操作] 和自定义操作。操作通过右键菜单或相应的按钮调用。
 
-数据网格的操作定义在内部的 `actions` 元素中。
-
-[TIP]
-====
-如需在 Jmix Studio 中添加 `action`，可以在视图 XML 或者 *Jmix UI* 结构面板中选择组件，然后点击组件面板的 xref:studio:view-designer.adoc#add-action[Add->Action] 按钮。
-====
-
-如果操作有 xref:flow-ui:vc/common-attributes.adoc#text[标题]，则会显示在数据网格的右键菜单中。此外，数据网格的操作可以分配给视图中任意位置的 xref:flow-ui:vc/components/button.adoc[按钮]。
-
-可以用 `hbox` 容器在数据网格上方显示操作按钮。
+下面的示例演示如何为组件添加操作：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-actions]
 ----
 
-<1> 在数据网格上方定义一个 `buttonsPanel` `hbox` 容器。
+<1> 在数据网格上方定义一个 `hbox` 容器，显示操作的按钮。
 <2> 定义 `list_create` 标准操作。
-<3> 定义 `getInfo` 自定义操作
+<3> 定义 `getInfo` 自定义操作。其 xref:flow-ui:vc/common-attributes.adoc#text[text] 属性的值用于在右键菜单中显示该操作，并作为按钮的标题。
 
 image::visual-components/components/data-grid-actions.png[align="center", width="732"]
+
+[TIP]
+====
+如需在 Jmix Studio 中添加 `action`，可以在视图 XML 或者 *Jmix UI* 结构面板中选择组件，然后点击组件面板的 xref:studio:screen-designer.adoc#add-action[Add->Action] 按钮。
+====
 
 [[renderers]]
 == 渲染器
@@ -474,118 +498,37 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=ComponentRenderer]
 ----
 
-[[inline-editing]]
-== 行内编辑
+[[item-details]]
+== 条目详情
 
 ++++
 <div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#inline-editing-java-only" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-item-details" class="live-demo-btn" target="_blank">在线示例</a>
 </div>
 ++++
 
-`dataGrid` 组件支持行内编辑器来编辑单元格数据。
 
-带有 <<editable,editable = true>> 属性的列展示实体属性编辑的组件。每个可编辑列的编辑组件是根据对应实体的属性自动选取的。
+组件中的行可以展开，以显示每行的附加信息。通过 `setItemDetailsRenderer()` 方法可以实现该功能。方法使用一个 <<component-renderer, ComponentRenderer>> 作为参数，提供内容的渲染方式。
 
-<<editorBuffered,editorBuffered>> 属性定义行内编辑器是否启用缓存模式。缓存模式：修改后的数据需要显式提交。
+image::visual-components/components/data-grid-items-details.png[align="center", width="750"]
 
-* 如需将某些列设为可编辑，请设置 <<editable,editable>> 属性为 `true`。
+<<detailsVisibleOnClick, detailsVisibleOnClick>> 属性可以设置当点击特定行时，是否显示详细信息。如果需要通过其他事件触发详情展示，可以设置该属性为 `false`。
 
-* 然后，就可以通过编程的方式编辑某一行，参考 https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin 文档^]；或者定义 <<editorActionsColumn,editorActionsColumn>> 元素，示例：
-+
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-editable-simple]
-----
-+
-image::visual-components/components/data-grid-editing.gif[align="center"]
+[[sorting]]
+== 排序
 
-[[editorActionsColumn]]
-=== editorActionsColumn
-
-`editorActionsColumn` 元素用来创建自定义带编辑按钮的列。
-
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=editorActionsColumn]
-----
-
-编辑列中可以包含下列按钮：
-
-* `editButton` - 开始编辑。适用于缓存或非缓存模式。
-* `saveButton` - 保存编辑列中的改动。适用于缓存模式。
-* `cancelButton` - 丢弃编辑列中的改动。适用于缓存模式。
-* `closeButton` - 关闭编辑模式。仅适用于非缓存模式。
-
-每个按钮仅支持标准按钮的有限几个属性：xref:flow-ui:vc/common-attributes.adoc#text[text]、`icon`、xref:flow-ui:vc/common-attributes.adoc#title[title]、xref:flow-ui:vc/common-attributes.adoc#classNames[classNames]、xref:flow-ui:vc/common-attributes.adoc#themeNames[themeNames]、`iconAfterText`。
-
-编辑列会相对其他列添加到表格中。如果是 `includeAll="true"`，编辑列添加在最后。
-
-[[DataGridEditor]]
-=== DataGridEditor
-
-`io.jmix.flowui.component.grid.editor.DataGridEditor` 接口提供了更多的编辑器功能：配置编辑器、打开编辑器、保存和取消行编辑以及定义列编辑组件的一些工具方法。
-
-WARNING: 为了支持框架的底层机制，例如数据容器、源值等，列编辑组件必须通过 `DataGridEditor` 的方法（`DataGridEditor#setColumnEditorComponent()`）进行添加，不能直接使用列 API 的 `Column#setEditorComponent()` 方法。
-
-示例：
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=uiComponents;editableUserTable;onInit;DataGridEditor]
-----
-<1> 获取 `DataGridEditor` 实例。
-<2> `JmixComboBox` 组件实例用 `UiComponents` 工厂创建。
-<3> 设置 <<SupportsStatusChangeHandler,StatusChangeHandler>>.
-<4> `setColumnEditorComponent()` 方法返回的可视化组件将作为列编辑组件。
-
-[[SupportsStatusChangeHandler]]
-=== SupportsStatusChangeHandler
-
-默认情况下，字段组件（例如，xref:flow-ui:vc/components/textField.adoc[textField]、xref:flow-ui:vc/components/comboBox.adoc[comboBox]）会在组件上方展示错误信息。但是在区域有限的单元格编辑器中，这种方式就不合适了。`io.jmix.flowui.component.SupportsStatusChangeHandler` 接口支持定义以不同的方式展示错误信息。实现了这个接口的组件支持错误信息代理。
-
-行内编辑器默认使用 `StatusChangeHandler`，会将错误信息作为组件的 xref:flow-ui:vc/common-attributes.adoc#title[title] 展示。
-
-[[double-click-editing]]
-=== 双击编辑
-
-有时候我们需要通过双击的方式打开行内编辑器。示例：
-
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dblClickTable]
-----
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
-----
+任何列都可用于对数据进行排序。单击列标题可激活表格中的特殊控件，该控件显示当前正在排序的列以及排序的顺序（升序或降序）。随后每次单击同一标题都可以切换排序的顺序。
 
 [[multiple-sorting]]
-== 多列排序
+=== 多列排序
 
 ++++
 <div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid#sorting-by-multiple-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-multi-sort" class="live-demo-btn" target="_blank">在线示例</a>
 </div>
 ++++
 
-`dataGrid` 支持按多个列进行排序。可以用下列 XML 属性配置：
-
-[[multiSort]]
-=== multiSort
-
-启用多列排序。
-
-[[multiSortOnShiftClickOnly]]
-=== multiSortOnShiftClickOnly
-
-当设置为 `true` 时，仅当按住 `Shift` 键并单击列标题时，才会激活多列排序。默认值为 `false`。
-
-[[multiSortPriority]]
-=== multiSortPriority
-
-设置为 `APPEND` 时，单击的列将添加到排序列列表的末尾。如果设置为 `PREPEND`（默认值），则单击的列将添加到列表的开头。
+也可以同时按多列进行排序。按多列排序时，第一个选定的列确定主要排序条件，第二列设置次要排序条件，依此类推。可以使用 <<multiSort, multiSort>>、<<multiSortOnShiftClickOnly, multiSortOnShiftClickOnly>> 和 <<multiSortPriority, multiSortPriority>> 属性配置多列排序。
 
 示例：
 
@@ -597,310 +540,262 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 [[aggregating]]
 == 聚合
 
-`dataGrid` 可以对行内值进行聚合。
-
-[[type]]
-支持下列运算：
-
-* `SUM` - 求和；
-* `AVG` - 求平均；
-* `COUNT` - 计算总数；
-* `MIN` - 最小值；
-* `MAX` - 最大值。
-
-[[aggregatable]]
-如需启用数据网格的聚合功能，需要：
-
-. 设置 `aggregatable` 属性为 `true`。
-. 为需要进行聚合运算的列设置 `aggregation` 元素。
-. 设置 `aggregation` 元素的 `type` 属性，定义聚合运算的类型。
-
-TIP: Jmix Studio 中可以定义聚合，在 XML 或 *Jmix UI* 层级面板中选择需要聚合的列，然后点击属性面板中的 *Add→Aggregation* 按钮。
-
-聚合值在附加的新一行中显示。
-
-[[aggregationPosition]]
-`aggregationPosition` 属性可以定义附加聚合行的位置：`TOP` 或 `BOTTOM`。默认为 `BOTTOM`。
-
-示例：
+`dataGrid` 可以对行内值进行聚合。当启用聚合时，会显示一个附加行，包含聚合值。示例：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-dataGrid]
 ----
-<1> `cellTitle` 属性定义当用户光标悬停至聚合值时需要显示的提示信息。
-<2> 可以通过 xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter] 设置该数据类型自定义的显示格式。
 
-`aggregation` 元素还有 `strategyClass` 属性，可以指定实现 `AggregationStrategy` 接口的类。
+<1> 设置 <<aggregatable, aggregatable>> 属性为 `true`。
 
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridUserStatusAggregation.java[tags=aggregatable-grid]
-----
+<2> 为需要进行聚合运算的列设置 `aggregation` 元素。还可以使用 `cellTitle` 属性配置用户鼠标悬浮在聚合值上时显示的提示信息。
+
+<3> 指定 xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter] 可以为聚合值设置不同于标准数据类型格式的其他展示格式。
+
+`aggregation` 元素还可以通过 `strategyClass` 属性设置一个用于自定义聚合计算的类：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-grid]
 ----
 
+该类需要实现 `AggregationStrategy` 接口。示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridUserStatusAggregation.java[tags=aggregatable-grid]
+----
+
 == XML 属性
 
-xref:vc/common-attributes.adoc#id[id] -
-xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
-<<allRowsVisible,allRowsVisible>> -
-xref:vc/common-attributes.adoc#classNames[classNames] -
-xref:vc/common-attributes.adoc#colspan[colspan] -
-<<columnReorderingAllowed,columnReorderingAllowed>> -
-xref:vc/common-attributes.adoc#css[css] -
-xref:vc/common-attributes.adoc#dataContainer[dataContainer] -
-<<detailsVisibleOnClick,detailsVisibleOnClick>> -
-<<dropMode,dropMode>> -
-<<editorBuffered,editorBuffered>> -
-xref:vc/common-attributes.adoc#enabled[enabled] -
-xref:vc/common-attributes.adoc#height[height] -
-xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
-xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
-xref:vc/components/entityPicker.adoc#metaClass[metaClass] -
-xref:vc/common-attributes.adoc#minHeight[minHeight] -
-xref:vc/common-attributes.adoc#minWidth[minWidth] -
-<<multiSort,multiSort>> -
-<<multiSortOnShiftClickOnly,multiSortOnShiftClickOnly>> -
-<<multiSortPriority,multiSortPriority>> -
-<<nestedNullBehavior,nestedNullBehavior>> -
-<<pageSize,pageSize>> -
-<<rowDraggable,rowDraggable>> -
-<<selectionMode,selectionMode>> -
-xref:vc/common-attributes.adoc#tabIndex[tabIndex] -
-xref:vc/common-attributes.adoc#themeNames[themeNames] -
-xref:vc/common-attributes.adoc#visible[visible] -
-xref:vc/common-attributes.adoc#width[width]
+在 Jmix 中，所有组件都有一些作用一致的 xref:vc/common-attributes.adoc[通用属性]。
+下面是 `dataGrid` 的特殊属性：
 
-[[allRowsVisible]]
-=== allRowsVisible
+[cols="1h,5,1", grid=rows, frame=none]
+|===
+|*名称*
+|*描述*
+|*默认值*
+|[[allRowsVisible]]allRowsVisible
+|如果设置为 `true`，表格会一次显示所有的行，不带滚动条。也就是说，此时不会仅显示那些可见行，等用户滚动到底部才加载更多数据，而是会直接在 DOM 中同时渲染所有的数据。
 
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#dynamic-height" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-如果 `allRowsVisible` 属性设置为 `true`，数据网格的高度由数据行数决定。会从 `DataProvider` 中读取所有数据并展示，`dataGrid` 不带垂直滚动条。
-
-NOTE: `allRowsVisible = true` 会禁用数据网格的垂直滚动条，所有数据会一次性在 DOM 渲染。如果数据网格有大量数据，会有性能问题，不推荐使用该功能。
-
-[[columnReorderingAllowed]]
-=== columnReorderingAllowed
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#column-reordering-resizing" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-`dataGrid` 提供拖放功能，支持用户调整数据网格中的列顺序。
-
-列重排的功能默认是关闭的。需要设置 `columnReorderingAllowed = true` 开启。
-
-列重排可以通过事件 <<ColumnReorderEvent>> 跟踪。
-
-[[detailsVisibleOnClick]]
-=== detailsVisibleOnClick
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#item-details" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置是否可以通过点击行打开或关闭条目详情。
-
-[[dropMode]]
-=== dropMode
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#drag-drop" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置拖放时的放置模式。当设置为非 `null` 时，`dataGrid` 会在数据放置到数据网格或某一行是发送事件。
-
-支持四种不同的放置模式：`BETWEEN`、`ON_TOP`、`ON_TOP_OR_BETWEEN`、`ON_GRID`。
-
-[[editorBuffered]]
-=== editorBuffered
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#inline-editing-java-only" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置 `Editor` 的缓存模式。当编辑器使用缓存模式时，只有当用户点击保存按钮时才会提交改动。在非缓存模式时，改动会自动提交。
-
-参考 <<inline-editing,行内编辑>>。
-
-// [[multiSort]]
-// === multiSort
-//
-// ++++
-// <div class="jmix-ui-live-demo-container">
-//     <a href="https://vaadin.com/docs/latest/components/grid/#sorting-by-multiple-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-// </div>
-// ++++
-//
-// Sets whether multiple column sorting is enabled on the client-side.
-
-[[nestedNullBehavior]]
-=== nestedNullBehavior
-
-设置当解析可能包含 `null` 值的内部属性时的行为。
-
-[[pageSize]]
-=== pageSize
-
-设置每页展示的行数，这个数值也是每次从数据提供器中获取的数量。参考 `com.vaadin.flow.component.grid.Grid.setPageSize()` 方法。
-
-默认值：`50`。
-
-[[rowDraggable]]
-=== rowDraggable
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#row-reordering" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置用户是否可以拖放网格的行。
-
-[[selectionMode]]
-=== selectionMode
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#selection" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-设置数据网格的选择模式。
-
-支持两种模式：`SINGLE` 和 `MULTI`。默认使用单选模式。
+*如果有大量数据，会有性能问题，此时不推荐使用该功能。*
+|`false`
+|[[aggregatable]]aggregatable
+|如果设置为 `true`，则启用表格的聚合功能。参阅 <<aggregating, 聚合>>。
+|`false`
+|[[aggregationPosition]]aggregationPosition
+|如果组件中的数据 <<aggregatable,可以聚合>>，则用该属性配置聚合行的显示位置。支持 `TOP` 或 `BOTTOM`。参阅 <<aggregating, 聚合>>。
+|`BOTTOM`
+|[[columnReorderingAllowed]]columnReorderingAllowed
+|如果设置为 `true`，则用户可以修改表格列的顺序。
+|`false`
+|[[detailsVisibleOnClick]]detailsVisibleOnClick
+|如果设置为 `true`，当用户点击特定行时，显示 <<item-details,条目详情>>。
+|`true`
+|[[dropMode]]dropMode
+|设置行的拖放模式。支持 `BETWEEN`、`ON_TOP`、`ON_TOP_OR_BETWEEN`、`ON_GRID`。该功能可用于行的顺序调整或在不同表格之间拖放数据。
+|-
+|[[editorBuffered]]editorBuffered
+|如果设置为 `true`，则启用 <<inline-editing, 行内编辑>> 的缓存模式，只有当用户点击保存按钮时才会提交改动。该模式下用户也可以取消修改。在非缓存模式时，改动会自动提交。
+|`false`
+|[[multiSort]]multiSort
+|如果设置为 `true`，则启用多列排序。
+|`false`
+|[[multiSortOnShiftClickOnly]]multiSortOnShiftClickOnly
+|如果设置为 `true`，仅当按住 `Shift` 键并单击列标题时，才会激活多列排序。
+|`false`
+|[[multiSortPriority]]multiSortPriority
+|设置点击的列添加到排序列中的位置。支持 `PREPEND`、`APPEND`。
+|`PREPEND`
+|[[nestedNullBehavior]]nestedNullBehavior
+|设置解析可能包含 `null` 值的内部属性时的行为。支持 `THROW`、`ALLOW_NULLS`。
+|`THROW`
+|[[pageSize]]pageSize
+|设置每页展示的行数，这个数值也是每次从数据提供器中获取的数量。
+|`50`
+|[[rowDraggable]]rowDraggable
+|如果设置为 `true`，启用表格的行拖放功能。
+|`false`
+|[[selectionMode]]selectionMode
+|设置选择模式。支持 `SINGLE` 和 `MULTI`。
+|`SINGLE`
+|===
 
 == 事件和处理器
 
-xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
-xref:vc/common-handlers.adoc#BlurEvent[BlurEvent] -
-<<CellFocusEvent,CellFocusEvent>> -
-<<ColumnReorderEvent,ColumnReorderEvent>> -
-<<ColumnResizeEvent,ColumnResizeEvent>> -
-xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
-xref:vc/common-handlers.adoc#FocusEvent[FocusEvent] -
-<<GridDragEndEvent,GridDragEndEvent>> -
-<<GridDragStartEvent,GridDragStartEvent>> -
-<<GridDropEvent,GridDropEvent>> -
-<<ItemClickEvent,ItemClickEvent>> -
-<<ItemDoubleClickEvent,ItemDoubleClickEvent>> -
-<<SortEvent,SortEvent>> -
-<<classNameGenerator,classNameGenerator>> -
-<<dataGenerator,dataGenerator>> -
-<<dragFilter,dragFilter>> -
-<<dropFilter,dropFilter>>
+在 Jmix 中，所有组件都有一些 xref:vc/common-attributes.adoc[通用事件和处理器]，可以按相同的方法设置。
+下面是 `dataGrid` 的特殊事件和处理器：
 
 include::../handler-generation-tip.adoc[]
 
-[[CellFocusEvent]]
-=== CellFocusEvent
-
-当数据网格的某个单元格获得焦点时，发送 `com.vaadin.flow.component.grid.CellFocusEvent`。对应 `grid-cell-focus` DOM 事件。
-
-[[ColumnReorderEvent]]
-=== ColumnReorderEvent
-
-当数据网格的列重排时，发送 `com.vaadin.flow.component.grid.ColumnReorderEvent`。对应 `column-reorder-all-columns` DOM 事件。
-
-[[ColumnResizeEvent]]
-=== ColumnResizeEvent
-
-当用户改变数据网格列大小时，发送 `com.vaadin.flow.component.grid.ColumnResizeEvent`。对应 `column-drag-resize` DOM 事件。
-
-[[GridDragEndEvent]]
-=== GridDragEndEvent
-
-当数据网格的行拖放结束时，发送 `com.vaadin.flow.component.grid.dnd.GridDragEndEvent`。对应 `grid-dragend` DOM 事件。
-
-[[GridDragStartEvent]]
-=== GridDragStartEvent
-
-当数据网格的行拖放开始时，发送 `com.vaadin.flow.component.grid.dnd.GridDragStartEvent`。对应 `grid-dragstart` DOM 事件。
-
-[[GridDropEvent]]
-=== GridDropEvent
-
-当拖放事件发生在数据网格或数据行时，发送 `com.vaadin.flow.component.grid.dnd.GridDropEvent`。对应 `grid-drop` DOM 事件。
-
-[[ItemClickEvent]]
-=== ItemClickEvent
-
-当点击数据网格时，发送 `com.vaadin.flow.component.grid.ItemClickEvent`。对应 `item-click` DOM 事件。
-
-[[ItemDoubleClickEvent]]
-=== ItemDoubleClickEvent
-
-当双击数据网格时，发送 `com.vaadin.flow.component.grid.ItemDoubleClickEvent`。对应 `item-double-click` DOM 事件。
-
-[[SortEvent]]
-=== SortEvent
-
-`com.vaadin.flow.data.event.SortEvent` - 描述 `DataProvider` 中排序变化的事件。由 `SortNotifiers` 触发。
-
-[[classNameGenerator]]
-=== classNameGenerator
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#styling-rows-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-`classNameGenerator` 用来为单元格生成 CSS 类名。
-
-[[dataGenerator]]
-=== dataGenerator
-
-为数据网格添加数据生成器。如果已经添加，则不做操作。参考 `com.vaadin.flow.data.provider.HasDataGenerators` 接口。
-
-[[dragFilter]]
-=== dragFilter
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#drag-and-drop-filters" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-为拖放源设置拖动过滤器。
-当 <<rowDraggable,rowDraggable = true>> 时，默认所有可见行都可以拖动。
-可以用拖动过滤器指定哪些行支持拖动。该方法接收某一行数据作为输入，如果该行支持拖动，则返回 `true`。参考 `com.vaadin.flow.component.grid.Grid`。
-
-[[dropFilter]]
-=== dropFilter
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/#drag-and-drop-filters" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-为拖放目标设置放置过滤器。
-
-当数据网格的 <<dropMode,放置模式>> 设置为 `BETWEEN`、`ON_TOP` 或 `ON_TOP_OR_BETWEEN` 之一时，默认所有可见行的位置都可以放置。
-可以用放置过滤器指定哪些行支持放置。该方法接收某一行数据作为输入，如果该行支持放置，则返回 `true`。参考 `com.vaadin.flow.component.grid.Grid`。
+[cols="1h,6", grid=rows, frame=none]
+|===
+|*名称*
+|*描述*
+|[[CellFocusEvent]]CellFocusEvent
+|`com.vaadin.flow.component.grid.CellFocusEvent` 当数据网格的某个单元格获得焦点时发送。对应 `grid-cell-focus` DOM 事件。
+|[[ColumnReorderEvent]]ColumnReorderEvent
+|`com.vaadin.flow.component.grid.ColumnReorderEvent` 当数据网格的列重排时发送。对应 `column-reorder-all-columns` DOM 事件。
+|[[ColumnResizeEvent]]ColumnResizeEvent
+|`com.vaadin.flow.component.grid.ColumnResizeEvent` 当用户改变数据网格列大小时发送。对应 `column-drag-resize` DOM 事件。
+|[[GridDragEndEvent]]GridDragEndEvent
+|`com.vaadin.flow.component.grid.dnd.GridDragEndEvent` 当数据网格的行拖放结束时发送。对应 `grid-dragend` DOM 事件。
+|[[GridDragStartEvent]]GridDragStartEvent
+|`com.vaadin.flow.component.grid.dnd.GridDragStartEvent` 当数据网格的行拖放开始时发送。对应 `grid-dragstart` DOM 事件。
+|[[GridDropEvent]]GridDropEvent
+|`com.vaadin.flow.component.grid.dnd.GridDropEvent` 当拖放事件发生在数据网格或数据行时发送。对应 `grid-drop` DOM 事件。
+|[[ItemClickEvent]]ItemClickEvent
+|`com.vaadin.flow.component.grid.ItemClickEvent` 当点击数据网格条目时发送。对应 `item-click` DOM 事件。
+|[[ItemDoubleClickEvent]]ItemDoubleClickEvent
+|`com.vaadin.flow.component.grid.ItemDoubleClickEvent` 当双击数据网格条目时发送。对应 `item-double-click` DOM 事件。
+|[[SortEvent]]SortEvent
+|`com.vaadin.flow.data.event.SortEvent` 描述 `DataProvider` 中排序变化的事件。由 `SortNotifiers` 触发。
+|[[classNameGenerator-component]]classNameGenerator
+|为数据网格中所有的单元格生成 CSS 类名。
+|[[dataGenerator]]dataGenerator
+|为数据网格添加数据生成器。如果已经添加，则不做操作。参考 `com.vaadin.flow.data.provider.HasDataGenerators` 接口。
+|[[dragFilter]]dragFilter
+|用于控制特定行是否可拖放，而不是通过 <<rowDraggable, rowDraggable>> 设置所有行的拖放。
+|[[dropFilter]]dropFilter
+|用于设置哪些行可以作为拖放的目的地。
+|[[enterPressHandler]]enterPressHandler
+|用户按下回车键的处理器。
+|[[tooltipGenerator]]tooltipGenerator
+// Flow UI sample uses different approach.
+|按照给定条件为列单元格生成提示窗。参考 https://demo.jmix.io/ui-samples/sample/data-grid-tooltip-generator[在线示例^]。
+|===
 
 == XML 内部元素
 
-<<actions,actions>> -
-<<columns,columns>>
+`dataGrid` 的 XML 内部元素提供很多选项来控制列的外观、行为和功能，既可以集中控制列，也可以单独控制列的功能。
+
+[TIP]
+====
+如需为选择的组件添加内部元素，可以使用 *Jmix UI* 组件属性面板中的 xref:studio:screen-designer.adoc#add-column[Add] 按钮添加。
+====
+
+[[columns]]
+=== Columns
+
+`columns` 元素可以设置一组需要展示的属性，并设置所有列的行为。
+
+[cols="1h,6", grid=none]
+|===
+|XML 元素
+|`columns`
+|属性
+|<<exclude,exclude>> - <<includeAll,includeAll>> - <<resizable-columns,resizable>> - <<sortable-columns,sortable>>
+|内部元素
+|<<column,column>> - <<editorActionsColumn,EditorActionsColumn>>
+|===
+
+.属性
+[cols="1h,5,1", grid=rows]
+|===
+|*名称*
+|*描述*
+|*默认值*
+|[[exclude]]exclude
+|排除特定的属性卡不予展示。多个属性需要使用逗号分隔。示例：`exclude = "id, version, sortValue"`。
+|-
+|[[includeAll]]includeAll
+|如果为 `true`，则包含数据容器 fetch plan 中的所有属性。
+|-
+|[[resizable-columns]]resizable
+|如果设置为 `true`，所有列都支持用户改变宽度。
+|`false`
+|[[sortable-columns]]sortable
+|如果设置为 `true`，所有列都支持排序。
+|`true`
+|===
+
+[[column]]
+=== Column
+
+`column` 元素定义一个单独的列。为单独列设置的属性会覆盖为所有列设置的属性。
+
+[cols="1h,6", grid=none]
+|===
+|XML 元素
+|`column`
+|属性
+|<<autowidth,autowidth>> - <<editable,editable>> - <<filterable,filterable>> - <<flexGrow,flexGrow>> - <<footer,footer>> - <<frozen,frozen>> - <<header,header>> - <<key,key>> - <<property,property>> - <<resizable-column,resizable>> - <<sortable-column,sortable>> - <<textAlign,textAlign>> - <<visible,visible>> - <<width,width>>
+|事件和处理器
+|xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] - <<DataGridColumnVisibilityChangedEvent,DataGridColumnVisibilityChangedEvent>> - xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] - <<classNameGenerator-column,classNameGenerator>> - <<partNameGenerator,partNameGenerator>> - <<renderer,renderer>> - <<tooltipGenerator-column,tooltipGenerator>>
+|内部元素
+|<<aggregating,Aggregation>> - <<local-date-renderer,LocalDateRenderer>> - <<local-date-time-renderer,LocalDateTimeRenderer>> - <<number-renderer,NumberRenderer>>
+|===
+
+.属性
+[cols="1h,5,1", grid=rows]
+|===
+|*名称*
+|*描述*
+|*默认值*
+|[[autowidth]] autoWidth
+|如果设置为 `true`，列宽根据内容自动调整。
+|`false`
+|[[editable]]editable
+|如果设置为 `true`，列可编辑。参阅 <<inline-editing, 行内编辑>>。
+|`false`
+|[[filterable]]filterable
+|如果设置为 `true`，启用该列的过滤。参阅 <<column-filtering,表头过滤>>。
+|`false`
+|[[flexGrow]]flexGrow
+|设置列的 flex grow 比例。当设置为 `0` 时，列宽固定。
+|`0`
+|[[footer]]footer
+|为列设置一个 footer 文本。该属性可以是文本本身或者 xref:localization:message-bundles.adoc[消息包] 中的一个键值。如果是消息包键值，则必须以 `msg://` 开头。
+| -
+|[[frozen]]frozen
+|如果设置为 `true`，则锁住该列。用户在水平滚动表格时会一直显示锁住的列。建议从左至右依次锁定列。
+|`false`
+|[[header]]header
+|为列设置一个 header 文本。该属性可以是文本本身或者 xref:localization:message-bundles.adoc[消息包] 中的一个键值。如果是消息包键值，则必须以 `msg://` 开头。
+| -
+|[[key]]key
+|设置用户定义的列映射 id。这个键值可以用来通过 `getColumnByKey(String)` 方法获取该列。
+
+键值必须在同一个数据网格中唯一，设定后不能更改。
+|-
+|[[property]]property
+|指定列对应的实体属性。可以是根实体的属性 `property = "user"`，也可以是子实体的属性 `property = "user.department.name"`（并通过 “.” 变量对象图）。
+|-
+|[[resizable-column]]resizable
+|如果设置为 `true`，用户可以手动调整列宽。
+|`false`
+|[[sortable-column]]sortable
+|如果设置为 `true`，列可排序。
+|`false`
+|[[textAlign]]textAlign
+|设置文本的对其方式，支持 `START`、`CENTER`、`END`。参考文本对齐。
+|`START`
+|[[visible]]visible
+|如果设置为 `true`，则列可见。
+|`true`
+|[[width]]width
+|用 CSS 字符串设置列宽。
+|-
+|===
+
+.事件和处理器
+[cols="1h,6", grid=rows]
+|===
+|*名称*
+|*描述*
+|[[DataGridColumnVisibilityChangedEvent]]DataGridColumnVisibilityChangedEvent
+|通过 xref:flow-ui:vc/components/gridColumnVisibility.adoc[] 组件修改列可见性时发送。
+|[[classNameGenerator-column]]classNameGenerator
+|按照给定条件为列生成 CSS 类名。此功能可以根据展示的数据修改单元格的外观。
+|[[partNameGenerator]]partNameGenerator
+|按照给定条件为列生成 CSS 类的 part。此功能可以根据展示的数据修改单元格的外观。参考 https://demo.jmix.io/ui-samples/sample/data-grid-part-name-generator[在线示例^]。
+|[[renderer]]renderer
+|使用文本或组件选人列内容。参阅 <<text-renderer,文本渲染器>> 和 <<component-renderer, 组件渲染器>>。
+|[[tooltipGenerator-column]]tooltipGenerator
+|按照给定条件为列生成提示窗。参考 https://demo.jmix.io/ui-samples/sample/data-grid-tooltip-generator[在线示例^]。
+|===
 
 == 参考
 

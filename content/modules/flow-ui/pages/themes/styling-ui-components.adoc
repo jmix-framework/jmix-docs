@@ -1,0 +1,172 @@
+= UI 组件的样式
+
+Jmix 中的 UI 组件提供了许多附加功能（例如，标签、帮助文本、提示窗等），因而比一般的原生 HTML 元素更复杂。这些 UI 组件还使用了一种称为 https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM[shadow DOM^] 的 HTML 功能，可以封装组件内部的 HTML 结构，而不使用页面的全局 CSS。
+
+.组件 HTML 元素结构
+image::themes/element-shadow-dom.png[align="center", width="698"]
+
+因此，Jmix UI 组件不能使用原生 HTML 元素选择器，如 `++input {…}++` 和 `++button {…}++` 等进行选择并设置样式。但是，每个组件都公开了一些 _parts_ 和 _states_，可以作为 CSS 选择器。
+
+例如，如果需要为 xref:vc/components/textField.adoc[textField] 设置背景色和边框，则需要将样式设置到名为 `input-field` 的 *shadow part* 上：
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+  background: white;
+  border: 1px solid black;
+}
+----
+
+.设置背景色和边框的 TextField
+image::themes/styled-textfield.png[align="center", width="226"]
+
+[[stylable-parts]]
+== 组件中可设置样式的 part
+
+有几种主要类型的 part，每种 part 都关联不同的 CSS 选择器。
+
+[[root-elements]]
+=== 根元素
+
+每个 UI 组件都有一个 HTML 根元素，名称以 `vaadin-` 或 `jmix-` 开头，如 `vaadin-button` 或 `jmix-value-picker`。示例，按钮的背景色可以这样设置：
+
+[source,css,indent=0]
+----
+vaadin-button {
+  background: gray;
+}
+----
+
+[[shadow-parts]]
+=== Shadow Parts
+
+Shadow parts 是组件 shadow DOM 内的元素，通过 `::part()` 选择器设置。示例：
+
+[source,css,indent=0]
+----
+vaadin-text-field::part(input-field) {
+    background: white;
+    border: 1px dotted black;
+}
+----
+
+[[regular-child-elements]]
+=== 常规子元素
+
+常规（Light DOM）HTML 子元素可以用 `>` 选择器设置。示例，`TextField` 组件的 `label` 元素可以如下设置：
+
+[source,css,indent=0]
+----
+vaadin-text-field > label {
+    font-weight: bold;
+}
+----
+
+[[component-states]]
+== 组件状态
+
+组件根元素和各种 part 的状态可以通过 https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors[属性选择器^] 选取，类似 `component-name[state]` 这样的格式。例如，禁用的按钮可以用 `[disabled]` 选择器：
+
+[source,css,indent=0]
+----
+vaadin-button[disabled] {
+  background: lightgray;
+  color: darkgray;
+}
+----
+
+[[style-variants]]
+== 组件样式版本
+
+许多 UI 组件都带有内置的样式版本（style variants），可以用来修改单个组件实例的颜色、大小或其他可视化效果，通过 `addThemeVariants()`/`addThemeNames()` Java API 或 `themeNames` XML 属性实现：
+
+[source,xml,indent=0]
+----
+<hbox>
+    <button text="Primary" themeNames="primary"/>
+    <button text="Success" themeNames="success"/>
+    <button text="Tertiary" themeNames="tertiary"/>
+</hbox>
+----
+
+.不同样式版本的按钮
+image::themes/button-theme-variants.png[align="center", width="316"]
+
+这些样式会使用在组件根元素的 `theme` 属性中，可以用 CSS 属性选择器指定：
+
+[source,css,indent=0]
+----
+vaadin-button[theme~="primary"] {
+    background-color: purple;
+}
+----
+
+[[styling-component-instances]]
+== 组件实例样式
+
+如果需要为特定组件设置样式，可以使用组件的 `classNames` 属性，示例：
+
+[source,xml,indent=0]
+----
+<textField classNames="bordered"/>
+----
+
+[source,css,indent=0]
+----
+vaadin-text-field.bordered::part(input-field) {
+    background: white;
+    border: 1px solid black;
+}
+----
+
+[[generating-styles-dynamically]]
+== 动态生成样式
+
+如果需要根据某些自定义逻辑动态生成样式，可以使用组件的 `Style` API。
+
+一种方式是可以在组件的根元素设置 CSS 属性，示例：
+
+[source,java,indent=0]
+----
+@ViewComponent
+private JmixButton myBtn;
+
+@Subscribe
+public void onInit(final InitEvent event) {
+    myBtn.getStyle().set("color", "white");
+    myBtn.getStyle().set("background-color", "purple");
+}
+----
+
+但是这种方式的弊端是无法为组件的 part 或状态设置样式。
+
+另一种方式是使用 CSS 属性，可以是 https://vaadin.com/docs/latest/styling/lumo/lumo-style-properties[Lumo 属性^] 或自定义属性，这些属性虽然是在 CSS 中静态使用，但属性值可以在应用程序逻辑中设置：
+
+[source,css,indent=0]
+----
+html {
+    --my-button-text-color: darkblue;
+    --my-button-bg-color: yellow;
+}
+
+vaadin-button.my-button {
+  color: var(--my-button-text-color);
+  background-color: var(--my-button-bg-color);
+}
+----
+
+[source,xml,indent=0]
+----
+<button id="myBtn" text="Button" classNames="my-button"/>
+----
+
+[source,java,indent=0]
+----
+@Subscribe
+public void onInit(final InitEvent event) {
+    UI.getCurrent().getElement().getStyle().set("--my-button-text-color", "white");
+    UI.getCurrent().getElement().getStyle().set("--my-button-bg-color", "purple");
+}
+----
+
+这种方式的好处是，可以为组件的 parts 和其他使用同一属性的组件同时设置。一个典型的使用场景是，可以让用户自定义 UI 的样式，保存在数据库，然后在用户每次登录时加载。

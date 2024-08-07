@@ -1,0 +1,172 @@
+= 主题
+
+主题（Themes）用于管理应用程序的可视化展示。
+
+一个主题由一些 CSS 文件和其他资源构成，比如图片、字体等。
+
+Jmix 提供了基于 Vaadin https://vaadin.com/docs/latest/styling/lumo[Lumo 主题^] 构建的 *jmix-lumo* 主题。
+
+[[applying-theme]]
+== 使用主题
+
+应用程序主题通过 `@Theme` 注解提供，注解中使用主题文件夹的名称作为参数。`@Theme` 注解必须配置在实现了 `AppShellConfigurator` 接口的类上，通常为主应用程序类。
+
+[source,java,indent=0]
+----
+@Theme(value = "my-theme")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+主题的样式版本（variant）可以作为附加参数，例如 *dark* 或 *light*。
+
+[source,java,indent=0]
+----
+@Theme(value = "my-theme", variant = "dark")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+NOTE: 主题不能在运行时切换。尽管一个项目可以有多个主题，但是在 UI 中只能使用一个主题。然而，同一个主题中的样式版本可以 https://vaadin.com/docs/latest/styling/advanced/runtime-theme-switching[动态切换^]，并且可以在主题的基础上 https://vaadin.com/docs/latest/styling/advanced/loading-styles-dynamically[动态加载额外的样式^]。
+
+[[application-theme]]
+== 应用程序主题
+
+在应用程序中，主题的文件夹放在 `frontend/themes` 目录中，文件夹的目录可以自定义。使用 Studio 创建的 Jmix 应用程序项目有一个预定义的主题文件夹，其名称与项目本身相同。
+
+.主题文件夹文件结构
+image::themes/theme-folder-structure.png[align="center", width="285"]
+
+* `my-project` - 主题文件夹，也作为主题名称使用
+* `styles.css` - 主样式文件
+* `my-project.css` - 自定义样式和导入样式写在这里
+* `theme.json` - 主题配置文件，默认使用 *jmix-lumo* 主题。
+
+`styles.css` 文件是主题样式的入口文件。所有的 CSS，包括 *Lumo* 样式的一些属性值以及自定义的组件样式，都包含在内。
+
+将 CSS 拆分为多个文件可以避免主样式表中混乱的结构。其他 CSS 文件使用 `@import` 指令加载。默认情况下，项目的主样式文件导入了 `<theme-name>.css` 文件，其中可以自定义样式或导入其他文件。
+
+[source,css,indent=0]
+.styles.css
+----
+@import url('./my-project.css');
+----
+
+[[reusable-theme]]
+== 可重用主题
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://vaadin.com/docs/latest/styling/advanced/multi-app-themes" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+</div>
+++++
+
+应用程序的主题可以打包成独立的 JAR 文件，从而提供给多给项目使用。
+
+主题项目的结构如下：
+
+.主题项目结构
+image::themes/theme-addon-structure.png[align="center", width="296"]
+
+* `cobalt` - 主题文件夹，也用作主题名称
+* `styles.css` - 主样式文件。可以包含自定义样式和导入，示例：
++
+[source,css]
+----
+html {
+    --lumo-border-radius: calc(var(--lumo-size-m) / 2);
+
+    --lumo-primary-color: rgb(0, 85, 166);
+    --lumo-primary-color-50pct: rgba(0, 85, 166, 0.5);
+    --lumo-primary-color-10pct: rgba(0, 85, 166, 0.1);
+    --lumo-primary-text-color: rgb(0, 85, 166);
+}
+----
+* `theme.json` - 主题配置文件。建议使用 *jmix-lumo* 作为父主题，这样自定义的主题可以使用 *jmix-lumo* 中的默认样式渲染 Jmix UI 组件和视图。示例：
++
+[source,json]
+----
+{
+  "parent": "jmix-lumo",
+  "lumoImports":["typography","color","spacing","badge","utility"]
+}
+----
+
+主题项目中的 `build.gradle` 文件如下：
+
+[source,groovy]
+----
+plugins {
+    id 'java'
+    id 'com.gradle.plugin-publish' version '1.2.1'
+}
+
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://global.repo.jmix.io/repository/public'
+    }
+}
+
+dependencies {
+    implementation 'io.jmix.flowui:jmix-flowui-themes:2.3.0' // <1>
+}
+----
+<1> 依赖 `jmix-flowui-themes`，其中包含 *jmix-lumo* 主题。
+
+在项目中添加了这个主题 JAR 之后，可以使用 JAR 中打包的主题：
+
+[source,java,indent=0]
+----
+@Theme(value = "cobalt")
+public class MyProjectApplication implements AppShellConfigurator {
+    ...
+}
+----
+
+或者也可以作为项目主题的父主题，示例：
+
+[source,json,indent=0]
+.theme.json
+----
+{
+  "parent": "cobalt",
+  "lumoImports":["typography","color","spacing","badge","utility"]
+}
+----
+
+这样项目中的主题会基于该主题扩展。
+
+.自定义主题示例
+image::themes/custom-theme.png[align="center", width="1046"]
+
+[[pluggable-styles]]
+== 可插拔样式
+
+当开发一个 xref:modularity:creating-add-ons.adoc[自定义扩展组件] 时，可以在 `src/main/resources/META-INF/resources/` 目录创建包含自定义样式的文件。如需在最终的应用程序中包含这些样式，可以在 `module.properties` 文件中定义 `jmix.ui.export-styles` 属性。该属性的值是 `src/main/resources/META-INF/resources/` 下的相对路径，例如，`jmix.ui.export-styles = addon-styles/my-addon-styles.css`：
+
+.my-addon-styles.css
+[source,css]
+----
+.test {
+    color: red;
+}
+----
+
+自定义样式会作为 `<style type="text/css">` 添加到 `<head>` 元素中：
+
+[source,html,indent=0]
+----
+<style type="text/css">
+.test {
+    color: red;
+}
+</style>
+----
+
+IMPORTANT: 这种方式仅适用于少量无法用到特定 UI 组件的样式。例如，扩展组件内视图的 CSS 工具类。
