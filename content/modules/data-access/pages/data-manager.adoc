@@ -292,22 +292,45 @@ include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerSe
 include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=hard-delete]
 ----
 
+[[transactions]]
+== Транзакции в DataManager
+
+При работе с JPA сущностями `DataManager` по умолчанию использует текущую транзакцию или создает и коммитит новую, если текущей транзакции нет.
+
+Управлять транзакциями можно используя аннотации или `TransactionTemplate`, как описано в разделе xref:transactions.adoc[].
+
+Кроме того, `DataManager` позволяет контролировать свое собственное внутреннее транзакционное поведение.
+
+При загрузке данных с использованием fluent API можно использовать метод `joinTransaction(false)`, чтобы начать и закоммитить отдельную транзакцию для данной операции:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-in-separate-transaction]
+----
+
+При сохранении сущностей используйте метод `setJoinTransaction(false)` класса `SaveContext`, чтобы начать и закоммитить отдельную транзакцию для операции с этим контекстом:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save-in-separate-transaction]
+----
+
 [[security]]
-== Security in DataManager
+== Безопасность в DataManager
 
-`DataManager` performs the xref:security:resource-roles.adoc#entity-policy[entity policy] checks:
+`DataManager` выполняет проверки xref:security:resource-roles.adoc#entity-policy[политики сущностей]:
 
-* If the user has no rights to CREATE, UPDATE or DELETE action, the `save()` and `remove()` methods will throw the `io.jmix.core.security.AccessDeniedException` exception on the corresponding operation.
+* Если у пользователя нет прав на действия CREATE, UPDATE или DELETE, методы `save()` и `remove()` выбросят исключение `io.jmix.core.security.AccessDeniedException` при соответствующей операции.
 
-* If the user has no rights to the READ action, the `load()` methods will return the empty result: `null` or an empty list. This applies only to the root entity of the loaded object graph; the references are always loaded.
+* Если у пользователя нет прав на действие READ, методы `load()` вернут пустой результат: `null` или пустой список. Это касается только корневой сущности загруженного графа объектов; ссылки загружаются всегда.
 
-`DataManager` also respects the xref:security:row-level-roles.adoc#policies[row-level policies]. The JPQL policy affects only the root entity of the loaded object graph, while the predicate policy affects the root entity and all linked entities.
+`DataManager` также учитывает xref:security:row-level-roles.adoc#policies[политики уровня строк]. JPQL-политика влияет только на корневую сущность загруженного графа объектов, в то время как предикатная политика влияет на корневую сущность и все связанные сущности.
 
-The `UnconstrainedDataManager` interface has the same methods as `DataManager` but it doesn't check the security policies. You can use it instead of the `DataManager` to bypass the security in your code, for example:
+Интерфейс `UnconstrainedDataManager` имеет те же методы, что и `DataManager`, но не проверяет политики безопасности. Его можно использовать вместо `DataManager`, чтобы обойти проверки безопасности в вашем коде, например:
 
 [source,java,indent=0]
 ----
 include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=unconstrained-dm]
 ----
 
-See more information about security in the xref:security:authorization.adoc#data-access-checks[Data Access Checks] section.
+См. дополнительную информацию о безопасности в разделе xref:security:authorization.adoc#data-access-checks[Проверки доступа к данным].
