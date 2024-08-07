@@ -1,10 +1,9 @@
-package com.company.kanbanex1.user;
+package com.company.onboarding.user;
 
-import com.company.kanbanex1.KanbanEx1Application;
-import com.company.kanbanex1.entity.User;
-import com.company.kanbanex1.view.user.UserDetailView;
-import com.company.kanbanex1.view.user.UserListView;
-import com.vaadin.flow.component.Component;
+import com.company.onboarding.KanbanOnboardingApplication;
+import com.company.onboarding.entity.User;
+import com.company.onboarding.view.user.UserDetailView;
+import com.company.onboarding.view.user.UserListView;
 import io.jmix.core.DataManager;
 import io.jmix.flowui.ViewNavigators;
 import io.jmix.flowui.component.grid.DataGrid;
@@ -15,7 +14,6 @@ import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.testassist.FlowuiTestAssistConfiguration;
 import io.jmix.flowui.testassist.UiTest;
 import io.jmix.flowui.testassist.UiTestUtils;
-import io.jmix.flowui.view.View;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -26,7 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * Sample UI integration test for the User entity.
  */
 @UiTest
-@SpringBootTest(classes = {KanbanEx1Application.class, FlowuiTestAssistConfiguration.class})
+@SpringBootTest(classes = {KanbanOnboardingApplication.class, FlowuiTestAssistConfiguration.class})
 public class UserUiTest {
 
     @Autowired

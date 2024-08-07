@@ -1,4 +1,4 @@
-package com.company.kanbanex1.test_support;
+package com.company.onboarding.test_support;
 
 import io.jmix.core.security.SystemAuthenticator;
 import org.junit.jupiter.api.extension.AfterEachCallback;
