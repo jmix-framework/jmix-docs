@@ -3,12 +3,12 @@ package com.company.onboarding.view.component.datagrid;
 
 import com.company.onboarding.entity.User;
 import com.company.onboarding.entity.UserStep;
-import com.company.onboarding.view.DataGridHelper;
 import com.company.onboarding.view.main.MainView;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Focusable;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.contextmenu.GridMenuItem;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -23,8 +23,10 @@ import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.checkbox.JmixCheckbox;
 import io.jmix.flowui.component.combobox.JmixComboBox;
 import io.jmix.flowui.component.grid.DataGrid;
+
 import io.jmix.flowui.component.grid.editor.DataGridEditor;
 import io.jmix.flowui.data.grid.ContainerDataGridItems;
+
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,6 +75,12 @@ public class DataGridView extends StandardView {
     // tag::dblClickTable[]
     @ViewComponent
     private DataGrid<User> dblClickTable;
+
+    // tag::dynamicContentHandler[]
+    @ViewComponent
+    private GridMenuItem<Object> emailItem;
+
+    // end::dynamicContentHandler[]
 
     // end::dblClickTable[]
     // tag::onInit[]
@@ -189,4 +197,16 @@ public class DataGridView extends StandardView {
         });
     }
     // end::ComponentRenderer[]
+
+
+    // tag::dynamicContentHandler[]
+    @Install(to = "contextMenu", subject = "dynamicContentHandler")
+    private boolean contextMenuDynamicContentHandler(final User user) {
+        if (user == null) {
+            return false;
+        }
+            emailItem.setText("Email: " + user.getEmail());
+        return true;
+    }
+    // end::dynamicContentHandler[]
 }
