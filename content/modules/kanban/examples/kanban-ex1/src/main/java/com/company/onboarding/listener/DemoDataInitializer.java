@@ -1,9 +1,6 @@
 package com.company.onboarding.listener;
 
-import com.company.onboarding.entity.Department;
-import com.company.onboarding.entity.Step;
-import com.company.onboarding.entity.User;
-import com.company.onboarding.entity.UserStep;
+import com.company.onboarding.entity.*;
 import io.jmix.core.DataManager;
 import io.jmix.core.FileRef;
 import io.jmix.core.FileStorage;
@@ -24,11 +21,13 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 @Component
 public class DemoDataInitializer {
-    
+
     private static final String PICTURE_ROOT_PATH = "com/company/onboarding/demo/";
+    private static final Random random = new Random();
 
     @Autowired
     private DataManager dataManager;
@@ -49,6 +48,7 @@ public class DemoDataInitializer {
         List<Department> departments = initDepartments();
         List<User> users = initUsers(steps, departments);
         assignRoles(users);
+        initTasks(users);
     }
 
     private List<Step> initSteps() {
@@ -124,7 +124,7 @@ public class DemoDataInitializer {
         user.setLastName("Brown");
         user.setDepartment(departments.get(0));
         user.setJoiningDate(LocalDate.now().minusYears(2).minusWeeks(3));
-        user.setPicture(uploadPicture(PICTURE_ROOT_PATH , "alice.png"));
+        user.setPicture(uploadPicture(PICTURE_ROOT_PATH, "alice.png"));
         saveContext.saving(user);
         list.add(user);
         for (Step step : steps) {
@@ -150,7 +150,7 @@ public class DemoDataInitializer {
         user.setLastName("Wilson");
         user.setDepartment(departments.get(0));
         user.setJoiningDate(LocalDate.now().minusYears(1).minusWeeks(5));
-        user.setPicture(uploadPicture(PICTURE_ROOT_PATH , "james.png"));
+        user.setPicture(uploadPicture(PICTURE_ROOT_PATH, "james.png"));
         saveContext.saving(user);
         list.add(user);
         for (Step step : steps) {
@@ -298,5 +298,37 @@ public class DemoDataInitializer {
                 dataManager.save(roleAssignment);
             }
         }
+    }
+
+    private void initTasks(List<User> users) {
+        KanbanTask task1 = createKanbanTask(TaskStatus.TODO, "Create documentation", getRandomUser(users));
+        KanbanTask task2 = createKanbanTask(TaskStatus.TODO, "Create samples", getRandomUser(users));
+        KanbanTask task3 = createKanbanTask(TaskStatus.IN_PROGRESS, "Conduct a demo", getRandomUser(users));
+        KanbanTask task4 = createKanbanTask(TaskStatus.IN_PROGRESS, "Prepare a speech", getRandomUser(users));
+        KanbanTask task5 = createKanbanTask(TaskStatus.VERIFICATION, "Create onboarding guide", getRandomUser(users));
+        KanbanTask task6 = createKanbanTask(TaskStatus.DONE, "Conduct a presentation", getRandomUser(users));
+
+        SaveContext saveContext = new SaveContext();
+        saveContext.saving(task1, task2, task3, task4, task5, task6);
+        dataManager.save(saveContext);
+    }
+
+    private KanbanTask createKanbanTask(TaskStatus status, String text, User assignee) {
+        KanbanTask task = dataManager.create(KanbanTask.class);
+
+        task.setStatus(status);
+        task.setText(text);
+        task.setAssignee(assignee);
+
+        return task;
+    }
+
+    private User getRandomUser(List<User> users) {
+        User user;
+        do {
+            user = users.get(random.nextInt(users.size()));
+        } while ("admin".equals(user.getUsername()));
+
+        return user;
     }
 }

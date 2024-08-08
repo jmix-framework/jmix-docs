@@ -5,7 +5,7 @@ import io.jmix.core.metamodel.datatype.EnumClass;
 import org.springframework.lang.Nullable;
 
 
-public enum KanbanStatus implements EnumClass<String> {
+public enum TaskStatus implements EnumClass<String> {
 
     TODO("todo"),
     IN_PROGRESS("in-progress"),
@@ -14,7 +14,7 @@ public enum KanbanStatus implements EnumClass<String> {
 
     private final String id;
 
-    KanbanStatus(String id) {
+    TaskStatus(String id) {
         this.id = id;
     }
 
@@ -23,8 +23,8 @@ public enum KanbanStatus implements EnumClass<String> {
     }
 
     @Nullable
-    public static KanbanStatus fromId(String id) {
-        for (KanbanStatus at : KanbanStatus.values()) {
+    public static TaskStatus fromId(String id) {
+        for (TaskStatus at : TaskStatus.values()) {
             if (at.getId().equals(id)) {
                 return at;
             }
