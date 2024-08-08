@@ -1,0 +1,83 @@
+= 了解测试
+
+本章节介绍如何开始创建并运行 Jmix 测试用例。
+
+默认情况下，每个 Jmix 项目已经包含了自动化测试的目录结构，并且在 `src/test/java/<base-package>/user` 目录下有两个测试类：
+
+1. `UserTest.java` - `User` 实体的数据库集成测试。
+2. `UserUiTest.java` - 与用户管理界面交互的 UI 集成测试。
+
+[[running-the-first-test-case]]
+== 运行第一个测试用例
+
+Jmix Studio 通过 IntelliJ IDEA 的功能运行测试用例。当在 Jmix Studio 中打开 `UserTest.java` 时，可以通过点击测试类的运行按钮直接运行测试用例。
+
+NOTE: 关于在 IDEA 中如何运行测试用例的更多信息，请参阅 JetBrains 官方文档： https://www.jetbrains.com/help/idea/performing-tests.html[IDEA: Run tests^]。
+
+Jmix Studio 会显示测试的执行结果，成功或者失败。
+
+`UserTest` 使用 Jmix 的 `DataManager` API 保存一个 `User` 实体。
+测试用例中检查当使用 username 加载用户时，能加载到刚刚保存的那个用户。
+
+[source, java]
+.UserTest.java
+----
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * User 实体的集成测试示例
+ */
+@SpringBootTest //<1>
+@ExtendWith(AuthenticatedAsAdmin.class) //<2>
+public class UserTest {
+
+    @Autowired  //<3>
+    DataManager dataManager;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    @Autowired
+    UserRepository userRepository;
+
+    User savedUser;
+
+    @Test //<4>
+    void test_saveAndLoad() {
+        // 创建并保存一个新的用户
+        User user = dataManager.create(User.class);
+        user.setUsername("test-user-" + System.currentTimeMillis());
+        user.setPassword(passwordEncoder.encode("test-passwd"));
+        savedUser = dataManager.save(user);
+
+        // 检查新建的用户可以正常加载
+        User loadedUser = dataManager.load(User.class).id(user.getId()).one();
+        assertThat(loadedUser).isEqualTo(user);
+
+        // 检查用户可以通过 UserRepository 加载
+        UserDetails userDetails = userRepository.loadUserByUsername(user.getUsername());
+        assertThat(userDetails).isEqualTo(user);  //<5>
+    }
+
+    @AfterEach //<6>
+    void tearDown() {
+        if (savedUser != null)
+            dataManager.remove(savedUser);
+    }
+}
+
+----
+<1> `@SpringBootTest` 注解表示在测试的执行过程中会启动 Spring context。
+<2> `AuthenticatedAsAdmin` 允许测试用例通过 `admin` 用户与系统和数据库交互。
+<3> 使用 @Autowired Spring 注解注入依赖。
+<4> 每个测试用例使用 JUnit 的 `@Test` 注解。
+<5> 为了进行验证测试结果，Jmix 项目可以直接使用 https://assertj.github.io/doc/[AssertJ^] 库。
+<6> 清理工作，比如数据库还原等，都在带 `@AfterEach` 注解的 teardown 方法中完成。
+
+测试本身只是常规的 Spring Boot 集成测试。其中唯一带 Jmix 特点的地方是使用了 JUnit 的扩展 `@ExtendWith(AuthenticatedAsAdmin.class)`，设置安全上下文中的用户为 `admin`。这个配置在使用 `DataManager` 测试时是十分必要的。
+
+测试用例是集成测试，即，会启动完整的 Spring context 并与真实的数据库进行交互。
+
+NOTE: 当本地运行应用程序时，测试与应用程序使用相同的数据库。
+
+后面的章节会具体介绍不同的测试类型。

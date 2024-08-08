@@ -1,0 +1,108 @@
+= 单元测试
+
+单元测试是自动化测试中最小的类型。默认情况下，Jmix 自动引入了 https://junit.org/junit5/[JUnit 5^] 测试框架以及用于模拟依赖的 https://site.mockito.org/[Mockito^]。
+
+NOTE: 术语“单元测试”用于描述不同的概念，包括一般的自动化测试。我们将单元测试理解为一种自动化测试，用于验证特定类或一组没有依赖关系（主要是没有 Spring 上下文和数据库）的行为。
+
+[[testing-isolated-functionality]]
+== 测试独立功能
+
+为了演示创建单元测试的过程，我们设想这样一个功能场景，给定一组 `OrderLine` 实例，要求计算其关联的 `Order`（订单）的总价。
+
+给定一个 `OrderAmountCalculation` 类专门处理计算。这不是一个 Spring bean，而只是一个普通的 Java 类：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/testing/ex1/order/OrderAmountCalculation.java[tags=order-amount-calculation]
+----
+
+该功能的单元测试示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/testing/ex1/order/OrderAmountCalculationTest.java[tags=unit-test-total-amount-calculation]
+----
+<1> 通过构造函数而非 Srping 初始化一个 `OrderAmountCalculation` 类实例。
+<2> 实体通过调用构造函数创建（而非使用 Jmix 的 `Metadata` API）。
+<3> 通过 AssertJ 断言判断计算结果。
+
+此测试类不包含任何 Spring Boot 测试注解（例如，`@SpringBootTest`），与 Spring Boot 集成测试相比，运行速度非常快。
+
+但是测试中缺少 Spring 上下文也意味着无法在测试类中使用 `@Autowired` 来获取 Jmix/Spring Bean 的实例。如果被测类与 Spring Bean 有任何依赖关系，则必须手动实例化这些依赖关系。
+
+[[mocking-with-mockito]]
+== 使用 Mockito 模拟
+
+对于单元测试，上述限制是可以接受的，因为测试用例的范围通常是单个类的某些独立功能。
+
+我们来看下面的例子：有一个类调用 Jmix `TimeSource` API 来获取当前日期，用于计算特定客户今年已进行的订单数量。
+
+下面是该类的实现：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/testing/ex1/order/RecentOrdersCounter.java[tags=recent-order-counter]
+----
+
+该类使用了 `@Component` 注解，这样 Spring 能自动注入依赖。
+
+但是，我们希望在单元测试中测试此类的功能，则需要手动实例化 `RecentOrdersCounter` 类。如果我们需要测试这样一个场景：
+
+> 假设我们有两个订单：一个是 2019 年的订单，一个是 2020 年的订单，如果今年是 2020 年，则测试结果应该是会有一个订单。
+
+为此，需要控制 `TimeSource` 返回的当前时间，并模拟当前年份为 2020 年。
+
+Mockito 是一个支持这种仿真的模拟库。在 Jmix 项目中默认可用。
+
+下面是此测试用例的一个示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/testing/ex1/order/RecentOrdersCounterTest.java[tags=recent-order-counter-test]
+----
+<1> `mock` 方法创建一个模拟的实例，可以用于控制该类的行为。
+<2> 我们定义当 `TimeSource` 的 `now()` 方法被调用时，需要返回 `ZonedDateTime` 类型的 `2020-03-01`。
+<3> 初始化计算类时，构造函数传入的是 `TimeSource` 的模拟实例。
+
+TIP: 如果需要在单元测试中测试 Spring bean，请使用基于构造函数的注入，而非 `@Autowired` 的字段。这样在单元测试时，可以通过构造器传入模拟的实例。
+
+使用 Mockito 的更多内容，请参阅 https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html[Mockito 的文档^]。
+
+[[verify-behaviour-with-assertions]]
+== 用断言进行验证
+
+可以通过 https://assertj.github.io/doc/[AssertJ^] 库使用断言。
+
+AssertJ DSL 提供了用于验证测试结果的流式 API。断言方法（例如，`assertThat`）应该静态引入，例如：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/testing/ex1/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-import]
+----
+
+这里是使用 AssertJ 对字符串断言的简单示例：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/testing/ex1/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-string-assertion]
+----
+
+请注意，对同一结果对象可以串联多个断言。
+
+如果测试失败，JUnit / AssertJ 能提供关于期望和实际结果之间差异的错误信息：
+
+```
+Expecting actual:
+  "Mike Myers"
+to end with:
+  "Murphy"
+```
+
+根据对象的类型不同，AssertJ 提供了不同的断言方法来比较值。例如，在比较列表时，AssertJ 提供了 `hasSize` 和 `contains` 方法：
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/test/java/testing/ex1/assertj/AssertJAssertionExampleTest.java[tags=unit-test-assertj-assertion-example-list-assertion]
+----
+
+关于断言的更多内容，请参阅 https://assertj.github.io/doc/[AssertJ 文档^]。
