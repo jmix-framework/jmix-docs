@@ -22,7 +22,7 @@ public class DocumentDetailView extends StandardDetailView<Document> {
     //end::sequences-inject[]
 
     //tag::sequences-use[]
-    @Autowired
+    @ViewComponent
     private InstanceContainer<Document> documentDc;
 
     @Subscribe(target = Target.DATA_CONTEXT)
