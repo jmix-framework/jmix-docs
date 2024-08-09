@@ -11,12 +11,10 @@ Events can be used to model various scenarios, such as the receipt of a message,
 ====
 The word 'event' is used in two meanings:
 
-. *Event itself* -- when something occurs
+. *Event* -- when something occurs
 . *BPMN event* -- it's an element of BPMN diagram
 
-Events can happen without being represented on the diagram. For example, message events should be thrown programmatically.
-
-BPMN events related to real events as many-to-one. For example, many signal events can catch the same signal, issued programmatically.
+Events can occur without being represented on the process diagram. For example, message events should be thrown programmatically.
 ====
 
 [[events-classification]]
@@ -100,9 +98,9 @@ Triggers can be activated manually or via API call.
 
 In BPMN 2.0, there exist two main event categories: _catching_ and _throwing_ events.
 
-* *Catching:* when process execution arrives at the event, it will wait for a trigger to happen. The type of trigger is defined by the inner icon or the type declaration in the XML. Catching events are visually differentiated from a throwing event by the inner icon that is not filled (it’s just white).
+* *Catching:* when process execution arrives at the event, it will wait for a trigger to happen. The type of trigger is defined by the inner icon or the type declaration in the XML. Catching events are visually differentiated from a throwing event by the inner icon that is not filled (usually white).
 
-* *Throwing:* when process execution arrives at the event, a trigger is fired. The type of trigger is defined by the inner icon or the type declaration in the XML. Throwing events are visually differentiated from a catching event by the inner icon that is filled with black.
+* *Throwing:* when process execution arrives at the event, a trigger is fired. The type of trigger is defined by the inner icon or the type declaration in the XML. Throwing events are visually differentiated from a catching event by the inner icon that is filled (usually black).
 
 For example, see below catching and throwing signal events:
 
@@ -131,9 +129,11 @@ In the XML, a boundary event is marked by special tag and has an attribute `atta
 
 ==== Example
 
+Boundary events can be attached to task, call activity or embedded subprocess.
+
 image::bpmn-events/boundary-events-example.png[,500]
 
-While the activity is running, the event is listening for a designated type of trigger. When the trigger fired, the main activity can be interrupted or not, depends on the type of event, xref:bpmn-events.adoc#process-interruption[interrupting or non-interrupting].
+While the activity is running, the event is listening for a designated type of trigger. When the trigger fired, the activity the event is attached to can be interrupted or not, depends on the type of event, xref:bpmn-events.adoc#process-interruption[interrupting or non-interrupting].
 
 
 [[process-interruption]]
@@ -151,7 +151,23 @@ Interrupting event is visualized as a regular intermediate event, attached to th
 
 Non-interrupting event can trigger multiple times, and each time a new execution will start (a new token generated) until the task to be completed. For example, non-interrupting cyclic timer will fire every 5 minutes and send a notification to the user.
 
-==== Start events of event subprocesses
+Type of behavior is defined by `cancelActivity` attribute. By default, it is set to `true` and the attribute usually omitted for interrupting events. For non-interrupting events its value is explicitly set to `false`.
+
+For example, see non-interrupting timer event:
+
+[source,xml]
+----
+    <boundaryEvent id="Event_01" cancelActivity="false" <1>
+        attachedToRef="Activity_025d998">
+      <timerEventDefinition id="TimerEventDefinition_14a8e0l" />
+    </boundaryEvent>
+
+----
+<1> -- Defines non-interrupting event.
+
+'''
+
+==== Start Events of Event Subprocesses
 
 Event subprocesses can have interrupting or non-interrupting start events.
 
@@ -180,11 +196,7 @@ Start events can be of the following types:
 * xref:bpmn-events.adoc#timer-start-event[Timer start event]
 * xref:bpmn-events.adoc#message-start-event[Message start event]
 * xref:bpmn-events.adoc#signal-events[Signal start event]
-
-
-In event subprocesses, additionally can be these start events:
-
-* xref:bpmn-events.adoc#error-start-event[Error start event]
+* xref:bpmn-events.adoc#error-start-event[Error start event] (In event subprocesses only)
 //* xref:bpmn-events.adoc#compensation-start-event[Compensation start event] -- Not supported in Flowable
 
 
@@ -562,21 +574,21 @@ As well, message events can be used as boundary events.
 
 image::bpmn-events/message-events-types.png[,350]
 
-[NOTE]
+[WARNING]
 ====
 Message throwing events (intermediate, end) are not supported in *Jmix BPM*. See xref:bpmn-events.adoc#message-throwing-event-workaround[workaround].
 ====
 
-[[message-event-properties]]
-=== Message Event Properties
-
-Message event has general properties _id_ and _name_. Name here is the name of BPMN element, not the name of the message.
-
-And it has a specific attribute _message_ that refers to previously created xref:bpmn-concepts.adoc#message-definition[message definition]. This is mandatory, otherwise it will cause an error at deployment.
-
-image::bpmn-events/message-event-properties.png[,400]
-
-The above is applied to all message events.
+// [[message-event-properties]]
+// === Message Event Properties
+//
+// Message event has general properties _id_ and _name_. Name here is the name of BPMN element, not the name of the message.
+//
+// And it has a specific attribute _message_ that refers to previously created xref:bpmn-concepts.adoc#message-definition[message definition]. This is mandatory, otherwise it will cause an error at deployment.
+//
+// image::bpmn-events/message-event-properties.png[,400]
+//
+// The above is applied to all message events.
 
 [[message-start-event]]
 === Message Start Event
@@ -592,7 +604,7 @@ image::bpmn-events/message-start-event.png[,150]
 
 ==== Properties
 
-Message start event must have filled a _Nessage_ property refering to existing message definition.
+Message start event must have filled a _Message_ property referring to the existing xref:bpmn-concepts.adoc#message-definition[message definition]. This is mandatory, otherwise it will cause an error at deployment.
 
 image::bpmn-events/start-message-properties.png[,400]
 
@@ -607,17 +619,18 @@ The XML representation of a message start event is the normal start event declar
             messageRef="new-invoice-message" /> <1>
     </startEvent>
 ----
-<1> -- reference to the message definition, see the xref:bpmn-concepts.adoc#message-definition[Message Definitions] section.
+<1> -- reference to the message definition.
 
 ==== Using Message Start Event
 
 A process can have one or more message start events, but messages must be different.
 
-When a process is deployed, the engine creates a message subscription for each message start event.  Subscriptions of the previous version of the process would be closed.
+When a process is deployed, the engine creates a xref:bpmn-concepts.adoc#message-subscription[message subscription] for each message start event.  Subscriptions of the previous version of the process would be closed.
 
-[NOTE]
+[WARNING]
 ====
-The name of the message start event must be unique across all deployed process definitions. Flowable throws an exception upon deployment of a process definition containing one or more message start events referencing a message with the same name as a message start event already deployed by a different process definition.
+The name of the message start event must be unique across all deployed process definitions.
+Flowable throws an exception upon deployment of a process definition containing one or more message start events referencing a message with the same name as a message start event already deployed by a different process definition.
 ====
 
 
@@ -668,15 +681,17 @@ A message intermediate event is defined as an intermediate catching event. The s
 
 [source,xml]
 ----
-    <intermediateCatchEvent id="catch-message-event">
-      <messageEventDefinition id="MessageEventDefinition_catch_message" />
+    <intermediateCatchEvent id="catch-message-event"
+        name="Catch message">
+      <messageEventDefinition id="MessageEventDefinition_16bx9rl"
+        messageRef="message-one" />
     </intermediateCatchEvent>
 ----
 
 
 When an intermediate message catch event is entered, a corresponding message subscription is created. The process instance stops at this point and waits until the message is received. After that, the catch event is completed and the execution continues.
 
-Message intermediate catching event is a xref:bpmn-concepts.adoc#waiting-state[waiting state].
+Message intermediate catching event is a xref:bpmn-concepts.adoc#waiting-state[waiting state]. In this example, the process will wait for a message after the completion of `Activity 1`, and `Activity 2` will be executed once the message is received.
 
 image::bpmn-events/message-intermediate-example.png[,400]
 
@@ -686,7 +701,7 @@ An attached intermediate catching message on the boundary of an activity, or *bo
 
 ==== Graphical Notation
 
-Boundary message events can be interruptable (with solid double outline) or non-interruptible (with dashed double outline).
+Boundary message events can be interruptible (with solid double outline) or non-interruptible (with dashed double outline).
 
 image::bpmn-events/boundary-message-event.png[,150]
 
@@ -725,14 +740,16 @@ Non-interruptible message event has an attribute `cancelActivity`=`false`.
 
 Message events can be used as boundary events, interruptible or non-interruptible:
 
-image::bpmn-events/message-boundary-events.png[,230]
+image::bpmn-events/message-boundary-events.png[,300]
 
+The activity may have several boundary message events.
 
 [[signal-events]]
 == Signal Events
 
 Signal events are events that reference a xref:bpmn-concepts.adoc#signal-definition[signal definition].
 Broadcasting a signal will trigger all signal events matching the name of the broadcast signal.
+Signals have a scope, it can be _Global_ or _Process instance_.
 
 image::bpmn-events/signal-events.png[,400]
 
@@ -747,20 +764,20 @@ There are the following signal events in *Jmix BPM*:
 Signal end event isn't supported. Use xref:bpmn-events.adoc#signal-throwing-end-event-workaround[workaround].
 ====
 
-[[signal-event-properties]]
-=== Signal Event Properties
-
-Signal event has general properties _id_ and _name_. Name here is the name of BPMN element, not the name of the signal definition.
-
-And it has a specific attribute _signal_ that refers to previously created xref:bpmn-concepts.adoc#signal-definition[signal definition]. This is mandatory, otherwise it will cause an error at deployment.
-
-image::bpmn-events/signal-event-properties.png[,450]
-The above is applied to all signal events.
-
-[NOTE]
-====
-Signal has a scope, _Global_ or _Process instance_.
-====
+// [[signal-event-properties]]
+// === Signal Event Properties
+//
+// Signal event has general properties _id_ and _name_. Name here is the name of BPMN element, not the name of the signal definition.
+//
+// And it has a specific attribute _signal_ that refers to previously created xref:bpmn-concepts.adoc#signal-definition[signal definition]. This is mandatory, otherwise it will cause an error at deployment.
+//
+// image::bpmn-events/signal-event-properties.png[,450]
+// The above is applied to all signal events.
+//
+// [NOTE]
+// ====
+// Signal has a scope, _Global_ or _Process instance_.
+// ====
 
 [[signal-start-event]]
 === Signal Start Event
@@ -820,14 +837,14 @@ runtimeService.signalEventReceived("Ready");
 
 [NOTE]
 ====
-Signal start events are not supported on embedded subprocesses.
+Signal start events are not supported in embedded subprocesses.
 ====
 
 
 [[signal-intermediate-catching-event]]
 === Signal Intermediate Catching Event
 
-_Signal intermediate catching event_ catches signals with the same signal name as the referenced xref:bpmn-concepts.adoc#signal-subscription[signal subscription]. Signal intermediate catching event is a xref:bpmn-concepts.adoc#waiting-state[waiting state].
+*Signal intermediate catching event* catches signals with the same signal name as the referenced xref:bpmn-concepts.adoc#signal-subscription[signal subscription]. Signal intermediate catching event is a xref:bpmn-concepts.adoc#waiting-state[waiting state].
 
 ==== Graphical Notation
 
@@ -878,14 +895,40 @@ An intermediate signal catch event properties are the same as for a signal start
 
 image::bpmn-events/signal-throw-event-properties.png[,350]
 
-//todo -- разобраться с асинхронным сигналом
+
+==== Signals Publication Mode
+
 Signals can be published synchronously or asynchronously.
 
-In the default configuration, the signal is delivered synchronously. This means that the throwing process instance waits until the signal is delivered to all catching process instances. The catching process instances are also notified in the same transaction as the throwing process instance, which means that if one of the notified instances produces a technical error (throws an exception), all involved instances fail.
-//todo link transaction
+* In the default configuration, the signal is delivered synchronously.
+This means that the throwing process instance waits until the signal is delivered to all catching process instances.
+The catching process instances are also notified in the same transaction as the throwing process instance, which means that if one of the notified instances produces a technical error (throws an exception), all involved instances fail.
 
-A signal can also be delivered asynchronously. In this case, it is determined which handlers are active at the time the throwing signal event is reached. For each active handler, an asynchronous notification message (Job) is stored and delivered by the JobExecutor.
-//todo link job exec
+* A signal can also be delivered asynchronously.
+In this case, it is determined which handlers are active at the time the throwing signal event is reached.
+For each active handler, an asynchronous notification message (Job) is stored and delivered by the `JobExecutor`.
+
+
+==== XML Representation
+
+A signal intermediate event is defined as an intermediate throwing event. The specific type sub-element is, in this case, a `signalEventDefinition` element.
+
+[source,xml]
+----
+    <intermediateThrowEvent id="Event_sync">
+      <signalEventDefinition id="SignalEventDefinition_14tnjbf"
+        signalRef="my-signal" /> <1>
+    </intermediateThrowEvent>
+
+
+    <intermediateThrowEvent id="Event_async">
+      <signalEventDefinition id="SignalEventDefinition_14tnjbf"
+        signalRef="my-signal" flowable:async="true" /> <2>
+    </intermediateThrowEvent>
+----
+<1> -- Attribute `async` is omitted, implicitly it is `false`, the signal will be published synchronously.
+<2> -- Signal be published asynchronously.
+
 
 
 [[error-events]]
@@ -898,12 +941,11 @@ There are the following types of error events:
 * xref:bpmn-events.adoc#error-boundary-event[Error boundary event]
 * xref:error-end-event[Error end event]
 
-[[error-event-properties]]
-=== Error Event Properties
-
-
-
-image::bpmn-events/error-event-properties.png[,350]
+// [[error-event-properties]]
+// === Error Event Properties
+//
+//
+// image::bpmn-events/error-event-properties.png[,350]
 
 [[error-start-event]]
 === Error Start Event
@@ -971,7 +1013,8 @@ image::bpmn-events/error-boundary-event-properties.png[,350]
     <serviceTask id="Activity_1" name="Check error"
     . . .
     </serviceTask>
-    <boundaryEvent id="error-boundary-event" name="Error" attachedToRef="Activity_1">
+    <boundaryEvent id="error-boundary-event" name="Error"
+        attachedToRef="Activity_1">
       <errorEventDefinition id="ErrorEventDefinition_1"
         errorRef="failure" />
     </boundaryEvent>
@@ -987,7 +1030,7 @@ When process execution arrives at an *error end event*, the current process path
 
 An error end event is visualized as a typical end event (circle with a thick border), with the error icon inside. The error icon is filled to indicate its throwing semantics.
 
-image::bpmn-events/error-end-event.png[,140]
+image::bpmn-events/error-end-event.png[,150]
 
 
 ==== Properties
@@ -1030,7 +1073,7 @@ Using error end event without catching error event causes an exception at runtim
 image::bpmn-events/error-end-event-bad-example.png[,350]
 ====
 
-See details it the xref:bpmn-concepts.adoc#errors-handling[Errors Handling] section.
+See more it the xref:bpmn-concepts.adoc#errors-handling[Errors Handling] section.
 
 
 [[compensation-events]]
@@ -1049,6 +1092,25 @@ There are types of compensation events:
 
 *Compensation intermediate throwing event* can be used to trigger compensation.
 
+[[triggering-compensation]]
+==== Triggering Compensation
+
+Compensation can either be triggered for a designated activity or for the scope that hosts the compensation event.
+Compensation is performed through execution of the compensation handler associated with an activity.
+
+When compensation is thrown for an activity, the associated compensation handler is executed the same number of times the activity completed successfully.
+
+If compensation is thrown for the current scope, all activities within the current scope are compensated, which includes activities on concurrent branches.
+
+Compensation is triggered hierarchically: if the activity to be compensated is a subprocess, compensation is triggered for all activities contained in the subprocess.
+If the subprocess has nested activities, compensation is thrown recursively.
+However, compensation is not propagated to the "upper levels" of the process: if compensation is triggered within a subprocess, it is not propagated to activities outside of the subprocess scope.
+The BPMN specification states that compensation is triggered for activities at "the same level of subprocess".
+
+In Flowable, compensation is performed in reverse order of execution. This means that whichever activity completed last is compensated first, and so on.
+
+The intermediate throwing compensation event can be used to compensate transaction subprocesses that competed successfully.
+
 ==== Graphical Notation
 
 An intermediate compensation throw event is visualized as a typical intermediate event (circle with double outline), with the compensation icon inside. The compensation icon is filled to indicate its throw semantics.
@@ -1063,21 +1125,75 @@ image::compensation-throwing-event-properties.png[,350]
 
 ==== XML Representation
 
+A compensation intermediate event is defined as an intermediate throwing event. The specific type sub-element is, in this case, a `compensateEventDefinition` element.
+
 [source,xml]
 ----
-    <intermediateThrowEvent id="Event_03">
-      <incoming>Flow_0ogytc4</incoming>
-      <outgoing>Flow_0p45b0g</outgoing>
-      <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo" /> <1>
+    <intermediateThrowEvent id="throwCompensation">
+      <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo" />
     </intermediateThrowEvent>
 ----
-<1>
+
+In addition, the optional argument activityRef can be used to trigger compensation of a specific scope or activity:
+
+[source,xml]
+----
+    <intermediateThrowEvent id="throwCompensation">
+        <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo"
+            activityRef="bookHotel" /> <1>
+    </intermediateThrowEvent>
+----
+<1> -- Triggering compensation for specific activity.
+
+
+==== Example
+
+If compensation is thrown within a scope that contains a subprocess, and the subprocess contains activities with compensation handlers, compensation is only propagated to the subprocess if it has completed successfully when compensation is thrown.
+If some of the activities nested inside the subprocess have completed and have attached compensation handlers, the compensation handlers are not executed if the subprocess containing these activities is not completed yet.
+Consider the following example:
+
+image::bpmn-events/compensation-example.png[,700]
+
+In this process, we have two concurrent executions: one executing the embedded subprocess and one executing the "charge credit card" activity.
+Let’s assume both executions are started and the first concurrent execution is waiting for a user to complete the "review bookings" task.
+
+The second execution performs the "charge credit card" activity, and an error is thrown, which causes the "cancel booking" event to trigger compensation.
+
+At this point, the parallel subprocess is not yet completed, which means that the compensation event is not propagated to the subprocess and consequently the "cancel hotel booking" compensation handler is not executed.
+
+If the user task (and therefore the embedded subprocess) is completed before the "cancel booking" is performed, compensation is propagated to the embedded subprocess.
+
 
 
 [[compensation-boundary-event]]
 === Compensation Boundary Event
 
 *Compensation boundary event* can be used to attach a compensation handler to an activity.
+
+The compensation boundary event must reference a single compensation handler using a directed association.
+
+A compensation boundary event has a different activation policy from other boundary events.
+Other boundary events, such as the signal boundary event, are activated when the activity they are attached to is started.
+When the activity is finished, they are deactivated and the corresponding event subscription is canceled.
+
+The compensation boundary event is different.
+The compensation boundary event is activated when the activity it is attached to completes successfully.
+At this point, the corresponding subscription to the compensation events is created.
+The subscription is removed either when a compensation event is triggered or when the corresponding process instance ends. From this, it follows:
+
+* When compensation is triggered, the compensation handler associated with the compensation boundary event is invoked the same number of times the activity it is attached to completed successfully.
+
+* If a compensation boundary event is attached to an activity with multiple instance characteristics, a compensation event subscription is created for each instance.
+//todo link to multi-instance
+// * If a compensation boundary event is attached to an activity that is contained inside a loop, a compensation event subscription is created each time the activity is executed.
+
+* If the process instance ends, the subscriptions to compensation events are canceled.
+
+[NOTE]
+====
+The compensation boundary event is not supported on embedded subprocesses.
+====
+
 
 ==== Graphical Notation
 
@@ -1106,8 +1222,6 @@ A compensation boundary event is defined as a typical boundary event:
     sourceRef="Event_1" targetRef="Activity_1" />
 ----
 
-
-
 // [[compensation-start-event]]
 // == Compensation Start Event
 //
@@ -1122,6 +1236,13 @@ A compensation boundary event is defined as a typical boundary event:
 
 [[cancel-events]]
 == Cancel Events
+
+Cancel events are used in xref:bpmn-subprocesses.adoc#transaction-subprocess[transaction subprocesses] only. They are not available in the palette until you are in a transaction subprocess.
+
+There are two types of cancel events:
+
+* xref:cancel-end-event[Cancel end event]
+* xref:cancel-boundary-event[Cancel boundary event]
 
 [[cancel-end-event]]
 === Cancel End Event
@@ -1148,10 +1269,12 @@ A cancel end event is represented as an end event, with a `cancelEventDefinition
 [[cancel-boundary-event]]
 === Cancel Boundary Event
 
-An attached *intermediate catching cancel event* on the boundary of a transaction subprocess, or *boundary cancel event* for short, is triggered when a transaction is canceled. 
+An attached *intermediate catching cancel event* on the boundary of a transaction subprocess, or *boundary cancel event* for short, is triggered when a transaction is canceled.
+
 When the cancel boundary event is triggered, it first interrupts all active executions in the current scope. 
 Next, it starts compensation for all active compensation boundary events in the scope of the transaction. 
-Compensation is performed synchronously; in other words, the boundary event waits before compensation is completed before leaving the transaction. 
+
+Compensation is performed synchronously; in other words, the boundary event waits before compensation is completed before leaving the transaction.
 When compensation is completed, the transaction subprocess is left using any sequence flows running out of the cancel boundary event.
 
 [NOTE]
@@ -1244,16 +1367,42 @@ Be careful when importing BPMN models from 3rd party design tools: not supported
 [[workarounds]]
 == Workarounds for Unsupported Events
 
+In this section, you'll find recipes how to implement a desired process logic for elements that are not supported in Jmix BPM.
+
 [[message-throwing-event-workaround]]
 === Message Throwing Event
-//todo: write this
+
+First, use _signals_ instead of _messages_ everywhere it is possible. In most cases, these types of events are interchangeable.
+
+image::bpmn-events/signal-instead-of-message.png[,270]
+
+Second, use a service task with the API call.
+
+image::bpmn-events/throw-message-workaround-1.png[,350]
+
+Service task can be implemented as Spring bean, for example:
+
+[source,java]
+----
+@Component(value = "jbt_MyService")
+public class MyService {
+
+    @Autowired
+    private RuntimeService runtimeService;
+
+    public void sendMessage(String messageName, String executionId) {
+        runtimeService.messageEventReceived(messageName, executionId);
+    }
+}
+----
+
 
 [[signal-throwing-end-event-workaround]]
 === Signal Throwing End Event
 
 Use the combination of _signal throwing intermediate event_ and _none_end_event_:
 
-image::bpmn-events/workaround-signal-end event.png[,400]
+image::bpmn-events/workaround-signal-end-event.png[,400]
 
 [[compensation-end-event-workaround]]
 === Compensation End Event
@@ -1277,9 +1426,12 @@ image::bpmn-events/workaround-escalation-events.png[,600]
 [[conditional-events-workaround]]
 === Conditional Events
 
-==== Conditional Start Event
+The conditional event defines an event which is triggered if a given condition is evaluated to true.
+It can be used as start event of an event subprocess, as intermediate event and boundary event. The start and boundary event can be interrupting and non interrupting.
 
-image::conditional-start-events.png[,150]
+You can implement similar logic by using execution listeners in combination with signal or message event.
+
+image::bpmn-events/workaround-conditional-events.png[,350]
 
 [[link-events-workaround]]
 === Link Events
