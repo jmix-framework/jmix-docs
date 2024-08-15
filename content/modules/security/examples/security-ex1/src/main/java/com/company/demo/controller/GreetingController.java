@@ -10,12 +10,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class GreetingController {
 
-    @GetMapping("/greeting/hello")
+    @PostMapping("/greeting/hello")
     public String hello() {
         return "Hello!";
     }
 
-    @PostMapping("/greeting/hi")
+    @GetMapping("/greeting/public/hi")
     public String hi() {
         return "Hi!";
     }
