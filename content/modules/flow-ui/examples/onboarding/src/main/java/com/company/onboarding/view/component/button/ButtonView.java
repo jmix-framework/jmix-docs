@@ -6,8 +6,10 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.Route;
+import io.jmix.flowui.Notifications;
 import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Route(value = "ButtonView", layout = MainView.class)
 @ViewController("ButtonView")
@@ -23,9 +25,11 @@ public class ButtonView extends StandardView {
     protected JmixButton vaadinBtn;
 
     // end::vaadinBtn[]
+    @Autowired
+    private Notifications notifications;
     // tag::basics-1[]
-    @Subscribe("toolsButton")
-    public void onToolsButtonClick(ClickEvent<Button> event) {
+    @Subscribe(id = "toolsButton", subject = "clickListener")
+    public void onToolsButtonClick(final ClickEvent<JmixButton> event) {
         // ...
     }
     // end::basics-1[]
@@ -77,6 +81,24 @@ public class ButtonView extends StandardView {
         // end::vaadinBtn[]
         // tag::onInit[]
     }
-// end::onInit[]
 
+    // end::onInit[]
+    // tag::clickListener[]
+    @Subscribe(id = "clickBtn", subject = "clickListener") // <1>
+    public void onClickBtnClick(final ClickEvent<JmixButton> event) {
+        JmixButton button = event.getSource(); // <2>
+    }
+    // end::clickListener[]
+    // tag::doubleClickListener[]
+    @Subscribe(id = "clickBtn", subject = "doubleClickListener")
+    public void onClickBtnClick1(final ClickEvent<JmixButton> event) {
+        notifications.show("This is doubleClickListener");
+    }
+    // end::doubleClickListener[]
+    // tag::singleClickListener[]
+    @Subscribe(id = "clickBtn", subject = "singleClickListener")
+    public void onClickBtnClick2(final ClickEvent<JmixButton> event) {
+        notifications.show("This is singleClickListener");
+    }
+    // end::singleClickListener[]
 }
