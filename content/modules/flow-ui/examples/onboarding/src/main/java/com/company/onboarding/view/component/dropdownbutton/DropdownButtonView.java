@@ -23,15 +23,19 @@ public class DropdownButtonView extends StandardView {
     // tag::callAction[]
     @Subscribe("callAction")
     public void onCallAction(final ActionPerformedEvent event) {
-        notifications.create("Phone number: +6(876)5463")
-                .show();
+        notifications.show("Phone number: +6(876)5463");
     }
     // end::callAction[]
     // tag::emailIt[]
     @Subscribe("callBtn.emailIt")
     public void onEmailItClick(final DropdownButtonItem.ClickEvent event) {
-        notifications.create("Email: test@river.net")
-                .show();
+        notifications.show("Email: test@river.net");
     }
     // end::emailIt[]
+    // tag::whatsAppIt[]
+    @Subscribe("callBtn.whatsAppIt")
+    public void onCallBtnWhatsAppItClick(final DropdownButtonItem.ClickEvent event) {
+        notifications.show("`WhatsApp: +6(876)5463");
+    }
+    // end::whatsAppIt[]
 }
