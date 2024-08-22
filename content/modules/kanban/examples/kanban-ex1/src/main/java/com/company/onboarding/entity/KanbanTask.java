@@ -6,6 +6,7 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @JmixEntity
@@ -19,6 +20,21 @@ public class KanbanTask {
     @Id
     private UUID id;
 
+    @Column(name = "COLOR")
+    private String color;
+
+    @Column(name = "DUE_DATE")
+    private LocalDate dueDate;
+
+    @Column(name = "PRIORITY")
+    private String priority;
+
+    @Column(name = "PROGRESS")
+    private Integer progress;
+
+    @Column(name = "TAGS")
+    private String tags;
+
     @Column(name = "STATUS")
     private String status;
 
@@ -30,6 +46,46 @@ public class KanbanTask {
     @JoinColumn(name = "ASSIGNEE_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private User assignee;
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
+
+    public Integer getProgress() {
+        return progress;
+    }
+
+    public void setProgress(Integer progress) {
+        this.progress = progress;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
 
     public TaskStatus getStatus() {
         return status == null ? null : TaskStatus.fromId(status);
