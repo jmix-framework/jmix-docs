@@ -3,8 +3,10 @@ package com.company.onboarding.view.main;
 import com.company.onboarding.event.OnboardingStatusChangedEvent;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.Route;
+import io.jmix.flowui.Notifications;
 import io.jmix.flowui.app.main.StandardMainView;
 import io.jmix.flowui.component.image.JmixImage;
 import io.jmix.flowui.component.main.JmixListMenu;
@@ -13,15 +15,18 @@ import io.jmix.flowui.view.Subscribe;
 import io.jmix.flowui.view.ViewComponent;
 import io.jmix.flowui.view.ViewController;
 import io.jmix.flowui.view.ViewDescriptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 
 import java.util.random.RandomGenerator;
 
+// tag::main-view[]
 @Route("")
 @ViewController("MainView")
 @ViewDescriptor("main-view.xml")
 public class MainView extends StandardMainView {
 
+    // end::main-view[]
     // tag::menu-component[]
     @ViewComponent
     private JmixListMenu menu;
@@ -31,6 +36,8 @@ public class MainView extends StandardMainView {
     // tag::initialLayout[]
     @ViewComponent
     private JmixImage<Object> urlImage;
+    @Autowired
+    private Notifications notifications;
 
     // tag::init-event[]
     @Subscribe
@@ -43,6 +50,34 @@ public class MainView extends StandardMainView {
         // tag::init-onBoardingStatus[]
         updateOnboardingStatus(); // <1>
         // end::init-onBoardingStatus[]
+        // tag::get-menu-item[]
+        ListMenu.MenuItem menuItem = menu.getMenuItem("ListMenuView");
+        // Can be 'null' if menu item isn't permitted by security
+        if (menuItem != null) {
+            menuItem.setPrefixComponent(VaadinIcon.MENU.create());
+        }
+        // end::get-menu-item[]
+        // tag::new-menu-item[]
+        ListMenu.MenuBarItem rootItem = new ListMenu.MenuBarItem("help")
+                .withTitle("Help")
+                .withPrefixComponent(VaadinIcon.QUESTION.create()); // <1>
+        ListMenu.MenuItem subItemNews = new ListMenu.MenuItem("news")
+                .withTitle("News")
+                .withClickHandler(  // <2>
+                        item -> {
+                            notifications.create("News menu item clicked")
+                                    .show();
+                        }
+                );
+        rootItem.addChildItem(subItemNews);
+        ListMenu.MenuSeparatorItem sep =
+                new ListMenu.MenuSeparatorItem("separator"); // <3>
+        rootItem.addChildItem(sep);
+        ListMenu.MenuItem subItemBlog = new ListMenu.MenuItem("blog")
+                .withTitle("Blog");
+        rootItem.addChildItem(subItemBlog);
+        menu.addMenuItem(rootItem);
+        // end::new-menu-item[]
     }
     // end::init-event[]
 
@@ -79,4 +114,6 @@ public class MainView extends StandardMainView {
     private long getUncompletedStepsNumber() {
         return RandomGenerator.getDefault().nextInt(1, 5);
     }
+    // tag::main-view[]
 }
+// end::main-view[]
