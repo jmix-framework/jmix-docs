@@ -2,10 +2,7 @@ package com.company.onboarding.app;
 
 import com.company.onboarding.view.city.CityListView;
 import com.vaadin.flow.component.UI;
-import io.jmix.flowui.DialogWindows;
-import io.jmix.flowui.Notifications;
-import io.jmix.flowui.ViewNavigators;
-import io.jmix.flowui.Views;
+import io.jmix.flowui.view.navigation.ViewNavigationSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -18,12 +15,12 @@ public class MenuBean {
     // end::start[]
 
     // tag::menu-bean[]
+
     @Autowired
-    private ViewNavigators viewNavigators;
+    private ViewNavigationSupport viewNavigationSupport;
 
     public void browseCities() {
-        viewNavigators.view(CityListView.class)
-                .navigate();
+        viewNavigationSupport.navigate(CityListView.class);
     }
     // end::menu-bean[]
 
