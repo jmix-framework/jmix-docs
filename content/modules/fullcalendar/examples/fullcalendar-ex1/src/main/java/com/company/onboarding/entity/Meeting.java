@@ -4,6 +4,7 @@ import io.jmix.core.entity.annotation.JmixGeneratedValue;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -19,21 +20,21 @@ public class Meeting {
     @Id
     private UUID id;
 
+    @NotNull
     @InstanceName
-    @Column(name = "NAME")
+    @Column(name = "NAME", nullable = false)
     private String name;
 
-    @Column(name = "DESCRIPTION")
-    private String description;
-
-    @Column(name = "START_DATE")
+    @NotNull
+    @Column(name = "START_DATE", nullable = false)
     private LocalDateTime startDate;
 
     @Column(name = "END_DATE")
     private LocalDateTime endDate;
 
-    @JoinColumn(name = "USER_ID")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull
+    @JoinColumn(name = "USER_ID", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User user;
 
     public void setStartDate(LocalDateTime startDate) {
@@ -58,14 +59,6 @@ public class Meeting {
 
     public void setUser(User user) {
         this.user = user;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getName() {

@@ -122,29 +122,31 @@ public class MyOnboardingView extends StandardView {
         return isOverdue(userStep) ? "overdue-step" : null;
     }
 
+    // tag::onboarding-pre-save-event[]
     @Subscribe(target = Target.DATA_CONTEXT)
     public void onPreSave(final DataContext.PreSaveEvent event) {
         List<UserStep> userSteps = userStepsDc.getItems().stream()
                 .filter(us -> us.getCompletedDate() == null)
                 .toList();
-
         if (userSteps.isEmpty()) {
             generateOnboardingResultsMeeting();
         }
     }
+    // end::onboarding-pre-save-event[]
 
+    // tag::onboarding-generate-meeting[]
     protected void generateOnboardingResultsMeeting() {
-        Meeting meeting = dataContext.create(Meeting.class);
-        meeting.setName("Onboarding results meeting");
-        meeting.setDescription("Onboarding results meeting");
+        Meeting meeting = dataContext.create(Meeting.class); // <1>
+        meeting.setName("Results meeting");
         meeting.setUser((User) currentAuthentication.getUser());
 
-        LocalDate now = LocalDate.now();
-        LocalDateTime start = LocalDateTime.of(
-                now.plusDays(now.getDayOfWeek() == DayOfWeek.FRIDAY ? 3 : 1),
+        int inDays = LocalDate.now().getDayOfWeek() == DayOfWeek.FRIDAY ? 3 : 1; // <2>
+        LocalDateTime start = LocalDateTime.of( // <3>
+                LocalDate.now().plusDays(inDays),
                 LocalTime.of(9, 30));
 
         meeting.setStartDate(start);
         meeting.setEndDate(start.plusMinutes(30));
     }
+    // end::onboarding-generate-meeting[]
 }
