@@ -16,8 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @ViewController("MyCalendar")
 @ViewDescriptor("my-calendar.xml")
 public class MyCalendar extends StandardView {
-    @ViewComponent
-    private FullCalendar calendar;
+
     // tag::onboarding-add-fullcalendar4[]
     @ViewComponent
     private CollectionLoader<Meeting> meetingsDl;
@@ -32,6 +31,10 @@ public class MyCalendar extends StandardView {
     }
     // end::onboarding-add-fullcalendar4[]
 
+    // tag::onboarding-calendar-navigation2[]
+    @ViewComponent
+    private FullCalendar calendar;
+
     @Subscribe(id = "previousButton", subject = "clickListener")
     public void onPreviousButtonClick(final ClickEvent<JmixButton> event) {
         calendar.navigateToPrevious();
@@ -41,4 +44,5 @@ public class MyCalendar extends StandardView {
     public void onNextButtonClick(final ClickEvent<JmixButton> event) {
         calendar.navigateToNext();
     }
+    // end::onboarding-calendar-navigation2[]
 }
