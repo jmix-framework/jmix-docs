@@ -7,6 +7,7 @@ import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.router.Route;
 import io.jmix.flowui.Notifications;
+import io.jmix.flowui.component.checkbox.JmixCheckbox;
 import io.jmix.flowui.view.StandardView;
 import io.jmix.flowui.view.Subscribe;
 import io.jmix.flowui.view.ViewController;
@@ -23,14 +24,12 @@ public class CheckBoxView extends StandardView {
 
     // end::notifications[]
     // tag::ClickEvent[]
-    @Subscribe("checkbox")
-    public void onCheckboxClick(final ClickEvent<Checkbox> event) {
-        if (Boolean.TRUE.equals(event.getSource().getValue())) {
-            notifications.create("set")
-                    .show();
+    @Subscribe(id = "checkbox", subject = "clickListener")
+    public void onCheckboxClick(final ClickEvent<JmixCheckbox> event) {
+        if (event.getSource().getValue()){
+            notifications.show("Set");
         } else {
-            notifications.create("not set")
-                    .show();
+            notifications.show("Not set");
         }
     }
     // end::ClickEvent[]
