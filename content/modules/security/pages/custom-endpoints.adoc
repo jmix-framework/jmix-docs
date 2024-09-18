@@ -7,14 +7,14 @@ Requests to the Jmix application are protected by the Spring Security framework.
 
 To gain a deep understanding of how endpoint security works, read the relevant sections of the Spring Security documentation:
 
-* {spring-security-doc}/servlet/architecture.html[High-level architecture within Servlet-based applications^]
+* {spring-security-doc}/servlet/architecture.html[Spring Security Architecture^]
 * {spring-security-doc}/servlet/authorization/authorize-http-requests.html[Authorize HttpServletRequests^]
 
 Spring Security uses special {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] beans to determine which URLs should be protected. Each `SecurityFilterChain` bean is configured by the {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^] builder. An application can have multiple `SecurityFilterChain` beans declared. In this case, it is extremely important to indicate their correct order. See the {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] section of the Spring Security documentation for how to configure multiple `HttpSecurity` objects.
 
-Each Jmix application by default contains a security configuration that extends the {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^] class. This configuration sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grants access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always invoked last.
+Each Jmix application by default contains a security configuration that extends the {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^] class. This configuration sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grants access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always invoked last. The <<custom-endpoints-security>> section below explains how to define you own `SecurityFilterChain` to protect custom endpoints.
 
-Add-ons like xref:oidc:index.adoc[OpenID Connect] or xref:authorization-server:index.adoc[Authorization Server] bring their own `SecurityFilterChain` beans that protect authorization or resource server endpoints. These beans are always invoked before the one from the UI module.
+Add-ons like xref:oidc:index.adoc[OpenID Connect] or xref:authorization-server:index.adoc[Authorization Server] bring their own `SecurityFilterChain` beans that protect authorization or resource server endpoints. These beans are always invoked before the one from the UI module. See the <<token-based-authentication>> section below for how to protect API endpoints when using these add-ons.
 
 [[custom-endpoints-security]]
 == Custom Endpoints Security
@@ -30,13 +30,10 @@ A simple `SecurityFilterChain` bean definition may look as follows:
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/SimplePublicSecurityConfiguration.java[tags=public-filter-chain]
 ----
 
-The configuration above grants access to all requests for endpoints that match the `/public/**` pattern.
-
-[[examples]]
-=== Examples
+The configuration above grants access to all requests that match the `/public/**` pattern.
 
 [[public-endpoints-example]]
-==== Public Endpoints
+=== Public Endpoints
 
 Let's assume that you have a controller with two methods, and you want these methods to be available for any user without authentication.
 
@@ -58,7 +55,7 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/api/Anony
 <5> The invocation of `JmixHttpSecurityUtils.configureAnonymous(http)` configures anonymous authentication by setting the anonymous user returned by the Jmix `UserRepository` to the security context.
 
 [[http-basic-authentication-example]]
-==== HTTP Basic Authentication
+=== HTTP Basic Authentication
 
 The example demonstrates how to protect controller endpoints using https://en.wikipedia.org/wiki/Basic_access_authentication[HTTP Basic authentication^].
 
@@ -120,7 +117,7 @@ include::example$/security-ex1/src/main/resources/application.properties[tags=re
 [[url-patterns-providers]]
 === URL Patterns Providers
 
-Another way to define which endpoints need to be protected with token-based authentication is to implement the `AuthenticatedUrlPatternsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method. This approach is more flexible and allows you to define more complex rules for endpoint protection.
+Another way to define which endpoints need to be protected with token-based authentication is to create a bean implementing the `AuthenticatedUrlPatternsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method. This approach is more flexible and allows you to define more complex rules for endpoint protection.
 
 [source,java,indent=0]
 ----
@@ -137,14 +134,14 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/resserver
 [[request-matcher-provider]]
 === RequestMatcher Provider
 
-Application properties and URL patterns providers allow you to define endpoints protection rules that operate a collection of strings with URL patterns. If you need to provide more complex rules, such as not only the URL pattern but also the HTTP method, you can implement the `AuthenticatedRequestMatcherProvider` interface and return a `RequestMatcher` object from its `getAuthenticatedRequestMatcher()` method.
+Application properties and URL patterns providers allow you to define endpoints protection rules that operate on a collection of strings with URL patterns. If you need more complex rules than just the URL pattern, such as the HTTP method as well, you can implement the `AuthenticatedRequestMatcherProvider` interface and return a `RequestMatcher` object from its `getAuthenticatedRequestMatcher()` method.
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAuthenticatedRequestMatcherProvider.java[tags=whole-class]
 ----
 
-RequestMatcher for public endpoints of the resource server can be defined in the same way using the `AnonymousRequestMatcherProvider` interface.
+`RequestMatcher` for public endpoints of the resource server can be defined in the same way using the `AnonymousRequestMatcherProvider` interface.
 
 [source,java,indent=0]
 ----
