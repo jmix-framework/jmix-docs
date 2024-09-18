@@ -33,10 +33,10 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/api/Simpl
 The configuration above grants access to all requests for endpoints that match the `/public/**` pattern.
 
 [[examples]]
-== Examples
+=== Examples
 
 [[public-endpoints-example]]
-=== Public Endpoints
+==== Public Endpoints
 
 Let's assume that you have a controller with two methods, and you want these methods to be available for any user without authentication.
 
@@ -58,7 +58,7 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/api/Anony
 <5> The invocation of `JmixHttpSecurityUtils.configureAnonymous(http)` configures anonymous authentication by setting the anonymous user returned by the Jmix `UserRepository` to the security context.
 
 [[http-basic-authentication-example]]
-=== HTTP Basic Authentication
+==== HTTP Basic Authentication
 
 The example demonstrates how to protect controller endpoints using https://en.wikipedia.org/wiki/Basic_access_authentication[HTTP Basic authentication^].
 
@@ -93,26 +93,68 @@ Authorization: Basic YWRtaW46YWRtaW4=
 
 TIP: In this example, public access to `pass:[/api/public/**]` could be alternatively configured using another `SecurityFilterChain` bean that has `pass:[securityMatcher("/api/public/**")]` and an order less than the current one, e.g. `JmixSecurityFilterChainOrder.CUSTOM - 10`.
 
-[[token-based-authentication-example]]
-=== Token Based Authentication
+[[token-based-authentication]]
+== Token Based Authentication
 
-You can protect custom endpoints with tokens issued by the xref:authorization-server:index.adoc[Authorization Server]. The Authorization Server add-on security configuration provides extension points that can be used for that purpose.
+You can protect custom endpoints using bearer tokens issued by the xref:authorization-server:index.adoc[Authorization Server] or an external identity provider, such as Keycloak, when using the xref:oidc:index.adoc[OpenID Connect] add-on. The security configurations of the Authorization Server and the OpenID Connect add-ons provide extension points for this purpose. In the context of the OAuth 2.1 specification, your application that hosts the protected endpoints acts as a *resource server*.
 
-Suppose that you have the following REST controller:
+Suppose you have a REST controller:
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
 ----
 
-To make `pass:[/greeting/**]` endpoints protected with the access token you should define a bean that implements the `io.jmix.core.security.AuthorizedUrlsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method:
+There are several ways to determine which endpoints should be protected with token-based authentication and which can be accessed anonymously.
+
+[[application-properties]]
+=== Application Properties
+
+The simplest way to determine which endpoints of a resource server should be protected and which should have public access, is by using the following application properties:
+
+[source,properties,indent=0]
+----
+include::example$/security-ex1/src/main/resources/application.properties[tags=resource-server-endpoints-security]
+----
+
+[[url-patterns-providers]]
+=== URL Patterns Providers
+
+Another way to define which endpoints need to be protected with token-based authentication is to implement the `AuthenticatedUrlPatternsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method. This approach is more flexible and allows you to define more complex rules for endpoint protection.
 
 [source,java,indent=0]
 ----
-include::example$/security-ex1/src/main/java/com/company/demo/security/api/GreetingAuthorizedUrlsProvider.java[tags=whole-class]
+include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAuthenticatedUrlPatternsProvider.java[tags=whole-class]
 ----
 
-After the above configuration is defined, all requests to `pass:[/greeting/**]` endpoints will need an access token in the `Authorization` header. For example:
+Resource server endpoints that must be accessed anonymously can be defined in the same way using the `AnonymousUrlPatternsProvider` interface.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAnonymousUrlPatternsProvider.java[tags=whole-class]
+----
+
+[[request-matcher-provider]]
+=== RequestMatcher Provider
+
+Application properties and URL patterns providers allow you to define endpoints protection rules that operate a collection of strings with URL patterns. If you need to provide more complex rules, such as not only the URL pattern but also the HTTP method, you can implement the `AuthenticatedRequestMatcherProvider` interface and return a `RequestMatcher` object from its `getAuthenticatedRequestMatcher()` method.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAuthenticatedRequestMatcherProvider.java[tags=whole-class]
+----
+
+RequestMatcher for public endpoints of the resource server can be defined in the same way using the `AnonymousRequestMatcherProvider` interface.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAnonymousRequestMatcherProvider.java[tags=whole-class]
+----
+
+[[accessing-resource-server-endpoints]]
+=== Accessing Resource Server Endpoints
+
+After any of the above configurations are defined, all requests to protected `pass:[/greeting/**]` endpoints of the resource server will require a bearer access token in the `Authorization` header. For example:
 
 [source]
 ----
