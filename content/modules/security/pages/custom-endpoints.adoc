@@ -7,14 +7,14 @@
 
 Для глубокого понимания работы endpoint security, прочитайте соответствующие разделы документации Spring Security:
 
-* {spring-security-doc}/servlet/architecture.html[High-level architecture within Servlet-based applications^]
+* {spring-security-doc}/servlet/architecture.html[Spring Security Architecture^]
 * {spring-security-doc}/servlet/authorization/authorize-http-requests.html[Authorize HttpServletRequests^]
 
 Spring Security использует специальные бины типа {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] для определения того, какие URL должны быть защищены. Каждый `SecurityFilterChain` конфигурируется с помощью билдера {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^]. Приложение может иметь несколько бинов `SecurityFilterChain`. В этом случае очень важно указать их правильный порядок. См. раздел {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] в документации Spring Security для информации о настройке нескольких объектов `HttpSecurity`.
 
-Каждое приложение Jmix по умолчанию содержит конфигурацию безопасности, которая расширяет класс {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^]. Эта конфигурация настраивает доступ к внутренним эндпойнтам Vaadin и передает все запросы на авторизацию механизмам Jmix и Vaadin (предоставляет доступ к экранам с помощью аннотации на классе экрана или анализа ресурсных ролей пользователя). `SecurityFilterChain`, созданный этой конфигурацией, всегда имеет наименьший приоритет и всегда вызывается последним.
+Каждое приложение Jmix по умолчанию содержит конфигурацию безопасности, которая расширяет класс {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^]. Эта конфигурация настраивает доступ к внутренним эндпойнтам Vaadin и передает все запросы на авторизацию механизмам Jmix и Vaadin (предоставляет доступ к экранам с помощью аннотации на классе экрана или анализа ресурсных ролей пользователя). `SecurityFilterChain`, созданный этой конфигурацией, всегда имеет наименьший приоритет и всегда вызывается последним. Секция <<custom-endpoints-security>> ниже объясняет, как определить ваш собственный `SecurityFilterChain` для защиты пользовательских эндпойнтов.
 
-Дополнения, такие как xref:oidc:index.adoc[OpenID Connect] или xref:authorization-server:index.adoc[Authorization Server], добавляют свои бины `SecurityFilterChain`, которые защищают эндпойнты авторизационного или ресурсного сервера. Эти бины всегда вызываются до тех, которые предоставлены модулем UI.
+Дополнения, такие как xref:oidc:index.adoc[OpenID Connect] или xref:authorization-server:index.adoc[Authorization Server], добавляют свои бины `SecurityFilterChain`, которые защищают эндпойнты авторизационного или ресурсного сервера. Эти бины всегда вызываются до тех, которые предоставлены модулем UI. См. раздел <<token-based-authentication>> ниже для информации о том, как защитить API-эндпойнты при использовании этих дополнений.
 
 [[custom-endpoints-security]]
 == Безопасность кастомных эндпойнтов
@@ -32,11 +32,8 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/api/Simpl
 
 Данная конфигурация предоставляет доступ к всем запросам для эндпойнтов, соответствующих шаблону `/public/**`.
 
-[[examples]]
-=== Примеры
-
 [[public-endpoints-example]]
-==== Публичные эндпойнты
+=== Публичные эндпойнты
 
 Допустим у вас есть контроллер с двумя методами, и вы хотите, чтобы эти методы были доступны для любого пользователя без аутентификации.
 
@@ -58,7 +55,7 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/api/Anony
 <5> Вызов `JmixHttpSecurityUtils.configureAnonymous(http)` настраивает анонимную аутентификацию, установив анонимного пользователя, возвращенного Jmix `UserRepository`, в контекст безопасности.
 
 [[http-basic-authentication-example]]
-==== Аутентификация HTTP Basic
+=== Аутентификация HTTP Basic
 
 Данный пример демонстрирует, как защищать эндпойнты контроллера с помощью HTTP Basic аутентификации.
 
@@ -97,21 +94,21 @@ TIP: В этом примере доступ к `pass:[/api/public/**]` можн
 [[token-based-authentication]]
 == Аутентификация с помощью токенов
 
-You can protect custom endpoints using bearer tokens issued by the xref:authorization-server:index.adoc[Authorization Server] or an external identity provider, such as Keycloak, when using the xref:oidc:index.adoc[OpenID Connect] add-on. The security configurations of the Authorization Server and the OpenID Connect add-ons provide extension points for this purpose. In the context of the OAuth 2.1 specification, your application that hosts the protected endpoints acts as a *resource server*.
+Вы можете защитить пользовательские эндпойнты с помощью токенов доступа (bearer tokens), выданных xref:authorization-server:index.adoc[сервером авторизации] или внешним провайдером идентификации, таким как Keycloak, при использовании дополнения xref:oidc:index.adoc[OpenID Connect]. Конфигурации безопасности дополнений сервера авторизации и OpenID Connect предоставляют точки расширения для этой цели. В контексте спецификации OAuth 2.1 ваше приложение, которое размещает защищенные эндпойнты, действует как *сервер ресурсов*.
 
-Suppose you have a REST controller:
+Предположим, у вас есть REST-контроллер:
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/controller/GreetingController.java[tags=whole-class]
 ----
 
-There are several ways to determine which endpoints should be protected with token-based authentication and which can be accessed anonymously.
+Существует несколько способов определить, какие эндпойнты должны быть защищены аутентификацией на основе токенов, а какие могут быть доступны анонимно.
 
 [[application-properties]]
-=== Application Properties
+=== Свойства приложения
 
-The simplest way to determine which endpoints of a resource server should be protected and which should have public access, is by using the following application properties:
+Самый простой способ определить, какие эндпойнты сервера ресурсов должны быть защищены, а какие должны иметь публичный доступ — это использование следующих свойств приложения:
 
 [source,properties,indent=0]
 ----
@@ -119,16 +116,16 @@ include::example$/security-ex1/src/main/resources/application.properties[tags=re
 ----
 
 [[url-patterns-providers]]
-=== URL Patterns Providers
+=== Поставщики шаблонов URL
 
-Another way to define which endpoints need to be protected with token-based authentication is to implement the `AuthenticatedUrlPatternsProvider` interface and return a list of URL patterns from its `getAuthenticatedUrlPatterns()` method. This approach is more flexible and allows you to define more complex rules for endpoint protection.
+Еще один способ определить, какие эндпойнты нужно защищать с помощью аутентификации на основе токенов — это создать бин, реализующий интерфейс `AuthenticatedUrlPatternsProvider`, и вернуть список шаблонов URL из его метода `getAuthenticatedUrlPatterns()`. Такой подход более гибкий и позволяет задавать более сложные правила для защиты эндпойнтов.
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAuthenticatedUrlPatternsProvider.java[tags=whole-class]
 ----
 
-Resource server endpoints that must be accessed anonymously can be defined in the same way using the `AnonymousUrlPatternsProvider` interface.
+Эндпойнты сервера ресурсов, к которым необходимо предоставить анонимный доступ, можно определить аналогичным образом с помощью интерфейса `AnonymousUrlPatternsProvider`.
 
 [source,java,indent=0]
 ----
@@ -136,16 +133,16 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/resserver
 ----
 
 [[request-matcher-provider]]
-=== RequestMatcher Provider
+=== Поставщик RequestMatcher
 
-Application properties and URL patterns providers allow you to define endpoints protection rules that operate a collection of strings with URL patterns. If you need to provide more complex rules, such as not only the URL pattern but also the HTTP method, you can implement the `AuthenticatedRequestMatcherProvider` interface and return a `RequestMatcher` object from its `getAuthenticatedRequestMatcher()` method.
+Свойства приложения и поставщики шаблонов URL позволяют определять правила защиты эндпойнтов, работающие с набором строк, содержащих шаблоны URL. Если вам нужны более сложные правила, чем просто шаблон URL, например, с учетом HTTP-метода, вы можете реализовать интерфейс `AuthenticatedRequestMatcherProvider` и вернуть объект `RequestMatcher` из его метода `getAuthenticatedRequestMatcher()`.
 
 [source,java,indent=0]
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/resserver/GreetingAuthenticatedRequestMatcherProvider.java[tags=whole-class]
 ----
 
-RequestMatcher for public endpoints of the resource server can be defined in the same way using the `AnonymousRequestMatcherProvider` interface.
+`RequestMatcher` для публичных эндпойнтов сервера ресурсов можно определить аналогичным образом с помощью интерфейса `AnonymousRequestMatcherProvider`.
 
 [source,java,indent=0]
 ----
@@ -153,9 +150,9 @@ include::example$/security-ex1/src/main/java/com/company/demo/security/resserver
 ----
 
 [[accessing-resource-server-endpoints]]
-=== Accessing Resource Server Endpoints
+=== Доступ к эндпойнтам сервера ресурсов
 
-After any of the above configurations are defined, all requests to protected `pass:[/greeting/**]` endpoints of the resource server will require a bearer access token in the `Authorization` header. For example:
+После того как определены любые из вышеупомянутых конфигураций, все запросы к защищенным эндпойнтам `pass:[/greeting/**]` сервера ресурсов будут требовать токен доступа (bearer token) в заголовке `Authorization`. Например:
 
 [source]
 ----
