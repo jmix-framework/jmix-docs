@@ -11,9 +11,9 @@ import io.jmix.flowui.component.textfield.TypedTextField;
 import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.view.*;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -34,34 +34,33 @@ public class UiAsyncTasksSampleView extends StandardView {
     @ViewComponent
     private TypedTextField<Object> resultField;
 
-    //tag::supply-async[]
+    // tag::supply-async[]
     @Autowired
     private UiAsyncTasks uiAsyncTasks;
 
-    @Subscribe(id = "loadCustomersAsyncBtn", subject = "clickListener")
-    public void onLoadCustomersAsyncBtnClick(final ClickEvent<JmixButton> event) {
-        uiAsyncTasks.supplierConfigurer(customerService::loadCustomers) //<1>
+    private void loadCustomersAsync() {
+        uiAsyncTasks.supplierConfigurer(this::loadCustomers) // <1>
                 .withResultHandler(customers -> {
-                    customersDc.getMutableItems().addAll(customers); //<2>
+                    customersDc.setItems(customers); // <2>
                     notifications.create("Customers loaded").show();
                 })
                 .supplyAsync();
     }
-    //end::supply-async[]
+    // end::supply-async[]
 
-    private void runAsyncSample() {
-        //tag::run-async[]
-        uiAsyncTasks.runnableConfigurer(customerService::synchronizeCustomers)
+    // tag::run-async[]
+    private void synchronizeCustomersAsync() {
+        uiAsyncTasks.runnableConfigurer(this::synchronizeCustomers)
                 .withResultHandler(() -> {
                     resultField.setValue("Synchronization completed");
                 })
                 .runAsync();
-        //end::run-async[]
     }
+    //end::run-async[]
 
-    private void timeout() {
-        //tag::timeout[]
-        uiAsyncTasks.supplierConfigurer(customerService::loadCustomers)
+    // tag::timeout[]
+    private void loadCustomersWithTimeout() {
+        uiAsyncTasks.supplierConfigurer(this::loadCustomers)
                 .withResultHandler(customers -> {
                     //...
                 })
@@ -76,12 +75,12 @@ public class UiAsyncTasksSampleView extends StandardView {
                     errorField.setValue(errorText);
                 })
                 .supplyAsync();
-        //end::timeout[]
     }
+    // end::timeout[]
 
-    private void exceptionHandler() {
-        //tag::exception-handler[]
-        uiAsyncTasks.supplierConfigurer(customerService::loadCustomers)
+    // tag::exception-handler[]
+    private void loadCustomersAndHandleException() {
+        uiAsyncTasks.supplierConfigurer(this::loadCustomers)
                 .withResultHandler(customers -> {
                     //...
                 })
@@ -89,6 +88,25 @@ public class UiAsyncTasksSampleView extends StandardView {
                     errorField.setValue(ex.getMessage());
                 })
                 .supplyAsync();
-        //end::exception-handler[]
+    }
+    // end::exception-handler[]
+
+    // tag::load-customers[]
+
+    private List<Customer> loadCustomers() {
+        return customerService.loadCustomers();
+    }
+    // end::load-customers[]
+
+    // tag::synchronize-customers[]
+
+    private void synchronizeCustomers() {
+        customerService.synchronizeCustomers();
+    }
+    // end::synchronize-customers[]
+
+    @Subscribe(id = "loadCustomersAsyncBtn", subject = "clickListener")
+    public void onLoadCustomersAsyncBtnClick(final ClickEvent<JmixButton> event) {
+        loadCustomersAsync();
     }
 }
