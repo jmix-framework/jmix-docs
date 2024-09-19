@@ -1,6 +1,7 @@
 package com.company.onboarding;
 
 import com.google.common.base.Strings;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.server.PWA;
@@ -19,6 +20,9 @@ import org.springframework.core.env.Environment;
 
 import javax.sql.DataSource;
 
+// tag::js-file-import[]
+@JsModule("./src/theme/color-scheme-switching-support.js")
+// end::js-file-import[]
 // tag::main-class-push[]
 @Push
 // end::main-class-push[]
