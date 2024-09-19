@@ -125,19 +125,142 @@ include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsam
 
 == Data Binding
 
+The calendar component uses data providers to link loaded data and visualize it.
+The data item should implement the <<CalendarEvent>> interface in order to be shown in the component.
+In case of JPA or DTO entity, there is a <<ContainerDataProvider>> that wrapps an entity to the <<EntityCalendarEvent>>.
+
 === CalendarEvent
+
+The base interface for events in calendar component.
+It has the following properties:
+
+[cols="1h,6a",grid=none]
+|===
+| [[id]]id
+| A unique ID of calendar event. Is used for identification on client-side.
+
+| [[groupId]]groupId
+| The group object that is shared between other evens. Events with the same group ID will be dragged and resized together automatically.
+
+| [[allDay]]allDay
+| Determines if the event is shown in the "all-day" section of relevant display mode.
+By default, component consider value all events as non-all-day.
+
+The `null` value means not all day event.
+
+| [[startDateTime]]startDateTime
+| Defines start date-time position of event. It has the `LocalDateTime` type, and the value should correspond to system default time zone. For <<EntityCalendarEvent>>, the value will be automatically transformed from supported date-time datatype .
+
+| [[endDateTime]]endDateTime
+| Defines end date-time position of event. It has the `LocalDateTime` type, and the value should correspond to system default time zone. For <<EntityCalendarEvent>>, the value will be automatically transformed from supported date-time datatype .
+
+This value is *exclusive*. For instance, an event with end property -
+`2024-09-03` will appear to span through `2024-09-02` but before the start of `2024-09-03`.
+
+| [[title]]title
+| The text that will appear on an event.
+
+| [[description]]description
+| The text of event description.
+
+| [[interactive]]interactive
+| Specifies whether events can be navigated using the TAB key.
+
+If this value is `null`, the calendar will manage event interactivity based on the <<eventInteractive, eventInteractive>> property.
+
+| [[classNames]]classNames
+| Specifies class names separated by space that should be attached to the rendered event.
+
+| [[startEditable]]startEditable
+| Determines whether an event can be dragged in the calendar component.
+
+If this value is `null`, the calendar will manage event's draggable feature based on the <<eventStartEditable, eventStartEditable>> property.
+
+| [[durationEditable]]durationEditable
+| Determines whether an event can be resized in the calendar component.
+
+If this value is `null`, the calendar will manage event's resizable feature based on the <<eventDurationEditable, eventDurationEditable>> property.
+
+| [[display]]display
+| Defines the type of event rendering.  If not specified, the `AUTO` value will be used.
+
+| [[overlap]]overlap
+| Defines whether the event can be dragged/resized over other events and prevents other events from being dragged/resized over this event.
+
+If this value is `null`, the calendar will manage this feature based on the <<eventOverlap, eventOverlap>> property or specific JavaScript function.
+
+| [[constraint]]constraint
+| Defines a group ID of other events. This property limits dragging and resizing to a certain cells in component.
+
+If this value is `null`, the calendar will manage event's constraint based on the <<eventConstraintGroupId, eventConstraintGroupId>> or <<eventConstraintBusinessHoursEnabled, eventConstraintBusinessHoursEnabled>> properties.
+
+| [[backgroundColor]]backgroundColor
+| Specifies the background color for event. Supported values are:
+
+- `#f00`
+- `#ff0000`
+- `rgb(255,0,0)`
+- Color name - 'red'
+
+If this value is `null`, the calendar will manage event's background color based on the <<eventBackgroundColor, eventBackgroundColor>> property.
+
+| [[borderColor]]borderColor
+| Specifies the border color for event. Supported values are:
+
+- `#f00`
+- `#ff0000`
+- `rgb(255,0,0)`
+- Color name - 'red'
+
+If this value is `null`, the calendar will manage event's border color based on the <<eventBorderColor, eventBorderColor>> property.
+
+| [[textColor]]textColor
+| Specifies the text color for event. Supported values are:
+
+- `#f00`
+- `#ff0000`
+- `rgb(255,0,0)`
+- Color name - 'red'
+
+If this value is `null`, the calendar will manage event's text color based on the <<eventTextColor, eventTextColor>> property.
+
+| [[additionalProperties]]additionalProperties
+| Defines additional properties and their values that will be available in various JavaScript functions that takes an event as parameter.
+
+| [[recurringDaysOfWeek]]recurringDaysOfWeek
+| Specifies the days of the week this event repeats. If omitted, the event is assumed to repeat every day.
+
+| [[recurringStartDate]]recurringStartDate
+| Specifies the date when the recurrences of this event start. If not specified, the recurrences will extend infinitely into the past.
+
+| [[recurringEndDate]]recurringEndDate
+| Specifies the date when the recurrences of this event end. If not specified, the recurrences will extend infinitely into the future.
+
+Note that this value is *exclusive*. For all-day recurring events, set the end date to the day after your desired last recurrence.
+
+| [[recurringStartTime]]recurringStartTime
+| Specifies the start time of a recurring event. If this is not defined, the event is considered an all-day event.
+
+Note that the calendar does not apply time zone conversion for this property. If the OffsetTime datatype is used in the entity, it will be transformed to the system's default time zone.
+
+| [[recurringEndTime]]recurringEndTime
+| "Specifies the end time of a recurring event. If this is not defined, the event will appear to have the default duration as configured by the <<defaultTimedEventDuration, defaultTimedEventDuration>> property.
+
+|===
 
 ==== EntityCalendarEvent
 
 ==== SimpleCalendarEvent
 
-=== CalendarEventProvider
+==== Recurring events
 
-==== ContainerEventProvider
+=== CalendarDataProvider
 
-==== ListEventProvider
+==== ContainerDataProvider
 
-=== LazyCalendarEventProvider
+==== ListCalendarDataProvider
+
+=== CallbackCalendarDataProvider
 
 ==== Default
 
@@ -175,7 +298,7 @@ The following are attributes specific to `calendar`:
 
 - `true` - the duration will remain roughly the same before and after it is dragged to or from an all-day section. "Roughly" because if an event has a duration with hourly precision, it will be rounded down to the nearest whole-day.
 
-- `false` - the event’s duration will be reset to getDefaultAllDayEventDuration() if it is being dropped in an all-day section or getDefaultTimedEventDuration() if it is being dropped in a timed section
+- `false` - the event’s duration will be reset to <<defaultAllDayEventDuration, defaultAllDayEventDuration>> if it is being dropped in an all-day section or <<defaultTimedEventDuration, defaultTimedEventDuration>> if it is being dropped in a timed section
 
 | `false`
 
@@ -216,21 +339,21 @@ Note that "+ more" row is not included to count. For instance, if the value is  
 |
 
 |[[defaultAllDay]]defaultAllDay
-| Sets the default value for each calendar event's `allDay` property when it is unspecified.
+| Sets the default value for each calendar event's <<allDay, allDay>> property when it is unspecified.
 
-If the property is set to `true`, all events without `allDay` property (e.g. is not specified mapping in a data provider or calendar event returns `null` for this property) will be considered as all-day events.
+If the property is set to `true`, all events without <<allDay, allDay>> property (e.g. is not specified mapping in a data provider or calendar event returns `null` for this property) will be considered as all-day events.
 
-Note, in this case, events without `allDay` property will be shown as all-day events. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will apply changes to a calendar event, which can lead to modifying entity/ DTO instance.
+Note, in this case, events without <<allDay, allDay>> property will be shown as all-day events. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will apply changes to a calendar event, which can lead to modifying entity/ DTO instance.
 | `false`
 
 |[[defaultAllDayEventDuration]]defaultAllDayEventDuration
-| Sets the default duration of all-day events if they don't specify `endDateTime` property.
+| Sets the default duration of all-day events if they don't specify <<endDateTime, endDateTime>> property.
 
-For instance, the property is set to 2 days. The event that has `allDay` property equals to `true` and do not have `endDateTime` property, will be shown in all-day section and will occupy two days.
+For instance, the property is set to 2 days. The event that has <<allDay, allDay>> property equals to `true` and do not have <<endDateTime, endDateTime>> property, will be shown in all-day section and will occupy two days.
 
-Note, calendar event's `endDateTime` property will remain unset, unless <<forceEventDuration, forceEventDuration>> has been set to `true`. In this case, the calendar will explicitly assign end date-time to an event. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set to calendar event end date-time value, which can lead to modifying entity/ DTO instance.
+Note, calendar event's <<endDateTime, endDateTime>> property will remain unset, unless <<forceEventDuration, forceEventDuration>> has been set to `true`. In this case, the calendar will explicitly assign end date-time to an event. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set to calendar event end date-time value, which can lead to modifying entity/ DTO instance.
 
-This property only affects events with `allDay` property equals to `true`.
+This property only affects events with <<allDay, allDay>> property equals to `true`.
 | `P1d`
 
 |[[defaultBusinessHoursEnabled]]defaultBusinessHoursEnabled
@@ -245,7 +368,7 @@ This property act as default format for all display modes and for <<CustomCalend
 
 As component uses https://fullcalendar.io/docs/moment-plugin[moment plugin] for `FullCalendar`, we should follow the `moment.js` formatting rules: https://momentjs.com/docs/#/displaying/format/[Moment.js Documentation]. For instance, the `dd` produces the `Mo` value.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[defaultDayMaxEventRowsEnabled]]defaultDayMaxEventRowsEnabled
@@ -275,7 +398,7 @@ This property act as default format for all display modes and for <<CustomCalend
 
 As component uses https://fullcalendar.io/docs/moment-plugin[moment plugin] for `FullCalendar`, we should follow the `moment.js` formatting rules: https://momentjs.com/docs/#/displaying/format/[Moment.js Documentation]. For instance, the `MMM D, YY` produces the `Sep 9, 24` value.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[defaultEventTimeFormat]]defaultEventTimeFormat
@@ -285,7 +408,7 @@ This property act as default format for all display modes and for <<CustomCalend
 
 As component uses https://fullcalendar.io/docs/moment-plugin[moment plugin] for `FullCalendar`, we should follow the `moment.js` formatting rules: https://momentjs.com/docs/#/displaying/format/[Moment.js Documentation]. For instance, the `HH:mm` produces the `00:00` (01, 2, ... 23 : 01, 02 ... 59).
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[defaultSlotLabelFormat]]defaultSlotLabelFormat
@@ -295,15 +418,15 @@ This property act as default format for all display modes and for <<CustomCalend
 
 As component uses https://fullcalendar.io/docs/moment-plugin[moment plugin] for `FullCalendar`, we should follow the `moment.js` formatting rules: https://momentjs.com/docs/#/displaying/format/[Moment.js Documentation]. For instance, the `ha` produces `1 am` (1, 2, ... 12 am/ pm).
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[defaultTimedEventDuration]]defaultTimedEventDuration
-| Sets the default duration for timed events if they don't specify `endDateTime` property.
+| Sets the default duration for timed events if they don't specify <<endDateTime, endDateTime>> property.
 
-For instance, the property is set to 2 hours. The event that has `allDay` propery equals to  `false` and do not have `endDateTime` property, will occupy two hours in time slots.
+For instance, the property is set to 2 hours. The event that has <<allDay, allDay>>`  property equals to  `false` and do not have <<endDateTime, endDateTime>> property, will occupy two hours in time slots.
 
-Note, calendar event's `endDateTime` property will remain unset, unless <<forceEventDuration, forceEventDuration>> has been set to `true`. In this case, the calendar will explicitly assign end date to an event. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set new value to calendar event's `endDateTime` property, which can lead to modifying entity/ DTO instance.
+Note, calendar event's <<endDateTime, endDateTime>> property will remain unset, unless <<forceEventDuration, forceEventDuration>> has been set to `true`. In this case, the calendar will explicitly assign end date to an event. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set new value to calendar event's <<endDateTime, endDateTime>> property, which can lead to modifying entity/ DTO instance.
 
 This property only affects events with `allDay` property equals to `false`.
 | `PT1h`
@@ -315,7 +438,7 @@ This property act as default format for all display modes and for <<CustomCalend
 
 As component uses https://fullcalendar.io/docs/moment-plugin[moment plugin] for `FullCalendar`, we should follow the `moment.js` formatting rules: https://momentjs.com/docs/#/displaying/format/[Moment.js Documentation]. For instance, the `[Week] w` produces the `Week 1` (1, 2, ... 52, 53).
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[displayEventTime]]displayEventTime
@@ -331,13 +454,13 @@ The property applies to timed-events (not all-day). If set to `true`, time text 
 |[[dragScroll]]dragScroll
 | Enables to automatically scroll the scroll-containers during event drag-and-drop and date selecting.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `true`
 
 |[[eventBackgroundColor]]eventBackgroundColor
 | Sets the background color for all events on the calendar.
 
-Note, calendar events can override this value if they specify `backgroundColor` property.
+Note, calendar events can override this value if they specify <<backgroundColor, backgroundColor>> property.
 
 Supported values are:
 
@@ -353,7 +476,7 @@ Supported values are:
 |[[eventBorderColor]]eventBorderColor
 | Sets the border color for all events on the calendar.
 
-Note, calendar events can override this value if they specify `borderColor` property.
+Note, calendar events can override this value if they specify <<borderColor, borderColor>> property.
 
 Supported values are:
 
@@ -381,7 +504,7 @@ The group ID can be an entity instance, string, enum or other types.
 |[[eventDisplay]]eventDisplay
 | Sets the display mode that controls the appearance of all events that do not specify display mode.
 
-To control the display of specific events, use the `display` property of calendar event.
+To control the display of specific events, use the <<display, display>> property of calendar event.
 | `AUTO`
 
 |[[eventDragMinDistance]]eventDragMinDistance
@@ -389,7 +512,7 @@ To control the display of specific events, use the `display` property of calenda
 | `5`
 
 |[[eventDurationEditable]]eventDurationEditable
-| Enables to edit event duration using resizing. This property can be overridden on per-event by `durationEditable` property.
+| Enables to edit event duration using resizing. This property can be overridden on per-event by <<durationEditable, durationEditable>> property.
 | `false`
 
 |[[eventHint]]eventHint
@@ -399,7 +522,7 @@ To control the display of specific events, use the `display` property of calenda
 |[[eventInteractive]]eventInteractive
 | Enables to edit event duration using resizing
 
-NOTE: This property can be overridden on per-event by `durationEditable` property.
+This property can be overridden on per-event by <<interactive, interactive>> property.
 | `false`
 
 |[[eventLongPressDelay]]eventLongPressDelay
@@ -411,7 +534,7 @@ NOTE: This property can be overridden on per-event by `durationEditable` propert
 |
 
 |[[eventOrder]]eventOrder
-| Sets the list of calendar event properties that should participate in sorting. It is also available to specify properties from event's `additionalProperties`.
+| Sets the list of calendar event properties that should participate in sorting. It is also available to specify properties from event's <<additionalProperties, additionalProperties>> property.
 
 For most calendar display modes, this property determines the vertical ordering of events within the same day. For time-grid display modes however, it determines the horizontal ordering of events within the same time slot.
 
@@ -439,13 +562,13 @@ The `false` value, meaning the event order is not strict and compactness will be
 |[[eventStartEditable]]eventStartEditable
 | Enables to edit event start time using dragging.
 
-NOTE: This property can be overridden on per-event by `startEditable` property.
+This property can be overridden on per-event by <<startEditable, startEditable>> property.
 | `false`
 
 |[[eventTextColor]]eventTextColor
 | Sets the text color for all events on the calendar.
 
-Note, calendar events can override this value if they specify `textColor` property.
+Note, calendar events can override this value if they specify <<textColor, textColor>> property.
 
 Supported values are:
 
@@ -469,21 +592,21 @@ The color applies in time-grid display modes and for all-day events in day-grid 
 |
 
 |[[forceEventDuration]]forceEventDuration
-| Makes the component to assign `endDateTime` property value to events if they do not have it.
+| Makes the component to assign <<endDateTime, endDateTime>> property value to events if they do not have it.
 
-Note, if event does not specify `endDateTime` property, the component will set it explicitly. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set new value to calendar event `endDateTime` property, which can lead to modifying entity/ DTO instance.
+Note, if event does not specify <<endDateTime, endDateTime>> property, the component will set it explicitly. If such event will be changed by dragging or resizing, and you have listeners for these events, the component will set new value to calendar event <<endDateTime, endDateTime>> property, which can lead to modifying entity/ DTO instance.
 | `false`
 
 |[[initialDate]]initialDate
 | Sets the initial date that will be displayed when the component is attached to UI. If not specified, the current date will be used.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[initialDisplayMode]]initialDisplayMode
 | Sets initial calendar display mode that will be shown after attaching component to th UI.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `DAY_GRID_MONTH`
 
 |[[moreLinkClassNames]]moreLinkClassNames
@@ -520,7 +643,7 @@ setMoreLinkText("+${count} event(s)");
 
 It also takes a string definition of JavaScript function that takes the `count` as a parameter. For instance:
 
-[source, java]
+[source,java]
 ----
 setMoreLinkText("function (count) { return `See +${count} event` + (count === 1 ? '' : 's'); }");
 ----
@@ -536,7 +659,7 @@ setNavLinkHint("Navigate to ${date}");
 
 It also takes a string definition of JavaScript function that takes the `date` as a parameter with the String type. For instance:
 
-[source, java]
+[source,java]
 ----
 setNavLinkHint("function (date) { return `Navigate to ${date}`; }");
 ----
@@ -547,7 +670,7 @@ setNavLinkHint("function (date) { return `Navigate to ${date}`; }");
 | `false`
 
 |[[nextDayThreshold]]nextDayThreshold
-| Sets the minimum time that event's `endDateTime` property should achieve to render event as it if were on that day.
+| Sets the minimum time that event's <<endDateTime, endDateTime>> property should achieve to render event as it if were on that day.
 
 For instance, the property is set to `09:00:00`. And there is an event with dates:
 
@@ -559,7 +682,7 @@ So, the event spans to another day, but it will be rendered as a one-day event, 
 
 Only affects timed events that appear on whole-days cells. Whole-day cells occur in day-grid display modes and the all-day slots in the time-grid display modes.
 
-Note that this property is ignored when event's `allDay` property is set to `true`.
+Note that this property is ignored when event's <<allDay, allDay>> property is set to `true`.
 |
 
 |[[noEventsText]]noEventsText
@@ -569,7 +692,7 @@ Note that this property is ignored when event's `allDay` property is set to `tru
 |[[nowIndicatorVisible]]progressiveEventRendering
 | Enables displaying a marker indicating the current time. The property applies in time-grid display modes.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `false`
 
 |[[progressiveEventRendering]]progressiveEventRendering
@@ -585,7 +708,7 @@ NOTE: The property change is not applied after component attached to the UI.
 
 By default, the scroll time is reapplied to the calendar whenever the date range changes. To disable this, set <<scrollTimeReset, scrollTimeReset>> to `false`.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `PT6h`
 
 |[[scrollTimeReset]]scrollTimeReset
@@ -598,14 +721,14 @@ By default, whenever the date range changes, either via calendar methods or user
 | Sets whether the selection must be fully contained within the week’s business hours.
 It also respects custom business hours.
 
-NOTE: This property will be applied if <<selectionEnabled, selectionEnabled>> is enabled.
+This property will be applied if <<selectionEnabled, selectionEnabled>> is enabled.
 | `false`
 
 |[[selectConstraintGroupId]]selectConstraintGroupId
 | Sets a group ID to limit selection. If group ID is set, only cells with events that contain the same group ID can be selected.
 Takes precedence over the <<selectConstraintBusinessHoursEnabled, selectConstraintBusinessHoursEnabled>>.
 
-NOTE: This property will be applied if <<selectionEnabled, selectionEnabled>> is enabled.
+This property will be applied if <<selectionEnabled, selectionEnabled>> is enabled.
 |
 
 |[[selectLongPressDelay]]selectLongPressDelay
@@ -617,7 +740,7 @@ NOTE: This property will be applied if <<selectionEnabled, selectionEnabled>> is
 
 This property is only applicable to mouse-related interaction. For touch interaction, see <<selectLongPressDelay, selectLongPressDelay>>.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `0`
 
 |[[selectMirror]]selectMirror
@@ -635,7 +758,7 @@ NOTE: The property change is not applied after component attached to the UI.
 |[[slotDuration]]slotDuration
 | Sets the interval at which time slots are displayed.
 
-NOTE: In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
+In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
 | `PT30m`
 
 |[[slotLabelInterval]]slotLabelInterval
@@ -643,25 +766,25 @@ NOTE: In XML component definition, the attribute value should follow the ISO-860
 
 When specifying this property, give the `1 hour` value, this will cause the header labels to appear on the hour marks, even if the <<slotDuration, slotDuration>> was hypothetically `15` or `30` minutes long.
 
-NOTE: In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
+In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
 |
 
 |[[slotMaxTime]]slotMaxTime
 | Sets the last time slot that will be displayed for each day. The specified value represents the exclusive end time, meaning the time slot ending at this value will not be included. The property determines the last slot, even when the scrollbars have been scrolled all the way back.
 
-NOTE: In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
+In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
 | `PT24h`
 
 |[[slotMinTime]]slotMinTime
 | Sets the first time slot that will be displayed for each day. The property determines the first time slot, even when the scrollbars have been scrolled all the way back.
 
-NOTE: In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
+In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
 | `PT0h`
 
 |[[snapDuration]]snapDuration
 | Sets a value that determines the time interval at which a dragged event will snap to the time axis. This also affects the granularity at which selections can be made.
 
-NOTE: In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
+In XML component definition, the attribute value should follow the ISO-8601 duration format, which is used by the `java.time.Duration` class.
 | `PT30m`
 
 |[[timeHint]]timeHint
@@ -671,7 +794,7 @@ NOTE: In XML component definition, the attribute value should follow the ISO-860
 |[[unselectAuto]]unselectAuto
 | Sets whether clicking elsewhere on the page will clear the current selection. Works only if <<selectionEnabled, selectionEnabled>> is `true`.
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 | `true`
 
 |[[unselectCancelSelector]]unselectCancelSelector
@@ -679,7 +802,7 @@ NOTE: The property change is not applied after component attached to the UI.
 
 `vaadin-form-layout .custom-text-input`
 
-NOTE: The property change is not applied after component attached to the UI.
+The property change is not applied after component attached to the UI.
 |
 
 |[[weekNumbersVisible]]weekNumbersVisible
@@ -707,54 +830,78 @@ The following are handlers specific to `calendar`:
 
 include::flow-ui:vc/handler-generation-tip.adoc[]
 
-[cols="1h,6",grid=rows,frame=none]
+[cols="1h,6a",grid=rows,frame=none]
 |===
 |*Name*|*Description*
 
 |[[DateClickEvent]]DateClickEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.DateClickEvent` fired when a day cell or time cell is clicked.
 
 |[[DatesSetEvent]]DatesSetEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.DatesSetEvent` fired after the calendar’s date range has been initially set or changed in some way and the DOM of component has been updated.
+
+The calendar’s dates can change any time the user does the following:
+
+- navigates to next and previous;
+- switches the display mode;
+- clicks a navigation link (e.g.week or day if <<navigationLinksEnabled, navigationLinksEnabled>> is `true`.
+
+The dates can also change when the current-date is manipulated via the API.
 
 |[[EventClickEvent]]EventClickEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.EventClickEvent` fired when the calendar event is clicked.
 
 |[[EventDropEvent]]EventDropEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.EventDropEvent` fired when the dragging stops and the event has been moved to a different day or time slot.
 
 |[[EventMouseEnterEvent]]EventMouseEnterEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.EventMouseEnterEvent` fired when the user mouses over a calendar event.
 
 |[[EventMouseLeaveEvent]]EventMouseLeaveEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.EventMouseLeaveEvent` fired when the user mouses out of a calendar event.
 
 |[[EventResizeEvent]]EventResizeEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.EventResizeEvent` fired when the resizing stops and the calendar event's duration has changed.
 
 |[[MoreLinkClickEvent]]MoreLinkClickEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.MoreLinkClickEvent` fired when the user clicks on "more" link. The "more" link can be activated by the following properties:
+
+- <<defaultDayMaxEventRowsEnabled, defaultDayMaxEventRowsEnabled>>
+- <<dayMaxEventRows, dayMaxEventRows>>
+- <<defaultDayMaxEventsEnabled, defaultDayMaxEventsEnabled>>
+- <<dayMaxEvents, dayMaxEvents>>
 
 |[[SelectEvent]]SelectEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.SelectEvent` fired when a date/time selection is made.
+
+TIP: Selection mode can be enabled by <<selectionEnabled, selectionEnabled>> property.
 
 |[[UnselectEvent]]UnselectEvent
-| // todo
+| `io.jmix.fullcalendarflowui.component.event.UnselectEvent` fired when the current selection is cleared. A selection might be cleared for a number of reasons:
+
+- The user clicks away from the current selection (doesn’t happen when <<unselectAuto, unselectAuto>> is disabled).
+- The user makes a new selection. The unselect event will be fired before the new selection occurs.
+- The user moves forward or backward in the current calendar's display mode, or switches to another mode.
+- The `unselect()` method is called.
 
 |[[dayCellClassNamesGenerator]]dayCellClassNamesGenerator
-| // todo
+| Generates CSS class names for day cells. The day cell appears in day-grid and time-grid display modes as an all-day cell.
 
 |[[dayHeaderClassNamesGenerator]]dayHeaderClassNamesGenerator
-| // todo
+| Generates CSS class names for day headers. The day header is a cell that shows day of week and date in some display modes.
 
 |[[moreLinkClassNamesGenerator]]moreLinkClassNamesGenerator
-| // todo
+| Generates CSS class names for "more" link.
+
+The generator takes precedence over other methods that set CSS class names.
 
 |[[nowIndicatorClassNamesGenerator]]nowIndicatorClassNamesGenerator
-| // todo
+| Generates CSS class names for a now-indicator. The now-indicator consists of two parts: the line and the axis.
+
+TIP: The now-indicator can be enabled by <<nowIndicatorVisible, nowIndicatorVisible>> property.
 
 |[[slotLabelClassNamesGenerator]]slotLabelClassNamesGenerator
-| // todo
+| Generates CSS class names for the slot label, which appears as a cell with a time label in time-grid display modes.
 
 |===
 
