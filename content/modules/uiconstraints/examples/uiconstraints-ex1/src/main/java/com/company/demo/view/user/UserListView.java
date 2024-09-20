@@ -1,8 +1,9 @@
 package com.company.demo.view.user;
 
-import com.company.untitled82.entity.User;
-import com.company.untitled82.view.main.MainView;
+import com.company.demo.entity.User;
+import com.company.demo.view.main.MainView;
 import com.vaadin.flow.router.Route;
+import io.jmix.flowui.view.*;
 
 @Route(value = "users", layout = MainView.class)
 @ViewController("User.list")

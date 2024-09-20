@@ -1,6 +1,9 @@
 package com.company.demo;
 
 import com.google.common.base.Strings;
+import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.page.Push;
+import com.vaadin.flow.theme.Theme;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -15,8 +18,10 @@ import org.springframework.core.env.Environment;
 
 import javax.sql.DataSource;
 
+@Push
+@Theme(value = "demo")
 @SpringBootApplication
-public class UiConstraintsEx1Application {
+public class UiConstraintsEx1Application implements AppShellConfigurator {
 
     @Autowired
     private Environment environment;

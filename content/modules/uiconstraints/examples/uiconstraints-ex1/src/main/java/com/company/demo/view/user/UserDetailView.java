@@ -2,7 +2,6 @@ package com.company.demo.view.user;
 
 import com.company.demo.entity.User;
 import com.company.demo.view.main.MainView;
-import com.google.common.eventbus.Subscribe;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.router.Route;
@@ -12,7 +11,6 @@ import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.xml.bind.ValidationEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
