@@ -1,0 +1,241 @@
+= DMN 1.3 (Decision Model and Notation)
+
+
+If you have a need to model in your process a decision depending on many conditions, you can use a xref:bpmn/bpmn-business-rule-task.adoc[Business Rule Task] to call the DMN table that returns output values, determined according to your business rules.
+
+****
+Decision Model and Notation™ (DMN™) is a modeling language and notation for the precise specification of business decisions and business rules. DMN is easily readable by the different types of people involved in decision management. These include business professionals who specify the rules and monitor their application; business analysts.
+
+See the DMN specification here: https://www.omg.org/dmn/
+****
+
+BPMN and DMN are designed to collaborate. When it is required to model a complex decision, BPMN diagram becomes too complicated. In this case, it is better to model making decision in DMN and then return control to BPMN.
+
+image::dmn/bpmn-dmn-together.png[,900]
+
+Actually, DMN is a graphical notation like BPMN with its own diagrams. However, in practice, software vendors don't implement full notation, they take only DMN tables representing business rules. So, *Jmix BPM* supports DMN tables only.
+
+[[general-issues]]
+== General Issues and Concepts
+
+=== DMN Engine
+
+=== DMN definition
+
+
+=== Expressions
+
+== DMN Tools
+
+*Jmix BPM* add-on provides tools for creating and deploying decision tables, that are available in web application:
+
+* Decision tables (administration)
+* Decision table modeler
+
+[[modeling-decision-tables]]
+== Modeling Decision Tables
+
+To create a new decision table, in the web application use *Decision table modeler* from the *BPM* menu.
+
+image::dmn/dmn-modeler-in-menu.png[,250]
+
+The modeler view opens.
+
+image::dmn/modeler-window.png[,1000]
+
+Now you can configure your DMN table:
+
+* Enter table `id` and `name`
+* Define _inputs_ and _outputs_
+* For outputs, set _pre-defined values_ (if it's necessary)
+* Create _business rules_
+* Set _hit policy_ (if there is more than one rule)
+
+When you finish, deploy the decision table or save draft.
+
+=== Defining Inputs and Outputs
+
+A decision table uses process variables as  _inputs_ and _outputs_. The types of inputs and outputs can be:
+
+* String
+* Number
+* Boolean
+* Date
+
+[NOTE]
+====
+If output has type _Number_, it is always _double_.
+====
+
+[WARNING]
+====
+There is no mapping between process variables and decision table inputs and outputs. But the names of the table parameters must  match the names of process variables. It is on developer's responsibility.
+====
+
+A new decision table has one input and one output. You can configure them by setting label, name, and type. To do this, click the label:
+
+image::dmn/input-label.png[,600]
+
+For example, set up the input:
+
+image::dmn/input-definition.png[,600]
+
+//todo - странная надпись. Типы можно выбрать только простые, откуда здесь сущности? Нужно уточнить.
+
+Outputs are configured the similar way. Besides, outputs may have additional property -- _Predefined output values_. They are used in some hit policies.
+
+image::dmn/output-with-predefined.png[,600]
+//todo -- нужно проверить, нельзя выбрать пре-дефайнед - завести баг
+
+The decision table may have many inputs and outputs. To create additional input or output, click the _plus_ button in the table header:
+
+image::dmn/add-input.png[,900]
+
+The system will create a new column:
+
+image::dmn/new-input.png[,900]
+
+Configure this parameter as you need.
+
+=== Creating Business Rules
+
+A _business rule_ is one or more logical conditions based on input parameters implicitly joined by 'AND' operand.
+
+image::dmn/business-rule-full.png[,900]
+
+For example, `color == "red" AND size > 10`.
+
+One or more conditions can be empty. In this case, there must be a dash symbol ('-') in the field.
+
+
+image::dmn/input-entry.png[,600]
+
+[[hit-policy]]
+=== Hit Policy
+
+*Hit policy* is a parameter of decision table, defining how rules will be applied to data.
+
+To set up a hit policy, click the link button in the table header as shown below:
+
+image::dmn/set-hit-policy.png[,600]
+
+Then you can select a desired hit policy from the pull-down list. Default value is `Unique`.
+
+image::dmn/hit-policy-list.png[,550]
+
+There are seven hit policies available of two sorts:
+
+* *Single hits*
+This group of hit policies returns only one result for each output.
+
+* *Multiple hits*
+For multiple hits DMN engine returns result as JSON. It cannot be implicitly cast to String variables.
+
+There are the following hit policies:
+
+*FIRST*:: Multiple (overlapping) rules can match with different output entries. The first hit by rule order is returned (and evaluation can halt).
+
+*UNIQUE*:: No overlap is possible, and all rules are disjointed. Only a single rule can be matched.
++
+In this case, the DMN engine cannot resolve business rule because of HitPolicy UNIQUE is violated. If _amount_ = 300, two rules are activated, but this is restricted.
+
+*ANY*:: There may be overlap, but all the matching rules show equal output entries for each output, so any match can be used. If the output entries are non-equal, the hit policy is incorrect, and the result will be empty and marked as failed. When strict mode is disabled, the last valid rule be the result. (The violation will be present as a validation message.)
+
+*PRIORITY*:: Multiple rules can match with different output entries. This policy returns the matching rule with the highest output priority. Output priorities are specified in the ordered list of output values, in decreasing order of priority. When strict mode is disabled and there are no output values defined, the first valid rule be the result. (The violation will be present as a validation message.)
+
+*OUTPUT ORDER*:: Returns all hits in decreasing output priority order. Output priorities are specified in the ordered list of output values in decreasing order of priority.
++
+The result will be returned into process variable with name equals the name of _decision table_. For example, 'output-order'. The type of that variable is _JSON_, and you can't work with it like with string.
+
+*RULE ORDER*:: Returns all hits in rule order.
++
+It's like previous, just without priorities from the predefined output values list.
+
+*COLLECT*:: Returns all hits in arbitrary order. An operator (‘+’, ‘<’, ‘>’, ‘#’) can be added to apply a simple function to the outputs. If no operator is present, the result is the list of all the output entries.
++
+If you use _COLLECT_ hit policy without aggregation parameter (Collect none), it works absolutely like _RULE ORDER_.
+
+* *`+` (sum)*: the result of the decision table is the sum of all the distinct outputs.
+
+* *`<` (min)*: the result of the decision table is the smallest value of all the outputs.
+
+* *`>` (max)*: the result of the decision table is the largest value of all the outputs.
+
+* *`#` (count)*: the result of the decision table is the number of outputs.
+
+
+
+== Example
+
+image::dmn/discount-example.png[]
+
+*XML Representation*
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+
+<definitions xmlns="http://www.omg.org/spec/DMN/20151101" namespace="http://www.flowable.org/dmn" name="Evaluate discount">
+  <decision id="evaluate-discount" name="Evaluate discount">
+    <decisionTable hitPolicy="UNIQUE">
+      <input label="Level">
+        <inputExpression id="input_U9lbk" typeRef="string">
+          <text><![CDATA[level]]></text>
+        </inputExpression>
+      </input>
+      <input label="Amount">
+        <inputExpression id="input_dNTA2" typeRef="number">
+          <text><![CDATA[amount]]></text>
+        </inputExpression>
+      </input>
+      <output id="output_BV1J5" label="Discount" name="discount" typeRef="number">
+        <outputValues>
+          <text>"10.0","20.0","25.0"</text>
+        </outputValues>
+      </output>
+      <rule>
+        <inputEntry id="inputEntry_fBLZR">
+          <text><![CDATA[=="SILVER"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_JtjHs">
+          <text><![CDATA[<1000]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_k78f9">
+          <text><![CDATA[5.0]]></text>
+        </outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="inputEntry_ZAVMx">
+          <text><![CDATA[=="SILVER"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_VXpLk">
+          <text><![CDATA[>=1000]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_1LiOw">
+          <text><![CDATA[10.0]]></text>
+        </outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="inputEntry_Emrus">
+          <text><![CDATA[=="GOLD"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_qc4Kw">
+          <text><![CDATA[-]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_kvA1d">
+          <text><![CDATA[15.0]]></text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
+----
+
+[[managing-decision-tables]]
+== Managing Decision Tables
+
+To manage decision tables, use xref:menu-views/decision-tables.adoc[Decision tables] view from the _BPN_ menu:
+
+image::dmn/bpm-decision-tables.png[,250]
+
+

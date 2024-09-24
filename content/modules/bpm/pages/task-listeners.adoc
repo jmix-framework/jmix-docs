@@ -1,0 +1,36 @@
+= Task Listeners
+
+
+== User Task Lifecycle
+
+image::bpmn-user-task/user-task-state-diagram.png[,800]
+
+It looks a little bit complicated, but the lifecycle of the user task isn't straightforward.
+
+When the execution arrives at the user task, the BPM engine first tries to define a real performer (assignee) as we have seen at the previous slide.
+
+If the engine is a success in defining an assignee, an *assignment* event occurs.
+
+This happens BEFORE *create* event. It seems counterintuitive, but it is pragmatic: if we put *assignment* event AFTER *create*, we'll get one extra database operation.
+
+Because *create* event means that task object is persisted.
+
+Nevertheless, until the user task is assigned to somebody, nobody can complete it. You can reassign the task as nay times you want. Programmatically, you even can set the _assignee_ equals _null_.
+
+After all, the task must be completed by the user or programmatically. In both cases, *complete* event occurs.
+
+Then the engine is to move a task object from runtime data (`act_ru_task` table) to historic data (`act_hi_taskinst` table). Just before this, *delete* event occurs.
+
+#From *FLOWABLE* docs -- for reference#
+
+.User task events:
+****
+[horizontal]
+create:: occurs when the task has been created and all task properties are set.
+assignment:: occurs when the task is assigned to somebody. Note: when process execution arrives in a userTask, first an assignment event will be fired, before the *create* event is fired. This might seem an unnatural order, but the reason is pragmatic: when receiving the *create* event, we usually want to inspect all properties of the task including the assignee.
+complete:: occurs when the task is completed and just before the task is deleted from the runtime data.
+delete:: occurs just before the task is going to be deleted. Notice that it will also be executed when task is normally finished via completeTask.
+****
+
+By the way, you can use BPMN to draw state diagrams instead of UML. Here is an example -- intermediate events are used as states, the sequence flows as transitions. Of course, it doesn't cover all UML capabilities, but for illustration purposes it is OK.
+

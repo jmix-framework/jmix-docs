@@ -1,0 +1,252 @@
+= Concepts
+
+In the following section, we will explore key concepts essential to understanding the Flowable process engine.
+These concepts include process models, process definitions, executions, process instances, deployments, tokens, and the process context.
+Each of these elements plays a vital role in how the Flowable engine operates, facilitating the execution and management of business processes.
+
+[[process-engine]]
+== Process Engine
+
+The Flowable *process engine* in Flowable is a core component responsible for managing and executing business processes defined in BPMN.
+It provides the necessary infrastructure to deploy, start, and control process instances, ensuring that business workflows are executed according to defined rules and logic.
+You can access process engine via xref:bpm:jmix-bpm-api.adoc#flowable-api[Flowable API].
+
+[[job-executor]]
+== Job Executor
+
+The Flowable *Job Executor* is a key component responsible for managing and executing asynchronous jobs within the Flowable process engine.
+It handles tasks such as timers, asynchronous continuations, and other background processes that need to be executed outside the main process flow.
+By offloading these tasks, the job executor ensures that the main execution thread remains responsive and efficient.
+
+The job executor operates in a multithreaded environment, allowing it to process multiple jobs concurrently.
+It retrieves jobs from the database, executes them, and updates their status accordingly.
+This mechanism is essential for implementing features like delayed tasks and scheduled events in business processes.
+
+Overall, the Flowable Job Executor enhances the performance and scalability of the process engine by efficiently managing background jobs and ensuring smooth process execution.
+
+[[process-arifacts]]
+== Process Artifacts
+
+During the process lifecycle, various artifacts are created:
+*process models*, *process definitions*, *deployments*, *process instances*, and *executions*.
+Understanding these artifacts is crucial for effectively managing and implementing business processes.
+
+image::modeling-and-execution/process-objects.png[,600]
+
+[[process-models]]
+=== Process Models
+
+In Jmix BPM, a *process model* refers to the structured representation of a business process, typically defined in an XML format using the BPMN 2.0(Business Process Model and Notation) standard.
+
+The structure of a BPMN process model is defined in an XML format, which consists of several key sections that together describe the behavior and flow of the business process.
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" <!--Other namespases.... --> >
+
+  <!--Process definition-->
+  <process id="document-approval" name="Document approval" isExecutable="true">
+     <!--Process elements-->
+  <process/>
+
+  <!--Event definitions-->
+  <message id="start-approval-process" name="Start approval process" />
+  <signal id="payment-failed" name="Payment failed" flowable:scope="global" />
+  <error id="payment-serice-error" name="Payment serice error" errorCode="900" />
+
+  <!--Diagram section-->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_process">
+      <!-- Diagram elements -->
+  <bpmndi:BPMNDiagram/>
+</definitions>
+----
+
+The `<definitions>` section serves as the root element of the BPMN XML file.
+It encapsulates the entire process model and provides context for the various components defined within it.
+This section typically includes metadata about the model, such as the XML namespace and the schema location, which ensures that the document adheres to BPMN standards.
+
+Within the `<definitions>` section, you will find either a `<process>` or a `<collaboration>` element.
+The `<process>` element defines a single xref:bpmn/bpmn-process.adoc[process] with its associated activities, events, and gateways.
+This is the most common structure used when modeling a straightforward business process.
+
+On the other hand, the `<collaboration>` element is used when multiple processes interact with each other, allowing for a more complex representation of workflows involving different participants or entities. In this case, a xref:bpmn/bpmn-collaboration.adoc[collaboration] model is created.
+
+The model also includes xref:bpmn/bpmn-events.adoc#event-definitions[event definitions] for *messages*, *signals*, and *errors*.
+
+Finally, the `<diagram>` section provides a visual representation of the process model, typically using a graphical notation.
+This section is useful for human readers and process designers, as it allows them to visualize the flow and structure of the process.
+Although the diagram does not affect the execution of the process, it enhances understanding and communication among stakeholders.
+
+Here is an example of the visual process model in BPMN 2.0 notation:
+
+image::process-example.png[,800]
+
+==== Storing Process Models
+
+Typically, process models are stored in `src/main/resources/process-drafts` directory for drafts and in `src/main/resources/processes` for processes ready for deployment.
+
+Actually, you can store process XML files anywhere you want, but we recommend to use default locations. In this case, *Studio* be able to provide advanced features for managing process models. See the xref:modeler-studio.adoc[Studio Modeler] description.
+
+
+[[deployments]]
+=== Deployments
+
+==== Properties
+A *deployment* object contains the following properties:
+
+[cols="1,2", options="header"]
+|===
+| Property | Description
+
+| Id
+| A unique identifier for the deployment.
+
+| Name
+| A descriptive name for the deployment, helping to identify it among multiple deployments.
+
+| Deployment Time
+| The timestamp indicating when the deployment was created.
+
+| Resources
+| A collection of resources (e.g., BPMN files, DMN tables) included in the deployment.
+
+| Version
+| The version number of the deployment, helping manage updates and changes to process definitions over time.
+|===
+
+[[process-definitions]]
+=== Process Definitions
+
+In Flowable, a *process definition* is a key concept that represents the executable version of a business process.
+
+They are deployed to the Flowable engine, making them available for execution. Multiple versions of a process definition can be deployed, allowing for updates and changes to the process over time.
+
+[NOTE]
+====
+Technically speaking,
+about deployment
+====
+
+Process definitions provide the blueprint for executing these instances, defining the steps, decisions, and flows that should be followed.
+
+It encapsulates the structure, activities, and logic of a process, allowing Flowable to manage and execute <<process-instances,process instances>> based on the defined model.
+
+To access process definitions, deployed to the engine, use *BPM* -> xref:menu-views/process-definitions.adoc[Process definitions view].
+
+==== Properties
+A process definition in Flowable has several important properties:
+
+[cols="1,2", options="header"]
+|===
+| Attribute | Description
+
+| ID
+| A unique identifier for the process definition.
+
+| Key
+| A key that uniquely identifies the process definition across versions. (Important: In the process model this parameter is called `process ID`.)
+
+| Name
+| A descriptive name for the process definition.
+
+| Version
+| The version number of the process definition.
+
+| Deployment ID
+| The deployment, this process definition belongs to.
+
+| Resource Name
+| The name of the BPMN XML file that defines the process.
+|===
+
+Process definitions are stored in `ACT_RE_PROCDEF` table in the database.
+
+
+[[process-instances]]
+=== Process Instances
+
+In Flowable, a *process instance* represents a running instance of a business process. It encapsulates the execution of a specific process definition, with its own state and data.
+
+
+==== Properties
+
+[cols="1,2", options="header"]
+|===
+| Property | Description
+
+| ID
+| A unique identifier for the process instance.
+
+| Business Key
+| An optional business-level identifier for the process instance.
+
+| Process Definition ID
+| The ID of the process definition that the instance is based on.
+
+| Start Time
+| The timestamp when the process instance was started.
+
+| End Time
+| The timestamp when the process instance was completed (if applicable).
+
+| Duration
+| The duration of the process instance execution.
+
+| State
+| The current state of the process instance (e.g., running, suspended, completed).
+
+| Variables
+| The data variables associated with the process instance.
+|===
+
+Flowable stores process instances in the table named `ACT_RU_EXECUTION`.
+
+
+[[business-key]]
+==== Business Key
+A business key is a way to identify a process instance based on business-specific criteria, rather than relying solely on the system-generated process instance ID.
+The business key allows you to associate a process instance with a specific business entity or context.
+
+//todo -- определиться с бизнес-ключом, чтоб задаввать его как свойство процесса
+You can set up a business key as property of the start event form when selecting an _Input Dialog_ form. Any process variable can be used as a business key.
+
+image::bpm:bpmn-subprocesses/setting-business-key.png[,500]
+
+Business key can be updated programmatically via API:
+
+[source,java]
+----
+runtimeService.updateBusinessKey("processInstanceId", "businessKey");
+----
+
+Or using `ProcessFormContext`:
+
+[source,java]
+----
+processFormContext.processStarting()
+        .withBusinessKey("business key")
+        .saveInjectedProcessVariables()
+        .start();
+----
+
+[[executions]]
+=== Executions
+
+
+[[historic-process-instances]]
+=== Historic Process Instances
+
+
+[[dmn-engine]]
+== DMN Engine
+
+The Flowable *DMN engine* evaluates decision tables and executes business rules defined in DMN format.
+It allows users to create complex decision logic that can be integrated with BPMN processes, enabling dynamic decision-making based on input data.
+The DMN engine supports multiple decision models, operates within a specific execution context, and provides flexible output handling.
+See the xref:jmix-bpm-api.adoc#flowable-dmn-api[DMN API] section, how to access it programmatically.
+
+Additionally, it can be accessed via a xref:jmix-bpm-api.adoc#flowable-dmn-rest-api[DMN REST API], allowing external systems to evaluate decisions programmatically.
+This functionality enhances the agility and responsiveness of business processes by facilitating informed decision-making.
+
+
