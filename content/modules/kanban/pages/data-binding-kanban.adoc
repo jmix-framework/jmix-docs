@@ -1,0 +1,204 @@
+= 1. 将看板与数据绑定
+
+在本节中，我们将创建：
+
+* `TaskStatus` 枚举。
+* `KanbanTask` 实体及其需要在看板上显示的属性。
+* 实体的 CRUD 视图，在 `KanbanTask.list` 视图上包含一个看板。
+
+[[entity-and-view-creation]]
+== 创建 KanbanTask 实体和视图
+
+首先，我们需要创建一个 `TaskStatus` 枚举，包含下列枚举值：
+
+* `Todo`
+* `In progress`
+* `Verification`
+* `Done`
+
+创建枚举的详细说明请参阅向导的 xref:tutorial:enumerations.adoc[使用枚举] 部分。
+
+image::enumeration-task-status-type.png[align="center", width="406"]
+
+下一步，创建 `KanbanTask` 实体。创建实体的详细说明请参阅向导的 xref:tutorial:simple-crud.adoc[简单 CRUD] 部分。
+
+`KanbanTask` 实体包含下列属性：
+
+* `text` - `String` 类型，勾选 *Mandatory*。
+* `status` - `TaskStatus` 枚举类型，勾选 *Mandatory*。
+* `assignee` - 关联 `User` 实体，多对多（many-to-one）关系。
+
+image::assignee-attribute.png[align="center", width="862"]
+
+设置使用 `text` 属性生成 xref:studio:entity-designer.adoc#creating-instance-name[实例名称]。
+
+为 `KanbanTask` 实体创建 _详情视图_。生成实体列表视图和详情视图的说明请参阅向导的 xref:tutorial:simple-crud.adoc#create-views[创建 CRUD 视图] 部分。
+
+向导中每个步骤使用推荐的配置即可。
+
+NOTE: 在 *Entity detail view fetch plan* 这一步中，需要添加选择 `assignee` 属性。以确保关联的 `User` 实体能与 `KanbanTask` 同时加载，并在详情视图中显示。
+
+Studio 会自动生成 `KanbanTask.detail`，并打开对应的源码。
+
+[[adding-kanban]]
+== 在视图中添加看板
+
+然后，我们需要使用 `KanbanTask.list` 作为 id 创建一个空视图，用于添加看板组件。
+
+image::kanban-task-list-view-wizard.png[align="center", width="776"]
+
+向导的最后一步中，设置视图标题的本地化消息值为：`Kanban board`。
+
+在 *Jmix* 工具窗口中找到 `kanban-task-list-view.xml` 并双击。此时会打开视图设计器。
+首先，我们需要添加一个 `collectionContainer` 从数据库加载任务。定义数据容器的说明请参阅向导的 xref:tutorial:ui-from-scratch.adoc#define-data-container[从头创建 UI] 部分。
+
+点击操作面板的 *Add Component*，找到 `CollectionContainer` 并双击：
+
+image::create-kanban-task-collection-container.png[align="center", width="647"]
+
+在打开的对话框中，选择 `KanbanTask` 实体。新的 `collectonContainer` 元素会自动添加到 *Jmix UI* 结构面板和 XML 中。
+
+为了让 `dataLoader` 在视图打开时自动加载数据，我们需要添加一个 xref:flow-ui:facets/dataLoadCoordinator.adoc[dataLoadCoordinator] facet。点击操作面板的 *Add Component*，找到 `DataLoadCoordinator` 并双击：
+
+image::create-data-load-coordinator.png[align="center", width="511"]
+
+现在我们要在 XML 中添加 xref:kanban-component.adoc[kanban] UI 组件。
+
+将光标放置于 `layout` 元素内。
+
+然后，点击操作面板的 *Add Component*，找到 `Kanban` 并双击：
+
+image::create-kanban-component.png[align="center", width="743"]
+
+按下面的代码配置 `id`、`dataContainer`、`height` 和 `width` 属性。
+
+[source,xml,indent=0]
+----
+<kanban:kanban id="kanban" dataContainer="kanbanTasksDc" width="100%" height="100%"/>
+----
+
+[[configuring-columns]]
+=== 配置看板列
+
+`Kanban` 组件需要定义 xref:kanban-component.adoc#column[看板列] 才能在视图中展示。在 *Jmix UI* 结构面板或 XML 中选择 `kanban`，然后在组件属性面板中点击 *Add* 按钮，并选择 *Columns -> Column*。
+
+image::create-kanban-column.png[align="center", width="398"]
+
+在打开的对话框中，我们需要定义必需的列属性 `dataField`。此属性是 `kanban` 组件中列的标识符。定义列的 `dataField` 属性值需要与 `TaskStatus` 的枚举值匹配。此外，还需要定义 `label` 属性，该属性的值将显示在列标题中。
+
+image::configure-kanban-columns.png[align="center", width="1314"]
+
+现在可以运行应用程序查看新的组件。
+
+点击主工具栏的 *Debug* 按钮（image:start-debugger.svg[]）。
+
+在应用程序启动之前，Studio 会将项目中的数据模型与数据库的结构做比较。如果有新实体，Studio 会自动生成 Liquibase changlog 以反映相关的数据库改动（例如创建 `KANBAN_TASK` 表）：
+
+image::changelog-kanban-task.png[align="center", width="1036"]
+
+点击 *Save and run*。
+
+Studio 会先在数据库执行 changlog，然后构建并运行应用程序：
+
+image::run-app.png[align="center", width="1290"]
+
+应用程序启动完成后，在浏览器打开 `++http://localhost:8080++` 地址，用 admin/admin 登录。
+
+从 *Application* 主菜单选择 *Kanban board*。可以看到 `KanbanTask.list` 视图：
+
+image::kanban-task-list.png[align="center', width="1143"]
+
+[[adding-actions]]
+=== 添加操作
+
+为了能新建、编辑和删除任务，我们需要为组件添加 xref:kanban-component.adoc#actions[操作]。
+
+在 *Jmix UI* 结构面板或 XML 中选择 `kanban`，然后在组件属性面板中点击 *Add* 按钮，并选择 *Actions -> Action*。
+
+image::create-kanban-actions.png[align="center", width="477"]
+
+指定需要添加的操作，例如：`list_create`、`list_edit`、`list_remove`。
+
+image::create-kanban-actions2.png[align="center", width="563"]
+
+点击 *OK* 按钮。`action` 元素会自动添加到 *Jmix UI* 结构面板和 XML 中。为了能使用这些操作，我们还需要添加按钮面板。
+
+将光标放在 `kanban` 元素前，然后点击操作面板的 *Add Component*，找到 `hbox` 并双击进行添加。这里需要给 `hbox` 的 `classNames` 属性添加一个 `buttons-panel` 值设置必要的样式：
+
+[source, xml, indent=0]
+----
+<hbox classNames="buttons-panel"/>
+----
+
+在 *Jmix UI* 结构面板或 XML 中选择 `hbox`，然后点击操作面板的 *Add Component*，找到 `button` 并双击进行添加。
+
+使用组件的属性面板可以为 `button` 分配操作。这里我们创建所有按钮并分配操作。
+
+image::create-kanban-buttons.png[align="center", width="613"]
+
+为了让任务的编辑更加方便，我们还可以设置详情视图以对话框的模式打开。在 *Jmix UI* 结构面板或 XML 中选择 `create` 操作，然后修改其打开模式为 `DIALOG`。对 `edit` 操作也做同样的配置。
+
+image::create-kanban-actions3.png[align="center", width="477"]
+
+按下 *Ctrl/Cmd+S*，然后切换回运行中的程序。
+
+从 *Application* 主菜单选择 *Kanban board*。现在可以使用详情视图对话框创建、编辑任务了：
+
+image::task-entity-crud.png[align="center",width="1143"]
+
+== 数据自动保存
+[[auto-data-saving]]
+
+`kanban` 组件将临时的更改保存在数据容器中，直到触发确认操作时，才将数据提交到数据库。多数可视化组件都是这样工作的。
+
+如需自动保存 xref:flow-ui:data/data-context.adoc[DataContext]，可以使用 xref:kanban-component.adoc#autoSave[autoSave] 属性。
+
+在 *Jmix UI* 结构面板或 XML 中选择 `kanban:kanban`，然后在属性面板中勾选 *autoSave*。
+
+[NOTE]
+====
+开启自动保存时，需要删除 `loader` 的 `readOnly="true"` 属性。否则改动无法保存至数据库。
+====
+
+image::auto-data-saving.png[align="center",width="1097"]
+
+按下 *Ctrl/Cmd+S*，然后切换回运行中的程序。
+
+在看板中移动一个 `kanbanTask` 至不同的状态，然后重新打开看板检查任务的新状态是否已经保存。
+
+[[editing-double-click]]
+== 双击编辑
+
+看板组件也支持事件处理。如需了解更多关于看板的可用事件，请参阅 xref:kanban-component.adoc#handlers[事件和处理器] 部分。
+
+如需以双击的方式启用看板任务的编辑，需要实现一个 xref:kanban-component.adoc#KanbanTaskDoubleClickEvent[KanbanTaskDoubleClickEvent] 的处理器。
+
+打开 `KanbanTaskListView.java` 类。点击编辑器顶部操作面板内的 *Generate Handler*：
+
+image::generate-handlers.png[align="center",width="727"]
+
+然后选择 `Kanban` handlers 中的 `KanbanTaskDoubleClickEvent`：
+
+image::generate-task-double-click-handler.png[align="center",width="987"]
+
+现在可以按下列代码实现相应的逻辑：
+
+[source,java,indent=0]
+----
+include::../examples/kanban-ex2/src/main/java/com/company/demo/view/kanbantasklist/KanbanTaskListView.java[tags=dialogWindows;kanban;doubleClickHandler]
+----
+
+按下 *Ctrl/Cmd+S*，然后切换回运行中的程序。
+
+[[summary]]
+== 小结
+
+本节介绍了如何将 `Kanban` 组件与应用程序的数据关联，并介绍了创建看板的步骤。
+
+内容小结：
+
+* *创建一个 JPA 实体* `KanbanTask` 表示看板上的任务。
+* *将看板组件与数据关联*：学习了如何将看板组件绑定到集合容器。
+* *定义看板列*：学习了如何在看板上创建和配置看板列，代表不同的任务状态。
+* *操作和事件*：学习了如何实现创建、编辑和删除任务的操作，以及如何处理双击等事件。
+* *启用自动数据保存*：学习了如何配置 Kanban 组件以自动保存对数据源的更改。

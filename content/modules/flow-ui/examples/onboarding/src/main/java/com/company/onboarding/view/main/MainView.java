@@ -10,7 +10,9 @@ import io.jmix.flowui.Notifications;
 import io.jmix.flowui.app.main.StandardMainView;
 import io.jmix.flowui.component.image.JmixImage;
 import io.jmix.flowui.component.main.JmixListMenu;
+import io.jmix.flowui.kit.action.ActionPerformedEvent;
 import io.jmix.flowui.kit.component.main.ListMenu;
+import io.jmix.flowui.kit.theme.ThemeUtils;
 import io.jmix.flowui.view.Subscribe;
 import io.jmix.flowui.view.ViewComponent;
 import io.jmix.flowui.view.ViewController;
@@ -114,6 +116,24 @@ public class MainView extends StandardMainView {
     private long getUncompletedStepsNumber() {
         return RandomGenerator.getDefault().nextInt(1, 5);
     }
+
+    // tag::theme-switcher[]
+    @Subscribe("themeSwitcher.systemThemeItem.systemThemeAction")
+    public void onThemeSwitcherSystemThemeItemSystemThemeAction(final ActionPerformedEvent event) {
+        ThemeUtils.applySystemTheme();
+    }
+
+    @Subscribe("themeSwitcher.lightThemeItem.lightThemeAction")
+    public void onThemeSwitcherLightThemeItemLightThemeAction(final ActionPerformedEvent event) {
+        ThemeUtils.applyLightTheme();
+    }
+
+    @Subscribe("themeSwitcher.darkThemeItem.darkThemeAction")
+    public void onThemeSwitcherDarkThemeItemDarkThemeAction(final ActionPerformedEvent event) {
+        ThemeUtils.applyDarkTheme();
+    }
+    // end::theme-switcher[]
+
     // tag::main-view[]
 }
 // end::main-view[]

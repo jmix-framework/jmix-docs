@@ -1,0 +1,209 @@
+= REST 数据存储
+
+REST 数据存储（DataStore）的设计目的是为 Jmix 应用程序的集成提供一种简单的方法。期望的结果是能通过 xref:data-access:data-manager.adoc[DataManager] 接口访问远程 Jmix 应用程序提供的外部实体，与操作本地 JPA 实体一样。在无需编写任何特定代码的前提下，将外部实体显示在本地 UI 中，并使用 Jmix 提供的标准 CRUD 功能更新并保存回远程应用程序。
+
+本文档提供有关 REST 数据存储扩展组件的说明。关于其使用场景和更多内容，请参阅以下指南：
+
+* xref:guides:integrating-jmix-apps.adoc[]
+* xref:guides:separating-tiers.adoc[]
+
+在本文档中，我们将使用以下术语：
+
+* _服务端应用（Service Application）_ - 通过  xref:rest:index.adoc[通用 REST API] 对外提供数据的 Jmix 应用程序（提供者）。
+* _客户端应用（Client Application）_ - 通过 REST 数据存储使用服务端应用数据的 Jmix 应用程序（消费者）。
+
+服务端和客户端应用可以使用不同版本的 Jmix。
+
+[[installation]]
+== 安装
+
+请按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的介绍通过 Jmix 市场自动安装。
+
+手动安装时，在 `build.gradle` 中添加依赖：
+
+[source,groovy,indent=0]
+----
+include::guides:example$/jmix-integrated-apps-sample/orders/build.gradle[tags=dependencies]
+----
+
+[[configuration]]
+== 配置
+
+基本的配置过程包含下列步骤。
+
+在服务端应用中：
+
+* 添加 xref:rest:index.adoc[REST API] 和 xref:authorization-server:index.adoc[授权服务] 扩展组件。
+
+* 为客户端配置 xref:authorization-server:obtaining-tokens.adoc#client-credentials-grant[客户端凭证] 授权。
+
+在客户端应用中：
+
+* 按照 <<installation,上面>> 的介绍安装 REST DataStore 扩展组件。
+
+* 添加一个附加数据存储，使用 `restds_RestDataStoreDescriptor` 做为描述符，示例：
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=store]
+----
+
+* 用数据存储的名称设置服务端的连接参数，示例：
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=connection]
+----
+
+如果需要按照 xref:guides:separating-tiers.adoc[] 演示的内容使用真实的用户做服务端认证，那么需要在服务端先配置 xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[密码授权]，然后在客户端应用添加以下配置：
+
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=authenticator]
+----
+
+[[data-model]]
+== 数据模型
+
+客户端应用需要包含与服务端实体完全匹配的 DTO 实体。为了实现实体和 DTO 的自动映射，两端实体的属性名称和类型必须一致。
+
+但是属性的数量可以不一致。例如，服务端实体可能比客户端实体具有更多的属性。在数据传输完成后，某一端实体中不存在的属性将分配 null 值。
+
+客户端 DTO 实体必须带有 `@Store` 注解，指向配置的服务端附加数据存储。
+
+下面的示例演示了服务端和客户端应用中的 `Region` 实体定义。
+
+The following example demonstrates the `Region` entity definition in the service and client applications.
+
+[source,java,indent=0]
+.服务端应用中的 Region 实体
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/entity/Region.java[tags=jpa-entity]
+----
+
+[source,java,indent=0]
+.客户端应用中的 Region 实体
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Region.java[tags=restds-entity]
+----
+
+如果客户端实体的名称与服务端不同，可以用 `@RestDataStoreEntity` 注解指定服务端实体的名称。示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/RegionDto.java[tags=restds-entity]
+----
+
+客户端的嵌入属性需要使用 `@JmixEmbedded` 注解，而不能用 JPA 的 `@Embedded`。
+
+客户端侧的一对多属性需要在 `@Composition` 注解中定义 `inverse` 属性，设置反向关联字段。
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Customer.java[tags=restds-entity]
+----
+
+[[fetch-plans]]
+== Fetch Plans
+
+在客户端应用中加载外部实体时，可以指定 fetch plan 来加载实体的引用。通用 REST API xref:rest:entities-api/load-entities.adoc#fetch-plans[目前仅支持] 在 xref:data-access:fetching.adoc#creating-fetch-plans[fetch plans 存储库] 中定义的 fetch plan。因此，REST 数据存储在向服务端请求数据时，会同时提供 fetch plan 的名称。
+
+因此，服务端和客户端应用都必须在 fetch plan 存储库中定义相同名称的 fetch plan。不支持视图 XML 中的内联 fetch plan 和 Java 中以编程方式构建的 fetch plan。
+
+[[loaded-state]]
+== 加载的数据
+
+如果 fetch plan 不包含某个属性，则该属性不会加载。与 JPA 实体属性不同，未加载的 REST 实体的属性值为 null，并且在访问时不会触发任何异常。
+
+更新实体时，REST 数据存储仅保存已加载的属性。如果某个属性未从服务端加载，但随后从 null 变为某个非 null 值，该属性会被认为已加载，并保存新值。
+
+`EntityStates.isLoaded(entity, property)` 方法能正确检查 REST 实体的特定属性是否加载。
+
+[[filtering-loaded-data]]
+== 数据的过滤
+
+本节介绍使用 `DataManager` 加载外部实体时支持的过滤方式。但不论哪种方式最后都会调用服务端应用的 REST API xref:rest:entities-api/load-entities.adoc#load-list-search-filter[搜索端点]，因此只有符合条件的实体会通过网络传输。
+
+[[filter-by-conditions]]
+=== 使用过滤条件
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-condition]
+----
+
+[[filter-by-query]]
+=== 使用查询
+
+查询语句是一个通用 REST xref:rest:entities-api/load-entities.adoc#load-list-search-filter[搜索端点] 支持的 JSON 表达式：
+
+[source]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-query]
+----
+
+[[filter-by-identifiers]]
+=== 使用标识符
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-ids]
+----
+
+[[using-query-in-view-xml]]
+=== XML 中使用查询
+
+JSON 查询语句可以在 XML 中的数据容器或 `itemsQuery` 元素中使用：
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/customer/customer-detail-view.xml[tags=items-query]
+----
+
+如需在 JSON 查询中使用一个参数而非常量值，可以用 `parameterName` 代替 `value`，如上面的代码所示。REST 数据存储会在请求时将该属性替换为 `"value": <parameter-value>`。
+
+xref:flow-ui:facets/dataLoadCoordinator.adoc[] facet 也可以使用查询 JSON 和参数，但只支持手动配置。下面的示例中，`regionsDc` 和 `customersDc` 通过 JSON 查询进行关联，`dataLoadCoordinator` 为选择的 region 提供了一个 region 和 customer 的主从关系表：
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/region/region-list-view.xml[tags=query]
+----
+
+[[entity-events]]
+== 实体事件
+
+REST 数据存储会发送 xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent 和 EntityLoadingEvent]，这点与 `JpaDataStore` 一样。但是不会发送 xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent]，因为在实体加载后无法跟踪实体属性的变化。尽管无法提供 `EntityChangedEvent`，REST 数据存储能提供两个特殊的事件：
+
+* `RestEntitySavedEvent` - 当实体在服务端成功保存后发送。事件中包含在发送给服务端之前的实体状态。
+* `RestEntityRemovedEvent` - 当实体从服务端删除后发送。事件中包含在发送给服务端之前的已删除实体。
+
+[[security]]
+== 安全
+
+REST 数据存储会使用由资源角色定义的 xref:security:resource-roles.adoc#entity-policy[实体操作策略] 和由行级角色定义的 xref:security:row-level-roles.adoc#predicate-policy[谓词策略]。
+
+可以使用授权服务扩展组件提供的客户端凭证授权或密码授权来完成 REST 数据存储中的身份验证。密码授权需要设置额外的应用程序属性 `<ds-name>.authenticator` 和 `jmix.restds.authentication-provider-store`，如 <<configuration>> 部分所述。
+
+[[invoking-services]]
+== 调用服务
+
+`RestDataStoreUtils` bean 提供了特定 REST 数据存储的 Spring `RestClient` 的引用。支持使用为 REST 数据存储配置的连接和身份验证参数来调用该服务端应用的任意 API 端点。
+
+有关调用服务方法的示例，请参阅 xref:guides:integrating-jmix-apps.adoc[]。
+
+[[limitations]]
+== 局限性
+
+与 JPA 数据存储相比，REST 数据存储有下列限制：
+
+* 不支持实体引用的延迟加载。fetch plan 中没有加载的实体引用在访问时会得到 null。
+
+* 没有带 `AttributeChanges` 的 `EntityChangeEvent` 事件。
+
+* `DataManager.loadValues()` 和 `loadValue()` 方法会抛出 `UnsupportedOperationException` 异常。
