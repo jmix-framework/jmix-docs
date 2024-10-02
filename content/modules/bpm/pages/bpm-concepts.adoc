@@ -27,23 +27,29 @@ Overall, the Flowable Job Executor enhances the performance and scalability of t
 [[process-arifacts]]
 == Process Artifacts
 
-During the process lifecycle, various artifacts are created.
+During the lifecycle of a process, various artifacts are created.
 Understanding these artifacts is crucial for effectively managing and implementing business processes.
 
-In the picture below, you can see how these artifacts are related. In the beginning, the user creates a <<process-models,process model>> represented by an XML file.
-Usually, one file contains one process model. However, in the case of a <<collaboration-model,collaboration model>>, there could be several process models in one XML file.
+In the diagram below, you can see how these artifacts are related.
+Initially, the user creates a <<process-models,process model>>, which is represented by an XML file.
+Typically, one XML file contains a single process model.
+However, in the case of a <<collaboration-model,collaboration model>>,
+multiple process models may be included within one XML file.
 
-Next, processes must be deployed to the server. This happens in two steps: first, the <<deployments,deployment>> object is created.
-It is essentially a batch that can contain several process models implemented in one action. Second, for each process model in the deployment, a <<process-definitions,process definition>> is created.
+Next, processes must be deployed to the server. This deployment occurs in two steps:
 
-Further, to start a process, the server creates the <<process-instances,process instance>> object.
-At runtime, for certain branches (or paths) of the process, <<executions,execution>> objects can be created.
+* First, a <<deployments,deployment>> object is created. This object serves as a batch that can contain several process models, allowing for implementation in a single action.
+* Second, for each process model included in the deployment, a <<process-definitions,process definition>> is created.
 
-In the end, the process instance is transformed into a <<historic-process-instances,historic process instance>>.
+To initiate a process, the server then generates a <<process-instances,process instance>> object.
+At runtime, for specific branches (or paths) of the process, <<executions,execution>> objects may be created.
+
+Finally,
+the process instance can either be transformed into a <<historic-process-instances,historic process instance>> or deleted.
 
 image::modeling-and-execution/process-artifacts.png[,900]
 
-Below, there is a detailed description of mentioned artifacts:
+Below is a detailed description of the mentioned artifacts:
 
 [[process-models]]
 === Process Models
@@ -68,7 +74,7 @@ Finally, the `<diagram>` section provides a visual representation of the process
 This section is useful for human readers and process designers, as it allows them to visualize the flow and structure of the process.
 Although the diagram does not affect the execution of the process, it enhances understanding and communication among stakeholders.
 
-Here is an example of the visual process model in BPMN 2.0 notation and its XML representation:
+Below is an example of the visual process model in BPMN 2.0 notation and its XML representation:
 
 image::process-example.png[,800]
 
@@ -98,9 +104,8 @@ image::process-example.png[,800]
 
 Typically in *Studio*, process models are stored in `src/main/resources/process-drafts` directory for drafts and in `src/main/resources/processes` for processes ready for deployment.
 
-Actually, you can store process XML files anywhere you want, but we recommend to use default locations.
-In this case, *Studio* will be able to provide advanced features for managing process models.
-See the xref:modeler-studio.adoc[Studio Modeler] description.
+You can change where process models are located using xref:bpm:flowable-application-properties.adoc[],
+but we recommend to use default locations.
 
 
 [[deployments]]
@@ -112,10 +117,10 @@ In Flowable, a *deployment* object serves as a container for various resources r
 ====
 In *Studio*, processes are deployed automatically, see xref:bpm:auto-deployment.adoc[] section for details.
 Or deploy them using _Hot deploy_ feature in *Studio*.
-
 As well, you can deploy processes manually from xref:bpm:menu-views/modeler-web.adoc[Web Modeler].
 ====
 
+==== Creating Deployments
 Deployments are created using the `DeploymentBuilder` interface through `RepositoryService`.
 The resources are added to the deployment using methods such as `addClasspathResource`, `addInputStream`, or other methods.
 Once all resources are included, the deployment is finalized with the `deploy()` method:
@@ -149,6 +154,32 @@ List<String> resourceNames = repositoryService.getDeploymentResourceNames(deploy
 //Retrieve a specific resource:
 InputStream resourceStream = repositoryService.getResourceAsStream(deploymentId, "my-resource.txt");
 ----
+==== Storing Deployments
+The created process definitions are stored in the Flowable database, specifically in table `ACT_RE_DEPLOYMENT`.
+
+==== Properties
+A *deployment* has the following properties:
+
+[cols="1,2", options="header"]
+|===
+| Property | Description
+
+| Id
+| A unique identifier for the deployment.
+
+| Name
+| A descriptive name for the deployment, helping to identify it among multiple deployments.
+
+| Deployment Time
+| The timestamp indicating when the deployment was created.
+
+| Resources
+| A collection of resources (e.g., BPMN files, DMN tables) included in the deployment.
+
+| Version
+| The version number of the deployment, helping manage updates and changes to process definitions over time.
+|===
+
 
 [[deleting-deployments]]
 ==== Deleting Deployments
@@ -179,31 +210,6 @@ You can delete a certain deployment manually in the _Process Definition Detail_ 
 But keep in mind that this operation deletes _ALL_ process definitions deployed together.
 ====
 
-==== Storing Deployments
-The created process definitions are stored in the Flowable database, specifically in table `ACT_RE_DEPLOYMENT`.
-
-==== Properties
-A *deployment* has the following properties:
-
-[cols="1,2", options="header"]
-|===
-| Property | Description
-
-| Id
-| A unique identifier for the deployment.
-
-| Name
-| A descriptive name for the deployment, helping to identify it among multiple deployments.
-
-| Deployment Time
-| The timestamp indicating when the deployment was created.
-
-| Resources
-| A collection of resources (e.g., BPMN files, DMN tables) included in the deployment.
-
-| Version
-| The version number of the deployment, helping manage updates and changes to process definitions over time.
-|===
 
 [[process-definitions]]
 === Process Definitions
@@ -211,10 +217,15 @@ A *deployment* has the following properties:
 A *process definition* object represents a blueprint for an executable business process.
 It encapsulates the structure, activities, and logic of a process, allowing the <<process-engine,process engine>> to manage and execute <<process-instances,process instances>> based on the defined <<process-models,process model>>.
 
-Each *process definition* is associated with a specific <<deployments,deployment>>, which acts as a container for one or more process definitions and related resources.
-The deployment ID can be retrieved using the `getDeploymentId()` method.
+==== Creating Process Definitions
 
-To access process definitions, deployed to the engine, use *BPM* -> xref:menu-views/process-definitions.adoc[Process definitions view].
+It is not possible to create process definition directly.
+Process definitions are created during the deployment process.
+
+Each *process definition* is associated with a specific <<deployments,deployment>>, which acts as a container for one or more process definitions and related resources.
+
+To see a list of process definitions,
+deployed to the engine, use *BPM*-> xref:menu-views/process-definitions.adoc[Process definitions view].
 
 ==== Suspending and Activating
 
@@ -235,7 +246,7 @@ repositoryService.suspendProcessDefinitionByKey(processDefinitionKey);
 repositoryService.activateProcessDefinitionByKey(processDefinitionKey);
 ----
 
-As well, you can suspend and activate proces definition by ID.
+As well, you can suspend and activate process definition by ID.
 
 
 ==== Versioning
@@ -264,12 +275,6 @@ repositoryService.createProcessDefinitionQuery()
         .latestVersion()
         .singleResult();
 ----
-
-==== Deleting Process Definition
-
-It's impossible to delete the specific process definition.
-You have to delete the associated deployment object.
-See <<deleting-deployments>> section.
 
 ==== Storing Process Definitions
 The created process definitions are stored in the  database, specifically in table `ACT_RE_PROCDEF`.
@@ -301,12 +306,31 @@ A process definition in Flowable has several important properties:
 |===
 
 
+==== Deleting Process Definition
+
+If you need to delete a process definition, you have to delete the associated deployment object.
+See <<deleting-deployments>> section.
+
+
 [[process-instances]]
 === Process Instances
 
 In Flowable, a *process instance* represents a running instance of a business process. It encapsulates the execution of a specific <<process-definitions,process definition>>, with its own state and data.
 
-==== Creating a Process Instance
+==== Process Instance Lifecycle
+
+The lifecycle of a Process Instance in Flowable encompasses several stages
+that represent the various states and transitions of a running process.
+
+. *Creation*
+
+A process instance is created when a new instance of a process definition is started.
+This can be done using the `RuntimeService` with methods like `startProcessInstanceByKey` or `startProcessInstanceById`.
+
+The BPM administrator can manually start the process using the xref:menu-views/process-definitions.adoc[] view.
+Users with the appropriate permissions can initiate processes using the xref:menu-views/start-process-view.adoc[] view.
+
+During this stage, initial variables can be passed to the instance, which can influence its execution.
 
 [source,java]
 ----
@@ -314,7 +338,8 @@ In Flowable, a *process instance* represents a running instance of a business pr
 Map<String, Object> variables = new HashMap<>();
 variables.put("employeeId", "12345");
 
-ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("my-process", variables);
+ProcessInstance processInstance = runtimeService
+    .startProcessInstanceByKey("my-process", variables);
 ----
 
 [source,java]
@@ -328,14 +353,134 @@ ProcessInstanceBuilder builder = runtimeService.createProcessInstanceBuilder()
 ProcessInstance processInstance = builder.start();
 ----
 
+. *Active State*
++
+Once created, the process instance enters an *active* state,
+where it begins executing tasks as defined in the process definition.
+The instance will progress through various tasks, events, and gateways defined in the BPMN model.
++
+Query to check if the process instance is active:
++
+[source,java]
+----
+ProcessInstance processInstance = runtimeService.createProcessInstanceQuery()
+    .processInstanceId(processInstanceId)
+    .active()
+    .singleResult();
+
+----
++
+If the process instance was suspended, you can activate it.
++
+[source,java]
+----
+runtimeService.activateProcessInstanceById(processInstanceId);
+----
+
+. *Suspended State*
++
+A process instance can be *suspended*, which temporarily halts its execution without terminating it.
+This allows for maintenance or updates without losing the current state of the instance.
+While suspended, no tasks will be executed, but existing tasks can still be viewed.
++
+Query to check if the process instance is suspended:
++
+[source,java]
+----
+ProcessInstance processInstance = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .suspended()
+                .singleResult();
+----
+
+
++
+[source,java]
+----
+runtimeService.suspendProcessInstanceById(processInstanceId);
+----
 
 
 
 
-==== Process Instance Lifecycle
+. *Completion*
++
+When all tasks and events in the process instance are completed, it reaches a *completed* state.
+At this point, the instance has successfully executed all defined processes.
+Completed instances are typically stored for historical purposes, allowing for reporting and auditing.
++
+There is no method in Flowable to directly call a "complete" action on a process instance itself.
+Instead,
+you manage the completion by handling tasks and ensuring that all conditions defined in the BPMN model are satisfied.
++
+Upon completion, Flowable may trigger specific events defined in the BPMN model, such as end events or signals,
+which can initiate further actions or notifications within the system.
++
+Any variables that were set during the execution of the process are finalized and stored in the history,
+allowing for retrieval and analysis post-completion.
++
+The row representing completed process instance is removed from the runtime table `ACT_RU_EXECUTION`.
+
+. *Termination*
++
+A process instance can also be *terminated* before completion.
+This forcibly stops its execution and releases any resources associated with it.
+Terminated instances are no longer active and cannot be resumed.
++
+If the terminated process instance is part of a larger workflow,
+its termination may affect the completion status of parent processes.
++
+[source,java]
+----
+runtimeService.deleteProcessInstance(processInstanceId, "Reason for termination");
+----
++
+[NOTE]
+====
+In Flowable,
+the concepts of *termination* and *deletion* can be considered equivalent when referring to process instances.
+====
++
+A process instance can only be deleted if it is not currently executing any tasks.
+If there are active tasks,
+you will need to ensure that they are completed or that the instance is in a *wait state* before attempting deletion.
++
+If the process instance has asynchronous tasks running, you may encounter a *concurrent update exception*.
+This happens because Flowable uses optimistic locking,
+meaning only one transaction can modify a row in the database at a time.
+If another transaction updates or deletes the same row while you're trying to delete it, an exception will be thrown.
++
+image::optimistic-locking-exception.png[,400]
++
+When a process instance is deleted, Flowable does not trigger any listener events associated with the deletion action.
+This means you cannot implement custom behavior directly tied to the deletion event through listeners.
+
+
+. *History Tracking*
++
+The completed process instance is to be moved to the history database.
+This includes details such as the execution path taken, variables used, and timestamps for each activity.
+This historical data can be queried for reporting and auditing purposes.
+
+
 
 
 ==== Accessing Process Instances
+
+To access process instances at runtime:
+
+[source,java]
+----
+// Querying for all instances of a specific process definition
+List<ProcessInstance> instances = runtimeService.createProcessInstanceQuery()
+        .processDefinitionKey(key)
+        .list();
+
+// Querying for a specific process instance by ID
+ProcessInstance processInstance = runtimeService.createProcessInstanceQuery()
+        .processInstanceId(instanceId)
+        .singleResult();
+----
 
 ==== Storing Process Instances
 
@@ -373,8 +518,6 @@ Flowable stores process instances together with *executions* in the table named 
 |===
 
 
-
-
 [[business-key]]
 ==== Business Key
 A business key is a way to identify a process instance based on business-specific criteria, rather than relying solely on the system-generated process instance ID.
@@ -405,9 +548,46 @@ processFormContext.processStarting()
 [[executions]]
 === Executions
 
+In Flowable, an *execution* object represents a _"path of execution"_ within a process instance.
+It is a fundamental concept in the Flowable engine
+that allows for tracking the current state and flow of a process as it progresses through various activities.
+
+Executions can have a hierarchical structure.
+A process instance is also considered an execution,
+and it can have child executions representing subprocesses or parallel activities.
+
+The method `getParentId()` allows you to retrieve the ID of the parent execution,
+establishing a clear relationship between parent and child executions,
+which is essential for managing complex workflows.
+
+Child executions can hold *local variables* that are specific to their context.
+
+==== Accessing Executions
+
+To specifically query for child executions of a particular process instance:
+
+[source,java]
+----
+List<Execution> childExecutions = runtimeService.createExecutionQuery()
+    .processInstanceId(processInstanceId)
+    .list();
+----
+
+
+
+==== Storing Executions
+
+Both process instances and *executions* are stored in the `ACT_RU_EXECUTION` table.
+This table contains records for both types of entities, which can complicate querying and management.
+
+
+
 
 [[historic-process-instances]]
 === Historic Process Instances
+
+
+. *Housekeeping*
 
 
 [[dmn-engine]]
