@@ -1,0 +1,207 @@
+= REST DataStore
+
+The purpose of the REST data store is to provide an easy way of integrating Jmix applications. The result of the integration is the ability to access external entities from a remote Jmix application through the xref:data-access:data-manager.adoc[DataManager] interface in the same way as local JPA entities. The external entities can be displayed in UI, updated and saved back to the remote application using the standard CRUD functionality provided by Jmix, without writing any specific code.
+
+This document provides reference information about the REST DataStore add-on. If you want to learn more about how to use it in various scenarios, refer to the following guides:
+
+* xref:guides:integrating-jmix-apps.adoc[]
+* xref:guides:separating-tiers.adoc[]
+
+In this document, we will use the following terms:
+
+* _Service Application_ - a Jmix application providing data through the xref:rest:index.adoc[generic REST API].
+* _Client Application_ - a Jmix application consuming data from the Service Application using the REST data store.
+
+The service and client applications can use different versions of Jmix.
+
+[[installation]]
+== Installation
+
+For automatic installation through Jmix Marketplace, follow instructions in the xref:ROOT:add-ons.adoc#installation[Add-ons] section.
+
+For manual installation, add the following dependencies to your `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::guides:example$/jmix-integrated-apps-sample/orders/build.gradle[tags=dependencies]
+----
+
+[[configuration]]
+== Configuration
+
+The basic configuration includes the steps listed below.
+
+In the service application project:
+
+* Add xref:rest:index.adoc[REST API] and xref:authorization-server:index.adoc[Authorization Server] add-ons.
+
+* Set up xref:authorization-server:obtaining-tokens.adoc#client-credentials-grant[Client Credentials] grant for a client.
+
+In the client application project:
+
+* Add the REST DataStore add-on as described <<installation,above>>.
+
+* Add an additional data store with `restds_RestDataStoreDescriptor` descriptor, for example:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=store]
+----
+
+* Specify service connection properties for the data store by its name, for example:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=connection]
+----
+
+If you want to authenticate real users in the service application as demonstrated in xref:guides:separating-tiers.adoc[] guide, set up the xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[Password Grant] in the service application and add the following properties to the client application:
+
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=authenticator]
+----
+
+[[data-model]]
+== Data Model
+
+The client application should contain DTO entities that are equivalent to service entities. In order to be automatically mapped, the attributes of the entities must match by name and type.
+
+The set of attributes may be different. For example, a service entity may have more attributes than a client entity. Attributes that are not present in an entity on the other side will have null values after data transfer.
+
+The client DTO entity must have the `@Store` annotation specifying the additional data store.
+
+The following example demonstrates the `Region` entity definition in the service and client applications.
+
+[source,java,indent=0]
+.Region entity in service application
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/entity/Region.java[tags=jpa-entity]
+----
+
+[source,java,indent=0]
+.Region entity in client application
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Region.java[tags=restds-entity]
+----
+
+If the client entity name differs from the service one, use the `@RestDataStoreEntity` annotation to specify the service entity name explicitly. For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/RegionDto.java[tags=restds-entity]
+----
+
+For embedded attributes on the client side use the `@JmixEmbedded` annotation instead of JPA's `@Embedded`.
+
+For one-to-many composition attributes on the client side define the `inverse` attribute in the `@Composition` annotation.
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Customer.java[tags=restds-entity]
+----
+
+[[fetch-plans]]
+== Fetch Plans
+
+When you load an external entity in the client application, you can specify a fetch plan to load references. The generic REST API xref:rest:entities-api/load-entities.adoc#fetch-plans[currently supports] only named fetch plans defined in xref:data-access:fetching.adoc#creating-fetch-plans[fetch plans repository]. So the REST data store will request data from the service providing a fetch plan name.
+
+Therefore, both service and client applications must define all fetch plans in their fetch plan repositories, with corresponding names. Inline fetch plans in view XML and programmatically built fetch plans in Java are not supported.
+
+[[loaded-state]]
+== Loaded State
+
+If a fetch plan does not include an attribute, that attribute is not loaded. Unlike JPA entity attributes, the attributes of REST entities that are not loaded have a null value and do not throw any exceptions when accessed.
+
+When updating an entity, the REST data store only saves loaded attributes. If an attribute was not loaded from the service but changed from null to some value afterwards, it is considered loaded and the new value is therefore saved.
+
+The `EntityStates.isLoaded(entity, property)` method correctly returns information about whether a particular attribute of a REST entity is loaded.
+
+[[filtering-loaded-data]]
+== Filtering Loaded Data
+
+This section describes the filtering options supported when loading external entities using `DataManager`. All of these options lead to invoking the REST API xref:rest:entities-api/load-entities.adoc#load-list-search-filter[search endpoint] of the service application, so only the resulting entities are transferred over the wire.
+
+[[filter-by-conditions]]
+=== By Conditions
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-condition]
+----
+
+[[filter-by-query]]
+=== By Query
+
+The query is a JSON expression supported by generic REST in the xref:rest:entities-api/load-entities.adoc#load-list-search-filter[search endpoint]:
+
+[source]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-query]
+----
+
+[[filter-by-identifiers]]
+=== By Identifiers
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-ids]
+----
+
+[[using-query-in-view-xml]]
+=== Using Query in View XML
+
+The JSON query can be specified in view XML descriptors for data containers and `itemsQuery` elements:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/customer/customer-detail-view.xml[tags=items-query]
+----
+
+To specify a parameter instead of a literal value in JSON query conditions, use `parameterName` key instead of `value` as shown above. The REST data store will substitute this property with `"value": <parameter-value>` in the resulting request.
+
+The xref:flow-ui:facets/dataLoadCoordinator.adoc[] facet can also be used, but only with manual configuration. In the following example, the `regionsDc` and `customersDc` data containers are linked using a JSON query and `dataLoadCoordinator` to provide a master-detail list of regions and customers for the selected region:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/region/region-list-view.xml[tags=query]
+----
+
+[[entity-events]]
+== Entity Events
+
+REST data store sends xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent and EntityLoadingEvent] the same as `JpaDataStore`. But it doesn't send xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] because it cannot provide information about attributes changed since load. Instead of `EntityChangedEvent`, REST data store sends two specific events:
+
+* `RestEntitySavedEvent` - sent after the entity is successfully saved to the service. It contains the saved entity instance with the state right before sending to the service.
+* `RestEntityRemovedEvent` - sent after the entity is removed from the service. It contains removed entity with the state right before sending to the service.
+
+[[security]]
+== Security
+
+REST data store applies xref:security:resource-roles.adoc#entity-policy[entity operations policy] defined by resource roles and xref:security:row-level-roles.adoc#predicate-policy[predicate policy] defined by row-level roles.
+
+Authentication in REST data store can be done using Client Credentials Grant or Password Grant provided by the Authorization Server add-on. The latter requires setting the additional properties `<ds-name>.authenticator` and `jmix.restds.authentication-provider-store` as described in the <<configuration>> section.
+
+[[invoking-services]]
+== Invoking Services
+
+The `RestDataStoreUtils` bean provides a reference to the Spring's `RestClient` for a particular REST data store. It allows you to invoke arbitrary endpoints of that service application using connection and authentication parameters configured for the REST data store.
+
+See an example of invoking a business service method in the xref:guides:integrating-jmix-apps.adoc[] guide.
+
+[[limitations]]
+== Limitations
+
+The REST data store has the following limitations compared to the JPA data store:
+
+* Lazy loading of references is not supported. References that are not loaded by the fetch plan remain null when accessed.
+
+* There is no `EntityChangeEvent` with `AttributeChanges`.
+
+* `DataManager.loadValues()` and `loadValue()` methods throw `UnsupportedOperationException`.
