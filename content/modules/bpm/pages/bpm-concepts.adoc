@@ -6,40 +6,91 @@ These concepts include process models, process definitions, executions, process 
 Each of these elements plays a vital role in how the engine operates, facilitating the execution and management of business processes.
 
 
-[[process-engine]]
-== Process Engine
+== Process Lifecycle
 
-The Flowable *Process Engine* is a core component responsible for managing and executing business processes defined in BPMN.
-It provides the necessary infrastructure to deploy, start, and control process instances, ensuring that business workflows are executed according to defined rules and logic.
+The process lifecycle in Jmix BPM encompasses the various stages that a process instance undergoes from its initiation to completion. Understanding this lifecycle is crucial for effectively managing and controlling business processes. Here’s an overview of the key stages involved in the process lifecycle:
 
-image::bpm:process-engine.png[,700]
+image::bpm:modeling-and-execution/proccess-lifecycle.png[,900]
 
-The Process Engine exposes various services, each serving specific functionalities:
+=== Modeling
+The lifecycle begins with the modeling stage,
+where business xref:bpm:process-artifacts.adoc#process-models[processes models] are designed and defined using BPMN 2.0 notation.
+This involves creating process models that specify the flow, tasks, events, and decision points within the process.
+Process models are represented in XML format.
 
-* **RepositoryService**: Responsible for deploying and managing BPMN process definitions.
-* **RuntimeService**: Manages the execution of process instances and handles their state transitions.
-* **TaskService**: Manages user tasks, allowing for task creation, assignment, and querying.
-* **IdentityService**: Handles user authentication and authorization.
-* **ManagementService**: Provides administrative functions for managing the engine and its resources.
-* **HistoryService**: Manages historical data related to completed process instances.
-* **DynamicBpmnService**: Enables dynamic modifications to BPMN models at runtime.
-* **FormService**: Facilitates form handling within processes. (Not used in Jmix BPM.)
+Beyond the XML model, developers must undertake several additional tasks to create a fully executable business process:
 
-You can access process engine via xref:bpm:jmix-bpm-api.adoc#flowable-api[Flowable API].
+* Business Logic Implementation
+* User Interface (UI) Forms Creation
+* Decision Tables Definition
+* Event Listeners and Error Handling
+
+=== Deployment
+After modeling, the process models are deployed to the process engine.
+This step packages the BPMN models and resources into xref:bpm:process-artifacts.adoc#deployments[deployments]
+to make them available for execution.
+Deployments ensure that the xref:bpm:process-artifacts.adoc#process-definitions[process definitions]
+are correctly registered within the engine.
+
+=== Instantiating
+Once a process definition is deployed,
+new xref:process-artifacts.adoc#process-instances[process instances] can be started.
+Each instance represents a specific execution of the process and is uniquely identified.
+The process instance is initialized with any necessary variables and data.
+
+=== Execution
+As the process instance runs, it goes through various execution states managed by the process engine.
+The engine controls the flow of execution based on the defined process model,
+transitioning between tasks, events, and gateways.
+
+=== State Management
+Throughout execution, the process instance can be in different states, such as running, or suspended.
+The engine allows for dynamic management of these states, enabling processes to be paused or resumed as needed.
+
+=== Completion
+When all tasks within a process instance are completed, the instance reaches its end state.
+The engine finalizes the execution, and the instance is marked as completed.
+Any associated data can be retrieved for reporting or auditing.
+
+=== Termination
+In some cases, a process instance may be terminated prematurely due to errors or user intervention.
+The engine provides mechanisms to handle such terminations gracefully,
+ensuring that the process state remains consistent.
+
+=== History
+Flowable maintains a history of process instances, capturing important events and state changes throughout the lifecycle.
+This historical data is valuable for auditing, reporting, and analyzing process performance.
+It allows organizations to review past executions and gain insights into process efficiency and effectiveness.
 
 
+== Tokens
 
-=== Configuration
+The token is a key concept in BPMN that helps to understand and define the behavior of a process during execution.
+A token represents the current state of the process
+and serves as a means to visualize how the process behaves at runtime.
 
-[[job-executor]]
-== Job Executor
+When a process is started, a token is created, typically initiated by a start event.
+This token flows through the process,
+following the sequence flows and interacting with the process elements it encounters.
+At parallel gateways, the token can split into multiple tokens,
+and at other points in the process, these tokens can merge back.
+The token is consumed when it reaches an end event, which signifies the completion of the process instance.
 
-The Flowable *Job Executor* is a key component responsible for managing and executing asynchronous jobs within the Flowable process engine.
-It handles tasks such as timers, asynchronous continuations, and other background processes that need to be executed outside the main process flow.
-By offloading these tasks, the job executor ensures that the main execution thread remains responsive and efficient.
+Each process instance has its own token that tracks the state of that specific instance.
+Multiple process instances can run concurrently, with each maintaining its own token.
+When a token arrives at an activity, it becomes ready to start,
+and it interacts with gateways to determine the path it will follow.
+It is important to note that tokens cannot traverse message flows; only messages can flow along message flows.
 
-The job executor operates in a multithreaded environment, allowing it to process multiple jobs concurrently.
-It retrieves jobs from the database, executes them, and updates their status accordingly.
-This mechanism is essential for implementing features like delayed tasks and scheduled events in business processes.
 
-Overall, the Flowable Job Executor enhances the performance and scalability of the process engine by efficiently managing background jobs and ensuring smooth process execution.
+[NOTE]
+====
+Direct access to tokens in the context of BPMN execution (as in tracking or manipulating process tokens) is not explicitly provided through the Flowable API.
+Instead, the Flowable API primarily focuses on managing process instances, tasks, and events rather than exposing tokens as a separate entity.
+====
+
+Tokens appear at the start events, one for each event.
+The number of tokens does not change during actions but can change at gateways.
+At least one token must reach the end event for the process to be considered complete.
+At the end of the process, all tokens should disappear.
+
