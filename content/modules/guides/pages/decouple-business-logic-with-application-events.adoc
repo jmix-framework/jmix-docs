@@ -122,17 +122,15 @@ The following event listener handles the responsibility of notifying the room sy
 include::example$/{sample-project}/src/main/java/io/jmix/petclinic/keycode/RoomSystemNotifier.java[tags=room-system-notifier]
 ----
 
-==== Naming Conventions of Events
-
-Event listeners should also be named according to the specific action they perform. Instead of creating a broad listener, like `PetCreatedListener` that handles multiple tasks after a pet is created, it is better to focus on a single responsibility. For example, `RoomKeycodeToOwnerSender` specifically describes the listener's role of sending the room keycode to the pet's owner.
+Instead of creating a broad listener, like `PetCreatedListener` that handles multiple tasks after a pet is created, it is better to focus on a single responsibility as it is possible to have multiple listeners that are executed when an event is sent. For example, `RoomKeycodeToOwnerSender` specifically describes the listener's role of sending the room keycode to the pet's owner.
 
 This approach aligns with the https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle[open-closed principle], promoting loosely coupled components and making the system more maintainable over time.
 
-TIP: Events are typically named in the simple past tense, such as "Entity *Changed* Event." This emphasizes that an event represents an immutable fact—something that has already occurred and cannot be altered. Event listeners, on the other hand, are named in the present tense.
+TIP: Events are typically named in the simple past tense, such as "Entity *Changed* Event." This emphasizes that an event represents an immutable fact—something that has already occurred and cannot be altered. Event listeners, on the other hand, are named in the present tense. They should also be named according to the specific action they perform.
 
 === Custom Application Logic Events
 
-In this example, we use custom application events to communicate between different parts of the application in a loosely coupled way. When a pet recovers and checks out, the visit is marked as complete. This event can trigger various downstream processes. In this case, the event initiates the invoicing process.
+In this example, we use custom application events to communicate between different parts of the application in a loosely coupled way. When a pet recovers and checks out, the treatment is marked as complete. This event can trigger various downstream processes. In this case, the event initiates the invoicing process.
 
 The first step in creating a custom application event is to define an event class, `TreatmentCompletedEvent` which extends `org.springframework.context.ApplicationEvent`:
 
@@ -144,7 +142,7 @@ include::example$/{sample-project}/src/main/java/io/jmix/petclinic/visit/Treatme
 
 === Publishing Custom Application Events
 
-In Jmix, custom events are published via Spring's `ApplicationEventPublisher`. This enables different parts of the application to communicate without direct dependencies.
+In Jmix, custom events are published via Spring's `ApplicationEventPublisher` mechanism. It enables different parts of the application to communicate without direct dependencies. The `ApplicationEventPublisher` is an implementation of the above-mentioned event bus.
 
 In the `VisitStatusService`, the `finishTreatment()` method marks a visit as complete and then publishes a `TreatmentCompletedEvent` to notify other parts of the system:
 
@@ -154,7 +152,7 @@ In the `VisitStatusService`, the `finishTreatment()` method marks a visit as com
 include::example$/{sample-project}/src/main/java/io/jmix/petclinic/visit/VisitStatusService.java[tags=finish-treatment]
 ----
 
-The event is published with `applicationEventPublisher.publishEvent(new TreatmentCompletedEvent(this, visit));`. Other components can listen for this event and react without directly interacting with the `VisitStatusService`.
+The event is published with `applicationEventPublisher.publishEvent(new TreatmentCompletedEvent(this, visit));`. Other components can listen for this event without the need for the `VisitStatusService` to be aware of those components.
 
 The final part of the event-driven invoicing process is the event listener that reacts to the `TreatmentCompletedEvent`. This works the same way as with other standard Jmix events (e.g., `EntityChangedEvent`), using the familiar Spring-based event mechanism.
 
@@ -168,7 +166,7 @@ include::example$/{sample-project}/src/main/java/io/jmix/petclinic/invoice/Invoi
 
 === Jmix UI Events
 
-On the UI layer, there are two main types of events: framework-provided UI events and custom application UI events. Both types of events are always scoped to a single instance of the UI, meaning they normally only affect the current user.
+On the UI layer, there are two main types of events: framework-provided UI events and custom application UI events. Both types of events are normally scoped to a single instance of the UI, meaning they only affect the current user.
 
 ==== Framework UI Events
 
@@ -188,13 +186,7 @@ include::example$/{sample-project}/src/main/java/io/jmix/petclinic/view/visit/Vi
 
 In Jmix, custom UI events allow you to send notifications or trigger actions across different parts of the user interface in a decoupled way. While these events are defined as regular Spring `ApplicationEvent` objects, the mechanism for publishing and handling them within the UI differs slightly. For UI-specific events, Jmix provides a dedicated `UiEventPublisher`, which ensures that events are scoped correctly within the UI context.
 
-This approach differs from standard Spring events, as UI events in Jmix are typically tied to specific user sessions or browser instances. They ensure that events are only delivered to the relevant UI (or browser tab) without affecting other sessions.
-
-The `UiEventPublisher` supports different variants of event publishing:
-
-* **For the Current UI**: If you need the event to be handled only within the current UI (e.g., the current browser tab), use the `publishEventForCurrentUI()` method.
-* **For All UIs in a Session**: To broadcast the event across all UIs (tabs or browser windows) within the user's session, you can use the `publishEvent()` method.
-* **For Specific Users**: You can also target specific users by publishing events for all of their active sessions using `publishEventForUsers()`. This is particularly useful in multi-user applications where events need to be scoped by user.
+This approach differs from standard Spring events, as UI events in Jmix are typically tied to specific user sessions or browser instances. They ensure that events are only delivered to the relevant UI (or browser tab) without affecting other sessions. See also: xref:flow-ui:ui-events.adoc[].
 
 While the mechanism for dispatching UI events is unique to Jmix, they are still defined as standard Spring `ApplicationEvent` objects. This ensures that your custom events can be handled in the same way as other Spring events, with methods annotated with `@EventListener`.
 
@@ -222,13 +214,13 @@ Finally, in the `MainView`, we listen for the `TreatmentStartedEvent` and refres
 include::example$/{sample-project}/src/main/java/io/jmix/petclinic/view/main/MainView.java[tags=treatment-started-event-consumer]
 ----
 
-When a treatment is started in the `MyVisitsView`, the badge in the `MainView` is updated by counting the number of active treatments assigned to the current user. This keeps the UI views decoupled from each other, as the components do not need to directly invoke each other.
+When a treatment is started in the `MyVisitsView`, the badge in the `MainView` is updated by counting the number of active treatments assigned to the current user. This mechanism allows to notify the main view from the currently opened view.
 
 == Summary
 
 This guide demonstrated how Jmix application events can decouple business logic, making applications more maintainable and flexible. We explored entity lifecycle events like `EntityChangedEvent`, custom events for business logic, and UI events that react to user actions within the interface.
 
-Event-driven logic reduces coupling between components, improving testability and resilience. However, it lacks immediate feedback compared to method calls, which can make it harder to manage asynchronous processes. Despite these challenges, event-based communication ensures better modularity and scalability.
+Event-driven logic reduces coupling between components, improving testability and resilience. However, event-based communication can make it more difficult to follow the application flow in the source code compared to direct method calls, as the connections between events and their listeners are not always immediately visible.
 
 In conclusion, different use cases call for different approaches. You should decide between service invocation or events depending on the specific needs of your application.
 
