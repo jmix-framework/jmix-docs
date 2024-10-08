@@ -1,0 +1,298 @@
+= Subprocesses
+
+[[overview]]
+== Overview
+
+*Subprocess* is an activity that contains other activities, gateways, events,
+and so on, which in itself forms a process that is part of the bigger process.
+Subprocesses allow hierarchical modeling, resulting in a high-level, end-to-end overview of the business process.
+Subprocesses can be nested.
+
+Besides, a subprocess creates a new xref:process-variables.adoc#variable-scopes[scope]
+for process variables and xref:bpmn/bpmn-events.adoc[events].
+Events that are thrown during execution of the subprocess can be caught by a boundary event on the boundary of the subprocess,
+creating a scope for that event limited to the subprocess.
+
+There are three types of subprocesses in Jmix BPM:
+
+* xref:embedded-subprocess[Embedded subprocess]
+* xref:event-subprocess[Event subprocess]
+* xref:transaction-subprocess[Transaction subprocess]
+* xref:call-activity[Call activity]
+
+image::bpmn-subprocesses/subprocess-types.png[,700]
+
+
+[[embedded-subprocess]]
+== Embedded Subprocess
+
+A subprocess completely defined inside a parent process is called _embedded_.
+Embedded subprocesses aren't reusable.
+In other words, you can't call them from anywhere;
+they are a solid part of parent process.
+
+.*Graphical Notation*
+A subprocess is typically represented as a rounded rectangle, similar to a regular task, but bigger size.
+To create a subprocess, select image:bpmn-subprocesses/icon-subprocess.png[,30] from the palette and place it on the canvas.
+
+image::bpmn-subprocesses/create-subprocess.png[,500]
+
+Then you can drag-and-drop existing elements into subprocess or create new ones inside it.
+An embedded subprocess can only have one _'none start event'_; no other start event types are allowed.
+
+.*XML Representation*
+
+An embedded subprocess is defined by the _subProcess_ element.
+All activities, gateways, events, and son on, that are part of the subprocess need to be enclosed within this element.
+
+[source,xml]
+----
+<subProcess id="Activity_17a4us1" name="Subprocess">
+  <startEvent id="subProcessStart" />
+
+... other subprocess elements ...
+
+  <endEvent id="subProcessEnd" />
+ </subProcess>
+----
+
+.*Properties*
+
+Embedded subprocess has no special properties, only general ones. You can set its name that will be shown as a label on its shape on the diagram.
+
+image::bpmn-subprocesses/subprocess-properties.png[,500]
+
+As well, a subprocess may be xref:bpm:bpmn/transactions.adoc#asynchronous-continuation[asynchronous]
+and xref:bpm:bpmn/multi-instance-activities.adoc[multi-instance].
+
+
+// *Collapsing subprocess*
+//
+// Many modeling tools allow subprocesses to be collapsed, hiding all the details of the subprocess.
+//todo: not supported now
+
+
+[[event-subprocess]]
+== Event Subprocess
+
+*Event subprocess* is a subprocess triggered by an event.
+It can be added at the process level or at any subprocess level.
+
+The event used to trigger an event subprocess is configured using a start event.
+An event subprocess might be triggered using events, such as message events, error events, signal events, timer events, or compensation events.
+The subscription to the start event is created when the scope (process instance or subprocess) hosting the event subprocess is created.
+The subscription is to be removed when the scope is destroyed.
+
+.*Graphical Notation*
+
+Event subprocesses are visualized as rounded rectangles with dotted outlines.
+To create event subprocess, you should add an embedded subprocess and then change it to event subprocess:
+
+image::bpmn-subprocesses/creating-event-subprocess.png[,600]
+
+Now you can go on designing event subprocess.
+
+image::bpmn-subprocesses/creating-event-subprocess-2.png[,550]
+
+[NOTE]
+====
+_None start events_ are not supported for event subprocesses.
+It doesn't cause error at deployment or runtime, but this subprocess will never be triggered.
+====
+
+
+.*XML Representation*
+
+An event subprocess is represented using XML in the same way as an embedded subprocess.
+In addition, the attribute _triggeredByEvent_ must have the value true:
+
+[source,xml]
+----
+<subProcess id="event-subprocess" name="Event subprocess" triggeredByEvent="true"> <1>
+  <sequenceFlow id="Flow_14hzcqy" sourceRef="start-message-event" targetRef="Activity_0iuoq5t" />
+  <startEvent id="start-message-event"> <2>
+    <messageEventDefinition id="MessageEventDefinition_1hzz5hc" messageRef="cancel-order" />
+  </startEvent>
+
+... other subprocess elements ...
+
+</subProcess>
+----
+<1> -- _triggeredByEvent_ attribute
+<2> -- Message start event
+
+.*Example*
+
+The following is an example of an event subprocess triggered using an _Error Start Event_.
+The event subprocess is located at the "process level", in other words, is scoped to the process instance:
+
+image::bpmn-subprocesses/event-subprocess-example.png[,500]
+
+Event subprocess can be defined in embedded subprocess.
+In this case, when the error event is triggered, the event subprocess will have access to subprocess local variables:
+
+image::bpmn-subprocesses/event-subprocess-error.png[,600]
+
+When you use an error boundary event, the external event handler won't see local variables:
+
+image::bpmn-subprocesses/subprocess-error.png[,600]
+
+[[transaction-subprocess]]
+== Transaction Subprocess
+
+A *transaction subprocess* is an embedded subprocess that can be used to group multiple activities to a transaction.
+A transaction is a logical unit of work that allows to group a set of individual activities,
+such that they either succeed or fail collectively.
+
+.*Graphical Notation*
+
+A transaction subprocess is visualized as a rounded rectangle with a double outline.
+To create transaction subprocess, you should add an embedded subprocess and then change it to transaction subprocess:
+
+image::bpmn-subprocesses/transaction-subprocess.png[,300]
+
+.*XML Representation*
+
+A transaction subprocess is represented in XML using the transaction tag:
+
+[source,xml]
+----
+<transaction id="transaction-subprocess" name="Transaction subprocess">
+  . . .
+</transaction>
+----
+
+[[possible-outcomes-of-a-transaction]]
+.*Possible Outcomes of a Transaction*
+
+A transaction can have three different outcomes:
+
+Successful::
+If a transaction subprocess is completed a regular way, it is successful and then the main process will be continued using the outgoing sequence flows.
+A successful transaction might be compensated if a compensation event is thrown later in the process.
++
+[NOTE]
+====
+Just as with "ordinary" embedded subprocesses, a transaction may be compensated after successful completion using an intermediary throwing compensation event.
+====
+
+Canceled::
+If an execution reaches the _cancel end event_, the transaction is considered canceled.
+In this case, all executions are terminated and removed.
+A single remaining execution is then set to the cancel boundary event, which triggers compensation.
+After compensation has completed, the transaction subprocess is left using the outgoing sequence flows of the cancel boundary event.
+
+Hazard::
+A transaction is ended by a hazard if an _error event_ is thrown that is not caught within the scope of the transaction subprocess.
+This also applies if the error is caught on the boundary of the transaction subprocess.
+In these cases, compensation is not performed.
+
+
+image::bpmn-subprocesses/transaction-subprocess-example.png[,900]
+
+[IMPORTANT]
+====
+It is important not to confuse the BPMN transaction subprocess with technical (ACID) transactions.
+See more in the xref:bpmn/transactions.adoc[BPMN Transactions] section.
+====
+
+
+[[call-activity]]
+== Call Activity
+
+Call Activity is a type of activity that allows you to call a reusable process
+or a global task from within another process.
+It provides a way to break down complex processes into smaller, more manageable parts and promotes reusability.
+
+Opposite to embedded subprocess, _call activity_ is an _external_ subprocess.
+
+When process execution arrives at the call activity,
+a new execution is created that is a sub-execution of the execution that arrived at the call activity.
+This sub-execution is then used to execute the subprocess, potentially creating parallel child executions, as within a regular process.
+The super-execution waits until the subprocess has completely ended, and continues with the original process afterward.
+
+.*Graphical Notation*
+
+A call activity is visualized by rounded rectangle as a normal task,
+but with a thick border and the subprocess xref:bpmn/bpmn-elements.adoc#markers[marker] inside:
+
+image::bpmn-subprocesses/call-activity.png[,300]
+
+.*XML Representation*
+
+A call activity is a regular activity, which requires a `calledElement` that references a process definition by its key.
+In practice, this means that the ID of the process is used in the `calledElement`.
+
+[source,xml]
+----
+<callActivity id="Activity_08ermzt" name="Call activity"
+              calledElement="data-task-sample" <1>
+              flowable:inheritBusinessKey="true"> <2>
+  <extensionElements>
+    <flowable:in sourceExpression="${client.name}" <3>
+                 target="clientName" />
+    <flowable:out source="clientName"  <4>
+                  target="clientName" />
+  </extensionElements>
+  <incoming>Flow_0sdrrfm</incoming>
+</callActivity>
+----
+<1> -- Called element, by default referenced by process id (process definition key)
+<2> -- Business key will be inherited
+<3> -- In mapping by expression
+<4> -- Out mapping by variable
+
+[NOTE]
+====
+The process definition of the subprocess is resolved at runtime.
+This means that the subprocess can be deployed independently of the calling process, if needed.
+====
+
+
+.*Properties*
+
+You can configure call activity by setting its properties:
+
+image::bpmn-subprocesses/call-activity-properties.png[,450]
+
+* *Called Element*: It is a reference to one of the existing process definitions.
++
+CAUTION: Avoid unmanaged recursion! Technically, it's possible to call another instance of the process from within itself.
+
+* *Called Element Type*: In Studio, by default, is used _key_ parameter. It means the last version of the referred process will be called.
++
+[NOTE]
+====
+In web modeler, it's possible to call a specified version of the process by its _id_.
+====
+
+* *Business Key*: You can define it by expression or inherit from the parent process.
+See xref:bpm:bpm-concepts.adoc
+
+* *Variables Mapping*:
+
+** First, call activity can inherit process variables from the parent process.
+It means when the called process will start, in it will be created process variables like in the parent process,
+but they will be new instances, not references to original ones.
+
+** *In Mapping*: Here you can pass parameters into the called process using existing process variables (source) to variables in the called process (target):
++
+image::bpmn-subprocesses/in-mapping.png[,350]
++
+Or by expressions:
++
+image::bpmn-subprocesses/in-mapping-expression.png[,350]
+
+** *Out Mapping*: This way you can mirror variables from the called process (source) on the variables in the parent process (target):
++
+image::bpmn-subprocesses/out-mapping.png[,350]
++
+Or you can use expression.
+
+[[user-task-call-activity]]
+=== User Tasks in Call Activity
+If the called process has _user tasks_, assigned users will see them in the task list (_My tasks_ view)
+under the name of called process, not the parent process.
+That's why it is important to use a business key when creating processes.
+
+So, if you want to manage all tasks from your process, and it has call activities, you should take care of this.
