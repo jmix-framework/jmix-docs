@@ -24,6 +24,9 @@ public class Event {
     @Id
     private UUID id;
 
+    @Column(name = "GROUP_ID")
+    private String groupId;
+
     @InstanceName
     @Column(name = "TITLE")
     private String title;
@@ -81,6 +84,14 @@ public class Event {
 
     @Column(name = "RECURRING_END_TIME")
     private LocalTime recurringEndTime;
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(String groupId) {
+        this.groupId = groupId;
+    }
 
     public LocalTime getRecurringEndTime() {
         return recurringEndTime;
