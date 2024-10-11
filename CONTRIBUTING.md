@@ -107,7 +107,7 @@ cloneOrPull('https://github.com/jmix-framework/jmix-$GUIDE_NAME-sample', 'extern
 includeBuild 'external/jmix-$GUIDE_NAME-sample'
 ```
 
-Additionally, you have to add the source root to the Antora playbook:
+Additionally, you have to add the source root to the Antora playbook (both `antora-playbook.yml` as well as `antora-playbook.ci.yml`):
 
 ```yaml
 content:
@@ -120,7 +120,7 @@ content:
     start_path: doc
 ```
 
-Finally, you have to add the guide to the main navigation asciidoc file:
+Finally, you have to add the guide to the main navigation Asciidoc file:
 
 ```asciidoc
 * xref:ROOT:guides.adoc[]
