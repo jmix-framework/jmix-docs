@@ -109,6 +109,7 @@ xref:flow-ui:vc/common-attributes.adoc#width[width] -
 
 |===
 
+[[basic]]
 == Basic
 
 `FullCalendar` component is available in the *Add Component* palette of the Studio xref:studio:view-designer.adoc[View Designer] as soon as you install add-on in your project.
@@ -123,12 +124,10 @@ The following example demonstrates how a basic `calendar` is created:
 include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-basic.xml[tags=sample-basic1]
 ----
 
-== Data Binding
+[[events]]
+== Events
 
-The calendar component uses data providers to link loaded data and visualize it.
-The data item should implement the <<CalendarEvent>> interface in order to be shown in the component.
-In case of JPA or DTO entity, there is a <<ContainerCalendarDataProvider>> that wraps an entity to the <<EntityCalendarEvent>>.
-
+[[calendar-event]]
 === CalendarEvent
 
 The base interface for events in the calendar component. It has the following properties:
@@ -247,9 +246,10 @@ Note that the calendar does not apply time zone conversion for this property. If
 
 |===
 
-==== EntityCalendarEvent
+[[entity-calendar-event]]
+=== EntityCalendarEvent
 
-The implementation of <<CalendarEvent>> that works with JPA or DTO entities. When <<ContainerCalendarDataProvider>> links with xref:flow-ui:data/collection-container.adoc[collection container] it automatically wraps loaded entities to `EntityCalendarEvent` and pass it to the component. For instance, in this case all calendar events are `EntityCalendarEvent`:
+The implementation of <<CalendarEvent>> that works with JPA or DTO entities. When <<container-data-provider>> links with xref:flow-ui:data/collection-container.adoc[collection container] it automatically wraps loaded entities to `EntityCalendarEvent` and pass it to the component. For instance, in this case all calendar events are `EntityCalendarEvent`:
 
 [source,xml,indent=0]
 ----
@@ -263,7 +263,8 @@ And you can safely cast to `EntityCalendarEvent`:
 include::example$fullcalendar-ex2/src/main/java/com/company/fullcalendarsample/view/demos/SampleEntityCalendarEvent.java[tags=sample-entity-calendar-event2]
 ----
 
-==== SimpleCalendarEvent
+[[simple-calendar-event]]
+=== SimpleCalendarEvent
 
 The simple POJO class that implements <<CalendarEvent>> interface.  You can use this event class as an alternative to creating DTOs or for prototyping purposes. It also includes a builder class to facilitate the convenient creation of event instances.
 
@@ -272,7 +273,8 @@ The simple POJO class that implements <<CalendarEvent>> interface.  You can use 
 include::example$fullcalendar-ex2/src/main/java/com/company/fullcalendarsample/view/demos/SampleSimpleCalendarEventView.java[tags=sample-simple-calendar-event1]
 ----
 
-==== Recurring events
+[[recurring-events]]
+=== Recurring events
 
 Recurring events are events that occur multiple times at regular intervals, following a predefined schedule. In `FullCalendar` you can configure the schedule by the following properties of `CalendarEvent`:
 
@@ -293,9 +295,10 @@ You can specify recurrence properties in the data provider as shown below:
 include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-recurring-events-view.xml[tags=sample-recurring-events1]
 ----
 
-==== Recurrence event and Group ID property
+[[recurrence-event-and-group-id]]
+==== Recurrence Event and Group ID Property
 
-The `FullCalendar` expands single recurring event into individual events instances. These events act as not related events. For instance, if you specify the <<eventStartEditable, eventStartEditable>> property, you can get the following behaviour with recurring events:
+The `FullCalendar` expands single recurring events into individual events instances. These events act as if they are not related. For instance, if you specify the <<eventStartEditable, eventStartEditable>> property, you can achieve the following behavior with recurring events:
 
 image::move-recurring-event-no-groupid.png[align="center"]
 
@@ -303,6 +306,7 @@ If you want all the recurring events in a definition to move together, you need 
 
 image::move-recurring-event-groupid.png[align="center"]
 
+[[days-of-week-datatype]]
 ==== DaysOfWeek Datatype
 
 The <<recurringDaysOfWeek, recurringDaysOfWeek>> property defines the list of days of the week and requires a specific datatype to store it in JPA or DTO entities - `DaysOfWeek`.
@@ -318,18 +322,132 @@ In the UI you can edit `DaysOfWeek` using xref:flow-ui:vc/components/valuePicker
 include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/app/event/event-detail-view.xml[tags=sample-days-of-week-edit-action]
 ----
 
+[[data-binding]]
+== Data Binding
+
+The calendar component uses data providers to link loaded data and visualize it.
+The data item should implement the <<CalendarEvent>> interface in order to be shown in the component.
+In case of JPA or DTO entity, there is a <<container-data-provider>> that wraps an entity to the <<EntityCalendarEvent>>.
+
+The `FullCalendar` component allows you to add multiple data providers. In one calendar, you can display data from different data sources and services.
+
+[[calendar-data-provider]]
 === CalendarDataProvider
 
-[[container-calendar-data-provider]]
-==== ContainerCalendarDataProvider
+The `FullCalendar` component uses data providers to load events and display them in the UI. `CalendarDataProvider` is a base interface for all data providers that the calendar uses. There are two base types of calendar data providers:
 
-==== ListCalendarDataProvider
+ - Data providers that load all data at once.
+ - <<CallbackCalendarDataProvider>>, which loads partial data on demand.
 
+[[container-data-provider]]
+=== ContainerDataProvider
+
+The data provider that works with xref:flow-ui:data/data-containers.adoc[]. It reflects any changes in the container (adding, removing, and changing entity) and updates the `FullCalendar` UI.
+
+To use the container data provider in `FullCalendar` you should specify:
+
+- `dataContainer` property: a reference to an ID of an existing container in a view.
+- Entity properties mapping. The container data provider wraps JPA or DTO entities into <<entity-calendar-event>> to adapt the entity for `FullCalendar` component. However, the data provider does not know which properties from the JPA or DTO entity should be used for <<calendar-event>>. Therefore, it requires you to define property mappings.
+
+The example of the container data provider:
+[source,xml,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-container-calendar-data-provider-view.xml[tags=sample-container-calendar-data-provider1]
+----
+To work with the container data provider programmatically, you can use the `ContainerCalendarDataProvider` class.
+
+[[list-calendar-data-provider]]
+=== ListCalendarDataProvider
+
+The data provider that takes data from the provided list. It does not have XML definition but can be added programmatically.
+
+Here is a basic example of a list calendar data provider:
+
+[source,java,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/java/com/company/fullcalendarsample/view/demos/SampleListCalendarDataProviderView.java[tags=sample-list-calendar-data-provider1]
+----
+
+The list data provider also reflects changes in the provided list using its API:
+
+- `addItem()` - also adds an item to the UI.
+- `removeItem()` - removes an item from the UI.
+- `updateItem()` - updates an item in the UI.
+- and other methods.
+
+[[callback-calendar-data-provider]]
 === CallbackCalendarDataProvider
 
-==== EntityCalendarDataRetriever
+The `CallbackCalendarDataProvider` is a base interface for data providers that load data on demand. This interface has a method called `onItemsFetch()` that will be invoked when the component needs new data.
 
-==== CalendarDataRetriever
+The data is loaded when:
+
+-  The user switches to a calendar display mode that has wider date range than the previous one.
+- The navigation methods of the `FullCalendar` component are invoked, such as `navigateToNext()` and other methods.
+- The time zone of `FullCalendar` component is changed.
+
+[[callback-data-provider]]
+=== CallbackDataProvider
+
+The data provider that loads data using a JPQL query and a xref:data-access:data-manager.adoc[DataManager]. Similar to <<container-data-provider>>, it requires you to specify property mappings. Additionally, you should also specify a JPQL query that will load the data.
+
+An example of property mappings in the `callbackDataProvider` element:
+
+[source,xml,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-entity-calendar-data-retriever-view.xml[tags=sample-entity-calendar-data-retriever1]
+----
+
+In order to load data using JPQL query, you should specify an `<itemsQuery>` element inside the data provider. This element requires you to specify the fully qualified name of the entity class that will be used in the JPQL query.
+
+The items query allows you to define a xref:data-access:fetching.adoc#fetch-plan[FetchPlan] in the `fetchPlan` attribute or within its element.
+
+[source,xml,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-entity-calendar-data-retriever-view.xml[tags=sample-entity-calendar-data-retriever2]
+----
+
+In the JPQL query you can use two parameters:
+
+- `fetchStartDate` - the left border of visible date range in the `FullCalendar`
+- `fetchEndDate` - the left border of visible date range in the `FullCalendar`.
+
+NOTE: The `fetchEndDate` value is exclusive. For instance, if the visible date range is from `2024-09-29` to `2024-11-09` the actual value of the `fetchEndDate` will be `2024-11-10`.
+
+The full example of using `callbackDataProvider`:
+
+[source,xml,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsample/view/demos/sample-entity-calendar-data-retriever-view.xml[tags=sample-entity-calendar-data-retriever10]
+----
+
+NOTE: This JPQL query assumes that thee `startDate` and `endDate` values are not `null`. Otherwise, an additional `null` check is required.
+
+To work programmatically with the callback data provider, use the `EntityCalendarDataRetriever` class. It is a Spring bean with prototype scope, so initialize this class carefully using Spring.
+
+[[callback-data-provider-and-load-delegate]]
+==== CallbackDataProvider and Load Delegate
+
+There are cases when business logic requires building complicated JPQL queries with many conditions. Therefore, writing a query in an XML descriptor becomes inconvenient. In such cases, you can set a load delegate for the `callbackDataProvider`.
+
+[source,java,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/java/com/company/fullcalendarsample/view/demos/SampleEntityCalendarDataRetrieverView.java[tags=sample-entity-calendar-data-retriever4]
+----
+
+TIP: `myDataProvider` is the ID of the data provider. You can specify it using the `id` attribute in the XML definition.
+
+NOTE: If your implementation of the load delegate returns a list of <<entity-calendar-event>>, you will need to specify property mappings in the data provider.
+
+[[calendar-data-retriever]]
+=== CalendarDataRetriever
+
+The `CalendarDataRetriever` is a simple data provider that is similar to the `callbackDataProvider` with a load delegate; however it does not have an XML definition. This data provider can be used together with services to load data.
+
+[source,java,indent=0]
+----
+include::example$fullcalendar-ex2/src/main/java/com/company/fullcalendarsample/view/demos/SampleEntityCalendarDataRetrieverView.java[tags=sample-entity-calendar-data-retriever5]
+----
 
 == Calendar Display Modes
 
@@ -338,6 +456,7 @@ include::example$fullcalendar-ex2/src/main/resources/com/company/fullcalendarsam
 === Display Mode Properties
 
 === CustomCalendarDisplayMode
+
 
 == Selection
 
