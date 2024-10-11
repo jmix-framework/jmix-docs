@@ -90,47 +90,13 @@ git merge upstream/main
 
 Once your example is ready, it’s time to integrate it with the main Jmix documentation repository.
 
-#### Step 1: Set Up Documentation Files
+#### Step 1: Rename the Docs Directory
 
-Inside your project’s root directory, create a doc folder to house all documentation-specific files:
-
-```bash
-mkdir -p doc/modules/$GUIDE_NAME-guide/{examples,images,pages}
-```
-
-Populate the doc directory with the following structure:
-```bash
-doc/
-├── antora.yml
-└── modules
-    └── $GUIDE_NAME-guide
-        ├── examples
-        │   └── jmix-$GUIDE_NAME-sample -> ../../../../src
-        ├── images
-        └── pages
-            └── index.adoc
-```
-
-* antora.yml: The Antora descriptor file for this module.
-* examples/jmix-business-logic-sample: Create a symbolic link pointing to the project’s src directory. This makes code examples accessible within the documentation. 
-* images: Place any images needed in this directory. 
-* pages/index.adoc: The primary AsciiDoc file for your guide content.
-
-To create the symbolic link for examples/jmix-business-logic-sample, run:
+Change the petclinic-guide directory to match the new guide name:
 
 ```bash
-ln -s ../../../../src doc/modules/$GUIDE_NAME-guide/examples/jmix-$GUIDE_NAME-sample
+mv doc/modules/petclinic-guide doc/modules/$GUIDE_NAME-guide
 ```
-
-In doc/antora.yml, define the module’s metadata:
-
-```bash
-echo "name: jmix
-version: \"2.4\"" > doc/antora.yml
-```
-
-Note: For more information on using symbolic links in Antora, see the [Antora symlinks documentation](https://docs.antora.org/antora/latest/symlinks/#remap-files-using-symlinks).
-
 
 #### Step 2: Integrate with the Main Docs Repository
 
