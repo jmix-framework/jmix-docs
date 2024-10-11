@@ -15,6 +15,14 @@ Main documentation modules are located in the `content` folder. Guides are locat
 
 The AsciiDoc IntelliJ plugin correctly recognizes all modules by their `antora.yml` files and allows you to make cross-references.
 
+### Contributing a Jmix Guide
+
+To add a new guide to the Jmix documentation, follow the steps outlined in [CONTRIBUTING.md](CONTRIBUTING.md). The guide explains how to:
+
+* Set up a new example project based on the Jmix template.
+* Organize your documentation structure with Antora.
+* Submit your guide for review and integration into the Jmix Docs.
+
 ## Building
 
 * Install Node LTS release from https://nodejs.org
