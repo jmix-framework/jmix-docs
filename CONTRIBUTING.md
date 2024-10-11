@@ -10,6 +10,14 @@ To create a new Jmix guide, follow these steps:
 
 In order to write a guide based on the Jmix petclinic the following steps should be taken:
 
+#### Step 0: Setup a temporary environment variable
+
+Set up an environment variable to define the core name of your guide. This will help keep naming consistent across commands:
+
+```bash
+export GUIDE_NAME=business-logic
+```
+
 #### Step 1: Clone the Base Repository
 
 Clone the base jmix-petclinic-2 repository to your local machine:
@@ -25,7 +33,7 @@ This repository provides a template with existing configurations that simplify t
 Make a copy of the cloned repository, renaming it according to the topic you’re covering:
 
 ```bash
-cp -R jmix-petclinic-2 jmix-business-logic-sample
+cp -R jmix-petclinic-2 jmix-$GUIDE_NAME-sample
 ```
 
 Follow the jmix-topic-name-sample naming pattern to keep repository names consistent.
@@ -33,7 +41,7 @@ Follow the jmix-topic-name-sample naming pattern to keep repository names consis
 Then create a new repository in the Jmix GitHub organization:
 
 ```bash
-gh repo create jmix-framework/jmix-business-logic-sample --public
+gh repo create jmix-framework/jmix-$GUIDE_NAME-sample --public
 ```
 
 #### Step 3: Configure Git Remotes
@@ -41,7 +49,7 @@ gh repo create jmix-framework/jmix-business-logic-sample --public
 Point your local repository to the new GitHub repository:
 
 ```bash
-git remote set-url origin git@github.com:jmix-framework/jmix-business-logic-sample.git
+git remote set-url origin git@github.com:jmix-framework/jmix-$GUIDE_NAME-sample.git
 ```
 
 Then add the original jmix-petclinic-2 repository as the upstream remote, so you can easily pull updates from it:
@@ -58,8 +66,11 @@ git remote -v
 
 #### Step 4: Adjust Project Settings
 
-In settings.gradle, change the rootProject.name from jmix-petclinic to match your new project name, such as jmix-business-logic-sample.
+In settings.gradle, change the rootProject.name from jmix-petclinic to match your new project name:
 
+```bash
+echo "rootProject.name = 'jmix-$GUIDE_NAME-sample'" > settings.gradle
+```
 
 #### Step 5: Implement Your Example
 
@@ -84,7 +95,7 @@ Once your example is ready, it’s time to integrate it with the main Jmix docum
 Inside your project’s root directory, create a doc folder to house all documentation-specific files:
 
 ```bash
-mkdir -p doc/modules/business-logic-guide/{examples,images,pages}
+mkdir -p doc/modules/$GUIDE_NAME-guide/{examples,images,pages}
 ```
 
 Populate the doc directory with the following structure:
@@ -92,9 +103,9 @@ Populate the doc directory with the following structure:
 doc/
 ├── antora.yml
 └── modules
-    └── business-logic-guide
+    └── $GUIDE_NAME-guide
         ├── examples
-        │   └── jmix-business-logic-sample -> ../../../../src
+        │   └── jmix-$GUIDE_NAME-sample -> ../../../../src
         ├── images
         └── pages
             └── index.adoc
@@ -108,15 +119,14 @@ doc/
 To create the symbolic link for examples/jmix-business-logic-sample, run:
 
 ```bash
-cd doc/modules/business-logic-guide/examples
-ln -s ../../../../src jmix-business-logic-sample
+ln -s ../../../../src doc/modules/$GUIDE_NAME-guide/examples/jmix-$GUIDE_NAME-sample
 ```
 
 In doc/antora.yml, define the module’s metadata:
 
-```yaml
-name: jmix
-version: "2.4"
+```bash
+echo "name: jmix
+version: \"2.4\"" > doc/antora.yml
 ```
 
 Note: For more information on using symbolic links in Antora, see the [Antora symlinks documentation](https://docs.antora.org/antora/latest/symlinks/#remap-files-using-symlinks).
@@ -127,11 +137,11 @@ Note: For more information on using symbolic links in Antora, see the [Antora sy
 In the main Jmix Docs repository, update the settings.gradle to clone your example locally. For example:
 
 ```groovy
-cloneOrPull('https://github.com/jmix-framework/jmix-business-logic-sample', 'external/jmix-business-logic-sample')
-includeBuild 'external/jmix-business-logic-sample'
+cloneOrPull('https://github.com/jmix-framework/jmix-$GUIDE_NAME-sample', 'external/jmix-$GUIDE_NAME-sample')
+includeBuild 'external/jmix-$GUIDE_NAME-sample'
 ```
 
-Additionally, you have to add the source root to the anrota playbook:
+Additionally, you have to add the source root to the Antora playbook:
 
 ```yaml
 content:
@@ -139,7 +149,7 @@ content:
   - url: ./
     branches: HEAD
     start_path: content
-  - url: ./external/jmix-business-logic-sample
+  - url: ./external/jmix-$GUIDE_NAME-sample
     branches: HEAD
     start_path: doc
 ```
@@ -148,7 +158,7 @@ Finally, you have to add the guide to the main navigation asciidoc file:
 
 ```asciidoc
 * xref:ROOT:guides.adoc[]
-** xref:business-logic-guide:index.adoc[]
+** xref:$GUIDE_NAME-guide:index.adoc[]
 ```
 
 From now on you are able to write the docs directly in the jmix-docs IntelliJ IDEA project, which allows the Asciidoc plugin to recognise xref references correctly.
