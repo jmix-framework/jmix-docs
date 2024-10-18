@@ -43,7 +43,7 @@ public class PivottableEventsView extends StandardView {
         // end::cellclick[]
 
         // tag::refresh[]
-        pivotTable.addRefreshEventListener(e -> {
+        pivotTable.addRefreshListener(e -> {
             notifications.show("Refresh event",
                     "Renderer: " + messages.getMessage("pivottable.renderer." + e.getDetail().getRenderer().getId()) +
                             "\nAggregation: " + messages.getMessage("pivottable.aggregator." + e.getDetail().getAggregationMode().getId()) +
