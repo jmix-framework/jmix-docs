@@ -36,7 +36,8 @@ public class PivottableShowActionView extends StandardView {
     // tag::manual-set-action[]
     @Subscribe
     public void onInit(final InitEvent event) {
-        ShowPivotTableAction<TipInfo> showPivotTableAction = actions.create(ShowPivotTableAction.ID);
+        ShowPivotTableAction<TipInfo> showPivotTableAction =
+                actions.create(ShowPivotTableAction.ID);
         showPivotTableAction.setTarget(tipInfoesDataGrid);
         showManualSetPivotTableActionButton.setAction(showPivotTableAction);
         showManualSetPivotTableActionButton.setText(
@@ -54,11 +55,11 @@ public class PivottableShowActionView extends StandardView {
         renderers.setRenderers(List.of(Renderer.TABLE, Renderer.TABLE_BAR_CHART, Renderer.HEATMAP,
                 Renderer.ROW_HEATMAP, Renderer.COL_HEATMAP));
 
-        builder.withIncludedProperties(Arrays.asList("sex", "smoker", "day", "time"))
+        builder.withIncludedProperties(Arrays.asList("sex", "smoker", "day", "time")) // <1>
                 .withRows(Arrays.asList("sex", "smoker"))
                 .withColumns(Arrays.asList("day", "time"))
                 .withRenderers(renderers)
-                .withItems(tipInfoesDataGrid.getItems().getItems())
+                .withItems(tipInfoesDataGrid.getItems().getItems()) // <2>
                 .show();
     }
     // end::custom-action[]

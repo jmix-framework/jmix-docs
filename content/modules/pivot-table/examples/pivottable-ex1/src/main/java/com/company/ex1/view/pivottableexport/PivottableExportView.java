@@ -22,14 +22,19 @@ public class PivottableExportView extends StandardView {
 
     private PivotTableExporter pivotTableExport;
 
+    // tag::onInit[]
     @Subscribe
     protected void onInit(InitEvent event) {
-
+        // end::onInit[]
         // tag::export[]
-        PivotTableExcelExporter pivotTableExcelExporter = getApplicationContext().getBean(PivotTableExcelExporter.class);
-        pivotTableExport = getApplicationContext().getBean(PivotTableExporter.class, pivotTable, pivotTableExcelExporter);
+        PivotTableExcelExporter pivotTableExcelExporter = getApplicationContext()
+                .getBean(PivotTableExcelExporter.class);
+        pivotTableExport = getApplicationContext()
+                .getBean(PivotTableExporter.class, pivotTable, pivotTableExcelExporter);
         // end::export[]
+        // tag::onInit[]
     }
+    // end::onInit[]
 
     // tag::run-export[]
     @Subscribe(id = "exportButton", subject = "clickListener")
