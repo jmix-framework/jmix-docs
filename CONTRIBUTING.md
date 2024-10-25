@@ -107,17 +107,25 @@ cloneOrPull('https://github.com/jmix-framework/jmix-$GUIDE_NAME-sample', 'extern
 includeBuild 'external/jmix-$GUIDE_NAME-sample'
 ```
 
-Additionally, you have to add the source root to the Antora playbook (both `antora-playbook.yml` as well as `antora-playbook.ci.yml`):
+Additionally, you have to add the source root to the Antora playbook `antora-playbook.yml`:
 
 ```yaml
 content:
   sources: 
-  - url: ./
-    branches: HEAD
-    start_path: content
   - url: ./external/jmix-$GUIDE_NAME-sample
     branches: HEAD
     start_path: doc
+```
+
+On the `antora-playbook.ci.yaml` the definition also needs to be there, but is slightly different:
+
+```yaml
+content:
+  sources:
+    - url: https://github.com/jmix-framework/jmix-$GUIDE_NAME-sample.git
+      branches:
+        - main
+      start_path: doc
 ```
 
 Finally, you have to add the guide to the main navigation Asciidoc file:
