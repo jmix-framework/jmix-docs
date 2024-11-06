@@ -8,7 +8,6 @@ import io.jmix.core.entity.annotation.SystemLevel;
 import io.jmix.core.metamodel.annotation.DependsOnProperties;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
-import io.jmix.multitenancy.core.AcceptsTenant;
 import io.jmix.security.authentication.JmixUserDetails;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -24,7 +23,7 @@ import java.util.UUID;
         @Index(name = "IDX_USER__ON_USERNAME", columnList = "USERNAME", unique = true)
 })
 // tag::user[]
-public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
+public class User implements JmixUserDetails, HasTimeZone {
     // ...
     // end::user[]
     @Id
@@ -186,14 +185,6 @@ public class User implements JmixUserDetails, HasTimeZone, AcceptsTenant {
     public void setTimeZoneId(final String timeZoneId) {
         this.timeZoneId = timeZoneId;
     }
-
-    // tag::getTenantId[]
-
-    @Override
-    public String getTenantId() {
-        return tenant;
-    }
-    // end::getTenantId[]
     // tag::user[]
 }
 // end::user[]
