@@ -1,0 +1,481 @@
+= Service Task
+
+[[overview]]
+== Overview
+
+A *Service Task* is a specific type of task that represents an automated activity within a process.
+It is designed to invoke Java code, external services, APIs, or automated applications, to complete its function.
+
+.*图形表示法*
+
+A service task is visualized as a rounded rectangle with a small gear icon in the top-left corner.
+
+image::bpmn-service-task/service-task.png[,150]
+
+
+.*XML 表示*
+
+Depending on implementation, the service task may have different XML representation. See examples in the corresponding task type descriptions.
+
+[[properties]]
+== Properties
+
+A service task has the following properties:
+
+image::bpmn-service-task/service-task-properties.png[,400]
+
+Setting the task properties:
+
+* First, you have to set xref:bpmn/bpmn-tasks.adoc#common-task-properties[general task properties].
+* Then, define a _Task type_ and set the required parameters depending on the selected xref:task-types[type].
+* Set up xref:fail-retry[fail retry] or leave it default (blank).
+* Create _Execution listeners_ if they are necessary. See the xref:bpm:listeners.adoc[Listeners] section.
+* Decide whether you need xref:bpmn/bpmn-tasks.adoc#extension-properties[extension properties].
+* If you need to create multi-instances, see the xref:bpm:bpmn/multi-instance-activities.adoc[Multi-Instance] section.
+* About the _Async_ flag, see details in the xref:bpmn/transactions.adoc[Transactions] section.
+
+[TIP]
+====
+Actually, it is recommended always to set _Async_ on (true).
+In some cases, it can affect performance.
+====
+
+
+[[task-types]]
+== Types of Service Tasks
+
+Parameter _Task type_ defines the way service task is implemented.
+There are the following types of service tasks in Jmix BPM:
+
+image::bpmn-service-task/service-taks-types.png[,200]
+Let's overview them briefly:
+
+Spring bean:: In this case, specified method of the selected bean will be executed when the process reaches the task.
+Process variables or fixed values can be passed as method parameters, the result can be stored in a result variable.
+
+Java Delegate Class:: In this case, the service task is implemented as _JavaDelegate_ class, and its _execute()_ method will be invoked.
+Also, it supports a _Fields injection_ mechanism.
+
+Expression:: It is a general way to call any method or evaluate inline expression.
+
+Delegate expression:: Actually, it isn't expression, it is a Spring bean that implements JavaDelegate interface.
+So it has features of both.
+
+// External worker:: The External Worker Task allows you to create jobs that should be acquired and executed by External Workers.
+//todo -- test this
+
+
+[[spring-bean-service-task]]
+=== Spring Bean Service Task
+
+*Jmix BPM* allows to invoke from the service task a Spring bean method and provide parameter values for it.
+This approach is the most recommended for using in service tasks.
+That's why it is selected as a default task type.
+
+You can create a new bean right from here by clicking the _'Plus'_ button:
+
+image::bpmn-service-task/bean-create-button.png[,400]
+
+Next, enter the bean name:
+
+image::bpmn-service-task/create-new-bean.png[,450]
+
+And you'll be automatically switched to the code editor, where you can write required methods, for example:
+
+[source,java]
+----
+@Component(value = "smpl_OrderStatusBean")
+public class OrderStatusBean {
+
+    public Integer setStatus(String orderId, String status) {
+        // set status, returns quantity of items
+        return quantity;
+    }
+}
+----
+
+Also, bean name and methods are selected from drop-down lists:
+
+image::bpmn-service-task/select-bean.png[,400]
+
+After the method is selected, a panel for entering method argument values is displayed:
+
+image::bpmn-service-task/spring-bean-task-properties.png[,400]
+
+The *BPMN Inspector* builds an expression for bean method invocation, thai isn't editable.
+In the case of method from the screenshot above, the expression will be:
+
+ ${smpl_OrderStatusBean.setStatus(OrderId,'Sent')}
+
+Pay attention to the *is var* check box. It makes sense mostly for string parameters.
+If the checkbox is not selected, then the argument value will be written to the resulting expression in apostrophes.
+If the checkbox is selected, no apostrophes will be added and a variable with a provided name will be passed to the method.
+
+* `${smpl_MyBean.someMethod('description')}` — this expression will use the string value `description`.
+* `${smpl_MyBean.someMethod(description)}` — this expression will use the value of the variable named `description`.
+
+[[result-variable]]
+==== Result Variable
+
+If the selected method returns any value, the _Result variable_ field appears.
+You can put here one of the existing process variables or create a new one just entering its name.
+
+[WARNING]
+====
+Care about types when using existing variables.
+If the result type differs from existing, a new process variable with the same name will be created.
+If there was a `String` variable `a1`, and you save in it numeric result `100L`, there wil be a new variable 'a1' of type `Long' and value `100`.
+====
+
+The _Result variable_ has a _Use local scope_ checkbox.
+
+When set to `true`, this parameter ensures that the result variable created by the service task is scoped locally to the execution context of the task.
+This means that the variable will only be accessible within the current execution and will not be propagated to the parent execution or process instance.
+
+This setting helps in isolating the variable to the specific execution of the service task.
+If xref:bpm:bpmn/multi-instance-activities.adoc[multiple instances] of the same service task are running concurrently,
+each instance will have its own local variable, preventing interference between them.
+
+.*XML 表示*
+
+Here you can see how all the Spring bean service task parameters are represented in XML:
+
+[source,xml]
+----
+<serviceTask id="set-status-service-task" name="Set order status"
+    flowable:async="true" <1>
+    flowable:expression="${smpl_OrderStatusBean.setStatus(orderId,&#39;Sent&#39;)}" <2>
+    flowable:resultVariable="quantity" <3>
+    flowable:useLocalScopeForResultVariable="true" <4>
+    jmix:taskType="springBean" jmix:beanName="smpl_OrderStatusBean"> <5>
+  <extensionElements>
+    <jmix:springBean beanName="smpl_OrderStatusBean"
+     methodName="setStatus"> <6>
+      <jmix:methodParam name="orderId" type="java.lang.String"
+        isVariable="true">orderId</jmix:methodParam> <7>
+      <jmix:methodParam name="status" type="java.lang.String"
+        isVariable="false">Sent</jmix:methodParam> <8>
+    </jmix:springBean>
+  </extensionElements>
+</serviceTask>
+----
+<1> -- _Async_ flag, by default it is 'false' and omitted.
+<2> -- Generated expression, apostrophe symbols are substituted with `&#39;`.
+<3> -- Result variable.
+<4> -- Local scope flag, by default it is 'false' and omitted.
+<5> -- Task type
+<6> -- Spring bean name and method defined.
+<7> -- Parameter passes as process variable.
+<8> -- Parameter passed as direct value.
+
+[[process-variable-execution]]
+==== Process variable "`execution`"
+
+Spring bean doesn't see a process context.
+But in many cases it is required.
+For example, to get access to process variables and the current task properties.
+
+There is an embedded process variable named "`execution`" of the type `DelegateExecution` that can be used as a Spring bean method parameter.
+Create such a method, for example:
+
+[source, java]
+----
+@Component("MyProcessBean")
+public class MyProcessBean {
+
+    public void mySampleMethod(DelegateExecution execution) { <1>
+        String currentActivityId = execution.getCurrentActivityId();
+        Set<String> variableNames = execution.getVariableNames();
+        // etc.
+    }
+}
+----
+<1> -- `execution` parameter
+
+Then set this method in your service task:
+
+image::bpmn-service-task/execution-as-parameter.png[,400]
+
+
+[[java-delegate-service-task]]
+=== Java Delegate Service Task
+
+In this case, business logic will be executed by a class implementing `org.flowable.engine.delegate.JavaDelegate` interface with _execute()_ method.
+The method receives `execution` object as a parameter, so you'll have access to process context, including all process variables.
+
+If you select _JavaDelegate class_ option in the _Task type_ combo box, you can create a new class from here by clicking the _'Plus'_ button:
+
+image::bpmn-service-task/create-java-delegate.png[,400]
+
+Type the name of a new Java Delegate class in the dialog window:
+
+image::bpmn-service-task/new-java-delegate.png[,500]
+
+And you'll be automatically switched to the code editor, where you can write the logic you need.
+For example, let's implement the class creating a process variable with random value:
+
+[source,java]
+----
+public class RandomIndexJavaDelegate implements JavaDelegate {
+    @Override
+    public void execute(DelegateExecution execution) {
+        long randomIndex = new Random().nextLong(100L);
+        execution.setVariable("randomIndex", randomIndex);
+    }
+}
+----
+
+.*XML 表示*
+
+To specify a class called during process execution,
+the fully qualified class name needs to be provided by the `flowable:class` attribute.
+
+[source,xml]
+----
+<serviceTask id="Activity_java_delegate" name="Java delegate"
+    flowable:class="com.company.jmixbpmtraining.delegate.RandomIndexJavaDelegate" <1>
+    jmix:taskType="javaDelegateClass"> <2>
+  <extensionElements />
+</serviceTask>
+----
+<1> -- Specifying Java Delegate class.
+<2> -- Defining task type.
+
+[[instantiating-java-delegate]]
+==== Instantiating a Java Delegate Class
+
+The classes that are used in service tasks of the _Java Delegate_ type are *NOT instantiated during deployment*.
+When process engine achieves the task during execution for the first time, it creates an instance of the JavaDelegate class.
+
+There will be only one instance of the Java class created for the serviceTask on which it is defined.
+If more than one service tasks within a process refer to the same Java Delegate class,
+for each will be created a separate instance.
+All process instances share the corresponding class instance for the task.
+
+image::bpmn-service-task/java-delegate-instantiating.png[,600]
+
+This means that the class must not use any member variables and must be thread-safe, as it can be executed simultaneously from different threads.
+This also may affect xref:field-injections[Fields injection].
+
+
+[[delegate-expression-service-task]]
+=== Delegate Expression Service Task
+
+A *delegate expression* is a powerful feature used in service tasks that allows for the dynamic resolution of a Java object at runtime.
+For example, an expression like `$\{myServiceBean\}` would resolve to a Spring bean named `myServiceBean`.
+
+In a Spring context, delegate expressions can reference Spring beans directly, enabling seamless integration with the Spring framework.
+This allows for dependency injection and the use of Spring's features within the delegate implementation.
+
+To be used in delegate expressions your `JavaDelegate` class must be announced as a Spring bean by `@Component` annotation.
+In this case, it combines the features of both types -- _Spring bean_ and _Java Delegate_ class:
+
+[source,java]
+----
+@Component
+public class MyDelegateExpression implements JavaDelegate {
+    // Class fields and injections
+    @Override
+    public void execute(DelegateExecution execution) {
+    // Required logic
+    }
+}
+----
+
+In result, you have access to Spring context and process context from within this class.
+To invoke it, use the _Delegate expression_ task type. For example:
+
+image::bpmn-service-task/delegate-expression.png[,400]
+
+Here you can create a new delegate expression class:
+
+image::bpmn-service-task/new-delegate-expression.png[,500]
+
+Or select one of the existing classes from a pull-down list:
+
+image::bpmn-service-task/select-delegate-expression.png[,400]
+
+.*XML 表示*
+
+To specify a class called during process execution, it is possible to use an expression that resolves to an object.
+In XML, an attribute `flowable:delegateExpression` is used for this purpose:
+
+[source,xml]
+----
+<serviceTask id="delegate-expression"
+    name="Delegate expression task"
+    flowable:delegateExpression="${smpl_MyDelegateExpression}"
+    jmix:taskType="delegateExpression">
+</serviceTask>
+----
+
+[[expression-service-task]]
+=== Expression Service Task
+
+Expression is the most general way to invoke Java logic.
+You can call a Spring bean method from expression:
+
+image::bpmn-service-task/expression-service-task.png[,700]
+
+[[evaluating-value]]
+==== Evaluating a Value of Expression
+
+Also, you can use a value expression within a service task.
+Then specify a result variable, and the result of the expression will be assigned to it.
+For example:
+
+ ${'Hello, World!'}
+
+Result variable `greeting` will be equal `"Hello, World!".`
+
+
+// [[external-service-task]]
+// === External Service Task
+//todo -- later
+
+
+[[fail-retry]]
+=== Fail Retry
+
+About the *fail retry* concept, see xref:bpm:bpmn/transactions.adoc#fail-retry[Fail Retry].
+
+[[configuring-fail-retry]]
+==== Configuring
+To set a *Fail retry* parameters, find the corresponding property in the *BPMN Inspector* panel:
+
+image::bpmn-service-task/fail-retry-property.png[,400]
+
+The value must be time cycle expression follows *ISO 8601* standard, just like timer event expressions.
+The example `R5/PT7M` as above makes the job executor retry the job 5 times and wait 7 minutes between before each retry.
+
+*XML Representation*
+
+Fail retry parameter is presented by the `flowable:failedJobRetryTimeCycle element`.
+Here is a sample usage:
+
+[source,xml]
+----
+<serviceTask id="failingServiceTask"
+    flowable:async="true"
+    flowable:class="org.flowable.engine.test.jobexecutor.RetryFailingDelegate">
+    <extensionElements>
+        <flowable:failedJobRetryTimeCycle>R5/PT7M</flowable:failedJobRetryTimeCycle> <1>
+    </extensionElements>
+</serviceTask>
+----
+<1> -- Fail retry parameter.
+
+[NOTE]
+====
+Process engine, in its default configuration, reruns a job three times if there’s any exception in the execution of a job.
+====
+
+[[field-injections]]
+=== Field Injections
+
+The *field injections* is a Flowable mechanism of passing parameter in Java Delegate class as fixed string values or expressions resolved in strings.
+It can be used with the following task types:
+
+* Java Delegate class
+
+And, if a called object is Java Delegate class, in
+
+* Delegate expression
+* Expression
+
+Injected field must always be of `org.flowable.engine.delegate.Expression` type.
+When the injected expression is resolved, it can be cast to the appropriate target type.
+
+[WARNING]
+====
+You can't pass entities or other objects via _Field injection_. Actually, expression is resolved in `String` type.
+If the string value can be cast to your type, it's OK.
+Otherwise, it'll be an error.
+====
+
+How to inject fields:
+
+. Create fields definition in your `JavaDelegate` class:
++
+[source,java]
+----
+private Expression messageField;
+private Expression quantityField;
+----
+. On the diagram, select the service task and create fields with the same name as you defined in code:
++
+image::bpmn-service-task/create-field.png[,400]
+
+. Then enter field values, as expressions or strings:
++
+image::bpmn-service-task/field-injection-properties.png[,400]
++
+[TIP]
+====
+If you need to pass a numeric values, use expression like shown above, for example `$\{3\}`.
+If you write just _3_, this will be interpreted as `String` object "3" and cannot be cast to `Integer` type.
+====
+
+. At runtime, the process engine resolves expression and passes result strings in Java Delegate class.
+. In Java Delegate class, there must be a code getting values from the fields and casing them to desired types:
++
+[source,java]
+----
+String message = (String) messageField.getValue(execution);
+Integer quantity = (Integer) quantityField.getValue(execution);
+----
+
+[[field-injection-thread-safety]]
+==== Field Injection and Thread Safety
+
+In general, using service tasks with Java delegates and field injections are thread-safe. However, there are a few situations where thread-safety is not guaranteed, depending on the setup or environment Flowable is running in.
+
+Java delegate class task type::
+In this case, using field injection is always thread safe. For each service task that references a certain class, a new instance will be instantiated and fields will be injected once when the instance is created. Reusing the same class multiple times in different tasks or process definitions is no problem.
++
+Keep in mind that different process instances use the same instance of Java Delegate class referred to a task.
+It's possible to imagine that one process instance affects another, but this is very unlikely.
+
+Spring bean service and expression task type::
+Technically for Flowable, a Spring bean service task is represented by `flowable:expression` attribute.
++
+When using the `flowable:expression` attribute, use of field injection is unnecessary. Parameters are passed via method calls and these are always thread-safe.
++
+Strictly speaking, you can do field injection, but you shouldn't.
+
+Delegate expression service task::
+When using the `flowable:delegateExpression` attribute, the thread-safety of the delegate instance will depend on how the expression is resolved. If the delegate expression is reused in various tasks or process definitions, and the expression always returns the same instance, using field injection is not thread-safe.
++
+Two service tasks can use the same delegate expression, but inject different values for the `Expression` field. If the expression resolves to the same instance, there can be race conditions in concurrent scenarios when it comes to injecting the field someField when the processes are executed.
++
+The easiest solution to solve this is to either:
++
+* Rewrite the Java Delegate to use an expression or Spring bean and pass the required data via a method arguments.
+* Return a new instance of the delegate class each time the delegate expression is resolved. For example, when using Spring, this means that the scope of the bean must be set to prototype (such as by adding the `@Scope(SCOPE_PROTOTYPE)` annotation to the delegate class).
+
+****
+The `@Scope(SCOPE_PROTOTYPE)` annotation in Spring is used to define the scope of a bean, indicating that a new instance of the bean should be created each time it is requested from the Spring container.
+This is in contrast to the singleton scope, where only one instance of the bean is created and shared across the entire application. Prototype scope is ideal for beans that maintain state or are not thread-safe.
+****
+
+*Example*
+
+[source,java]
+----
+public class UpperCaseJavaDelegate implements JavaDelegate {
+
+    private Expression messageField;
+    private Expression quantityField;
+    @Override
+    public void execute(DelegateExecution execution) {
+
+        String message = (String) messageField.getValue(execution);
+        Integer quantity = (Integer) quantityField.getValue(execution);
+
+        String upperCaseMessage = message.toUpperCase();
+        for (int i = 0; i < quantity; i++) {
+            System.out.println(upperCaseMessage);
+        }
+    }
+}
+----

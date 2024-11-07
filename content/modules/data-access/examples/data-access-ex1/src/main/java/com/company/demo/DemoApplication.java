@@ -31,7 +31,8 @@ import javax.sql.DataSource;
 @PWA(name = "Demo", shortName = "Demo")
 // tag::data-repositories[]
 @SpringBootApplication
-@EnableJmixDataRepositories
+// TODO uncomment when https://github.com/jmix-framework/jmix/issues/3772 is fixed
+// @EnableJmixDataRepositories
 public class DemoApplication implements AppShellConfigurator {
 // end::data-repositories[]
 

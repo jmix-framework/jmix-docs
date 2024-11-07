@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 // tag::CustomExporter[]
 @Component
@@ -18,6 +19,11 @@ public class CustomExporter implements DataGridExporter {
 
     @Override
     public void setFileName(String fileName) {
+    }
+
+    @Override
+    public void exportDataGrid(Downloader downloader, Grid<Object> dataGrid, ExportMode exportMode, Predicate<Grid.Column<Object>> columnFilter) {
+
     }
 
     @Override

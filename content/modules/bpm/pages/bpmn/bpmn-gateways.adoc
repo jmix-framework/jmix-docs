@@ -1,0 +1,403 @@
+= 网关
+
+[[overview]]
+== 概览
+网关（Gateway）用于控制流程的流向，可以决定在什么条件下流程往哪个方向继续前进。
+每种类型的网关都有特定的用途，根据特定条件或事件引导流程的流向。
+
+使用网关可以对流程中的决策点、分支、合并和同步进行建模，
+可以更准确地表示更复杂以及动态的流程。
+
+[[gateway-types]]
+=== 网关类型
+
+*Jmix BPM* 支持 4 种类型的 BPMN 网关：
+
+* 排他网关（Exclusive）
+* 并行网关（Parallel）
+* 包容网关（Inclusive）
+* 事件网关（Event-based）
+
+不支持 *复杂网关（Complex gateway）*。
+
+'''
+
+[[grapical-gateways]]
+=== 图形表示
+
+所有的网关都显示为菱形，不同的网关内部的图标不同：
+
+image::bpmn-gateways/gateway-types.png[,400]
+
+[[forks-and-joins]]
+=== 分支与合并
+
+除了事件网关外，其他的网关都可以在流程建模中扮演两个角色：
+
+* *分支（fork）* -- 流程在这里分为几个不同的路径
+* *合并（join）* -- 流程在这里合并
+
+通常，分支和合并网关是配对的，但这也不是强制条件。
+如果流程产生了分支，每个路径都可以继续，直至遇到结束事件。
+
+[NOTE]
+====
+网关通过生成或使用 xref:bpm:bpm-concepts.adoc#tokens[tokens]
+控制流程的执行流向。
+====
+
+[[gateway-properties]]
+=== 网关属性
+
+所有网关只有通用属性：
+
+* Id
+* Name
+
+image::bpmn-gateways/gateway-properties.png[,400]
+
+
+[[exclusive-gateway]]
+== 排他网关
+
+排他（Exclusive）网关，也叫异或（XOR）网关，用于根据数据对流程中的决策进行建模，例如，
+根据流程变量值或 Bean 方法返回的值进行决策。
+
+当流程执行到达这种网关时，
+与传出顺序流关联的所有条件都按定义的顺序进行计算。
+
+其中 *第一个* 条件计算结果为 _true_ 的顺序流将选为流程继续的方向。
+空条件始终视为 _true_。
+
+这里的 “第一个”，是指 XML 文件中定义的顺序流的顺序，
+不一定是在网关描述中显示的顺序。
+
+这种区别强调的是，流的顺序是基于 XML 文件结构，
+而非网关中流的可视化表示或文本描述。
+
+人们经常使用疑问句作为排他网关的名称。
+例如，“文档是否已获得批准？”，但是网关本身也许没有任何内部逻辑。
+网关真正能工作的前提，是必须在传出流上定义条件。
+
+'''
+
+[[gateways-conditions]]
+=== 条件
+
+条件用于定义何时可以选取该路径。在 *Jmix BPM* 中，条件可以有以下来源：
+
+* 表达式（Expression）
+* 用户任务输出（User task outcomes）
+* 业务规则任务结果（Business rule task result）
+
+image::bpmn-gateways/condition-source.png[,400]
+
+[CAUTION]
+====
+仔细检查是否定义了所有必需的传出流条件。
+否则，如果没定义，则选择第一个路径。
+箭头上的文本标签对 BPM 引擎不表示任何意义。
+====
+
+[[expressions]]
+==== 表达式
+
+这是一个布尔表达式，可以访问流程变量并将其与文本或其他变量进行比较。
+同样，也可以在这里调用 Spring bean 的方法。
+
+示例：
+
+ ${orderAmount > 1000}
+ ${price > 100 && price <= 500}
+ ${accountant.username == "jane"}
+ ${jbt_MyService.getRandom > 0.5}
+ ${jbt_MyService.evaluateCondition()}
+
+最后一个情况中，方法需要返回 _boolean_ 值。
+
+[[user-task-outcomes]]
+==== 用户任务输出
+
+如果流程中有一个带输出的用户任务，可以选择其中一个输出用于激活给定的流。
+
+image::bpmn-gateways/exclisive-gateway-task-outcome.png[]
+
+设置基于输出的条件，首先选择一个用户任务，然后选择输出。
+
+当选择用户任务作为条件时，请确保用户任务在条件计算 *之前* 执行。
+否则，会引起运行时错误。
+
+// image::exclusive-gateway-wrong-task.png[,300]
+// image::exclusive-gateway-wrong-condition.png[,300]
+
+*条件和多实例用户任务*
+
+当用户任务是 xref:bpm:bpmn/multi-instance-activities.adoc[多实例] 时，
+会显示一个额外的参数 -- _condition type_：
+
+image::bpmn-gateways/outcome-based-condition-types.png[,300]
+
+支持以下选项：
+
+* 一人完成即可（Anyone completed with the outcome）
+* 每人都需完成（Everyone completed with the outcome）
+* 无人完成（No one completed with the outcome）
+
+使用这个参数可以实现某种形式的投票。
+例如，可以只要一个用户完成任务并产生 'yes' 的输出即可选择该路径。
+
+image::bpmn-gateways/outcome-based-condition.png[,600]
+
+[[business-rule-task-result]]
+==== 业务规则任务结果
+
+一个 xref:bpm:bpmn/bpmn-business-rule-task.adoc[业务规则] 任务返回的结果
+可以用在网关的条件中。
+
+image::bpmn-gateways/exclusive-gateway-business-rule.png[,600]
+
+如需基于业务规则结果设置条件，
+需要选择业务规则任务、决策表输出变量以及输出值。
+
+请确保选择的业务规则任务在网关 *之前* 执行。
+
+
+[[default-flow]]
+=== 默认流
+
+如果有一个传出流标记为默认流（带斜杠线），
+则仅当所有其他流的条件均为 _false_ 时，才会选择该路径。
+
+引擎会忽略默认流的条件。
+
+建议在对排他网关进行建模时使用默认流。
+但也不是必须使用。
+
+image::bpmn-gateways/default-flow-example.png[,300]
+
+[[using-exlusive-gateway]]
+=== 使用排他网关
+
+[[separate-forks-and-joins]]
+==== 独立的分支和合并
+
+从形式上讲，BPMN 规范允许同一个网关扮演传入和传出两个角色，但是这种用法是强烈不推荐的。
+
+因此，请避免使用如下图所示的排他网关，该网关既是分支又是合并：
+
+image::bpmn-gateways/exclusive-gateway-mixed-roles.png[,400]
+
+最好将网关的角色分开，如下图所示，有两个网关，一个用于合并，另一个用于分支：
+
+image::bpmn-gateways/exclusive-gateway-example-2.png[,400]
+
+'''
+
+[[multiple-true-conditions]]
+==== 多个条件为真
+
+image::bpmn-gateways/exclusive-gateway-two-true-conditions.png[,250]
+
+在此示例中，可以看到排他网关的两个条件都明显为真。
+但是首先会计算条件 #1，因为在 XML 中，#1 定义的位置高于 #2。
+但是，在网关的描述中，条件 #2 在最前面。
+
+[source, xml]
+----
+<process id="exclusion-gateway-demo" name="exclusion-gateway-demo" isExecutable="true">
+    <exclusiveGateway id="Gateway_0r2ejfv"> <3>
+      <incoming>Flow_1sjggq6</incoming>
+      <outgoing>Flow_2</outgoing>
+      <outgoing>Flow_1</outgoing>
+    </exclusiveGateway>
+    <endEvent id="Event_0kn6j1t" name="1">
+      <incoming>Flow_1</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_1" name="1 &#62; 0" sourceRef="Gateway_0r2ejfv" targetRef="Event_0kn6j1t"> <2>
+      <extensionElements>
+        <jmix:conditionDetails conditionSource="expression" />
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression">${1&gt;0}</conditionExpression>
+    </sequenceFlow>
+    <endEvent id="Event_1wmb937" name="2">
+      <incoming>Flow_2</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_2" name="2 &#62; 0" sourceRef="Gateway_0r2ejfv" targetRef="Event_1wmb937"> <1>
+      <extensionElements>
+        <jmix:conditionDetails conditionSource="expression" />
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression">${2&gt;0}</conditionExpression>
+    </sequenceFlow>
+    <startEvent id="Event_15w11z6">
+      <outgoing>Flow_1sjggq6</outgoing>
+    </startEvent>
+    <sequenceFlow id="Flow_1sjggq6" sourceRef="Event_15w11z6" targetRef="Gateway_0r2ejfv" />
+</process>
+----
+<1> -- 条件 #1 顺序流
+<2> -- 条件 #2 顺序流
+<3> -- 网关描述部分，条件 #2 在 #1 之前
+
+'''
+
+[[cascades-exclusive-gateways]]
+==== 排他网关级联
+
+排他网关在编程中类似于 'SWITCH' 运算符，而不是 'IF'。
+可以有满足需求的任意数量的传出流。
+
+因此，不要构建级联的 YES-NO 网关，
+可以使用更智能的条件来选择正确的传出流。
+
+所以，不要像这样建模：
+
+image::bpmn-gateways/exclusive-gateway-cascade.png[,500]
+
+这里用了计算原子条件的网关 _Sky == blue_ 和 _Sea == green_。
+如果两者都为真，则流程继续。但模型看起来很复杂。
+
+如果我们使用更高级的条件，我们可以避免级联的网关：
+
+image::bpmn-gateways/exclusive-gateway-no-cascade.png[,350]
+
+这里我们使用了组合条件 _Sky == blue && Sea == green_，
+只需一个网关即可。
+
+[[parallel-gateway]]
+== 并行网关
+
+并行网关（parallel gateway），也称为 AND 网关，用于将流程拆分为多个并行路径，
+或者将多个并行路径合并至单个流中。
+
+image::bpmn-gateways/parallel-gateway-example.png[,600]
+
+当流程执行到达并行网关时，流程的路径按传出流数进行分叉。
+
+如果存在合并并行网关，则流程将等待，直到所有传入流执行完毕。
+即，等待所有并行路径都到达合并网关。
+然后，流程经过合并网关继续。
+
+实际上，将并行路径全部合并也不是必需的。
+每个路径都可以有自己的 _结束事件_。
+但是整个流程只有在 *全部* 并行路径完成后才结束。
+
+[[parallel-gateway-conditions]]
+=== 条件
+
+并行网关传出流的条件会被忽略。
+
+[[parallel-gateway-default-flow]]
+=== 默认流
+
+并行网关的默认流会被忽略。
+
+[[using-parallel-gateway]]
+=== 使用并行网关
+
+[[separate-forks-joins]]
+==== 独立的分支和合并
+
+不要将一个并行网关作同时为分支和合并使用：
+
+image::bpmn-gateways/parallel-gateway-bad-example.png[,550]
+
+形式上是可以这么做，但是不推荐。
+
+[[use-cascades]]
+==== 使用级联
+
+请注意，并行网关不需要“平衡”
+（并行网关的传入传出顺序流的数量匹配）。
+
+并行网关将等待所有传入的顺序流并为每个传出顺序流创建一个并发的执行路径，
+不受流程模型中其他构造的影响。
+因此，以下流程在 BPMN 2.0 中是合法的：
+
+image::bpmn-gateways/parallel-gateway-cascaded.png[,600]
+
+这个模型也有效：
+
+image::bpmn-gateways/parallel-gateway-cascaded-2.png[,550]
+
+[[inclusive-gateway]]
+== 包容网关
+
+包容网关（Inclusive gateway），也称 OR 网关，可以看作是 _排他_ 和 _并行_ 网关的组合。
+
+与排他网关一样，可以在传出顺序流上定义条件，包容网关将计算这些条件。
+
+但主要区别在于，包容网关可以有多个顺序流，这点与并行网关一样。
+
+但是与并行网关不同在于，包容网关只等待将要执行的传入流（条件为真）。
+分支合并后，流程经过包容网关继续。
+
+image::bpmn-gateways/inclusive-gateway-example.png[,650]
+
+在此示例中，第一个用户填写一个表格，标记必须参与审批流程的人员。
+与并行流程不同，只有选定的员工才会收到审批任务。
+
+假设选则了一个 _Accountant_ 和一个 _Team leader_。
+然后 _合并_ 网关会等待，直到这两个员工都完成任务。
+
+[[inclusive-gateway-conditions]]
+=== 条件
+
+在包容网关中，条件与排他网关一样设置。
+
+[[inclusive-gateway-default-flow]]
+=== 默认流
+
+如果有默认的顺序流，则该分支将始终执行。
+
+[[event-based-gateway]]
+== 事件网关
+
+事件网关（Event-based gateway）提供了一种根据事件做出决策的方法。
+
+事件网关必须至少有两个传出顺序流。
+每个顺序流都必须连接一个中间捕获事件，捕获事件的类型可以为定时器、消息或信号。
+
+不允许在事件网关之后立即执行其他活动。
+
+当流程执行到达事件网关时，网关的行为类似于 *等待状态*：暂停执行。
+
+然后，对于每个传出顺序流，都会创建一个事件订阅。
+
+哪个事件首先触发，流程将向哪个分支前进。
+
+请注意，从事件网关的顺序流与普通顺序流不同。
+这些顺序流并没有实际“执行”。
+而是，
+流程引擎可以确定需要订阅哪些事件以及到达 *事件网关* 的执行活动。
+
+image::bpmn-gateways/event-based-gateway.png[,300]
+
+[[event-based-gateway-conditions]]
+=== 条件
+
+在事件网关中，所有传出顺序流上的条件都会被忽略。
+
+[[event-based-gateway-default-flow]]
+=== 默认流
+
+传出顺序流上的默认标记会被忽略。
+
+[[using-event-based-gateway]]
+=== 使用事件网关
+
+使用事件网关的一个典型情况是请求不可靠的外部服务。
+每当流程发送请求时，该服务都可能宕机或返回错误。
+
+使用事件网关，可以对其进行建模，如图所示：
+
+image::bpmn-gateways/event-based-gateway-usage.png[,500]
+
+在此示例中，服务任务向外部服务发送请求，然后流程到达事件网关，这里是一个等待状态。
+
+有三个选项：
+
+* *Success* -- 收到 OK 消息，流程继续其正常路径
+* *Failure* -- 收到错误消息，可以在这里处理错误消息；比如，如果需要，可以根据错误发送不同的消息。
+* *Timeout* -- 请求超时，必须决定下一步怎么做；比如，可以尝试重复请求。
+
+该模式使图更清晰、更易于理解。

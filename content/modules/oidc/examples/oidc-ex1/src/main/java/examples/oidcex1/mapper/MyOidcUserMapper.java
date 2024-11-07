@@ -20,6 +20,11 @@ public class MyOidcUserMapper extends BaseOidcUserMapper<MyUser> {
     }
 
     @Override
+    protected String getOidcUserUsername(OidcUser oidcUser) {
+        return oidcUser.getName();
+    }
+
+    @Override
     protected MyUser initJmixUser(OidcUser oidcUser) {
         return new MyUser();
     }

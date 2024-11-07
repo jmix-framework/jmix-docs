@@ -1,0 +1,163 @@
+= 泳池和泳道
+
+在 BPMN 中，
+一个 *泳池*（swimming pool）是一个图形元素，
+用于表示 xref:bpm:bpmn/bpmn-collaboration.adoc[协作] 中的一位参与者。
+泳池可以包含多个泳道。
+
+[[pools]]
+== 泳池
+泳池可以有多个泳道，泳道表示流程中不同的参与者。
+每个泳道包含一些活动（任务或子流程）。
+
+一般情况下，泳道用于高级分析模型，将每个参与者的责任区域进行可视化，易于理解。
+总之，BPMN 中的泳池和泳道的目的是为了提高业务流程中不同参与者之间的沟通和协作。
+
+[TIP]
+====
+避免在可执行模型中使用泳道。
+====
+
+[[adding-pool]]
+=== 添加一个泳池
+
+初始的流程模板并没有泳池。可以之后通过工具箱添加。
+新添加的泳池会自动覆盖图中的所有元素。
+
+image::bpmn-pool-lanes/adding-pool.png[]
+
+一旦添加，泳池无法从图中移除。
+删除泳池会删除 *所有* 包含的元素。
+
+.*属性*
+
+泳池创建后，单一流程图会变为 *协作流程图*。此时，*BPMN Inspector* 的行为也会相应的改变。
+
+现在如果没有选择任何元素，会显示协作的属性：
+
+image::bpmn-pool-lanes/collaboration-properties.png[,400]
+
+选择泳池元素时，会显示参与者的属性以及流程：
+
+image::bpmn-pool-lanes/process-properties.png[,550]
+
+不要把参与者的 id/name 和流程的 id/name 搞混了。参与者（泳池）只是图形对象，而流程是可以执行的对象。
+
+因此，需要手动执行或者通过 API 执行流程时，请使用流程 id。
+
+[NOTE]
+====
+在 Web 应用程序中，使用 _key_ 代替 _id_，特别是在流程定义列表中。
+====
+
+.*XML 表示*
+
+当添加了泳池后，XML 中会包含协作定义部分。
+
+[source,xml]
+----
+<collaboration id="Collaboration_16sinaz"> <1>
+    <participant id="Participant_1txu04k" processRef="pool-demo" /> <2>
+</collaboration>
+<process id="pool-demo" name="Pool demo" isExecutable="true"> <3>
+    <startEvent id="Event_0yeospn">
+      <outgoing>Flow_1snk2tn</outgoing>
+    </startEvent>
+    <sequenceFlow id="Flow_1snk2tn" sourceRef="Event_0yeospn" targetRef="Activity_187mecy" />
+    <userTask id="Activity_187mecy">
+      <incoming>Flow_1snk2tn</incoming>
+    </userTask>
+</process>
+----
+<1> -- 协作定义部分
+<2> -- 协作中的参与者（泳池）
+<3> -- 流程定义（与添加泳池之前一致）
+
+[NOTE]
+====
+流程引擎会忽略 `isExecutable`。
+====
+
+
+[[multiple-pools]]
+=== 多个泳池
+
+协作可以包含多个流程，如下图所示：
+
+image::bpmn-pool-lanes/collaboration-two-processes.png[,700]
+
+部署协作模型时，每个流程都将使用自己的 _id_ 单独部署，并且在流程定义列表中显示。因此，在协作时也可以开始任何流程。
+
+image::bpmn-pool-lanes/process-definitions-wiindow.png[,650]
+
+[TIP]
+====
+多个泳池的方法可以用在需要创建多个相互通信的流程时，或者有主流程和其他调用活动时。
+====
+
+[[empty-pool]]
+=== 空泳池
+
+空泳池表示流程中的一个参与者不具有任何定义的活动或流程。
+
+.*可视化展示*
+空泳池将显示为一个矩形，没有任何内部任务、事件或网关等元素。
+
+（待定）
+//todo - сейчас есть ошибка -- пустые пулы не рисуются нормально
+
+
+[[lanes]]
+== 泳道
+
+在 BPMN 中，*泳道*（Lanes）用于对泳池中的活动进行组织和分类。
+
+可以使用所选对象右侧的上下文工具菜单按泳道划分泳池；此外，还可以在上方或下方添加泳道：
+
+image::bpmn-pool-lanes/adding-lanes.png[,650]
+
+如需删除泳道，请使用删除工具。该工具只会删除泳道本身，而不会删除其内部元素。
+
+image::bpmn-pool-lanes/lane-properties.png[,400]
+
+.*属性*
+
+选择单一泳道可以查看其属性：
+
+image::bpmn-pool-lanes/lanes.png[]
+
+image::bpmn-pool-lanes/single-lane-properties.png[,400]
+
+这里可以设置泳道的 ID 和名称，将显示在图表上。
+此外，还可以为泳道的活动分配一个执行者，例如 xref:bpm:bpmn/bpmn-user-task.adoc[用户任务]。
+然后，
+如果任务的 Assignee 部分留空，则放置在此泳道中的所有用户任务都将分配给同一执行者。
+
+[NOTE]
+====
+不支持子流程。
+====
+
+.*XML 表示*
+
+泳道在 XML 文件中通过 <laneSet> 和对应的 <lane> 元素表示。
+每个泳道有一组属性以及包含在其中的活动。
+
+[source,xml]
+----
+<process id="pool-and-lanes" name="Pool and lanes" isExecutable="true">
+    <laneSet id="LaneSet_1lxq2l3">
+      <lane id="Lane_1" name="User 1">
+        <extensionElements>
+          <jmix:assignmentDetails assigneeSource="expression" assigneeValue="user1" assignee="user1" candidateUsersSource="users" candidateGroupsSource="userGroups" />
+          <jmix:conditionDetails conditionSource="userTaskOutcome" />
+        </extensionElements>
+        <flowNodeRef>Activity_0n34ol9</flowNodeRef>
+        <flowNodeRef>Activity_0758bjc</flowNodeRef>
+        <flowNodeRef>Event_1mkoyrv</flowNodeRef>
+      </lane>
+      <lane id="Lane_2" name="User 2">
+        ...
+      </lane>
+    </laneSet>
+----

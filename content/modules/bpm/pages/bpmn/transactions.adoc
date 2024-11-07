@@ -1,0 +1,116 @@
+= Transactions
+
+The process engine executes processes in a transactional manner.
+A *BPMN transaction* is a logical unit of work that groups a set of activities together,
+ensuring that either all activities succeed or, if any activity fails,
+the effects of the completed activities are undone through compensating actions.
+
+It means when you trigger an action such as starting a process, completing a task, or signaling an execution,
+the engine advances through the process until it encounters waiting states on all active execution paths.
+In more concrete terms,
+the engine performs a depth-first search through the process graph
+and will return once it has reached <<waiting-states,waiting states>> on every branch of execution.
+This is illustrated in the following picture:
+
+image::transactions/transactions-1.png[,500]
+
+We see a segment of a BPMN process with a user task, a service task and a timer event.
+Completing the user task and validating the address is part of the same unit of work,
+so it should succeed or fail atomically.
+
+That means that if the service task throws an exception, we have to roll back the current transaction,
+such that the execution tracks back to the user task and the user task is still present in the database.
+
+In (1) an application or client thread completes the task.
+In that same thread,
+process engine is now executing the service and advances until it reaches a waiting state,
+in this case, timer event (2).
+Then it returns the control to caller (3),
+committing the transaction.
+
+[[waiting-states]]
+== Waiting States
+In BPMN, a *waiting state* refers to a point in the process where the execution is paused,
+and the process is waiting for an event or a trigger to continue.
+This state can occur due to various reasons, such as waiting for a message, a timer event, or user input.
+
+Waiting states in process are:
+
+* User task
+* Timer event
+* Message catch event
+* Signal catch event
+* Service task with external worker
+* Event-based gateway
+
+
+[[asynchronous-continuation]]
+== Asynchronous Continuation
+
+Sometimes we need custom control over transaction boundaries in a process,
+in order to be able to scope logical units of work.
+This is where *asynchronous continuations* come into play.
+Consider the following process (fragment):
+
+image::bpm:/transactions/transactions-2.png[,800]
+
+In the next case, we are completing the user task, generating an invoice and then sending that invoice to the customer.
+This time the generation of the invoice is not part of the same unit of work,
+so we do not want to roll back the completion of the user task if generating an invoice fails.
+What we want process engine to do is complete user task (1),
+commit the transaction and return the control to the calling application.
+
+Then we want to generate the invoice asynchronously, in a background thread.
+This background thread is the xref:bpm:job-executor.adoc[Job Executor] (actually a thread pool)
+that periodically polls the database for jobs.
+Behind the scenes, when we reach the "generate invoice" task, we are creating a job "message" for the process engine
+to continue the process later and persisting it into the database.
+This job is then picked up by the job executor and executed.
+
+To use this feature, we have to set the async property `true`.
+
+image::transactions/async-property.png[,400]
+
+In the XML, it is presented by the attribute `flowable:async="true"`.
+
+[source,xml]
+----
+<serviceTask id="Activity_0pzv18b" name="Generate invoice"
+ flowable:async="true" />
+----
+
+The *async* attribute is applicable to:
+
+* Service task
+* Script task
+* Business rule task
+* Email sending task
+* Embedded subprocess
+* Call activity
+
+
+[[fail-retry]]
+== Fail Retry
+
+In BPMN, the concept of *fail retry* refers to the mechanisms implemented to handle failures in service tasks.
+When a task fails due to an error,
+the BPMN engine can automatically retry the execution of that task based on predefined configurations.
+There are two parameters:
+
+* Number of retries
+* Delay between retries
+
+If the task returns BPMN error, Job Executor waits a specified time and tries to execute the task again.
+If the maximum number of retries is reached and the task still fails, an incident is created,
+allowing for manual intervention or further error handling.
+
+[IMPORTANT]
+====
+Fail retry is applicable to asynchronous tasks only.
+====
+
+[NOTE]
+====
+For synchronous service tasks, retries are not automatically handled by the process engine.
+If a synchronous task fails, it will throw an exception and stop the process instance.
+====
