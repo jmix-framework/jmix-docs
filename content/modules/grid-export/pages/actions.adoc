@@ -1,5 +1,8 @@
 = Export Actions
 
+[[export-action]]
+== ExportAction
+
 `ExportAction` is a base xref:flow-ui:actions/list-actions.adoc[list action] designed for exporting data grid contents using a specified exporter. An instance of xref:exporters.adoc[DataGridExporter] is required for this action.
 
 This action can be configured for use with both xref:flow-ui:vc/components/dataGrid.adoc[] and xref:flow-ui:vc/components/treeDataGrid.adoc[] components.
@@ -9,17 +12,77 @@ Within `ExportAction`, there are methods available for managing functions that e
 * `addColumnValueProvider()` adds a function to retrieve values from a column.
 * `removeColumnValueProvider()` removes a column value provider function by column `id`.
 
+[[export-modes]]
+=== Export Modes
+
 `ExportAction` has three export modes: all rows, the current page, and selected rows.
 
 image::export-action.png[align="center",width="873"]
 
-* The *All rows* option exports all database records considering the applied filter and the initial data loader query from the view. Data loading occurs in batches, with the batch size configurable through the xref:grid-export:properties.adoc#jmix.gridexport.exportAllBatchSize[jmix.gridexport.exportAllBatchSize] application property.
+* The *All rows* option exports all database records matching the applied filter and the initial query used to populate the view's data.
++
+Data loading and export happen in *batches* to optimize performance and manage memory usage. The batch size is configurable via the xref:grid-export:properties.adoc#jmix.gridexport.export-all-batch-size[jmix.gridexport.export-all-batch-size] application property. The default batch size is `1000`.
++
+When exporting all records, the default *pagination strategy* is `keyset`. To change this, use the xref:grid-export:properties.adoc#jmix.gridexport.export-all-pagination-strategy[jmix.gridexport.export-all-pagination-strategy] application property.
 * The *Current page* option exports only the content displayed on the current page of the data grid.
 * The *Selected rows* option export only records selected in the data grid.
 
 The set of export options can be defined by a particular action using its `setAvailableExportModes()` method and corresponding `availableExportModes` property in XML. The default set of options is defined by the xref:properties.adoc#jmix.gridexport.default-export-modes[jmix.gridexport.default-export-modes] application property.
 
 You can override the header and message of the dialog by adding messages with `exportConfirmationDialog.header` and `exportConfirmationDialog.message` keys to your xref:localization:message-bundles.adoc[message bundle].
+
+[[columns-export]]
+=== Columns Exporting
+
+You can control which columns are included in the export using three different filtering options:
+
+. *Predefined Column Filter Predicate (Enumeration)*
++
+This option allows you to select from a predefined set of filtering behaviors to determine which columns are exported. Configure this using the xref:grid-export:properties.adoc#jmix.gridexport.default-columns-to-export[jmix.gridexport.default-columns-to-export] application property or the `columnsToExport` xref:flow-ui:actions/standard-actions.adoc#additional-properties[additional property] directly on the export action. The available options are:
++
+* `ALL_COLUMNS`: Exports all columns, regardless of visibility.
+* `VISIBLE_COLUMNS`: Exports only the columns currently visible in the `DataGrid`. Columns marked as visible using the xref:flow-ui:vc/components/gridColumnVisibility.adoc[gridColumnVisibility] component are included in the list of exported columns. This means that hidden columns will be excluded.
++
+The default value for new projects is `VISIBLE_COLUMNS`. Existing projects will have their previous export behavior (likely `ALL_COLUMNS`) migrated to the `application.properties` file.
++
+Below is an example showing how to configure the export of all columns for a customer `dataGrid`.
++
+[source,xml,indent=0]
+----
+include::example$/gridexport-ex1/src/main/resources/com/company/demo/view/customers/customers-view.xml[tags=excelExport]
+----
++
+NOTE: This method has the lowest priority; more specific methods will override this setting.
+
+. *Flexible Filtering Predicate (Extension Point)*
++
+This provides a mechanism for highly customized column selection logic. Create a method annotated with `@Install`, targeting the export action. This method receives a `Grid.Column` object and returns `true` if the column should be exported, `false` otherwise.
++
+[source,java,indent=0]
+----
+include::example$/gridexport-ex1/src/main/java/com/company/demo/view/customers/CustomersView.java[tags=columnsExportFilter]
+----
++
+include::flow-ui:vc/handler-generation-tip.adoc[]
++
+NOTE: This approach has medium priority, meaning it will override the predefined column filter predicate but will be overridden by explicitly specifying column keys.
+
+. *Explicit Column Key Specification (List of Keys)*:
++
+This provides the most direct control over which columns are exported. Use the `columnKeysToExport` xref:flow-ui:actions/standard-actions.adoc#additional-properties[additional property] of the export action to define a comma-separated list of column keys to export within the `<action>` definition:
++
+[source,xml,indent=0]
+----
+include::example$/gridexport-ex1/src/main/resources/com/company/demo/view/customers/customers-view.xml[tags=excel]
+----
++
+NOTE: This option has the highest priority and will override any other settings.
+
+*Priority Order*. So, the filtering options are processed in this order:
+
+1.  Explicit column key specification.
+2.  Flexible filtering predicate.
+3.  Predefined column filter predicate.
 
 [[excel-export-action]]
 == ExcelExportAction
@@ -56,6 +119,7 @@ excelExporter.dateFormat=m/d/yy
 excelExporter.dateTimeFormat=m/d/yy h:mm
 excelExporter.integerFormat=#,##0
 excelExporter.doubleFormat=#,##0.00##############
+excelExporter.decimalFormat=#,##0.00
 ----
 
 [[json-export-action]]
