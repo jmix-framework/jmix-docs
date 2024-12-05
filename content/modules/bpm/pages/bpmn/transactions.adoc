@@ -1,77 +1,77 @@
-= Transactions
+= 事务
 
-The process engine executes processes in a transactional manner.
-A *BPMN transaction* is a logical unit of work that groups a set of activities together,
-ensuring that either all activities succeed or, if any activity fails,
-the effects of the completed activities are undone through compensating actions.
+流程引擎以事务的方式执行流程。
+*BPMN 事务（transaction）* 是一个逻辑工作单元，将一组活动组合在一起，
+确保一组所有的活动都成功，或者如果任何活动失败，
+则已完成的活动将通过补偿操作撤消。
 
-It means when you trigger an action such as starting a process, completing a task, or signaling an execution,
-the engine advances through the process until it encounters waiting states on all active execution paths.
-In more concrete terms,
-the engine performs a depth-first search through the process graph
-and will return once it has reached <<waiting-states,waiting states>> on every branch of execution.
-This is illustrated in the following picture:
+事务是指当触发操作（例如启动流程、完成任务或发出执行信号）时，
+引擎在流程中前进，直到在所有激活的执行路径上遇到等待状态。
+更具体地说，
+引擎在流程图中执行深度优先搜索，
+并且在每个执行分支上都达到 <<waiting-states,等待状态>> 时返回。所有途径的活动都在一个事务中。
+下图对此进行了说明：
 
 image::transactions/transactions-1.png[,500]
 
-We see a segment of a BPMN process with a user task, a service task and a timer event.
-Completing the user task and validating the address is part of the same unit of work,
-so it should succeed or fail atomically.
+我们可以看到，这是 BPMN 流程图的一部分，其中包含了一个用户任务、一个服务任务以及一个定时器任务。
+用户任务和服务任务是同一工作单元的内容，
+因此这两个任务应该以原子方式成功或失败。
 
-That means that if the service task throws an exception, we have to roll back the current transaction,
-such that the execution tracks back to the user task and the user task is still present in the database.
+即，如果服务任务抛出异常，我们必须回滚当前事务，
+执行过程就会回溯到用户任务，并且用户任务仍然存在于数据库中。
 
-In (1) an application or client thread completes the task.
-In that same thread,
-process engine is now executing the service and advances until it reaches a waiting state,
-in this case, timer event (2).
-Then it returns the control to caller (3),
-committing the transaction.
+在（1）中，应用程序或客户端线程完成任务。
+在同一线程中，
+流程引擎现在正在执行服务任务并前进，直到遇到等待状态，
+在本例中，等待状态为定时器事件（2）。
+然后它将控制权返回给调用者（3），
+并提交事务。
 
 [[waiting-states]]
-== Waiting States
-In BPMN, a *waiting state* refers to a point in the process where the execution is paused,
-and the process is waiting for an event or a trigger to continue.
-This state can occur due to various reasons, such as waiting for a message, a timer event, or user input.
+== 等待状态
+在 BPMN 中，一个 *等待状态（waiting state）* 指的是流程到达某个点时停止前进了，
+需要等待一个事件或触发器才能继续。
+这个状态可能由于各种原因发生，例如等待消息、定时器事件或用户输入。
 
-Waiting states in process are:
+流程中的等待状态包括：
 
-* User task
-* Timer event
-* Message catch event
-* Signal catch event
-* Service task with external worker
-* Event-based gateway
+* 用户任务
+* 定时器事件
+* 消息捕获事件
+* 信号捕获事件
+* 带外部 worker 的服务任务
+* 基于事件的网关
 
 
 [[asynchronous-continuation]]
-== Asynchronous Continuation
+== 异步延续
 
-Sometimes we need custom control over transaction boundaries in a process,
-in order to be able to scope logical units of work.
-This is where *asynchronous continuations* come into play.
-Consider the following process (fragment):
+有时我们需要对流程中的事务边界进行自定义控制，
+以便能够确定逻辑工作单元的范围。
+这就是 *异步延续（asynchronous continuations）* 的作用。
+在以下流程片段中：
 
 image::bpm:/transactions/transactions-2.png[,800]
 
-In the next case, we are completing the user task, generating an invoice and then sending that invoice to the customer.
-This time the generation of the invoice is not part of the same unit of work,
-so we do not want to roll back the completion of the user task if generating an invoice fails.
-What we want process engine to do is complete user task (1),
-commit the transaction and return the control to the calling application.
+在这个案例中，我们先完成用户任务，然后生成发票，最后将发票发送给客户。
+这次，生成发票的任务与用户任务不在同一工作单元，
+因此，如果生成发票失败，我们不希望回滚已经完成的用户任务。
+我们希望流程引擎这么操作：完成用户任务（1），
+提交事务并将控制权返回给调用应用程序。
 
-Then we want to generate the invoice asynchronously, in a background thread.
-This background thread is the xref:bpm:job-executor.adoc[Job Executor] (actually a thread pool)
-that periodically polls the database for jobs.
-Behind the scenes, when we reach the "generate invoice" task, we are creating a job "message" for the process engine
-to continue the process later and persisting it into the database.
-This job is then picked up by the job executor and executed.
+然后，我们希望在后台异步线程中生成发票。
+该后台线程是一个 xref:bpm:job-executor.adoc[作业执行器]（实际上是一个线程池），
+会定期轮询数据库查找需要处理的作业。
+因此，实际当流程到达 “生成发票” 任务时，我们为流程引擎创建了一个需要生成作业的 “消息”，
+告诉流程引擎稍后再继续流程并将作业写入数据库。
+然后，该作业由作业执行器加载并执行。
 
-To use this feature, we have to set the async property `true`.
+如需使用此功能，必须设置 `async` 属性为 `true`。
 
 image::transactions/async-property.png[,400]
 
-In the XML, it is presented by the attribute `flowable:async="true"`.
+在 XML 中，设置 `flowable:async="true"`。
 
 [source,xml]
 ----
@@ -79,38 +79,38 @@ In the XML, it is presented by the attribute `flowable:async="true"`.
  flowable:async="true" />
 ----
 
-The *async* attribute is applicable to:
+`async` 属性可用于：
 
-* Service task
-* Script task
-* Business rule task
-* Email sending task
-* Embedded subprocess
-* Call activity
+* xref:bpmn/bpmn-service-task.adoc[服务任务]
+* xref:bpmn/bpmn-script-task.adoc[脚本任务]
+* xref:bpmn/bpmn-business-rule-task.adoc[业务规则任务]
+* xref:bpmn/jmix-email-task.adoc[电子邮件任务]
+* xref:bpmn/bpmn-subprocesses.adoc#embedded-subprocess[嵌入子流程]
+* xref:bpmn/bpmn-subprocesses.adoc#call-activity[调用活动]
 
 
 [[fail-retry]]
-== Fail Retry
+== 失败重试
 
-In BPMN, the concept of *fail retry* refers to the mechanisms implemented to handle failures in service tasks.
-When a task fails due to an error,
-the BPMN engine can automatically retry the execution of that task based on predefined configurations.
-There are two parameters:
+在 BPMN 中，*失败重试（fail retry）* 是指处理失败的服务任务的一种机制。
+当任务由于发生错误而失败时，
+BPMN 引擎可以根据预定义的配置自动重试执行该任务。
+配置有两个参数：
 
-* Number of retries
-* Delay between retries
+* 重试次数
+* 重试间隔
 
-If the task returns BPMN error, Job Executor waits a specified time and tries to execute the task again.
-If the maximum number of retries is reached and the task still fails, an incident is created,
-allowing for manual intervention or further error handling.
+如果任务返回 BPMN 错误，作业执行器将等待特定的时间，然后尝试再次执行该任务。
+如果执行次数达到最大重试次数，但任务仍然失败，则会创建一个故障（incident），
+可以进行手动干预或做进一步错误处理。
 
 [IMPORTANT]
 ====
-Fail retry is applicable to asynchronous tasks only.
+失败重试仅适用于异步任务。
 ====
 
 [NOTE]
 ====
-For synchronous service tasks, retries are not automatically handled by the process engine.
-If a synchronous task fails, it will throw an exception and stop the process instance.
+对于同步服务任务，流程引擎不会处理重试。
+当同步任务失败时，会抛出异常并停止流程实例。
 ====

@@ -1,79 +1,79 @@
-= Error Handling
+= 错误处理
 
 
 [[errors-catching]]
-== Errors Catching
+== 捕获错误
 
-Errors can be thrown by xref:bpmn/bpmn-events.adoc#error-end-event[error end events] or programmatically.
+错误可以由 xref:bpmn/bpmn-events.adoc#error-end-event[错误结束事件] 或编程的方式抛出。
 
-A thrown error *MUST* be caught by an error catch event, specifically using an error boundary event or an error event subprocess.
-Otherwise, it causes an exception.
+抛出的错误 *必须* 由错误捕获事件进行捕获，例如，使用错误边界事件或错误事件子进程。
+否则，将导致异常。
 
 [[catching-error-boundary-event]]
-=== Catching Error by Boundary Event
+=== 用边界事件捕获错误
 
-When an error event is caught, the activity on which the boundary event is defined is destroyed,
-also destroying all current executions within (concurrent activities, nested subprocesses, and so on).
-Process execution continues following the outgoing sequence flow of the boundary event.
+当错误事件被捕获时，将销毁定义了边界事件的活动，
+同时还会销毁其内部所有的执行过程（例如，并发活动、嵌入子流程等）。
+流程按照边界事件的传出流继续前进。
 
 image::bpm:errors-hanling/error-catching-boundary.png[,300]
 
 [[event-subprocess-priority]]
-=== Event Subprocess Priority
+=== 事件子流程优先级
 
-Event subprocess has a priority over the error boundary event.
-So, when an error occurs, the subprocess starts, but the boundary error handler never be activated.
+事件子流程的优先级高于错误边界事件。
+因此，当发生错误时，子流程会启动，但边界错误处理器（Boundary error handler）不会被激活。
 
 image::bpm:errors-hanling/start-error-event-example-2.png[,500]
 
 [[error-propagation]]
-=== Error Propagation
+=== 错误传播
 
-Suppose, the process has parallel paths with call activities, each of them may throw an error.
-Then, it's possible to use error boundary events without outgoing flows if there is an event subprocess for handling errors:
+假设流程具有两个调用活动的并行路径，每个活动都可能抛出错误。
+如果有处理错误的事件子流程，则可以使用不带传出流的错误边界事件：
 
 image::bpm:errors-hanling/parallel-errors catcing.png[,500]
 
-The error, thrown inside call activity will be propagated to the top-level process and caught by event subprocess.
+从调用活动内部抛出的错误会传播值流程的顶层并由事件子流程捕获。
 
 // Such an error will propagate its parent scopes upwards until a scope is found on which a boundary error event is defined that matches the error event definition.
 
 [[matching-errors]]
-=== Matching Errors
+=== 错误匹配
 
-Usually, error event has a code. Sometimes the code can be omitted, then `id` parameter will be used.
+通常，错误事件有一个编码（code）。有时可以省略编码而使用 `id` 参数。
 
-*Single error catching event*
+*单一错误捕获事件*
 
-When there is only one error catching event in the given scope, it catches *ALL* errors with any codes.
+当给定范围内只有一个错误捕获事件时，它会捕获任何编码的 *全部* 错误。
 
-In the example below, the single error catching event catches both errors with codes 1 and 2.
-If in the error catching event set parameter _Error_, it will be ignored.
-
-image::bpm:errors-hanling/error-one-catch-many.png[,600]
-
-An event subprocess with error start event works the same way -- it will catch any error.
-
-*Matched errors codes*
-
-In the other example, we can see designated error catching events for every type of errors:
+在下面的示例中，单一的错误捕获事件可以捕获编码为 1 和 2 的错误。
+此时将忽略错误捕获事件中的 _Error_ 参数。
 
 image::bpm:errors-hanling/error-one-catch-many.png[,600]
 
-Respectively, if error #1 occurs, the first catching evens will be activated, if error #2 -- the second one.
+一个包含错误启动事件的事件子流程也是一样，可以捕获任务错误。
+
+*错误编码匹配*
+
+在下面的示例中，为不同类型的错误使用了不同的错误捕获事件：
+
+image::bpm:errors-hanling/matching-errors.png[,600]
+
+如果发生错误 #1，则激活第一个捕获事件，如果发生错误 #2，则激活第二个。
 
 [NOTE]
 ====
-The BPM engine considers the error events matching when they refer to the same _error definition_.
+在 BPM 引擎中，当错误和错误事件引用的是同一个 _错误定义（error definition）_ 时，则认为匹配。
 ====
 
-*Error code doesn't match*
+*错误编码不匹配*
 
-When a code of thrown error doesn't match any error catching event, the first defined error will be activated.
+当抛出错误的编码与任何错误捕获事件都不匹配时，将激活第一个定义的捕获事件。
 
 image::bpm:errors-hanling/error-code-not-match.png[,600]
 
-The *first* means here which of boundary events is higher in the XML file:
+*第一个* 的意思是 XML 中先定义的那个边界事件：
 
 [source,xml]
 ----
@@ -92,39 +92,39 @@ The *first* means here which of boundary events is higher in the XML file:
 </boundaryEvent>
 ...
 ----
-<1> -- Boundary event #2 defined first
-<2> -- Boundary event #1 defined second
+<1> -- 边界事件 #2 先定义。
+<2> -- 边界事件 #1 后定义。
 
-So, in our case, catching event #2 will be activated when the code of thrown error is "500".
+此时，当抛出错误编码为 “500” 的错误时，会激活捕获事件 #2。
 
 [NOTE]
 ====
-The same is applicable to boundary events attached to task or call activity.
+这个规则同样适用于附着在任务或调用活动的边界事件。
 ====
 
-*Errors without code*
+*无编码错误*
 
-The parameter `errorCode` can be omitted. In this case, `errorId` will be used instead.
+当参数 `errorCode` 被省略时，将使用 `errorId`。
 
-For example, thrown error has a code "green":
+例如，抛出编码为 "green" 的错误：
 
 [source,xml]
 ----
   <error id="err_green" name="Error green" errorCode="green" />
 ----
 
-But catching event set to the error with id = "green" and without code:
+但是捕获事件设置的错误是 `id="green"`，而没有设置错误编码：
 
 [source,xml]
 ----
   <error id="green" name="Err1"/>
 ----
 
-Those errors will be matched.
+此时错误也能匹配。
 
-*Errors thrown programmatically*
+*编程式抛出错误*
 
-When the error is generated programmatically, it has only code but not id:
+当使用编程式生成错误时，错误只有编码，没有 id：
 
 [source,java]
 ----
@@ -132,8 +132,8 @@ throw new BpmnError("500");
 ----
 
 [[unhandled-errors]]
-== Unhandled Errors
+== 未处理的错误
 
-When an error is thrown and not caught, a Flowable exception will be thrown.
+当抛出错误却没有捕获时，会抛出一个 Flowable 异常。
 
 // image::bpmn-events/multi-errors-example.png[,600]

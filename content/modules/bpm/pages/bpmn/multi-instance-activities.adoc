@@ -1,32 +1,33 @@
-= Multi-instance Activities
+= 多实例活动
 
 [[overview]]
-== Overview
-A *multi-instance activity* is a way of defining repetition for a certain step in a business process.
-In programming concepts, a multi-instance is equivalent to the `for each` construct: it allows you to execute a certain step,
-or even a complete subprocess, for each item in a given collection, *sequentially* or in *parallel*.
+== 概览
+*多实例活动（multi-instance activity）* 是定义业务流程中某个重复步骤的一种方式。
+在编程概念中，多实例与 `for each` 结构等价：给定一个条目集合，对于集合中的每个条目，
+都可以执行一个特定的步骤，甚至是一个完整的子流程，
+执行的顺序可以是 *串行（sequentially）* 的也可以是 *并行（parallel）* 的。
 
-A multi-instance is a regular activity that has extra properties defined (named '_multi-instance characteristics_')
-that will cause the activity to be executed multiple times at runtime.
-The following activities can become a _multi-instance activity_:
+多实例活动也是一个常规活动，但是需定义额外的属性，名为 `_multi-instance characteristics（多实例特性）_`，
+这样的活动在运行时可以执行多次。
+下列活动可以定义为 _多实例活动_：
 
-* User Task
-* Script Task
-* Service Task
-* Embedded Subprocess
-* Call Activity
+* 用户任务
+* 脚本任务
+* 服务任务
+* 嵌入子流程
+* 调用活动
 
 .*图形表示法*
 
-Multi-instance activities are visually represented as regular activities
-provided with *parallel* or *sequential* xref:bpm:bpmn/bpmn-elements.adoc#markers[marker] in the center-bottom of the task or subprocess element.
-Three vertical lines indicate that the instances will be executed in parallel, while three horizontal lines indicate sequential execution.
+多实例活动在图中显示为一个常规活动，
+但是在任务或子流程元素的中下部有 *并行* 或 *串行* xref:bpm:bpmn/bpmn-elements.adoc#markers[标记]。
+三条竖线表示实例并行执行，而三条横线表示顺序执行。
 
 image::multi-instance/multi-instance.png[,350]
 
 .*XML 表示*
 
-To make an activity multi-instance, the activity XML element must have a `multiInstanceLoopCharacteristics` child element.
+活动的 XML 元素使用 `multiInstanceLoopCharacteristics` 子元素声明多实例特性。
 
 [source,xml]
 ----
@@ -35,178 +36,178 @@ To make an activity multi-instance, the activity XML element must have a `multiI
 </multiInstanceLoopCharacteristics>
 ----
 
-The *isSequential* attribute indicates if the instances of that activity are executed sequentially or in parallel.
-By default, this attribute is omitted and its value is considered `false`.
+`isSequential` 属性表示多实例的执行顺序。
+该属性默认可以省略，默认值为 `false`（并行）。
 
 [[special-variables]]
-== Special Variables
+== 特殊变量
 
-As required by the BPMN 2.0 specification, each parent execution of the created executions for each instance will have the following variables:
-
-[horizontal]
-nrOfInstances:: The total number of instances.
-
-nrOfActiveInstances:: The number of currently active (not yet finished) instances.
-For a sequential multi-instance, this will always be 1.
-
-nrOfCompletedInstances:: The number of already completed instances.
-
-These values can be retrieved by calling the _execution.getVariable(x)_ method.
-
-Additionally, each of the created executions will have an execution-local variable
-(not visible for the other executions, and not stored on process instance level):
+多实例中的每个实例的执行过程都是由同一个父执行过程创建，根据 BPMN 2.0 规范的要求，这个父执行过程有以下变量：
 
 [horizontal]
-loopCounter:: It indicates the index in the for-each loop of that particular instance.
+nrOfInstances:: 实例总数。
+
+nrOfActiveInstances:: 当前以激活（尚未完成）的实例数。
+对于串行多实例，该值始终为 1。
+
+nrOfCompletedInstances:: 已完成的实例数。
+
+这些变量的值可以通过调用 `execution.getVariable(x)` 方法获取。
+
+另外，每个创建的子执行过程中都有一个局部变量
+（其他子执行过程不可见，也不在流程实例级别存储）：
+
+[horizontal]
+loopCounter:: 特定实例在 for-each 循环中的索引（index）。
 
 
 [[setting-multi-instance-peoperties]]
-== Properties
+== 属性
 
-To make an activity multi-instance, select it on the canvas and go to the *BPMN Navigator* panel.
-Choose a desired instance type:
+如需将一个活动设置为多实例，请在画布中选择该活动，然后在 *BPMN Navigator* 面板中，
+选择所需的实例类型：
 
 image::multi-instance/multi-instance-types.png[,350]
 
 [[defining-number-of-instan]]
-=== Number of Instances
+=== 实例数
 
-The number of instances can be defined by two ways:
+实例数可以通过两种方式定义：
 
-* *Directly* -- by setting a _Cardinality_ parameter.
-* *By collection* -- it'd be equal a collection size.
+* *直接定义* -- 通过设置一个 _Cardinality_ 参数。
+* *由集合定义* -- 实例数等于集合大小。
 
-When setting _cardinality_, you can use expressions that resolve to a positive number, like this:
+当设置为 _cardinality_ 时，可以使用表达式，表达式需要解析为一个正数，如：
 
  ${nrOfOrders-nrOfCancellations}
 
 
-Set collection source and collection:: -- there are various sources available -- expression,
-process variable, and user provider. In this case, process engine creates as many activities as collection size is.
+设置集合来源和集合:: -- 集合来源可以选择：表达式、
+流程变量、以及用户 Provider。流程引擎会按照集合的大小创建同等数量的活动：
 
 image::multi-instance/collection-source-user-task.png[,350]
 
 
-.*Set Collection from Expression*
-Also, you can use expression to pass a collection in multi-instance activity.
-The expression may contain a call of a bean method returning a list of objects:
+.*用表达式设置集合*
+使用表达式可以为多实例活动传入一个集合。
+表达式中可以包含一个 bean 方法的调用，方法需要返回对象列表：
 
  ${smpl_OrderService.getOrders()}
 
-.*Set Collection from Process Variable*
+.*用流程变量设置集合*
 
-The simplest way is to use process variable as a collection source.
-It can be a list of entities, strings, numbers or any objects you need.
+最简单的方式是使用流程变量作为集合源。
+可以是实体列表、字符串列表、数字列表或任何其他对象列表。
 
 [NOTE]
 ====
-For user tasks, it must be a list of usernames (`String`) or a list of users
-(objects of the `User` class or class implementing `UserDetails` interface).
+对于用户任务，集合必须是用户名列表（`String`）或用户列表
+（`User` 或其他实现了 `UserDetails` 的类对象）。
 
-Besides, the only _Assignee source_ is available in this case -- *Expression*.
-If the collection named `usernames` with items having the type of `String`, the expression would be like this:
+还有，此时唯一可用的 _Assignee source_ 是 *表达式*。
+如果集合是名为 `usernames` 的 `String` 集合，则表达式为：
 
  ${usernames_item}
 
-And if the collection named `users` with items of the `User` class or `UserDetails`, the expression would be
+如果集合是名为 `users` 的 `User` 或 `UserDetails` 集合，则表达式为：
 
  ${users_items.username}
 
-You can edit the expression manually but do this with care.
+可以手动编辑表达式，但是要注意。
 ====
 
-.*Set collection from UserProvider*
-In the third variant, you can implement a *UserListProvider* and use a list of usernames in multi-instance activity.
+.*用 UserProvider 设置集合*
+最后一种方式是可以实现 *UserListProvider*，并提供一组用户名的列表。
 
-See xref:bpmn/bpmn-user-task.adoc#user-list-provider[User List Provider] in the *User Task* section.
+参阅 *用户任务* 部分的 xref:bpmn/bpmn-user-task.adoc#user-list-provider[用户列表 Provider]。
 
-When the _collection_ is set, the system automatically creates an _Element variable_.
-It plays the role of the iteration variable in the `for each` construct.
-You can rename the element variable as you wish.
+当 _collection_ 设置完成后，系统会自动创建一个 _（元素变量）Element variable_。
+这个变量在 `for each` 结构中扮演迭代器变量的角色。
+可以根据需要重命名这个变量。
 
 [[completion-conditions]]
-=== Completion Conditions
+=== 完成条件
 
-As a common, multi-instance activity ends when all instances are completed. However,
-it is possible to specify an expression evaluated every time an instance ends.
+多实例活动一般在所有实例都完成时结束。然而，
+也可以指定一个表达式，在每个实例结束时进行计算。
 
-When this expression evaluates to true, all remaining instances are destroyed and the multi-instance activity ends,
-continuing the process. Such an expression must be defined in the *completionCondition* child element.
+当此表达式的计算结果为 `true` 时，多实例活动结束，并销毁所有剩余实例，
+流程继续前进。这种表达式必须在 `completionCondition` 子元素中定义。
 
-For example,
+例如，
 
  ${nrOfCompletedInstances > nrOfActiveInstances}
 
-It means when the number of completed tasks becomes greater than the number of active instances,
-all remaining tasks would be dropped.
+这个表达式表示：当完成的任务数量大于激活的实例数量时，
+所有剩余的任务将被丢弃。
 
-Also, it is possible to call Spring bean methods in condition expression:
+此外，条件表达式中也可以调用 Spring bean 方法：
 
  ${smpl_ErrorService.failure()}
 
 
 [[using-local-variables]]
-== Using Local Variables
+== 使用局部变量
 
-Suppose, we want to build a process in which multiple performers will write a value of the variable.
-For example, several teachers set score to the student's work. Or it can be a service task, writing some value.
+假设，我们想要构建一个流程，流程中的多个执行者都会写入一个变量的值。
+例如，多个老师为学生的作业打分。或者也可以是一个服务任务，需要写入某些值。
 
-In this case, you should use local variables in the multi-instance activity.
-Otherwise, each instance will override the value of the outer scope variable.
+在这种情况下，应该在多实例活动中使用局部变量。
+否则，每个实例都会覆盖外部变量的值。
 
 image::local-variables-multi.png[,700]
 
 [[outcomes-based-conditions]]
-== Outcomes-based Conditions
+== 基于输出的条件
 
-When a multi-instance is a user task having outcomes, it is possible to arrange some kind of "voting".
+当多实例是一个有输出的用户任务，则可以实现某种形式的 “投票”。
 
-In this case, the system stores the decision made by each user in the so-called _outcomes container_ --
-a  process variable of the type `OutcomesContainer`.
-After completion of all instances, you can see all results in this container.
+在这种情况下，系统会将每个用户做出的决策存储在 _输出容器（outcomes container）_ 中，
+这是一个 `OutcomesContainer` 类型的流程变量。
+所有实例都完成后，可以在此容器中看到所有结果。
 
-Then, you can use completion conditions of those types on the sequence flows outgoing from exclusive or inclusive gateway:
+然后，可以在排他网关或包容网关的传出的顺序流上使用以下类型的完成条件：
 
-* Anyone completed with the outcome
-* Everyone completed with the outcome
-* No one completed with the outcome
+* 任何人完成输出
+* 每个人完成输出
+* 没有人完成输出
 
-For example, we have a process with multi-instance user task having two outcomes, `Yes` and `No`:
+例如，我们的流程中有一个多实例的用户任务，两个输出分别为 `Yes` 和 `No`：
 
 image::process-example-multi-user-task.png[,400]
 
-Then, we can use outcome-based like
-"Everyone said _Yes_":
+然后我们可以用这样的基于输出的条件，如，
+“每个人都说 _Yes_”：
 
 image::sequence-flow-with-outcome-based-condition.png[,450]
 
 [[boundary-events]]
-== Boundary Events
+== 边界事件
 
-Since a multi-instance is a regular activity, it is possible to define a boundary event on its boundary.
-In the case of an interrupting boundary event, when the event is caught,
-all instances that are still active will be destroyed.
+由于多实例是常规活动，因此可以在其边界上定义边界事件。
+在中断边界事件的情况下，当捕获事件时，
+所有仍处于活动状态的实例都将被销毁。
 
 image::multi-instance-error.png[,900]
 
 [[compensation]]
-== Compensation
+== 补偿
 
-It may happen that the multi-instance task requires compensation.
-Your first idea would be like this:
+多实例任务可能需要补偿。
+可能冒出第一个建模的想法是这样的：
 
 image::multi-instance-compensation-bad.png[,420]
 
-Yes, this can work, but not in all cases.
-It's OK for sequential synchronous tasks but can cause errors in other cases.
+是的，这样可以，但并不是在所有情况下都有效。
+这对于串行的同步任务是可以的，但在其他情况下可能会导致错误。
 
-Better wrap your task with compensation with embedded subprocess, this pattern works in any case.
+最好用带补偿的嵌入子流程来实现，这种模式在任何情况下都有效。
 
 image::multi-instance-compensation-good.png[,800]
 
 [[execution-listeners]]
-== Execution Listeners
+== 执行监听器
 
-There is an issue when using execution listeners in combination with multi-instance.
+多实例与执行监听器结合使用会出现问题。
 
-See the xref:listeners.adoc#execution-listeners[Execution Listeners] section.
+参阅 xref:listeners.adoc#execution-listeners[执行监听器]。
