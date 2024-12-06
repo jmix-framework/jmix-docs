@@ -1,5 +1,8 @@
 = 导出操作
 
+[[export-action]]
+== ExportAction
+
 `ExportAction` 是一个基本 xref:flow-ui:actions/list-actions.adoc[列操作]，通过特定的导出器导出表格的内容。此操作需要一个 xref:exporters.adoc[DataGridExporter] 实例。
 
 此操作可用于 xref:flow-ui:vc/components/dataGrid.adoc[] 和 xref:flow-ui:vc/components/treeDataGrid.adoc[] 组件。
@@ -9,17 +12,77 @@
 * `addColumnValueProvider()` 添加一个方法，用于从列中获取导出值。
 * `removeColumnValueProvider()` 通过列 `id` 删除一个获取列值的方法。
 
+[[export-modes]]
+=== 导出模式
+
 `ExportAction` 有三种导出模式：所有行、当前页以及选中行。
 
 image::export-action.png[align="center",width="843"]
 
-* 导出 *All rows（所有行）* 时，会按照视图中初始的数据加载器语句和过滤器的条件加载所有数据。过程中使用批量加载。每批次加载的数据量可以通过 xref:grid-export:properties.adoc#jmix.gridexport.exportAllBatchSize[jmix.gridexport.exportAllBatchSize] 应用程序属性配置。
+* 导出 *All rows（所有行）* 时，视图中初始的数据加载器语句和过滤器的条件加载的所有数据都会被导出。
++
+数据加载和导出过程中都使用 *批量* 操作，以提高性能和减少内存使用。批量大小可以通过 xref:grid-export:properties.adoc#jmix.gridexport.export-all-batch-size[jmix.gridexport.export-all-batch-size] 应用程序属性配置。默认值为 `1000`。
++
+导出所有数据时，默认的 *分页策略* 是 `keyset`。该策略可以通过 xref:grid-export:properties.adoc#jmix.gridexport.export-all-pagination-strategy[jmix.gridexport.export-all-pagination-strategy] 应用程序属性修改。
 * 导出 *Current page（当前页）* 时，仅导出表格当前页包含的数据。
 * 导出 *Selected rows（选中行）* 时，仅导出表格选中的数据。
 
 特定操作的导出选项可以通过 `setAvailableExportModes()` 方法或 XML 中的 `availableExportModes` 属性设置。默认的可用选项是通过 xref:properties.adoc#jmix.gridexport.default-export-modes[jmix.gridexport.default-export-modes] 应用程序属性定义。
 
 可以在 xref:localization:message-bundles.adoc[消息包] 添加 `exportConfirmationDialog.header` 和 `exportConfirmationDialog.message` 消息覆盖默认的弹窗标题和文本。
+
+[[columns-export]]
+=== 列导出
+
+导出数据时，可以通过三种不同的过滤选项控制导出哪些列：
+
+. *预定义的列过滤谓词（枚举）*：
++
+该选项支持从一组预定义的过滤行为中进行选择，以确定导出哪些列。使用 xref:grid-export:properties.adoc#jmix.gridexport.default-columns-to-export[jmix.gridexport.default-columns-to-export] 应用程序属性或导出操作的 `columnsToExport` xref:flow-ui:actions/standard-actions.adoc#additional-properties[附加属性] 直接进行配置。可用的选项有：
++
+* `ALL_COLUMNS`：导出所有列，不考虑列的可见性。
+* `VISIBLE_COLUMNS`：仅导出 `DataGrid` 中的可见列。使用 xref:flow-ui:vc/components/gridColumnVisibility.adoc[gridColumnVisibility] 组件标记可见的列将包含在导出的列表中，而隐藏的列则不会导出。
++
+新项目的默认值为 `VISIBLE_COLUMNS`。已有项目扔保留之前的导出行为，通过 Studio 在 `application.properties` 中自动添加配置实现。
++
+下面的示例显示了如何为客户 `dataGrid` 配置导出所有列。
++
+[source,xml,indent=0]
+----
+include::example$/gridexport-ex1/src/main/resources/com/company/demo/view/customers/customers-view.xml[tags=excelExport]
+----
++
+NOTE: 该方法的优先级最低，其他更具体的方法会覆盖这个设置。
+
+. *灵活的过滤谓词（扩展点）*：
++
+这种方式提供了一种扩展机制，可以高度定制需要导出的列。为导出操作创建一个带 `@Install` 注解的方法。此方法接收 `Grid.Column` 对象参数，如果需要导出该列，则返回 `true`，否则返回 `false`。
++
+[source,java,indent=0]
+----
+include::example$/gridexport-ex1/src/main/java/com/company/demo/view/customers/CustomersView.java[tags=columnsExportFilter]
+----
++
+include::flow-ui:vc/handler-generation-tip.adoc[]
++
+NOTE: 这种方式的优先级居中，即，可以覆盖 *预定义的列过滤谓词*，但可以被显式指定列进行覆盖。
+
+. *显式指定列（键值列表）*：
++
+使用这种方式可以直接控制需要导出的列。使用导出操作的 `columnKeysToExport` xref:flow-ui:actions/standard-actions.adoc#additional-properties[附加属性] 进行定义，列键值用逗号隔开，在 `<action>` 中按如下定义：
++
+[source,xml,indent=0]
+----
+include::example$/gridexport-ex1/src/main/resources/com/company/demo/view/customers/customers-view.xml[tags=excel]
+----
++
+NOTE: 这个方式的优先级最高，可以覆盖其他类型的设置。
+
+*优先级顺序*。列过滤选项按下面的优先级处理：
+
+1.  显示指定列键值。
+2.  自定义的过滤谓词。
+3.  预定义的列过滤谓词。
 
 [[excel-export-action]]
 == ExcelExportAction
@@ -56,6 +119,7 @@ excelExporter.dateFormat=m/d/yy
 excelExporter.dateTimeFormat=m/d/yy h:mm
 excelExporter.integerFormat=#,##0
 excelExporter.doubleFormat=#,##0.00##############
+excelExporter.decimalFormat=#,##0.00
 ----
 
 [[json-export-action]]

@@ -1,90 +1,91 @@
-= 1. Calendar Data Binding
+= 1. 日历数据绑定
 
-In this section, you will create:
 
-* `Meeting` JPA entity.
-* `FullCalendar` component with data provider.
+在本小节中，我们将创建：
+
+* `Meeting` JPA 实体。
+* 带有 data provider 的 `FullCalendar` 组件。
 
 [[meeting-event]]
-== Meeting Event
+== 会议事项
 
-`Meeting` entity will be an event in the `FullCalendar` component. It should have corresponding properties to be correctly displayed in the component:
+`FullCalendar` 组件中的一个事项通过 `Meeting` 实体表示。需要提供特定的属性才能正确显示：
 
-- `name` - is the event title.
-- `startDate` - the start date in the component. The component does not display events without a start date.
-- `endDate` - the end date in the component. If the end date is not specified, the component will add a default time duration for the event depending on the `allDay` property. In this tutorial, the `allDay` property is not used, so the component considers the events as non-all-day events.
+* `name` - 事项标题。
+* `startDate` - 事项的开始日期和时间。组件不会显示没有 `startDate` 的事项。
+* `endDate` - 事项的结束日期。如果未指定 `endDate`，组件将根据 `allDay` 属性设置事项的默认时长。本示例中省略了 `allDay` 属性，事项都作为非全天事项处理。
 
 [[create-meeting-entity]]
-=== Create Meeting Entity
+=== 创建会议实体
 
-You can find detailed instructions for creating entities in the xref:tutorial:simple-crud.adoc[Simple CRUD] section of the Tutorial.
+参考入门教程的 xref:tutorial:simple-crud.adoc[简单 CRUD] 部分了解创建 JPA 实体的详细说明。
 
-The `Meeting` entity has the following attributes:
+`Meeting` 实体具有以下属性：
 
-* `name` with `String` type. Select the *Mandatory* checkbox.
-* `startDate` with `LocalDateTime`. Select the *Mandatory* checkbox.
-* `endDate` with `LocalDateTime`.
-* `user` - has the `Association` attribute type, `User` entity as a Java type and the many-to-one cardinality. Select the *Mandatory* checkbox.
+* `name`，`String` 类型。勾选 *Mandatory* 复选框。
+* `startDate`，`LocalDateTime` 类型。勾选 *Mandatory* 复选框。
+* `endDate`，`LocalDateTime` 类型。
+* `user` - 属性类型为 `Association`、Java 类型为 `User` 实体，关系为多对一。勾选 *Mandatory* 复选框。
 
-The `Meeting` entity does not have standard views: list and details, because it will be generated programmatically and displayed in the `FullCalendar` component.
+`Meeting` 实体不需要生成标准的列表和详情视图，因为该实体将以编程方式生成并显示在 `FullCalendar` 组件中。
 
 [[generate-meeting]]
-=== Generate Meeting
+=== 生成会议
 
-When the user completes all steps then the application should generate a meeting event to discuss completed tasks. And we'll display this event in *MyCalendar* view.
+用户完成所有入职步骤后，应用程序会生成会议事项，该会议的目的是评估已完成的入职任务。该事项将显示在用户的 *MyCalendar* 视图中。
 
-We will generate a meeting event in the *MyOnboarding* view after the user completes all onboarding steps. The best moment to check whether the user has finished all steps is during the xref:flow-ui:data/data-context.adoc#pre-save-event[PreSaveEvent] of xref:flow-ui:data/data-context.adoc[DataContext]. In the event listener, we should filter out all uncompleted steps. If the list is empty, we should generate an event.
+检查用户是否已完成所有步骤的最佳时机是在 xref:flow-ui:data/data-context.adoc[DataContext] 的 xref:flow-ui:data/data-context.adoc#pre-save-event[PreSaveEvent] 中。在该事件的监听器中，检查是否有没完成的入职步骤。如果没有未完成的步骤，则创建新的会议事项。
 
 [source, java, indent=0]
 ----
 include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-pre-save-event]
 ----
 
-Next, we will implement the `generateOnboardingResultsMeeting()` method. This method should create an instance of the `Meeting` event that starts on the next working day.
+下一步，我们实现 `generateOnboardingResultsMeeting()` 方法。该方法创建一个 `Meeting` 的实例，并将该事项计划在下一工作日。
 
 [source, java, indent=0]
 ----
 include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-generate-meeting]
 ----
-<1> Creates and merges a new `Meeting` instance into the `DataContext`. Thus, the meeting entity will be saved as well.
-<2> Calculates the next working day. If today is Friday, then meeting should start on Monday.
-<3> Creates the start date of meeting event. The meeting will start on the next working day at 9:30 AM.
+<1> 创建 `Meeting` 实例，合并到 `DataContext` 中，实体会自动持久化。
+<2> 计算下一个工作日，如果今天是星期五，则事项计划在下个星期一。
+<3> 设置会议的开始日期和时间。
 
 [[add-components]]
-== Add Components on MyCalendar
+== 在 MyCalendar 添加组件
 
-Firstly, create a blank view and call it *MyCalendar*.
+首先，创建一个新的空视图，名为 *MyCalendar*。
 
-image::creating-my-calendar-view.png[align="center"]
+image::creating-my-calendar-view.png[align="center",width="776"]
 
-Studio will generate an empty view and display it in the designer.
+Studio 会生成空视图并打开视图设计器。
 
 [[load-data]]
-=== Load Data
+=== 加载数据
 
-Before adding the `FullCalendar` component, let's create a xref:flow-ui:data/collection-container.adoc[collection container] for the `Meeting` entity.
+在添加 `FullCalendar` 组件之前，需要先为 `Meeting` 实体创建一个 xref:flow-ui:data/collection-container.adoc[集合数据容器]。
 
-Click *Add Component* in the actions panel, then navigate to the *Data components* section double-click on *Collection container*. In the dialog that appears, select `Meeting` in the *Entity* field and click *OK*.
+点击操作面板中的 *Add Component*，双击 *Data components* 中的 *Collection container*。在打开的弹窗中，*Entity* 字段选择 `Meeting`，点击 *OK*。
 
 [source, xml, indent=0]
 ----
 include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar2]
 ----
 
-The current configuration of loader fetches all events from all users. However, users should only see their own events. We will add a condition to filter events by the current user. Modify the JPQL query using the editor or manually:
+当前数据加载器的配置是查询所有用户的所有事项。但是，每个用户应该只能看到自己的事项。需要通过编辑器或手动修改 JPQL，添加按当前登录用户过滤的条件：
 
 [source, xml, indent=0]
 ----
 include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/mycalendar/my-calendar.xml[tags=onboarding-add-fullcalendar3]
 ----
 
-We will get the current user from `CurrentAuthentication` bean and pass it to the loader on the xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]:
+我们从 `CurrentAuthentication` bean 获取当前登录的用户，并将此信息传递给 xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent] 中的数据加载器：
 
-* Subscribe on `BeforeShowEvent`.
-* Inject `meetingsDl` loader.
-* Inject `CurrentAuthentication` bean.
+* 订阅 `BeforeShowEvent`。
+* 注入 `meetingsDl` 数据加载器。
+* 注入 `CurrentAuthentication` bean。
 
-Now we can set a parameter for the loader to fetch events for the current user:
+现在可以为加载器设置一个参数来获取当前用户的事项：
 
 [source, java, indent=0]
 ----
@@ -92,11 +93,11 @@ include::example$fullcalendar-ex1/src/main/java/com/company/onboarding/view/myca
 ----
 
 [[add-fullcalendar]]
-=== Add FullCalendar Component
+=== 添加 FullCalendar 组件
 
-Click *Add Component* in the actions panel, find the `FullCalendar` item, and then double-click it.
+在操作面板中，点击 *Add Component*，找到 `FullCalendar` 并双击。
 
-Then new `calendar` element will be generated. Configure the `id`, `height` and `width` attributes as shown below.
+新的 `calendar` 元素会被添加到视图中。按以下代码配置 `id`、`height` 和 `width` 属性。
 
 [source, xml, indent=0]
 ----
@@ -104,44 +105,44 @@ include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view
 ----
 
 [[add-data-provider]]
-=== Add Data Provider
+=== 添加 Data Provider
 
-The data provider is a source of events displayed in the `FullCalendar`. There are different types of data providers, but we will use the data provider based on a xref:flow-ui:data/data-containers.adoc[data container].
+data provider 是 `FullCalendar` 中显示的事项来源。有不同类型的 data provider，我们将使用基于 xref:flow-ui:data/data-containers.adoc[数据容器] 的 provider。
 
-To add the *ContainerDataProvider* to the `FullCalendar` component, follow these instructions:
+为 `FullCalendar` 添加 *ContainerDataProvider*：
 
-* Choose the calendar in the Jmix UI structure panel or in the view XML descriptor.
-* Click the *Add* button in the inspector panel.
-* From the drop-down list, select *Data Providers* → *ContainerDataProvider*.
+. 在 *Jmix UI* 结构面板或视图 XML 中选择 `calendar` 组件。
+. 点击组件属性面板中的 *Add* 按钮。
+. 从下拉菜单中，选择 *Data Providers* → *ContainerDataProvider*。
 
-image::add-container-data-provider.png[align="center"]
+image::add-container-data-provider.png[align="center",width="416"]
 
-In the dialog that appears, select `meetingsDc`.
+在弹窗中，选择 `meetingsDc`。
 
-The `containerDataProvider` element contains a set of properties that the user can specify to configure the mapping of entity's properties. The `Meeting` entity has the following properties:
+在 `containerDataProvider` 元素中，可以配置实体属性映射。`Meeting` 实体有以下属性：
 
 * `name`
 * `startDate`
 * `endDate`
 
-So we should specify the following attributes:
+因此，需要配置下列属性：
 
 [source, xml, indent=0]
 ----
 include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampletwo/sample-two.xml[tags=onboarding-add-fullcalendar3]
 ----
 
-Let’s take a look: the complete description of our calendar is as follows:
+完整的日历组件 XML 如下：
 
 [source, xml, indent=0]
 ----
 include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/samplethree/sample-three.xml[tags=onboarding-add-fullcalendar4]
 ----
 
-Launch the application and log in as the `admin` user. The `admin` user does not have onboarding steps, so we need to generate them:
+启动应用程序并以 `admin` 用户登录。`admin` 用户没有入职步骤，我们需要生成一下：
 
-* Select the *Users* item in the application menu to access `User.list` view.
-* Select the `admin` user in the *DataGrid* and click the *Edit* button. Then, fill *Joining Date* field, generate the onboarding steps and save the changes.
-* Select the *My Calendar* item in the application menu to access `MyCalendar` view.
+* 从菜单中选择 *Users* 打开 `User.list` 视图。
+* 在表格中选择 `admin` 用户，点击 *Edit* 按钮。然后，填写 *Joining Date* 字段，生成入职步骤并保存更改。
+* 从菜单中选择 *MyCalendar* 即可访问日历视图。
 
-image::getting-started-data-binding-result.png[align="center"]
+image::getting-started-data-binding-result.png[align="center",width="1358"]
