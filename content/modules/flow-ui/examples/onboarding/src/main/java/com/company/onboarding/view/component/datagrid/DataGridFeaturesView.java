@@ -3,11 +3,15 @@ package com.company.onboarding.view.component.datagrid;
 
 import com.company.onboarding.entity.User;
 import com.company.onboarding.view.main.MainView;
-
 import com.vaadin.flow.component.grid.FooterRow;
 import com.vaadin.flow.component.grid.HeaderRow;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.LitRenderer;
+import com.vaadin.flow.data.renderer.Renderer;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.DataManager;
+import io.jmix.flowui.UiComponents;
+import io.jmix.flowui.component.checkbox.JmixCheckbox;
 import io.jmix.flowui.component.grid.DataGrid;
 import io.jmix.flowui.model.CollectionContainer;
 import io.jmix.flowui.model.CollectionLoader;
@@ -31,6 +35,8 @@ public class DataGridFeaturesView extends StandardView {
     private CollectionLoader<User> usersDl;
     @Autowired
     private DataManager dataManager;
+    @Autowired
+    private UiComponents uiComponents;
 
     // end::injects[]
 
@@ -56,10 +62,10 @@ public class DataGridFeaturesView extends StandardView {
     // end::initHeader[]
 
     // tag::initFooter[]
-    protected void initFooter () {
+    protected void initFooter() {
         FooterRow footerRow = dataGrid.appendFooterRow();
         FooterRow.FooterCell activeCell = footerRow.getCell(dataGrid.getColumnByKey("active"));
-        activeCell.setText(getActiveCount() + "/" + usersDc.getItems().size() );
+        activeCell.setText(getActiveCount() + "/" + usersDc.getItems().size());
     }
 
     // end::initFooter[]
@@ -84,6 +90,28 @@ public class DataGridFeaturesView extends StandardView {
     public void onUsersDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<User> event) {
         dataManager.save(event.getItem());
     }
-    // end::auto-save[]
 
+    // end::auto-save[]
+    // tag::renderer[]
+    @Supply(to = "dataGridCheckbox.active", subject = "renderer")
+    private Renderer<User> dataGridCheckboxActiveRenderer() {
+        return new ComponentRenderer<>(
+                () -> {
+                    JmixCheckbox checkbox = uiComponents.create(JmixCheckbox.class); // <1>
+                    checkbox.setReadOnly(true); // <2>
+                    return checkbox; // <3>
+                },
+                (checkbox, user) -> checkbox.setValue(user.getActive()) // <4>
+        );
+    }
+    // end::renderer[]
+    // tag::lit-renderer[]
+    @Supply(to = "dataGridLit.userInfo", subject = "renderer")
+    private Renderer<User> dataGridLitUserInfoRenderer() {
+        return LitRenderer.<User>of("${item.firstName}<br>${item.lastName}<br>${item.email}")
+                .withProperty("firstName", User::getFirstName)
+                .withProperty("lastName", User::getLastName)
+                .withProperty("email", User::getEmail);
+    }
+    // end::lit-renderer[]
 }
