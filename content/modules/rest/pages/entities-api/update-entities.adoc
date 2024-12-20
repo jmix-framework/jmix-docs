@@ -133,7 +133,12 @@ To remove a reference for `N:1` or `1:1` associations, you need to send in `null
 
 In case you want to update a Composition attribute, it is possible to directly update the content of the child entity as part of the update request for the parent entity. This is true for `1:1` as well as `1:N` compositions.
 
-CAUTION: the Update Entity endpoint will _replace_ the existing composition collection with what is part of the request. For every entity reference that is not part of the request, the reference will be removed. Moreover, the entity that has been referenced before _will be deleted_ from the application as well.
+[CAUTION]
+====
+The Update Entity endpoint will _replace_ the existing composition collection with what is part of the request. Nested entities that are not part of the request will be _removed_ from the data store.
+
+Also, make sure you pass the same set of attributes for all items of the composition. Attributes that are included for one entity but omitted for another will be assigned a null value in the latter entity.
+====
 
 In this example, you will see how to update a `1:N` composition between `Order` and `OrderLine`. Assuming that the stored Order before the update looks like this:
 
@@ -261,43 +266,6 @@ The response to this update request contains the desired changes:
 
 With this response, the order lines of the Order have been successfully updated.
 
-[IMPORTANT]
-====
-When a child entity should not be updated, but still be kept in the composition, the ID of the existing order line needs to be part of the request nevertheless. This way Jmix recognizes it as still being part of the composition and does not delete it. Not putting that ID into the request would lead to Jmix deleting the entity (as this is how `@Composition` is handled), which might be considered accidental behavior, but is behaving as designed.
-
-In the example from above when the order line for `Cotek Battery Charger (55b925e5-9f3a-a725-9eb3-1240f9c1fe9)` should not be changed at all, in the update it still needs to be listed with its ID:
-
-[source, json]
-.Update Composition Request containing non-changing child entities
-----
-{
-  "lines": [
-    {
-      "id": "55b925e5-9f3a-a725-9eb3-1240f9c1fe9" // <1>
-    },
-    {
-      "id": "a1cd778b-fe49-4c74-05a0-6fb207dc11bd",
-      "product": {
-        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
-        "name": "Solar-One HUP Flooded Battery 48V"
-      },
-      "quantity": 3.0
-    },
-    {
-      "product": {
-        "id": "f6884077-19c4-546f-33d4-a788399337f7",
-        "name": "Outback Power Remote Power System"
-      },
-      "quantity": 1.0
-    }
-  ]
-}
-----
-<1> Child entities that are not changed (like `Cotek Battery Charger`) but should still be part of the composition are referenced through its `id`.
-
-====
-
-
 [[security-constraints-for-associations]]
 == Security Constraints for Association/Composition
 
@@ -413,7 +381,7 @@ PUT http://localhost:8080/rest
 ]
 ----
 
-In case of a violation of an entity validation, the entities will not be created, and a corresponding Error message will be returned. See  xref:entities-api/create-entities.adoc#_entity_validation[Entity Validation] for further details.
+In case of a violation of an entity validation, the entities will not be created, and a corresponding Error message will be returned. See  xref:entities-api/create-entities.adoc#entity-validation[Entity Validation] for further details.
 
 ////
 NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.
