@@ -1,0 +1,179 @@
+= 渲染器
+
+该章节介绍如何自定义 UI 组件的渲染，例如 xref:flow-ui:vc/components/comboBox.adoc[comboBox]、xref:flow-ui:vc/components/dataGrid.adoc[dataGrid]、xref:flow-ui:vc/components/checkboxGroup.adoc[checkboxGroup]、xref:flow-ui:vc/components/select.adoc[select] 以及其他可以使用自定义渲染器的 Jmix 组件。通过自定义渲染器，开发者可以控制这些组件内数据的展示效果，根据需求量身定制所需的 UI。特别适合以下场景：
+
+* *增强的可视化展示*：能够包含纯文本之外的视觉元素，例如图标、图像、进度条或其他元素，使数据更容易理解和吸引人。因此可以提升整体的用户体验和 UI 所表达意思的清晰度。
++
+image::visual-components/components/radio-button-group-renderer.png[align="center",width="189"]
+
+* *按条件渲染*：渲染器可以根据数据值或其他上下文信息更改视觉展示。例如，为成功的记录显示绿色对勾标记，为失败的记录显示红色对勾标记。
++
+image::visual-components/renderer-2.png[align="center",width="184"]
+* *复杂的布局*：在需要提供复杂渲染布局的情况下，自定义渲染器可以提供以非标准方式排列和显示数据的灵活性。例如可以在单个组件单元中组合多个 UI 元素或创建完全自定义的布局。
++
+image::visual-components/renderer-3.png[align="center",width="711"]
+
+总之，Jmix 中的渲染器可以令开发者在默认的 UI 显示之外创建更深一步的定制化显示方式和更友好的界面，从而有效地将数据传达给最终用户。
+
+TIP: 如果需要只需要对数据做简单的格式化（例如，修改日期或数值的显示方式），则可以使用 xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter]。
+
+[[predefined-renderer]]
+== 预定义 XML 渲染器
+
+Jmix 为 xref:flow-ui:vc/components/dataGrid.adoc[DataGrid] 和 xref:flow-ui:vc/components/treeDataGrid.adoc[TreeDataGrid] 中的列提供了预定义的 XML 渲染器，可以简化数据的格式化渲染：
+
+* xref:vc/components/dataGrid.adoc#number-renderer[numberRenderer]
+* xref:vc/components/dataGrid.adoc#local-date-renderer[localDateRenderer]
+* xref:vc/components/dataGrid.adoc#local-date-time-renderer[localDateTimeRenderer]
+
+这些渲染器使用 `format` 字符串属性。示例：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
+
+[TIP]
+====
+如需在 Jmix Studio 中添加渲染器，请在视图 XML 或 *Jmix UI* 结构面板中选择 `column` 元素，并点击属性面板的 xref:studio:screen-designer.adoc#component-inspector[Add-><Some>Renderer] 按钮。
+====
+
+[[component-renderer]]
+== 组件渲染器
+
+使用组件渲染器可以在 UI 组件内用其他 UI 组件渲染数据。
+
+组件渲染器使用数据作为输入参数，并生成一个 UI 组件（例如 such as a xref:vc/components/checkbox.adoc[复选框] 或 xref:vc/html-components/image.adoc[图片]）用于展示数据。这个生成的组件会在父组件使用（例如，dataGrid 的列）。当需要使用不仅仅是简单的文本格式来直观地表示数据时，此方法特别有用。
+
+CAUTION: 虽然组件渲染器易于实现，但可能会对性能产生负面影响，尤其在大量数据的情况下，因为需要为每个数据项创建单独的 UI 组件。
+
+创建渲染器可以通过 `setRenderer()` 方法或 `@Supply` 注解。
+
+TIP: 如需通过 *Jmix Studio* 生成 `renderer` 处理方法，选择组件或表格的列，在 *Jmix UI* 属性面板中，切换至 *Handlers* tab，然后双击对应的行。还可以从视图类顶部的 *Generate Handler* 操作生成，或主菜单的 *Code → Generate*（*Alt+Insert* / *Cmd+N*）。
+
+下面的示例中，我们在 `dataGrid` 中使用 `checkBox` 渲染一个布尔值。
+
+选择 `active` 列，在 *Jmix UI* 属性面板切换至 *Handlers* tab，双击 `renderer` 方法：
+
+image::visual-components/renderer-1.png[align="center",width="862"]
+
+实现 `dataGridCheckboxActiveRenderer` 方法：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=renderer]
+----
+<1> 用 `UiComponents` 工厂创建 `JmixCheckbox` 组件实例。
+<2> 设置 `checkbox` 为只读模式，防止用户直接修改该属性的值。
+<3> 渲染器返回新创建的只读复选框，将在列单元格中显示。
+<4> Lambda 表达式用于配置复选框的值。使用两个参数：`checkbox` 组件和 `User` 实例，根据 `User` 的 `active` 属性设置组件的值。
+
+image::visual-components/renderer-4.png[align="center",width="662"]
+
+Jmix 文档的相关部分提供了各种 UI 组件的自定义渲染示例：
+
+** xref:flow-ui:vc/components/checkboxGroup.adoc#custom-item-presentation[checkboxGroup]
+** xref:flow-ui:vc/components/comboBox.adoc#rendering-items[comboBox]
+** xref:flow-ui:vc/components/dataGrid.adoc#component-renderer[dataGrid]
+** xref:flow-ui:vc/components/entityComboBox.adoc#renderer[entityComboBox]
+** xref:flow-ui:vc/components/listBox.adoc#renderer[listBox]
+** xref:flow-ui:vc/components/multiSelectComboBox.adoc#renderer[multiSelectComboBox]
+** xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc#basic-features[multiSelectComboBoxPicker]
+** xref:flow-ui:vc/components/multiSelectListBox.adoc[multiSelectListBox]
+** xref:flow-ui:vc/components/radioButtonGroup.adoc#rendering-items[radioButtonGroup]
+** xref:flow-ui:vc/components/select.adoc#rendering-items[select]
+** xref:flow-ui:vc/components/treeDataGrid.adoc#renderer[treeDataGrid]
+** xref:flow-ui:vc/components/virtualList.adoc#Renderer[virtualList]
+
+[[lit-renderer]]
+== LitRenderer
+
+`LitRenderer` 渲染器使用 HTML 和 Lit 的数据绑定语法渲染内容，与组件渲染器相比更加轻量。
+
+`LitRenderer` 支持定义一个 HTML 模板，并绑定模板中的变量和实体属性：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=lit-renderer]
+----
+
+image::visual-components/renderer-5.png[align="center",width="592"]
+
+CAUTION: `LitRenderer` 渲染效率高，非常适合需要频繁更新的高性能应用。Lit 的轻量级设计非常适合具有许多组件或动态内容的应用。
+
+下列 UI 组件可以使用 `LitRenderer`：
+
+* xref:flow-ui:vc/components/dataGrid.adoc#column[dataGrid.column]
+* xref:flow-ui:vc/components/comboBox.adoc#rendering-items[comboBox]
+* xref:flow-ui:vc/components/entityComboBox.adoc#renderer[entityComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBox.adoc#renderer[multiSelectComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc#basic-features[multiSelectComboBoxPicker]
+* xref:flow-ui:vc/components/treeDataGrid.adoc#renderer[treeDataGrid.column]
+* xref:flow-ui:vc/components/virtualList.adoc#Renderer[virtualList]
+
+[[fragment-renderer]]
+== Fragment 渲染器
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/fragment-renderer" class="live-demo-btn" target="_blank">在线示例</a>
+</div>
+++++
+
+xref:vc/components/virtualList.adoc[virtualList]、xref:vc/components/dataGrid.adoc[dataGrid] 等组件的渲染器可以通过 xref:flow-ui:fragments/fragments.adoc[fragments] 定义。XML 中使用特定的 `fragmentRenderer` 元素指定渲染器。
+
+与普通 fragment 一样，`fragmentRenderer` 也是通过 XML 和 Java 控制器定义。
+
+. *创建 FragmentRenderer 的 XML*
++
+XML 中包含可选的 xref:flow-ui:data/instance-container.adoc[instanceContainer]（实体实例数据容器）：
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/virtuallist/user-fragment.xml[tag=fragment]
+----
++
+NOTE: 如果未定义实例数据容器，则可以用 `FragmentRenderer.getItem()` 方法处理渲染。
+
+. *创建 FragmentRenderer Java 控制器*
++
+Fragment 渲染器类需要继承自 `FragmentRenderer`，并使用泛型参数指定组件的根元素和渲染的实体，示例：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/virtuallist/UserFragment.java[tags=fragment]
+----
+<1> `@FragmentDescriptor` 注解指定一个字符串值，指向 fragment 的 XML 文件路径。
+<2> `@RendererItemContainer` 注解用于指定所渲染实体的数据容器。
+
+. *在视图中使用 FragmentRenderer*
++
+在需要使用 fragment 渲染的组件中添加 `fragmentRenderer` 元素。该元素需要指定一个 `class` 属性，需配置为继承自 `io.jmix.flowui.fragmentrenderer.FragmentRenderer` 的渲染器类的全限名称。
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/virtuallist/virtual-list-view.xml[tag=fragmentRenderer]
+----
++
+[TIP]
+====
+如需在 *Jmix Studio* 中添加 `fragmentRenderer`，请在视图 XML 或 *Jmix UI* 结构面板中选择 UI 组件，然后点击属性面板中的 xref:studio:screen-designer.adoc#component-inspector[Add->FragmentRenderer]。
+====
++
+`fragmentRenderer` 与普通 `fragment` 一样，也支持 xref:fragments/using-fragments.adoc#passing-parameters-to-fragments[传参]。
+
+image::visual-components/renderer-6.png[align="center",width="877"]
+
+以下 UI 组件支持 `fragmentRenderer`：
+
+* xref:flow-ui:vc/components/checkboxGroup.adoc[checkboxGroup]
+* xref:flow-ui:vc/components/dataGrid.adoc#column[dataGrid.Column]
+* xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox]
+* xref:flow-ui:vc/components/listBox.adoc[listBox]
+* xref:flow-ui:vc/components/multiSelectComboBox.adoc[multiSelectComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc[multiSelectComboBoxPicker]
+* xref:flow-ui:vc/components/multiSelectListBox.adoc[multiSelectListBox]
+* xref:flow-ui:vc/components/radioButtonGroup.adoc[radioButtonGroup]
+* xref:flow-ui:vc/components/select.adoc[select]
+* xref:flow-ui:vc/components/treeDataGrid.adoc#column[treeDataGrid.Column]
+* xref:flow-ui:vc/components/virtualList.adoc[virtualList]
