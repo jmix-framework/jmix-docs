@@ -19,21 +19,39 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+// tag::DemoDataInitializer[]
 @Component
-public class DemoDataInitializer {
+public class DemoDataInitializer { // <1>
+
+    // end::DemoDataInitializer[]
+    // tag::dataManager[]
     @Autowired
     private DataManager dataManager;
+
+    // end::dataManager[]
+    // tag::resources[]
     @Autowired
     private Resources resources;
+
+    // end::resources[]
+    // tag::reportImportExport[]
     @Autowired
     protected ReportImportExport reportImportExport;
+
+    // end::reportImportExport[]
+
     private static final Logger log = LoggerFactory.getLogger(DemoDataInitializer.class);
 
+    // tag::REPORT_LOCATION[]
     private final static String REPORT_LOCATION = "com/company/library/reports/";
 
+    // end::REPORT_LOCATION[]
+
+    // tag::ApplicationStartedEvent[]
     @EventListener
     @Authenticated
-    public void onApplicationStarted(ApplicationStartedEvent event) {
+    public void onApplicationStarted(ApplicationStartedEvent event) { // <2>
+        // end::ApplicationStartedEvent[]
         if (dataManager.load(City.class).all().maxResults(1).list().size() > 0) {
             return;
         }
@@ -45,8 +63,10 @@ public class DemoDataInitializer {
         List<Book> books = initBooks(types);
         List<BookPublication> publications = initBookPublications(books,publishers,cities);
         List<BookInstance> bookInstances = initBookInstances(publications,departments);
+        // tag::ApplicationStartedEvent[]
         importReport();
     }
+    // end::ApplicationStartedEvent[]
 
     private List<City> initCities() {
         City city;
@@ -251,9 +271,10 @@ public class DemoDataInitializer {
 
         return list;
     }
+    // tag::importReports[]
 
     private void importReport(){
-        InitFlags initFlags = dataManager.load(InitFlags.class)
+        InitFlags initFlags = dataManager.load(InitFlags.class) // <3>
                 .id(1)
                 .lockMode(LockModeType.PESSIMISTIC_WRITE)
                 .optional()
@@ -274,12 +295,16 @@ public class DemoDataInitializer {
             dataManager.save(initFlags);
         }
     }
+    // end::importReports[]
+
+    // tag::importReport[]
+
     private void importReport(String reportFileName) {
         String location = REPORT_LOCATION + reportFileName;
         log.info("Initializing report from " + location);
         try (InputStream stream = resources.getResourceAsStream(location)) {
             if (stream != null) {
-                reportImportExport.importReports(IOUtils.toByteArray(stream));
+                reportImportExport.importReports(IOUtils.toByteArray(stream)); // <4>
             } else {
                 log.info("Not found: " + location);
             }
@@ -287,4 +312,7 @@ public class DemoDataInitializer {
             log.error("Unable to initialize reports", e);
         }
     }
+    // end::importReport[]
+    // tag::DemoDataInitializer[]
 }
+// end::DemoDataInitializer[]
