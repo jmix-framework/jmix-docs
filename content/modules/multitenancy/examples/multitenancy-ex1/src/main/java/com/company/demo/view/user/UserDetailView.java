@@ -41,7 +41,7 @@ public class UserDetailView extends StandardDetailView<User> {
     private MessageBundle messageBundle;
     @Autowired
     private PasswordEncoder passwordEncoder;
-    // tag::tenantField[]
+    // tag::tenant[]
     @ViewComponent
     private JmixComboBox<String> tenantField;
 
@@ -51,24 +51,29 @@ public class UserDetailView extends StandardDetailView<User> {
     @Autowired
     private MultitenancyUiSupport multitenancyUiSupport;
 
-    // end::tenantField[]
-// tag::tenant[]
     @Subscribe
     public void onInit(final InitEvent event) {
+        // end::tenant[]
         timeZoneField.setItems(List.of(TimeZone.getAvailableIDs()));
+        // tag::tenant[]
+        // ...
         tenantField.setItems(multitenancyUiSupport.getTenantOptions());
     }
 
     @Subscribe
     public void onInitEntity(final InitEntityEvent<User> event) {
-        tenantField.setReadOnly(false);
+        // end::tenant[]
         usernameField.setReadOnly(false);
         passwordField.setVisible(true);
         confirmPasswordField.setVisible(true);
+        // tag::tenant[]
+        // ...
+        tenantField.setReadOnly(false);
     }
 
     @Subscribe
     public void onBeforeShow(final BeforeShowEvent event) {
+        // ...
         String currentTenantId = tenantProvider.getCurrentUserTenantId();
         if (!currentTenantId.equals(TenantProvider.NO_TENANT)
                 && Strings.isNullOrEmpty(tenantField.getValue())) {
