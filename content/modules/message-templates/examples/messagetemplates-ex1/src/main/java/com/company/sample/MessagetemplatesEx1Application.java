@@ -28,8 +28,11 @@ import javax.sql.DataSource;
 @SpringBootApplication
 public class MessagetemplatesEx1Application implements AppShellConfigurator {
 
+    // tag::notificationTypesRepository[]
     @Autowired
     private NotificationTypesRepository notificationTypesRepository;
+
+    // end::notificationTypesRepository[]
 
     @Autowired
     private Environment environment;
@@ -60,6 +63,7 @@ public class MessagetemplatesEx1Application implements AppShellConfigurator {
                 + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
     }
 
+    // tag::registerTypes[]
     @EventListener
     public void onApplicationContextRefreshed(final ContextRefreshedEvent event) {
         notificationTypesRepository.registerTypes(
@@ -67,4 +71,5 @@ public class MessagetemplatesEx1Application implements AppShellConfigurator {
                 new NotificationType("warn", "WARNING")
         );
     }
+    // end::registerTypes[]
 }
