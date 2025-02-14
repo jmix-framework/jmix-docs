@@ -52,20 +52,14 @@ public class BookingListView extends StandardListView<Booking> {
             return;
         }
 
-        Configuration configuration =
-                new Configuration(messageTemplateProperties.getFreemarkerVersion());
-        configuration.setDefaultEncoding("UTF-8");
-        configuration.setDateFormat("yyyy, MM/dd"); // <7>
-
         List<String> messages = messageTemplatesGenerator.generateMultiTemplate()
-                .withTemplateCodes("booking-email-subject", "booking-email-body") // <8>
+                .withTemplateCodes("booking-email-subject", "booking-email-body") // <7>
                 .withParams(
                         Map.of(
                                 "booking", booking,
                                 "today", new Date(),
                                 "penalty", 5000
-                        )) // <9>
-                .withConfiguration(configuration)
+                        )) // <8>
                 .generate();
 
         EmailInfo emailInfo = EmailInfoBuilder.create()
@@ -73,15 +67,15 @@ public class BookingListView extends StandardListView<Booking> {
                 .setSubject(messages.get(0))
                 .setBody(messages.get(1))
                 .setBodyContentType("text/html; charset=UTF-8")
-                .build(); // <10>
+                .build(); // <9>
 
         try {
-            emailer.sendEmail(emailInfo); // <11>
+            emailer.sendEmail(emailInfo); // <10>
         } catch (EmailException e) {
             showSendingErrorNotification(email);
         }
 
-        showSendingSuccessNotification(email); // <12>
+        showSendingSuccessNotification(email); // <11>
     }
 
     private void showSendingErrorNotification(String email) {

@@ -84,6 +84,18 @@ Key features:
 * *Single Parameter Map*: Applies the same map of parameters to all templates.
 * *Output*: Returns a list of messages, each generated from a different template but using the same parameters.
 
+[NOTE]
+====
+It's not necessary for all templates to use every parameter provided. A perfectly valid scenario is where the parameter map contains parameters specific to one template, parameters specific to another, and potentially some parameters shared between them.
+
+Each template will only extract and utilize the parameters that it actually needs. Any unused parameters in the provided map will simply be ignored by a particular template. This allows you to efficiently generate messages from multiple templates with varying parameter requirements using a single call.
+====
+
+[CAUTION]
+====
+If a template contains a parameter that is not found in the provided parameter map, message generation will fail. However, this behavior can be modified by pre-configuring the FreeMarker xref:api.adoc#freemarker-config[configuration] to handle missing parameters without throwing an exception.
+====
+
 [[multi-param-template-generator]]
 === MultiParamTemplateGenerator
 
@@ -117,3 +129,29 @@ Key features:
 * *Single Template*: Uses one template for message generation.
 * *Multiple Parameter Maps*: Applies different maps of parameters to the same template.
 * *Output*: Returns a list of messages, each generated from the same template but using different parameters.
+
+[[freemarker-config]]
+== Using Freemarker Configuration
+
+The Message Templates add-on allows for customizable message generation. To further refine this process, you can create and apply custom FreeMarker configurations. This enables you to tailor how FreeMarker processes your templates. Here's an example of how to create a basic custom configuration:
+
+[source,java,indent=0]
+----
+        Configuration configuration =
+                new Configuration(messageTemplateProperties.getFreemarkerVersion());
+        configuration.setDefaultEncoding("UTF-8");
+        configuration.setDateFormat("yyyy, MM/dd"); // <1>
+
+        List<String> messages = messageTemplatesGenerator.generateMultiTemplate()
+                .withTemplateCodes("booking-email-subject", "booking-email-body")
+                .withParams(
+                        Map.of(
+                                "booking", booking,
+                                "today", new Date(),
+                                "penalty", 5000
+                        ))
+                .withConfiguration(configuration) // <2>
+                .generate();
+----
+<1> Configures the FreeMarker template engine with the specified version, encoding, and date format.
+<2> Use the ``MessageTemplatesGenerator``'s fluent interface to apply the configuration we created earlier.
