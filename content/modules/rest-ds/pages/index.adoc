@@ -106,9 +106,13 @@ include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Custo
 [[fetch-plans]]
 == Фетч-планы
 
-При загрузке внешней сущности в клиентском приложении можно указать фетч-план для загрузки ссылок. В настоящий момент универсальный REST API xref:rest:entities-api/load-entities.adoc#fetch-plans[поддерживает] только именованные фетч-планы, определённые в xref:data-access:fetching.adoc#creating-fetch-plans[репозитории фетч-планов]. Таким образом, REST DataStore запрашивает данные из сервиса, предоставляя имя фетч-плана.
+Когда вы загружаете внешнюю сущность в клиентском приложении, вы можете указать xref:data-access:fetching.adoc[фетч-план] для загрузки ссылок.
 
-Поэтому и сервисное, и клиентское приложения должны определять все фетч-планы в своих репозиториях с соответствующими именами. Фетч-планы, встроенные в XML-дескрипторы, а также программно создаваемые на Java фетч-планы не поддерживаются.
+Если сервисное приложение построено с использованием Jmix до версии 2.5, его универсальный REST API поддерживает только xref:rest:entities-api/load-entities.adoc#named-fetch-plans[именованные фетч-планы], определенные в репозитории фетч-планов. Таким образом, REST DataStore будет запрашивать данные у сервиса, предоставляя имя фетч-плана. Следовательно, как сервисные, так и клиентские приложения должны определять все фетч-планы в своих репозиториях фетч-планов с соответствующими именами.
+
+Начиная с Jmix 2.5, универсальный REST поддерживает xref:rest:entities-api/load-entities.adoc#inline-fetch-plans[встроенные (inline) фетч-планы], если эта функция не отключена свойством xref:rest:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled]. Таким образом, вы можете определять фетч-планы в XML экрана и Java-коде вашего клиента так же, как и при работе с базами данных.
+
+REST DataStore полагается на xref:rest:capabilities-api.adoc[] REST сервисного приложения, чтобы определить, включены ли встроенные фетч-планы. Если проверка подтверждает их доступность, REST DataStore передает встроенные фетч-планы, в противном случае передаются только имена фетч-планов.
 
 [[loaded-state]]
 == Загруженное состояние
@@ -187,6 +191,26 @@ REST DataStore отправляет xref:data-access:entity-events.adoc#saving-l
 REST DataStore применяет xref:security:resource-roles.adoc#entity-policy[политику операций над сущностями], определённую ресурсными ролями, и xref:security:row-level-roles.adoc#predicate-policy[политику предикатов], определённую ролями уровня строк.
 
 Аутентификация в REST DataStore может выполняться с использованием Client Credentials Grant или Password Grant, предоставляемых дополнением Authorization Server. Последний вариант требует настройки дополнительных свойств `<ds-name>.authenticator` и `jmix.restds.authentication-provider-store`, как описано в разделе <<configuration>>.
+
+[[file-storage]]
+== Хранилище файлов
+
+Сущности сервисного приложения могут содержать ссылки `FileRef` на файлы в своих хранилищах файлов. REST DataStore дополнение предоставляет `RestFileStorage` реализацию интерфейса `FileStorage`, который является прокси, позволяющим работать с файлами, расположенными в хранилищах файлов сервисного приложения.
+
+`RestFileStorage` использует общий REST xref:rest:files-api.adoc[] для передачи файлов между клиентом и сервисным приложением.
+
+Чтобы использовать `RestFileStorage` в вашем клиентском приложении, определите следующий бин в главном классе приложения или в любом другом классе Spring configuration:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/RestDsClientApplication.java[tags=fileStorage]
+----
+
+Здесь `serviceapp` - это имя REST DataStore, как определено в `application.properties`, `fs` - это имя соответствующего хранилища файлов сервисного приложения.
+
+Имя REST хранилища файлов в клиентском приложении формируется путем объединения этих параметров с дефисом между ними. Таким образом, в приведенном выше примере это будет `serviceapp-fs`. Если у вас есть несколько хранилищ файлов в клиентском приложении (скажем, локальный `fs` и удаленный `serviceapp-fs`), см. xref:files:file-storage.adoc#multiple-fs[Использование нескольких хранилищ файлов] для получения дополнительной информации.
+
+Пример работы с `RestFileStorage` приведён в руководстве xref:separate-tiers-guide:index.adoc[].
 
 [[invoking-services]]
 == Вызов сервисов
