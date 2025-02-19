@@ -106,9 +106,13 @@ include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Custo
 [[fetch-plans]]
 == Fetch Plans
 
-When you load an external entity in the client application, you can specify a fetch plan to load references. The generic REST API xref:rest:entities-api/load-entities.adoc#fetch-plans[currently supports] only named fetch plans defined in xref:data-access:fetching.adoc#creating-fetch-plans[fetch plans repository]. So the REST data store will request data from the service providing a fetch plan name.
+When you load an external entity in the client application, you can specify a xref:data-access:fetching.adoc[fetch plan] to load references.
 
-Therefore, both service and client applications must define all fetch plans in their fetch plan repositories, with corresponding names. Inline fetch plans in view XML and programmatically built fetch plans in Java are not supported.
+If the service application is built with Jmix before version 2.5, its generic REST API supports only xref:rest:entities-api/load-entities.adoc#named-fetch-plans[named fetch plans] defined in fetch plans repository. So the REST data store will request data from the service providing a fetch plan name. Therefore, both service and client applications must define all fetch plans in their fetch plan repositories, with corresponding names.
+
+Since Jmix 2.5, generic REST supports xref:rest:entities-api/load-entities.adoc#inline-fetch-plans[inline fetch plans], if this feature is not disabled by the xref:rest:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled] property. So you can define fetch plans in your client's view XML and Java code the same as when working with databases.
+
+The REST data store relies on the xref:rest:capabilities-api.adoc[] of the service application REST to determine if inline fetch plans are enabled. If the check confirms their availability, the REST data store passes inline fetch plans, otherwise it passes only names of the fetch plans.
 
 [[loaded-state]]
 == Loaded State
@@ -187,6 +191,26 @@ REST data store sends xref:data-access:entity-events.adoc#saving-loading-events[
 REST data store applies xref:security:resource-roles.adoc#entity-policy[entity operations policy] defined by resource roles and xref:security:row-level-roles.adoc#predicate-policy[predicate policy] defined by row-level roles.
 
 Authentication in REST data store can be done using Client Credentials Grant or Password Grant provided by the Authorization Server add-on. The latter requires setting the additional properties `<ds-name>.authenticator` and `jmix.restds.authentication-provider-store` as described in the <<configuration>> section.
+
+[[file-storage]]
+== File Storage
+
+The service application entities can contain `FileRef` links to files in its file storages. The REST DataStore add-on provides the `RestFileStorage` implementation of the `FileStorage` interface, which is a proxy that allows you to work with files located in file storages of the service application.
+
+`RestFileStorage` uses the generic REST xref:rest:files-api.adoc[] to transmit files between client and service application.
+
+To use `RestFileStorage` in your client application, define the following bean in the main application class or in any other Spring configuration class:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/RestDsClientApplication.java[tags=fileStorage]
+----
+
+Here `serviceapp` is the name of the REST DataStore as defined in `application.properties`, `fs` is the name of the corresponding file storage of the service application.
+
+The name of the REST file storage in the client application is formed by concatenating these parameters with a dash in between. So in the above example it will be `serviceapp-fs`. If you have multiple file storages in the client application (say local `fs` and remote `serviceapp-fs`), see xref:files:file-storage.adoc#multiple-fs[Using Multiple File Storages] for more information.
+
+See an example of working with `RestFileStorage` in the xref:separate-tiers-guide:index.adoc[] guide.
 
 [[invoking-services]]
 == Invoking Services

@@ -91,74 +91,6 @@ GET http://localhost:8080/rest
 ----
 ====
 
-[[fetch-plans]]
-=== Using Fetch Plans
-
-Which attributes are needed normally varies based on the clients' use-case, UIs, or integration scenario. Loading only the direct attributes of an entity is oftentimes not enough.
-
-With only the ability to load each entity type in a dedicated request, it would require loading referenced entity information in subsequent requests. This would lead to N+1 query problems in the overall application. In particular, when interacting through HTTP, the corresponding overhead can be tremendous.
-
-Therefore, the concept of xref:data-access:fetching.adoc[Fetch Plans] is also supported in the Load Entities API. With Fetch Plans you can configure a tree of attributes that should be loaded all in one batch from the database and transferred through the Load Entities API to the client.
-
-The following example demonstrates how to load a list of Orders with additional information about the corresponding customer, the linked order lines, and even information about the product of that product line.
-
-First, you need to register the fetch plan `order-with-details` in the `fetch-plans.xml` configuration file:
-
-[source,xml]
-.fetch-plans.xml
-----
-<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
-    <fetchPlan class="rest.sample.entity.Order"
-               extends="_base"
-               name="order-with-details">
-        <property name="customer"/>
-        <property name="lines" fetchPlan="_base">
-            <property name="product" fetchPlan="_instance_name" />
-        </property>
-    </fetchPlan>
-</fetchPlans>
-----
-
-With that fetch plan configuration in place, you can perform the request and reference the fetch plan through the `fetchPlan` URL parameter.
-
-In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded with the fetch plan `order-with-details` in order to additionally load `customer` and `lines` data:
-
-[source, http request]
-.Load Order with Fetch Plan Request
-----
-GET http://localhost:8080/rest
-            /entities
-            /sample_Order
-            /21021f78-edac-224b-e6f8-6e71e02a0f0d
-            ?fetchPlan=order-with-details
-----
-
-[source, json]
-.Response: 200 - OK
-----
-{
-  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
-  "date": "2020-12-13",
-  "amount": 49.99,
-  "lines": [ //<1>
-    {
-      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
-      "product": {
-        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
-        "name": "Outback Power Remote Power System"
-      },
-      "quantity": 1.0
-    }
-  ],
-  "version": 1,
-  "customer": {
-    "id": "0826806e-6074-90fa-f241-564b5c94d018",
-    "name": "Sidney Chandler",
-  }
-}
-----
-<1> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
-
 [[load-list]]
 == Load List of Entities
 
@@ -194,7 +126,7 @@ NOTE: Every entity in the response has a `_entityName` attribute with the name o
 It is also possible to further control the behavior of the API by using the following URL query parameters:
 
 dynamicAttributes:: whether xref:dyn-attr:index.adoc[dynamic attributes] should be loaded for an entity `(Boolean)`.
-fetchPlan:: name of an entity's xref:data-access:fetching.adoc[fetch plan] `(String)`.
+fetchPlan:: name or URL-encoded JSON object of an entity's <<fetch-plans,fetch plan>> `(String)`.
 limit:: the number of entities to be returned by the API `(int)`.
 offset:: the position of the first returned entity `(int)`.
 sort:: an entity attribute that will be used for sorting `(String)`.
@@ -577,3 +509,161 @@ GET http://localhost:8080/rest
 <1> The response contains the key `type` although it is empty
 
 NOTE: The Parameter `returnNulls` is present in all Entity Load APIs: Load by ID, Load List, Search and Load by Query.
+
+[[fetch-plans]]
+== Using Fetch Plans
+
+The required attributes for an entity typically depend on the client's use case, UI, or integration scenario. Loading only the direct attributes of an entity is often insufficient.
+
+Without the ability to load referenced entities in a single request, additional requests would be needed to fetch related data, leading to N+1 query issues. This can cause significant overhead, especially in HTTP-based interactions.
+
+To address this, the Load Entities API supports xref:data-access:fetching.adoc[Fetch Plans]. Fetch plans allow you to define a hierarchy of attributes to be loaded in a single batch from the database and delivered to the client, optimizing performance and reducing overhead.
+
+[[named-fetch-plans]]
+=== Named Fetch Plans
+
+Named fetch plans are registered in the shared fetch plans repository of the application (see xref:data-access:fetching.adoc#creating-fetch-plans[Creating Fetch Plans]). They can be used in REST requests by specifying their names.
+
+The following example demonstrates how to load a list of Orders with additional information about the corresponding customer, the linked order lines, and the product of each order line.
+
+First, you need to register the fetch plan `order-with-details` in the `fetch-plans.xml` configuration file:
+
+[source,xml]
+.fetch-plans.xml
+----
+<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
+    <fetchPlan class="rest.sample.entity.Order"
+               extends="_base"
+               name="order-with-details">
+        <property name="customer"/>
+        <property name="lines" fetchPlan="_base">
+            <property name="product" fetchPlan="_instance_name" />
+        </property>
+    </fetchPlan>
+</fetchPlans>
+----
+
+With that fetch plan configuration in place, you can perform a GET request and reference the fetch plan using the `fetchPlan` URL parameter.
+
+In the example below the Order with the ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` is loaded with the fetch plan `order-with-details` in order to additionally load `customer` and `lines` data:
+
+[source, http request]
+.Load Order with fetch plan request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13",
+  "amount": 49.99,
+  "lines": [ //<1>
+    {
+      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ],
+  "version": 1,
+  "customer": {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler",
+  }
+}
+----
+<1> The fetch plan `order-with-details` ensures that additional attributes like `lines` and `customer` are also included.
+
+When using a POST request to load data, for example in the <<load-list-search-filter,search>> endpoint, pass the fetch plan name in the `fetchPlan` property of the request body JSON:
+
+[source,http request]
+.Filter POST request with named fetch plan
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": "order-with-details"
+}
+----
+
+[[inline-fetch-plans]]
+=== Inline Fetch Plans
+
+Since Jmix 2.5, the Entities API supports also inline fetch plans.
+
+Inline fetch plans are passed with REST requests as JSON objects, representing the fetch plan structure. Local attributes of entities are specified by their names, references are specified by nested JSON objects consisting of the attribute name and its nested fetch plan. The `entity` property on the top level must specify the root entity name.
+
+If you make requests to generic REST from another Jmix application, you can use the `FetchPlanSerialization` bean for converting fetch plans to JSON strings.
+
+Inline fetch plan can be used in all endpoints accepting fetch plans. For example:
+
+[source,http request]
+.Filter POST request with inline fetch plan
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": {
+    "entity": "sample_Order",
+    "properties": [
+      "id",
+      "number",
+      "date",
+      "amount",
+      {
+        "name": "customer",
+        "fetchPlan": {
+          "properties": [
+            "id",
+            "name",
+            "status"
+          ]
+        }
+      }
+    ]
+  }
+}
+----
+
+When using inline fetch plans in GET requests as a URL parameter, the JSON must be URL-encoded. For example:
+
+[source, http request]
+.Load Order with inline fetch plan
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=%7B%22entity%22%3A%22sample_Order%22%2C%22properties%22%3A%5B%22id%22%2C%22number%22%2C%22date%22%2C%22amount%22%2C%7B%22name%22%3A%22customer%22%2C%22fetchPlan%22%3A%7B%22properties%22%3A%5B%22id%22%2C%22name%22%2C%22status%22%5D%7D%7D%5D%7D
+----
+
+Inline fetch plans can be disabled using the xref:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled] application property.
+
+
