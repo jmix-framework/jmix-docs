@@ -91,74 +91,6 @@ GET http://localhost:8080/rest
 ----
 ====
 
-[[fetch-plans]]
-=== Использование фетч-планов
-
-Необходимые атрибуты обычно зависят от варианта использования клиента, пользовательского интерфейса или сценария интеграции. Часто загрузки только прямых атрибутов сущности недостаточно.
-
-Если каждый тип сущности возможно загружать только в отдельном запросе, в последующих запросах потребовалось бы загружать информацию о сущности, на которую дана ссылка. Это привело бы к проблемам с запросами N+1 во всем приложении. В частности, при взаимодействии через HTTP такая нагрузка может стать огромной.
-
-Поэтому Load Entities API также поддерживает использование xref:data-access:fetching.adoc[фетч-планов]. С помощью них можно настроить дерево атрибутов, которые должны загружаться из базы данных вместе, одним пакетом, и передаваться клиенту через Load Entities API.
-
-В следующем примере рассмотрим, как загрузить список заказов (Order) с дополнительной информацией о соответствующих клиентах (Customer), связанных строках заказа и даже информацией о продукте соответствующей линейки.
-
-Во-первых, необходимо зарегистрировать фетч-план `order-with-details` в файле конфигурации `fetch-plans.xml`:
-
-[source,xml]
-.fetch-plans.xml
-----
-<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
-    <fetchPlan class="rest.sample.entity.Order"
-               extends="_base"
-               name="order-with-details">
-        <property name="customer"/>
-        <property name="lines" fetchPlan="_base">
-            <property name="product" fetchPlan="_instance_name" />
-        </property>
-    </fetchPlan>
-</fetchPlans>
-----
-
-Имея эту конфигурацию, вы можете выполнить запрос и сослаться на фетч-план через параметр URL `fetchPlan`.
-
-В приведенном ниже примере Order с идентификатором `21021f78-edac-224b-e6f8-6e71e02a0f0d` загружается с планом выборки `order-with-details`, чтобы дополнительно загрузить данные `customer` и `lines`:
-
-[source, http request]
-.Load Order with Fetch Plan Request
-----
-GET http://localhost:8080/rest
-            /entities
-            /sample_Order
-            /21021f78-edac-224b-e6f8-6e71e02a0f0d
-            ?fetchPlan=order-with-details
-----
-
-[source, json]
-.Response: 200 - OK
-----
-{
-  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
-  "date": "2020-12-13",
-  "amount": 49.99,
-  "lines": [ //<1>
-    {
-      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
-      "product": {
-        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
-        "name": "Outback Power Remote Power System"
-      },
-      "quantity": 1.0
-    }
-  ],
-  "version": 1,
-  "customer": {
-    "id": "0826806e-6074-90fa-f241-564b5c94d018",
-    "name": "Sidney Chandler",
-  }
-}
-----
-<1> Фетч-план `order-with-details` гарантирует, что включены дополнительные атрибуты, такие как `lines` и `customer`.
-
 [[load-list]]
 == Загрузка списка сущностей
 
@@ -194,7 +126,7 @@ NOTE: Каждая сущность в ответе имеет атрибут `_
 Также можно дополнительно проконтролировать поведение API, используя следующие параметры URL-запроса:
 
 dynamicAttributes:: следует ли загружать xref:dyn-attr:index.adoc[динамические атрибуты] для сущности `(Boolean)`.
-fetchPlan:: имя xref:data-access:fetching.adoc[фетч-плана] `(String)`.
+fetchPlan:: имя или URL-encoded JSON-объект xref:data-access:fetching.adoc[фетч-плана] `(String)`.
 limit:: количество сущностей, которое должен вернуть API `(int)`.
 offset:: позиция первой возвращенной сущности `(int)`.
 sort:: атрибут сущности, который будет использоваться для сортировки `(String)`.
@@ -577,3 +509,159 @@ GET http://localhost:8080/rest
 <1> Ответ содержит ключ `type`, хотя тот пуст
 
 NOTE: Параметр `returnNulls` присутствует во всех Entity Load API: Загрузка по ID, Загрузка списка, Поиск и загрузка по запросу.
+
+[[fetch-plans]]
+== Использование фетч-планов
+
+Необходимые атрибуты сущности обычно зависят от варианта использования клиента, пользовательского интерфейса или сценария интеграции. Загрузка только прямых атрибутов сущности часто оказывается недостаточной.
+
+Без возможности загрузить связанные сущности в одном запросе потребовались бы дополнительные запросы для получения связанных данных, что приводит к проблеме N+1 запросов. Это может вызвать значительные накладные расходы, особенно в HTTP-взаимодействиях.
+
+Для решения этой проблемы API загрузки сущностей поддерживает xref:data-access:fetching.adoc[фетч-планы]. Фетч-планы позволяют определить иерархию атрибутов, которые будут загружены из базы данных одной партией и доставлены клиенту, оптимизируя производительность и снижая накладные расходы.
+
+[[named-fetch-plans]]
+=== Именованные фетч-планы
+
+Именованные фетч-планы регистрируются в общем репозитории фетч-планов приложения (см. xref:data-access:fetching.adoc#creating-fetch-plans[Создание фетч-планов]). Они могут быть использованы в REST-запросах путем указания их имен.
+
+Следующий пример демонстрирует, как загрузить список заказов с дополнительной информацией о соответствующем клиенте, связанных строках заказа и продукте каждой строки заказа.
+
+Сначала необходимо зарегистрировать фетч-план `order-with-details` в конфигурационном файле `fetch-plans.xml`:
+
+[source,xml]
+.fetch-plans.xml
+----
+<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
+    <fetchPlan class="rest.sample.entity.Order"
+               extends="_base"
+               name="order-with-details">
+        <property name="customer"/>
+        <property name="lines" fetchPlan="_base">
+            <property name="product" fetchPlan="_instance_name" />
+        </property>
+    </fetchPlan>
+</fetchPlans>
+----
+
+С этой конфигурацией фетч-плана вы можете выполнить GET-запрос и сослаться на фетч-план, используя параметр URL `fetchPlan`.
+
+В примере ниже заказ с ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` загружается с фетч-планом `order-with-details`, чтобы дополнительно загрузить данные о `customer` и `lines`:
+
+[source, http request]
+.Запрос на загрузку заказа с фетч-планом
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13",
+  "amount": 49.99,
+  "lines": [ //<1>
+    {
+      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ],
+  "version": 1,
+  "customer": {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler",
+  }
+}
+----
+<1> Фетч-план `order-with-details` гарантирует, что дополнительные атрибуты, такие как `lines` и `customer`, также включены.
+
+При использовании POST-запроса для загрузки данных, например, в эндпойнте <<load-list-search-filter,search>>, передайте имя фетч-плана в свойстве `fetchPlan` JSON тела запроса:
+
+[source,http request]
+.POST-запрос с фильтром и именованным фетч-планом
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": "order-with-details"
+}
+----
+
+[[inline-fetch-plans]]
+=== Встроенные фетч-планы
+
+Начиная с Jmix 2.5, API сущностей также поддерживает встроенные (inline) фетч-планы.
+
+Встроенные фетч-планы передаются с REST-запросами в виде JSON-объектов, представляющих структуру фетч-плана. Локальные атрибуты сущностей указываются по их именам, ссылки указываются вложенными JSON-объектами, состоящими из имени атрибута и его вложенного фетч-плана. Свойство `entity` на верхнем уровне должно указывать имя корневой сущности.
+
+Если вы делаете запросы к универсальному REST из другого приложения Jmix, вы можете использовать бин `FetchPlanSerialization` для преобразования фетч-планов в JSON-строки.
+
+Встроенный фетч-план может быть использован во всех эндпойнтах, принимающих фетч-планы. Например:
+
+[source,http request]
+.POST-запрос с фильтром и встроенным фетч-планом
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": {
+    "entity": "sample_Order",
+    "properties": [
+      "id",
+      "number",
+      "date",
+      "amount",
+      {
+        "name": "customer",
+        "fetchPlan": {
+          "properties": [
+            "id",
+            "name",
+            "status"
+          ]
+        }
+      }
+    ]
+  }
+}
+----
+
+При использовании встроенных фетч-планов в GET-запросах в качестве параметра URL, JSON должен быть URL-кодирован. Например:
+
+[source, http request]
+.Загрузка заказа с встроенным фетч-планом
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=%7B%22entity%22%3A%22sample_Order%22%2C%22properties%22%3A%5B%22id%22%2C%22number%22%2C%22date%22%2C%22amount%22%2C%7B%22name%22%3A%22customer%22%2C%22fetchPlan%22%3A%7B%22properties%22%3A%5B%22id%22%2C%22name%22%2C%22status%22%5D%7D%7D%5D%7D
+----
+
+Встроенные фетч-планы могут быть отключены с использованием свойства приложения xref:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled].

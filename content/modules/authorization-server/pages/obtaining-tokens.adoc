@@ -224,6 +224,21 @@ A full set of application properties may be as follows:
 include::example$/authserver-ex1/src/main/resources/application-password-grant.properties[tags=password-grant-all-props]
 ----
 
+By default, if xref:configuration.adoc#jmix.authserver.use-in-memory-authorization-service[jmix.authserver.use-in-memory-authorization-service] is `false`, the tokens are serialized and stored in the database. In case of Password grant, the token contains the `User` entity, so you need to define a bean of the `JdbcOAuth2AuthorizationServiceObjectMapperCustomizer` type in your application and implement it as follows:
+
+[source,java,indent=0]
+----
+include::example$authserver-ex1/src/main/java/com/company/demo/AuthServerEx1Application.java[tags=tokenObjectMapperCustomizer]
+----
+Here `User` is your user entity class.
+
+If you get `java.lang.IllegalArgumentException: The class ... is not in the allowlist` when using a token, it means that your user entity contains fields of types not supported by the token serializer by default. Then create a mixin class extending `DefaultOAuth2TokenUserMixin` and use it in the `JdbcOAuth2AuthorizationServiceObjectMapperCustomizer` bean. For example:
+
+[source,java,indent=0]
+----
+include::separate-tiers-guide:example$backend-app/src/main/java/com/company/backend/security/OAuth2TokenUserMixin.java[]
+----
+
 To obtain an access token, the client must make a request to the token endpoint. The request content type must be `application/x-www-form-urlencoded`. The `grant_type` parameter should have the `password` value. `username` and `password` parameters must contain Jmix user credentials. The `Authorization` header must define the basic authentication using client id and secret registered in `application.properties`. In the example above they are `myapp` and `mysecret`.
 
 The request using the `curl` utility will look as follows:
