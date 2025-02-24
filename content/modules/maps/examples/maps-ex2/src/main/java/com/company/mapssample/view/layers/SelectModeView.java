@@ -33,8 +33,8 @@ public class SelectModeView extends StandardView {
 
     // tag::selectEvent[]
     @Subscribe("map.layer.source")
-    public void onMapLayerSourceSourceGeoObjectSelect(final HasGeoObjectSelect.SourceGeoObjectSelectEvent<Region> event) {
-        notifications.create("SourceGeoObjectSelectEvent",
+    public void onMapLayerSourceGeoObjectSelect(final HasGeoObjectSelect.GeoObjectSelectEvent<Region> event) {
+        notifications.create("GeoObjectSelectEvent",
                         String.format("Selected: %s\nDeselected: %s",
                                 event.getSelected().size(), event.getDeselected()))
                 .show();

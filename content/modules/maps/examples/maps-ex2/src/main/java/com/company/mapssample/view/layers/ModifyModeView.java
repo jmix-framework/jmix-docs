@@ -33,8 +33,8 @@ public class ModifyModeView extends StandardView {
 
     // tag::modifyStartEvent[]
     @Subscribe("map.layer.source")
-    public void onSourceGeoObjectModifyStart(final HasGeoObjectModify.SourceGeoObjectModifyStartEvent<Region> event) {
-        notifications.create("SourceGeoObjectModifyStartEvent", "Items: "
+    public void onSourceGeoObjectModifyStart(final HasGeoObjectModify.GeoObjectModifyStartEvent<Region> event) {
+        notifications.create("GeoObjectModifyStartEvent", "Items: "
                         + event.getItems().size())
                 .show();
     }
@@ -42,8 +42,8 @@ public class ModifyModeView extends StandardView {
 
     // tag::modifyEndEvent[]
     @Subscribe("map.layer.source")
-    public void onSourceGeoObjectModifyEnd(final HasGeoObjectModify.SourceGeoObjectModifyEndEvent<Region> event) {
-        notifications.create("SourceGeoObjectModifyEndEvent", "Items: "
+    public void onSourceGeoObjectModifyEnd(final HasGeoObjectModify.GeoObjectModifyEndEvent<Region> event) {
+        notifications.create("GeoObjectModifyEndEvent", "Items: "
                         + event.getItems().size())
                 .show();
     }

@@ -31,8 +31,8 @@ public class DragModeView extends StandardView {
 
     // tag::dragStartEvent[]
     @Subscribe("map.layer.source")
-    public void onSourceGeoObjectDragStart(final HasGeoObjectDrag.SourceGeoObjectDragStartEvent<Region> event) {
-        notifications.create("SourceGeoObjectDragStartEvent", "Items: "
+    public void onSourceGeoObjectDragStart(final HasGeoObjectDrag.GeoObjectDragStartEvent<Region> event) {
+        notifications.create("GeoObjectDragStartEvent", "Items: "
                         + event.getItems().size())
                 .show();
     }
@@ -40,8 +40,8 @@ public class DragModeView extends StandardView {
 
     // tag::dragEndEvent[]
     @Subscribe("map.layer.source")
-    public void onSourceGeoObjectDragEnd(final HasGeoObjectDrag.SourceGeoObjectDragEndEvent<Region> event) {
-        notifications.create("SourceGeoObjectDragEndEvent", "Items: "
+    public void onSourceGeoObjectDragEnd(final HasGeoObjectDrag.GeoObjectDragEndEvent<Region> event) {
+        notifications.create("GeoObjectDragEndEvent", "Items: "
                         + event.getItems().size())
                 .show();
     }
