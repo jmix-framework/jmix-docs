@@ -1,0 +1,147 @@
+= 1. Calendar Data Binding
+
+In this section, you will create:
+
+* The `Meeting` JPA entity.
+* The `FullCalendar` component with a data provider.
+
+[[meeting-event]]
+== Meeting Event
+
+The `Meeting` will represent an event within the `FullCalendar` component. It requires specific properties for correct display:
+
+* `name` - represents the event title.
+* `startDate` - represents the event's start date and time. The component will not display events without a `startDate`.
+* `endDate` - represents the event's end date. If `endDate` is not specified, the component will apply a default duration based on the `allDay` property. This tutorial omits the `allDay` property; therefore, events are treated as non-all-day events.
+
+[[create-meeting-entity]]
+=== Creating Meeting Entity
+
+Refer to the xref:tutorial:simple-crud.adoc[Simple CRUD] section of the Tutorial for detailed instructions on creating JPA entities.
+
+The `Meeting` entity has the following attributes:
+
+* `name` with `String` type. Select the *Mandatory* checkbox.
+* `startDate` with `LocalDateTime`. Select the *Mandatory* checkbox.
+* `endDate` with `LocalDateTime`.
+* `user` - has the `Association` attribute type, `User` entity as a Java type and the many-to-one cardinality. Select the *Mandatory* checkbox.
+
+The `Meeting` entity does not require standard list and detail views as it will be programmatically generated and displayed within the `FullCalendar` component.
+
+[[generate-meeting]]
+=== Generating Meeting
+
+After a user completes all onboarding steps, the application generates a meeting event to review the completed tasks. This event will be displayed in the user's *MyCalendar* view.
+
+The best moment to check whether the user has finished all steps is during the xref:flow-ui:data/data-context.adoc#pre-save-event[PreSaveEvent] of xref:flow-ui:data/data-context.adoc[DataContext]. This event listener checks for incomplete onboarding steps. If no incomplete steps remain, a new meeting event is created.
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-pre-save-event]
+----
+
+Next, we implement the `generateOnboardingResultsMeeting()` method. This method creates a `Meeting` event instance scheduled for the next business day.
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-generate-meeting]
+----
+<1> Creates and merges a new `Meeting` instance into the `DataContext`, automatically persisting the entity.
+<2> Calculates the next business day; if today is Friday, the meeting is scheduled for Monday.
+<3> Sets the meeting's start date and time to 9:30 AM on the calculated next business day.
+
+[[add-components]]
+== Adding Components to MyCalendar
+
+First, create a new, empty view named *MyCalendar*.
+
+image::creating-my-calendar-view.png[align="center",width="776"]
+
+Studio will generate and display the empty view in the designer.
+
+[[load-data]]
+=== Loading Data
+
+Before adding the `FullCalendar` component, create a xref:flow-ui:data/collection-container.adoc[collection container] for the `Meeting` entity.
+
+In the actions panel, click *Add Component*, navigate to the *Data components* section, and double-click *Collection container*. In the dialog that appears, select `Meeting` in the *Entity* field and click *OK*.
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar2]
+----
+
+The current data loader configuration retrieves all events from all users. However, users should only view their own events. To implement this filtering, modify the JPQL query - either using the editor or manually - to include a condition that restricts results to the currently logged-in user:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/mycalendar/my-calendar.xml[tags=onboarding-add-fullcalendar3]
+----
+
+We obtain the currently logged-in user from the `CurrentAuthentication` bean and pass this information to the data loader within the xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]:
+
+* Subscribe to the `BeforeShowEvent`.
+* Inject the `meetingsDl` loader.
+* Inject the `CurrentAuthentication` bean.
+
+Now we can set a parameter for the loader to fetch events for the current user:
+
+[source, java, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/java/com/company/onboarding/view/mycalendar/MyCalendar.java[tags=onboarding-add-fullcalendar4]
+----
+
+[[add-fullcalendar]]
+=== Adding FullCalendar Component
+
+In the actions panel, click *Add Component*,  locate the `FullCalendar` item, and double-click it.
+
+Then a new `calendar` element will be generated. Configure the `id`, `height` and `width` attributes as shown below.
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar1]
+----
+
+[[add-data-provider]]
+=== Adding Data Provider
+
+The data provider is a source of events displayed in the `FullCalendar`. There are different types of data providers, but we will use the data provider based on a xref:flow-ui:data/data-containers.adoc[data container].
+
+To add the *ContainerDataProvider* to the `FullCalendar` component:
+
+. Select the `calendar` component in the *Jmix UI* structure panel or the view's XML descriptor.
+. Click the *Add* button in the inspector panel.
+. From the dropdown menu, select *Data Providers* → *ContainerDataProvider*.
+
+image::add-container-data-provider.png[align="center",width="416"]
+
+In the dialog that appears, select `meetingsDc`.
+
+The `containerDataProvider` element allows configuration of entity property mappings. The `Meeting` entity includes the following properties:
+
+* `name`
+* `startDate`
+* `endDate`
+
+Therefore, the following attributes should be specified:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampletwo/sample-two.xml[tags=onboarding-add-fullcalendar3]
+----
+
+Let’s take a look: the complete description of our calendar is as follows:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/samplethree/sample-three.xml[tags=onboarding-add-fullcalendar4]
+----
+
+Launch the application and log in as the `admin` user. The `admin` user does not have onboarding steps, so we need to generate them:
+
+* Access the `User.list` view by selecting *Users* from the application menu.
+* Select the `admin` user in the *DataGrid* and click the *Edit* button. Then, fill in the *Joining Date* field, generate onboarding steps, and save the changes.
+* Access the `MyCalendar` view by selecting *My Calendar* from the application menu.
+
+image::getting-started-data-binding-result.png[align="center",width="1358"]

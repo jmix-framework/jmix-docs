@@ -1,0 +1,72 @@
+= Using EntityManager
+
+`EntityManager` is the standard JPA interface for loading and saving entities. It can also run native SQL queries.
+
+TIP: We recommend using xref:data-manager.adoc[DataManager] for working with entities and fall back to `EntityManager` only if you really need it.
+
+For information on the `EntityManager` methods, refer to the https://jakarta.ee/specifications/persistence/3.1/apidocs/jakarta.persistence/jakarta/persistence/entitymanager[jakarta.persistence.EntityManager^] API documentation.
+
+You can use `EntityManager` in Jmix applications for working with xref:data-model:entities.adoc#jpa[JPA entities] mostly in the same way as in any Spring application. However, Jmix provides its own implementation of the standard interface, which has some specific features.
+
+[[obtaining-entity-manager]]
+== Obtaining EntityManager
+
+You can inject an instance of `EntityManager` in any Spring bean with the help of the `@PersistenceContext` annotation. To use the `EntityManager` instance, you should have an open xref:transactions.adoc[transaction]. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/EntityManagerSampleService.java[tags=em-inject;em-persist]
+----
+
+If you need to work with entities from an xref:data-model:data-stores.adoc#additional[additional data store], obtain the `EntityManager` instance for this data store by specifying the data store name in the `unitName` parameter of the `@PersistenceContext` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/EntityManagerSampleService.java[tags=em-db1-inject;em-db1-persist]
+----
+
+NOTE: `EntityManager` cannot be injected in UI controllers.
+
+[[fetch-plans]]
+== Using Fetch Plans
+
+By default, when you use `EntityManager` for loading entities by id or by JPQL query, it returns all local (immediate) attributes and eagerly fetched references by the rules of the JPA specification. Other references are loaded lazily while in the same transaction.
+
+You can use xref:fetching.adoc#fetch-plan[fetch plans] to optimize loading of the needed object graph regardless of `FetchType.LAZY` fetch instructions in your entity attribute annotations. The fetch plan should be specified in the properties map. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/EntityManagerSampleService.java[tags=em-inject;em-find]
+----
+
+In the above example, all local attributes of the `Order` and the related `Customer` entity will be loaded, even though they are not included in the fetch plan explicitly. If you want to load only a subset of local attributes, build a "partial" fetch plan. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/EntityManagerSampleService.java[tags=em-load-partial]
+----
+
+[[soft-deletion]]
+== Soft Deletion
+
+`EntityManager` supports xref:data-model:soft-deletion.adoc[soft deletion]. When you invoke the `remove()` method for an entity with the xref:data-model:entities.adoc#soft-delete-trait[Soft Delete trait], it updates the `@DeletedDate` and `@DeletedBy` attributes instead of removing the record from the database.
+
+You can turn soft deletion off for a particular transaction to hard delete entities with Soft Delete trait and be able to load instances marked as deleted, by specifying the `PersistenceHints.SOFT_DELETION` property. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/EntityManagerSampleService.java[tags=em-hard-delete]
+----
+
+[[limitations]]
+== Limitations of EntityManager
+
+. xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent and EntityLoadingEvent] are not sent when saving and loading entities with `EntityManager`.
+
+. xref:fetching.adoc#lazy-loading[Lazy loading] of references outside of the transaction where the root entity was loaded doesn't work. You will get a `java.lang.IllegalStateException: Cannot get unfetched attribute ...` exception if you access such a reference.
+
+. xref:data-model:entities.adoc#cross-data-store-ref[Cross-datastore references] are not maintained.
+
+. xref:security:authorization.adoc#data-access-checks[Data access checks] are bypassed.
+
+. The following JPA features are not supported: named queries, `CriteriaBuilder`, `EntityGraph`, `EntityTransaction`.

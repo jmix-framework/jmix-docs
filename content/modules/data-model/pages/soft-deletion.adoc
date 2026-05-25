@@ -1,0 +1,209 @@
+= Soft Deletion
+
+In the _Soft Deletion_ mode, the remove operation on JPA entities just marks database records as deleted instead of actually deleting them. Later a system administrator can either erase the records completely or restore them.
+
+Soft deletion can help you to reduce the risk of data loss caused by incorrect user actions. It also allows users to make certain records inaccessible instantly even if there are references to them from other tables.
+
+The soft deletion mechanism in Jmix is transparent for application developers. If you define the xref:entities.adoc#soft-delete-trait[Soft Delete trait] for an entity, the framework marks database records of deleted entity instances and loads deleted instances according to the following rules:
+
+* Soft-deleted instances are not returned when loading by Id and are filtered out from results of JPQL queries.
+
+* In loaded entity graphs, soft-deleted instances are filtered out from collection attributes (To-Many references), but present in single-value attributes (To-One references).
++
+For example, imagine a Customer - Order - OrderLine data model. Initially, an Order referenced a Customer and _five_ instances of OrderLine. You have soft deleted the Customer instance and one of the OrderLine instances. Then if you load the Order together with Customer and collection of OrderLine, it will contain the reference to the deleted Customer and _four_ OrderLine instances in the collection.
+
+[[references]]
+== Handling of References
+
+When a normal (hard deleted) entity is deleted, foreign keys in the database define handling of references to this entity. By default, you cannot delete an entity if it has references from other entities. To delete the referencing entity together with your entity, or to set the reference to null, you define `ON DELETE CASCADE` or `ON DELETE SET NULL` rules for the foreign key.
+
+For soft-deleted entities, foreign keys also exist, but they cannot affect the deletion because there is no deletion from the database standpoint. So by default, when an entity instance is soft-deleted, it does not affect any linked entities.
+
+Jmix offers xref:entities.adoc#on-delete[@OnDelete] and xref:entities.adoc#on-delete-inverse[@OnDeleteInverse] annotations to handle references between soft-deleted entities.
+
+TIP: Studio entity designer contains visual hints to help you choose correct annotations and their values.
+
+* `@OnDelete` annotation specifies what to do with referenced entity when deleting the current entity. In the following example, all `OrderLine` instances are deleted when the owning `Order` instance is deleted:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Order.java[tags=class-def;on-delete]
+----
+
+* `@OnDeleteInverse` annotation specifies what to do with the current entity when deleting the referenced entity. In the following example, the `Customer` instance cannot be deleted if there is a reference to it from an `Order` instance:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Order.java[tags=class-def;on-delete-inverse]
+----
+
+The annotations can have one of the following values:
+
+* `DeletePolicy.DENY` – to throw an exception on an attempt to delete an entity if the reference is not null.
+
+* `DeletePolicy.CASCADE` – to delete the linked entities together.
+
+* `DeletePolicy.UNLINK` – to disconnect the linked entities by setting the reference attribute to null. Use this value only on the owning side of the association (the one with the `@JoinColumn` annotation).
+
+[[unique-constraints]]
+== Unique Constraints
+
+Soft deletion makes creation of database unique constraints more complicated. A constraint must take into account that there may be multiple records with the same value of the unique field: one non-deleted and any number of soft deleted.
+
+The problem is solved differently for different databases. Follow the recommendations below and use the `Indexes` tab of the xref:studio:entity-designer.adoc[Entity Designer] to define unique constraints.
+
+[[postgresql-uniqueness]]
+=== PostgreSQL
+
+For PostgreSQL, we recommend using partial indexes.
+
+Define a unique constraint for the desired column. The index definition in the entity should look as follows:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio will generate the following Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo" dbms="postgresql">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+    </createIndex>
+
+    <modifySql>
+        <append value="where DELETED_DATE is null"/>
+    </modifySql>
+</changeSet>
+----
+
+Based on the changelog, Liquibase creates the partial index in the database:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
+----
+
+[[oracle-mssql-uniqueness]]
+=== Oracle and Microsoft SQL Server
+
+Oracle and Microsoft SQL Server permit only one null value in a composite index. In this case, we recommend using a composite index including the `DELETED_DATE` column.
+
+Define a unique constraint for the desired column. The index definition in the entity should look as follows:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio will generate the following Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE"/>
+    </createIndex>
+</changeSet>
+----
+
+Based on the changelog, Liquibase creates the composite index in the database:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
+----
+
+[[mysql-mssql-uniqueness]]
+=== MySQL and HSQL
+
+For MySQL and HSQL, we recommend creating an additional non-null column and using a composite index which includes this column.
+
+Create an additional attribute and make sure it is updated from the `deletedDate` setter:
+
+[source,java,indent=0]
+----
+@SystemLevel
+@Column(name = "DELETED_DATE_NN")
+private OffsetDateTime deletedDateNN = OffsetDateTime.of(
+            1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC
+    ); // add initializer manually
+
+public OffsetDateTime getDeletedDateNN() {
+    return deletedDateNN;
+}
+
+public void setDeletedDateNN(OffsetDateTime deletedDateNN) {
+    this.deletedDateNN = deletedDateNN;
+}
+
+public void setDeletedDate(OffsetDateTime deletedDate) {
+    this.deletedDate = deletedDate;
+    setDeletedDateNN(deletedDate == null ? OffsetDateTime.of(
+            1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC
+    ) : deletedDate); // add this manually
+}
+----
+
+Define a unique constraint including `DELETED_DATE_NN` column. The index definition in entity should look as follows:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL", "DELETED_DATE_NN"})
+})
+----
+
+Studio will generate the following Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE_NN"/>
+    </createIndex>
+</changeSet>
+----
+
+Based on the changelog, Liquibase creates the composite index in the database:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN)
+----
+
+[[turn-soft-deletion-off]]
+== Turning Soft Deletion Off
+
+By default, soft deletion is on for all entities having the xref:entities.adoc#soft-delete-trait[Soft Delete trait]. But you can turn it off for a particular operation using the `PersistenceHints.SOFT_DELETION` hint with the `false` value.
+
+* When loading entities using `DataManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=data-manager;load-hard-deleted]
+----
++
+Results will include soft-deleted instances.
+
+* When removing entities using `DataManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=data-manager;hard-delete]
+----
+
+* When working with `EntityManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=hard-delete-em]
+----

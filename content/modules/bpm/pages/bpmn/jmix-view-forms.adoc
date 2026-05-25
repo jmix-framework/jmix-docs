@@ -1,0 +1,311 @@
+= Jmix View
+
+Any Jmix view can serve as a process form. This enables more complex user interactions compared to xref:bpm:input-dialog.adoc[].
+
+[[creating-jmix-view-process-form]]
+== Creating a Process Form
+
+A Jmix view process form is a regular application view that includes annotations to carry process-related details.
+
+=== Converting Existing View
+
+To convert a regular view to process form:
+
+* Add the <<processform,@ProcessForm>> annotation to the controller class. Declare outcomes, parameters, and output variables as appropriate.
+* Inject and bind process variables using <<processvariable,@ProcessVariable>>.
+* Handle button clicks to complete the task using <<process-form-context,ProcessFormContext>>.
+
+TIP: Avoid converting views that are already in use. It is best to create a new view to serve as a process form.
+
+=== Using Jmix Studio
+
+To create a process form using Jmix Studio:
+
+. Click *New -> View* to open xref:studio:view-wizard.adoc[].
+. Select the *BPM Process form* template.
++
+image:jmix-view-forms/view-wizard-bpm-process-form.png[,776]
++
+. Configure the form template and the element it is intended for:
++
+* Select *Form template* from the two options:
+** *Process Form with Process Variables*: this form will render components to a set of process variables you select.
+** *Process Form for Entity Instance*: this form will render components for specific entity instance attributes along with any added process variables.
+* Select *Form type*:
+** *User task form*: this form is intended for user task elements.
+** *Start form*: this form is intended for start event elements.
++
+image:jmix-view-forms/jmix-view-wizard-1.png[,776]
++
+. In case of *Process form for entity instance*, specify the entity class, variable name, and configure the fetch plan.
+. Specify process variables.
+. In case of *User task form* specify form outcomes. The defaults are `submit` and `reject`. Edit these or add more.
+. Add localizable messages.
+. Click *Create*.
+
+The form will appear among other views in your applications.
+
+[[set-up-element]]
+== Setting up Element with a Process Form
+
+Once you created a process form, you can set up an element to use it.
+Follow the steps below:
+
+. Open the xref:menu-views/modeler-web.adoc[].
+. Select the appropriate element (User Task or Start Event).
++
+[cols="a,a", frame=none, grid=none]
+|===
+| image::jmix-view-forms/user-task.png[,120]
+| image:jmix-view-forms/form-section.png[,456]
+|===
++
+. Set *Form type* to `Jmix view`.
+. Set *Open mode*:
+** *Dialog*: to display form in a dialog.
+** *Navigate*: to display form as a view at its own URL.
+. Specify *View id*. The list of options will include all application views annotated with `@ProcessForm`. Modeler will recognize the process form and complete the remaining settings based on its annotations.
+. If there are any <<process-form-with-parameters,form parameters>>, configure them with value source accordingly.
+
+The process form is now set up for use in the selected element.
+
+[[processform]]
+== @ProcessForm
+
+Adding `@ProcessForm` to a view controller class converts a view to a process form and makes the xref:menu-views/modeler-web.adoc[] aware of it. This annotation can include the following attributes:
+
+* To restrict the use of a form to specific processes, specify the process keys in the `allowedProcessKeys` attribute:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=allowed-process]
+----
++
+* To declare form outcomes, use the `outcomes` attribute:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalTaskForm.java[tags=outcomes]
+----
++
+* To specify output variables, use the `outputVariables` attribute:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OutputVariablesForm.java[tags=output-variables]
+----
++
+* To set a process variable only upon completing a task with a specific outcome, combine the `outcomes` and `outputVariables` attributes as follows:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OutcomeOutputVariablesForm.java[tags=output-variables]
+----
++
+<1> The `nextActor` variable is set when the task is completed with the `approve` outcome.
+<2> The `rejectionReason` variable is set when the task is completed with the `reject` outcome.
+<3> The `comment` variable is set in all cases.
++
+* To declare <<process-form-with-parameters, form parameters>> use the `params` attribute. Then, set `@ProcessFormParam` on class fields to link them to those parameters.
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=params;params-annotation]
+----
++
+NOTE: `@ProcessFormParam` can take a `name` attribute. If no name is explicitly specified, the default name is derived from the field name.
+
+[[processvariable]]
+== @ProcessVariable
+
+Place `@ProcessVariable` on class fields and view components to set a process process variable's value when the process form opens.
+
+NOTE: The variable becomes available in xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]. It is not accessible in xref:flow-ui:views/view-events.adoc#init-event[InitEvent].
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=variables]
+----
+
+If no `name` is explicitly specified, the default process variable name is derived from the field name.
+
+[[loading-dynamic-attributes]]
+=== Loading Dynamic Attributes
+
+xref:dyn-attr:index.adoc[] values are not loaded (and therefore not shown) in the process form by default. If the process variable is an entity that has dynamic attributes, you can load and display those attributes by adding `@ProcessVariableParam` in the `params` array and setting the `ProcessVariableConstants.LOAD_DYN_ATTR_PARAM` key to `true`. For example:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/documentprocessform/DocumentProcessForm.java[tags=process-variable-param-example]
+----
+
+When enabled, the process form automatically renders visual components for each dynamic attribute — you don’t need to create them manually.
+
+[[process-form-context]]
+== ProcessFormContext
+
+The `ProcessFormContext` object contains information about the definition of the process being started or the user task that needs to be completed. Use `ProcessFormContext` when the process form is opened from the xref:bpm:menu-views/start-process-view.adoc[] or xref:menu-views/my-tasks.adoc[] views. To open a process form with an injected `ProcessFormContext` programmatically, use the <<opening-forms-programmatically,ProcessFormViews>> bean.
+
+[[start-form-example]]
+Consider the following example of starting a process:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=start-process]
+----
+
+<1> Creates a `ProcessStarting` instance.
+<2> Sets a business key to the process instance.[[business-key]]
+<3> Adds a process variable.
+<4> Starts the actual process.
+<5> Closes the opened window.
+
+[[task-form-example]]
+Consider the following example of completing a user task:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/TaskProcessForm.java[tags=complete-task1;complete-task2]
+----
+
+<1> Creates a `TaskCompletion` instance.
+<2> Sets a task outcome.
+<3> Indicates that values of class fields annotated with the `@ProcessVariables` should be collected and saved as process variables.
+<4> Completes the actual task.
+<5> Closes the opened window.
+
+[[examples]]
+== Examples
+
+[[start-process-form]]
+=== Start Process Form
+
+Let's look at the example of the process form that is used as a start form.
+The form displays two fields:
+
+* A text field to enter the order number.
+* An `entityPicker` to select the manager. The manager can be the next process actor.
+
+View XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/order-approval-start-form.xml[tags=start-example]
+----
+
+View controller:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalStartForm.java[tags=start-example]
+----
+
+<1> The `@ProcessForm` annotation indicates that this view is a process form and the view will be available in the modeler.
+<2> We declare that the injected `orderNumber` UI component is a process variable. Since we develop a start process form,
+the variable has no value yet, but the annotation will be used on process start.
+<3> The same as 2, but here the `manager` process variable name differs from the `managerEntityPicker` field name.
+<4> `ProcessFormContext` is the object that we use to start the process.
+<5> When we start the process, we can pass an optional process instance business key.
+We use the `orderNumber` here.
+<6> The `saveInjectedProcessVariables()` saves values of the fields annotated with
+the `@ProcessVariables` as process variables on process start.
++
+Instead of using `saveInjectedProcessVariables()` method you can explicitly add process variables one by one:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm2.java[tags=start-example]
+----
+
+[[task-process-form]]
+=== Task Process Form
+
+Let's look at the example of the task process form that displays two fields:
+
+* The first one will display a value of the existing process variable - `orderNumber`.
+* The second field will be used for the new process variable - `comment`.
+
+*Approve* and *Reject* buttons complete the user task with the corresponding outcome.
+
+View XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/order-approval-task-form.xml[tags=task-example]
+----
+
+View controller:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalTaskForm.java[tags=task-example]
+----
+
+<1> The form defines two possible outcomes that can be used in a sequence flow node condition in the modeler.
+This information is used by the modeler only.
+<2> The `orderNumber` variable has been already set on process start.
+Because of the `@ProcessVariable` annotation,
+the value of the `orderNumber` process variables will be set to the `orderNumber` text field when the form is displayed.
+<3> The comment variable is not set yet, but the `@ProcessVariable` annotation will be taken into account
+when we complete the task in the button click listener.
+<4> Values of all fields annotated with the `@ProcessVariable` will be saved as process variables on task completion.
+<5> An alternative way to define process variables. Instead of using the `saveInjectedProcessVariables()` method,
+you can define process variables directly.
+
+[[opening-forms-programmatically]]
+=== Opening Forms Programmatically
+
+Use the `ProcessFormViews` service to open start process forms and task process forms defined in the modeler.
+
+In the example below, the button in the list view opens the start process form.
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/order/OrderListView.java[tags=start-form]
+----
+<1> Get a process definition by key.
+<2> Show the start process form with the provided process definition.
+
+To open a task form, use the `openTaskProcessForm()` method:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/test/TestScreen.java[tags=task-form]
+----
+
+[[process-form-with-parameters]]
+=== Process Form with Parameters
+
+Process forms can accept external parameters to adjust their behavior or appearance, such as changing component captions. In contrast to process variables, these form parameters have a narrower scope and are only available within the specific form (unless you save their value to a process variable).
+
+TIP: Form parameters are declared with the <<processform,@ProcessForm>> annotation and its `params` attribute. They are linked to a class field using the `@ProcessFormParam` annotation.
+
+To illustrate, let's consider the scenario where you need a form for selecting the next process actor. This form should feature an `EntityPicker` component to select a user that is then saved to a process variable. Also, this form will be reused at various steps in the process, so it is useful to set the entity picker's caption through a parameter.
+
+There will be two form parameters overall:
+
+* `nextActor` – to save the user selected in the `EntityPicker` for further use in the process.
+* `entityPickerCaption` – to customize the caption on the `EntityPicker` component based on the process step.
+
+View XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/actor-selection-form.xml[tags=actor-form]
+----
+
+View controller:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=actor-form1;actor-form2]
+----
+
+[TIP]
+====
+To get a full list of process form parameters, use the `ProcessFormContext` object:
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=param-list]
+----
+====

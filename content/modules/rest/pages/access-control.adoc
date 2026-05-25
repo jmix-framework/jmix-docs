@@ -1,0 +1,87 @@
+= Access Control
+
+[[protecting-api-using-access-tokens]]
+== Protecting API Using Access Tokens
+
+Access to REST API endpoints may be protected with access tokens. The Authorization Server add-on may be used for obtaining access tokens. See the xref:authorization-server:protecting-resources.adoc#protecting-rest-api-endpoints[Authorization Server] add-on documentation for details.
+
+[[anonymous-access]]
+== Anonymous Access
+
+It is possible to expose certain parts of the REST API without authentication by using the anonymous access functionality of Jmix. In this case, the API request is performed as the anonymous user, which is configured by default in a Jmix application.
+
+For every secured endpoint that is called without the `Authorization` header, the user will be authenticated with the `anonymous` user session.
+
+See the xref:security:custom-endpoints.adoc#token-based-authentication[Token Based Authentication] section for details on how to define access to anonymous resources. The easiest way is to set an application property with a comma-separated list of anonymous URL patterns.
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=resource-server-anonymous-url-patterns]
+----
+
+Once this setting is in place, it is possible to interact with the `ProductService` without sending an `Authorization` header:
+
+.GetProductInformation Request
+[source, http request]
+----
+GET {{baseRestUrl}}
+         /services
+         /productService
+         /getProductInformation
+         ?productId=123
+# Authorization: not set
+----
+
+This request returns a successful response from the service:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "name": "Apple iPhone",
+  "productId": "123",
+  "price": 499.99
+}
+----
+
+If you want to provide anonymous access to some xref:entities-api.adoc[entities] endpoints, make sure the `anonymous` user has rights to these entities. You can do it by creating a xref:security:resource-roles.adoc[resource role] and assigning it to the `anonymous` user in the `DatabaseUserRepository.initAnonymousUser()` method. For example:
+
+[source,java,indent=0]
+----
+@ResourceRole(name = "AnonymousRestRole", code = AnonymousRestRole.CODE, scope = "API")
+public interface AnonymousRestRole {
+
+    String CODE = "anonymous-rest-role";
+
+    @EntityAttributePolicy(entityClass = Product.class,
+        attributes = "*",
+        action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = Product.class,
+        actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void product();
+}
+----
+
+[source,java,indent=0]
+----
+@Primary
+@Component("UserRepository")
+public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
+    // ...
+
+    @Override
+    protected void initAnonymousUser(User anonymousUser) {
+        Collection<GrantedAuthority> authorities = getGrantedAuthoritiesBuilder()
+                .addResourceRole(AnonymousRestRole.CODE)
+                .build();
+        anonymousUser.setAuthorities(authorities);
+    }
+}
+----
+
+TIP: The anonymous access feature *does not* require that `anonymous` user has the `rest-minimal` role.
+
+[[predefined-roles]]
+== Predefined Roles
+
+*REST: minimal access* (`rest-minimal`): Allows users to interact with the application via the API.

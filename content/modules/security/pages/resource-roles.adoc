@@ -1,0 +1,163 @@
+= Resource Roles
+
+Resource roles give users permissions to specific objects and operations in the system: CRUD operations on entities, entity attributes, UI views, and so on.
+
+NOTE: A user without resource roles has no permissions and cannot access the application's data and UI.
+
+[[create]]
+== Creating Resource Roles
+
+You can create resource roles at design time using annotated Java interfaces (see xref:studio:role-designer.adoc#resource-role-designer[role designer] in Studio) or at runtime using UI views available at *Security -> Resource roles*.
+
+A role has a user-friendly name and a code. The code is used when assigning the role to users, so don't change if some users already have this role assigned.
+
+Example of defining a design-time role:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/FullAccessRole.java[tags=role]
+----
+<1> The `@ResourceRole` annotation indicates that the interface defines a resource role.
+<2> A user-friendly name of the role.
+<3> The role's code.
+<4> The role's <<role-scope,scope>> (optional).
+<5> The interface can have one or more methods to define policy annotations (see below). Different methods are used just to group related policies. Method names can be arbitrary, they are displayed as *Policy group* when the role is shown in UI.
+
+[[policies]]
+== Resource Policies
+
+Resource roles define permissions by specifying _resource policies_. A resource policy combines a resource with a permitted type of access to it.
+
+[[entity-policy]]
+=== Entity Policy
+
+Entity policy specifies what CRUD operations are permitted for an entity.
+
+In a design-time role, the entity policy is defined using the `@EntityPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-policy;method]
+----
+
+The `entityClass` parameter specifies the entity. If you want to define a policy for all entities, use the `entityName` parameter with `*` value.
+
+The `actions` parameter specifies permitted CRUD operations. If you want to enable all operations, use `EntityPolicyAction.ALL` value.
+
+[[entity-attribute-policy]]
+=== Entity Attribute Policy
+
+Entity attribute policy specifies what entity attributes are permitted.
+
+In a design-time role, the entity attribute policy is defined using the `@EntityAttributePolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-attribute-policy;method]
+----
+
+The `entityClass` parameter specifies the entity. If you want to define a policy for all entities, use the `entityName` parameter with `*` value.
+
+The `attributes` parameter specifies entity attribute names. If you want to define a policy for all attributes of the entity, use `*` value.
+
+The `action` parameter specifies the permitted access level: "view" or "modify". The "modify" level automatically grants also the "view" access.
+
+[[view-policy]]
+=== View Policy
+
+View policy specifies permitted UI views.
+
+In a design-time role, the view policy is defined using the `@ViewPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=view-policy;method]
+----
+
+The `viewIds` parameter specifies identifiers of permitted UI views. If you want to enable all views, use `*` value.
+
+[[menu-policy]]
+=== Menu Policy
+
+Menu policy specifies permitted UI main menu items.
+
+In a design-time role, the menu policy is defined using the `@MenuPolicy` annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=menu-policy;method]
+----
+
+The `menuIds` parameter specifies identifiers of permitted menu items. If you want to enable all menu items, use `*` value.
+
+[[specific-policy]]
+=== Specific Policy
+
+Specific policy defines permissions on arbitrary named functionality.
+
+The framework uses specific permissions to restrict access to various mechanisms. For example, xref:rest:index.adoc[Generic REST API] defines the `rest.enabled` policy, so a user must have this permission to be able to interact with the application through the Generic REST endpoints.
+
+You can use specific policies to restrict access to your application functionality too. Below is an example of such access control.
+
+In a design-time role, the specific policy is defined using the `@SpecificPolicy` annotation:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerFullAccessRole.java[tags=specific-permission]
+----
+
+The policy is checked in the application code using the `AccessManager` and `SpecificOperationAccessContext` classes provided by the framework:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/service/NotificationService.java[tags=access-manager;specific-permission]
+----
+
+You can learn more about checking permissions in the xref:security:authorization.adoc#access-constraints[access constraints] section.
+
+If you want to enable all existing specific policies, use `*` value in the `@SpecificPolicy.resources` annotation attribute.
+
+[[ui-component-policy]]
+=== UI Component Policy
+
+UI component policies define permissions for UI elements such as fields, buttons, and actions within specific views. This policy support is offered through the separate xref:uiconstraints:index.adoc[UI Constraints] add-on.
+
+[[role-scope]]
+== Role Scope
+
+A role scope defines the areas where the role is effective. There are two built-in scopes:
+
+* `UI`: the application xref:flow-ui:index.adoc[UI] based on Vaadin.
+* `API`: the generic xref:rest:index.adoc[REST API].
+
+Scopes allow you to grant a user different sets of roles depending on how
+they access the application. API roles are usually more restrictive.
+
+For example, if the user `bob` is assigned the following roles in the application: `R1(scope=UI,API)`, `R2(scope=UI)`, and `R3(scope=API)`, then when he logs into the UI, he has `R1` and `R2` roles, and when he authenticates with the REST API, he has `R1` and `R3` roles.
+
+If the scope is not specified for a role, the role is active for all scopes.
+
+You can use the string constants of the `io.jmix.security.model.SecurityScope` interface to define built-in role scopes.
+
+[[role-granularity]]
+== Role Granularity
+
+A resource role can have any number of policies, and a user can have any number of roles. So you can design roles with different levels of granularity:
+
+* Fine-grained roles define permissions to closely related resources like an entity, its UI views and menu items. For example, "Full access to Customers", "Can create and update Orders". You would normally assign several such roles to the user.
+
+* Coarse-grained roles define all permissions required for a specific job, like "Salesperson". Such a role can define all permissions itself or inherit them from base roles, so a coarse-grained role can be made as an aggregation of fine-grained ones.
+
+We recommend creating fine-grained roles at design time and using runtime capabilities only for combining them into different coarse-grained roles for simple assignment to users, and for rare ad-hoc changes in your security model.
+
+[[example]]
+== Example
+
+Below is a complete example of a design-time resource role that enables limited access to the following entities and their UI views:
+
+image::resource-roles-diagram.svg[align="center"]
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=role]
+----

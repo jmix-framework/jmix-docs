@@ -1,0 +1,54 @@
+= Creating Notifications
+
+You can create notifications through the administration UI or programmatically in code.
+
+[[administration-ui]]
+== Administration UI
+
+After the add-on is added to your application, the main menu contains the *Notifications* item. The *Notifications* view provides a list of created notifications and buttons for managing them.
+
+image::ntf-list.png[align="center" width="1362"]
+
+[[ntf-editor]]
+The notification editor appears after clicking the *Create notification* button.
+
+image::ntf-editor.png[align="center", width="482"]
+
+The dialog provides the following fields to fill in:
+
+* *Subject* – a subject of the notification.
+* *Type* – a type of notification. There are no default notification types. See the xref:notifications:configuration.adoc#notification-types[configuration] section to create types.
+* *Recipients* – a list of recipients of the notification. Start typing a username in the field, and select the appropriate users from the list.
+* *Channels* – channels used for the notification.
+** *In-app channel* – the user will receive the notification in the application UI.
+** *Email channel* – the user will receive an email with the notification (available with the xref:email:index.adoc[Email] add-on).
+* *Body* – body of the notification.
+
+[[programmatic-creation]]
+== Programmatic Creation
+
+The *NotificationManager* service provides methods to send notifications to users.
+
+In the example below, a notification is sent to the user every time a new order is created.
+
+image::ntf-programmatic.png[align="center" width="1270"]
+
+This scenario belongs to the category of _Entity Lifecycle Events_. The logic must be executed when a new order entity is created. The Jmix framework publishes an xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] whenever an entity is created, updated, or deleted in the database.
+
+To handle this event, you need to define an event listener as a Spring bean. The method that listens to `EntityChangedEvent` should be annotated with `@TransactionalEventListener` to ensure that it only executes after the entity has been committed to the database.
+
+[source,java,indent=0]
+----
+include::example$/notifications-ex1/src/main/java/com/company/notificationsex1/listener/OrderEventListener.java[tags=ntf-create]
+----
+<1> Listens for `EntityChangedEvent` after the transaction is committed, ensuring that the order record is already stored in the database.
+<2> Opens a new transaction for loading and saving data. This is necessary because the current transaction has already been closed after the commit. Without this, `dataManager.load()` or `dataManager.save()` would fail due to the lack of an active transaction.
+<3> Initiates `NotificationRequestBuilder` that creates a new `NotificationRequest` object.
+<4> Defines the subject of the notification.
+<5> Sets the recipient by the provided username.
+<6> Sets notification channels by the provided names. The `in-app` and `email` channels are available.
+<7> Sets the notification body content type.
+<8> Sets notification body.
+<9> Creates and sends the notification request.
+
+TIP: Click *Code Snippets* in the actions panel to xref:jmix:studio:code-snippets.adoc[generate code] for sending notifications.

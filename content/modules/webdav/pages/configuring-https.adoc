@@ -1,0 +1,118 @@
+= 3. Working with Desktop Applications
+
+To authenticate desktop applications, the server must have HTTPS enabled. Here are simple instructions for configuring HTTPS in your development environment.
+
+[[using-libreoffice]]
+== Using LibreOffice
+
+Install LibreOffice and configure the xref:webdav-properties.adoc#jmix.webdav.applications[jmix.webdav.applications] property to open all files in it:
+
+[source,properties]
+----
+jmix.webdav.applications = {"vnd.libreoffice.command":\
+  {"name":"LibreOffice","protocols":\
+  {"writable":"vnd.libreoffice.command:ofe|u|",\
+  "read_only":"vnd.libreoffice.command:ofv|u|"},\
+  "extensions":["odt", "ods", "odp", "doc", "docx", "xls", "xlsx", "ppt", "pptx"]}}
+----
+
+[[keystore-file]]
+== Creating a Keystore File
+
+. Install `mkcert` utility by following the instructions provided in its repository: https://github.com/FiloSottile/mkcert[https://github.com/FiloSottile/mkcert^].
+
+. Generate and install the root certificate:
++
+[source]
+----
+mkcert -install
+----
+
+. Create a certificate for localhost:
++
+[source]
+----
+mkcert -pkcs12 localhost 127.0.0.1 ::1
+----
++
+You will see the `localhost+2.p12` file in the current folder.
+
+. Create a keystore file with the certificate for your project:
++
+[source]
+----
+keytool -importkeystore -srckeystore localhost+2.p12 -srcstoretype pkcs12 -destkeystore localhost.jks
+----
++
+Enter `changeit` as the source keystore password.
++
+You will see the `localhost.jks` file in the current folder.
+
+[[configuring-server]]
+== Configuring Server
+
+This section explains how to use the certificate generated in the previous section in your application when it runs from the IDE or as an executable JAR.
+
+. Create `src/main/resources/<base-package>/keystore` directory and copy `localhost.jks` into it.
+
+. Set the following properties in the `application.properties` file replacing `<base-package>` and `<password>` with actual values:
++
+[source,properties,indent=0]
+----
+# Enables HTTPS
+server.ssl.enabled=true
+# The format used for the keystore
+server.ssl.key-store-type = JKS
+# The path to the keystore containing the certificate
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# The password used to generate the keystore
+server.ssl.key-store-password = <password>
+# The alias mapped to the certificate
+server.ssl.key-alias = localhost
+
+# Changes the server's port
+server.port = 8443
+----
++
+[NOTE]
+====
+The `<base-package>` in the path to the keystore (`server.ssl.key-store` property) should be written as a slash-separated path:
+----
+server.ssl.key-store = classpath:com/example/demo/keystore/localhost.jks
+----
+====
+. Open the main application class and change the `printApplicationUrl()` method. The URL should be changed to `https://` after configuring HTTPS:
++
+[source,java,indent=0]
+----
+@EventListener
+public void printApplicationUrl(final ApplicationStartedEvent event) {
+    LoggerFactory.getLogger(DemoApplication.class).info("Application started at "
+            + "https://localhost:"
+            + environment.getProperty("local.server.port")
+            + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+}
+----
+
+[[running-application]]
+== Running the Application
+
+After following the instructions outlined above, launch the application at `++https://localhost:8443++`.
+
+Choose the *Knowledge base* item from the *Application* menu. Click on the WebDAV document link.
+
+image::open-webdav-doc1.png[align="center", width="1432"]
+
+The browser will display a dialog prompting the user to open the WebDAV file in LibreOffice. Agree to open the file.
+
+Once the WebDAV document is edited and saved, a new version of the document will be created, which will be the latest version.
+
+image::open-webdav-doc3.png[align="center", width="1169"]
+
+[[summary]]
+== Summary
+
+You have learned that:
+
+* To enable opening and editing of WebDAV documents using desktop office applications, it is necessary to set up HTTPS for your web application. This is essential for ensuring secure communication between desktop office applications and the WebDAV server, particularly when handling sensitive document editing and saving operations.
+* HTTPS encryption provides a secure channel for transmitting data, preventing unauthorized access and guaranteeing the integrity of the document editing process.

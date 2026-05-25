@@ -1,0 +1,148 @@
+= Using Fragments
+:page-aliases: using-fragments.adoc
+
+This section explains how to define and use fragments. See also the xref:flow-ui:fragments/fragments.adoc#fragment-events[Fragment Events] section.
+
+[[declarative-usage]]
+== Declarative Usage
+
+Suppose you have a fragment for entering an address:
+
+.AddressFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/address/var1/AddressFragment.java[tags=fragment-java]
+----
+
+.address-fragment.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var1/address-fragment.xml[tags=fragment-xml]
+----
+
+TIP: A fragment can be created using the xref:studio:view-wizard.adoc[] in Studio. Select the `Blank fragment` template from the view templates list.
+
+Then you can include it in a view using the `fragment` element with the `class` attribute specifying the fragment class FQN:
+
+.host-view.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var1/host-view1.xml[tags=fragment-in-view]
+----
+
+The `fragment` element can be added to any layout component of the view, including the top-level `layout` element.
+
+TIP: In Studio xref:studio:view-designer.adoc[], use the *Add Component* action to open the component palette. Find the `Fragment` component in it, then drag and drop it into the component structure or into the XML.
+
+[[programmatic-usage]]
+== Programmatic Usage
+
+The same fragment can be included in a view programmatically using the `Fragments` bean, for example:
+
+.host-view.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var1/host-view.xml[tags=fragment-in-view]
+----
+
+.HostView.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/address/var1/HostView.java[tags=fragment-in-view]
+----
+<1> Injects the `Fragments` bean which is designed to instantiate fragments.
+<2> Creates the fragment’s instance by its class.
+<3> Add fragment instance to the `Details` layout component.
+
+NOTE: If a fragment subscribes to a host view xref:fragments/fragments.adoc#fragment-autowiring[event], the fragment must be created and added to the view before this event is triggered.
+
+[[passing-parameters-to-fragments]]
+== Passing Parameters to Fragments
+
+A fragment controller can have public setters to accept parameters as it is done when opening views, for example:
+
+.AddressFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/address/var2/AddressFragment.java[tags=fragment-java]
+----
+<1> Setter methods allows you to pass parameters to the fragment.
+
+If the fragment is added to the view declaratively in XML, use the `properties` element to pass the parameters, for example:
+
+.host-view.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var2/host-view.xml[tags=fragment-in-view]
+----
+<1> Passes a data container to the `setCitiesContainer()` method.
+<2> Passes a string parameter to the `setZipcodePlaceholder()` method.
+
+Use the `value` attribute to specify values and the optional `type` attribute to indicate that the string value must be converted by one of the pluggable `PropertyParser` beans. Setters must have parameters of appropriate types.
+
+[TIP]
+====
+To add a parameter in Jmix Studio, select `fragment` in the view descriptor XML or in the *Jmix UI* structure panel and click on the xref:studio:view-designer.adoc#component-inspector-add-button[Add]*->Properties->Property* button in the *Jmix UI* inspector panel.
+====
+
+If the fragment is created programmatically, setters can be invoked explicitly:
+
+.HostView.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/address/var2/HostView.java[tags=fragment-in-view]
+----
+<1> Passes a parameter before adding the fragment to the view.
+
+
+[[using-data-components]]
+== Using Data Components
+
+A fragment can have its own data containers and loaders defined in the `data` XML element. At the same time, the framework creates a single instance of xref:flow-ui:data/data-context.adoc[DataContext] for the view and all its fragments. Therefore, all loaded entities are merged to the same context, and their changes are saved when the host view saves the data.
+
+The following example demonstrates the usage of own data containers and loaders in a fragment.
+
+Suppose you have a `City` entity, you want to show a drop-down list with available cities. You can define data components in the fragment descriptor as you would in a regular view:
+
+.address-fragment.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var3/address-fragment.xml[tags=fragment-xml]
+----
+
+.AddressFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/address/var3/AddressFragment.java[tags=fragment-java]
+----
+<1> The fragment subscribes to the host view `BeforeShowEvent`, so fragment data will be loaded when the host view is opened.
+
+
+[[provided-data-components]]
+=== Provided Data Components
+
+The next example demonstrates how to use data containers of the host view in a fragment.
+
+.host-view.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var4/host-view.xml[tags=fragment-in-view]
+----
+<1> Data container that is used in the fragment below.
+
+.address-fragment.xml
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/address/var4/address-fragment.xml[tags=fragment-xml]
+----
+<1> `provided="true"` means that the container with the same id must exist in a host view or enclosing fragment.
+<2> UI component is linked to the provided data container.
+
+In the XML element having `provided="true"`, all attributes except id are ignored but can be present to provide information for design time tools.
+
+A fragment can also define loaders, provided by a host view. A provided loader must have the same id as a loader of the host view, and `provided="true"` attribute. For example:
+
+[source,xml,indent=0]
+----
+<loader id="addressDl" provided="true"/>
+----

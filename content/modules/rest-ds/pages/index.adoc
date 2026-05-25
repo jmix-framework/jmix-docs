@@ -1,0 +1,482 @@
+= REST DataStore
+
+The purpose of the REST data store is to provide an easy way of integrating Jmix applications. The result of the integration is the ability to access external entities from a remote Jmix application through the xref:data-access:data-manager.adoc[DataManager] interface in the same way as local JPA entities. The external entities can be displayed in the UI, updated, and saved back to the remote application using the standard CRUD functionality provided by Jmix, without writing any specific code.
+
+This document provides reference information about the REST DataStore add-on. If you want to learn more about how to use it in various scenarios, refer to the following guides:
+
+* xref:integrated-apps-guide:index.adoc[]
+* xref:separate-tiers-guide:index.adoc[]
+* xref:restds-oidc-guide:index.adoc[]
+
+In this document, we will use the following terms:
+
+* _Service Application_ - a Jmix application providing data through the xref:rest:index.adoc[generic REST API].
+* _Client Application_ - a Jmix application consuming data from the Service Application using the REST data store.
+
+The service and client applications can use different versions of Jmix.
+
+[[installation]]
+== Installation
+
+For automatic installation through Jmix Marketplace, follow instructions in the xref:ROOT:add-ons.adoc#installation[Add-ons] section.
+
+For manual installation, add the following dependencies to your `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::example$/rest-ds-client/build.gradle[tags=dependencies]
+----
+
+[[configuration]]
+== Configuration
+
+[[basic-configuration]]
+=== Basic Configuration
+
+The basic configuration includes the steps listed below.
+
+In the service application project:
+
+* Add xref:rest:index.adoc[REST API] and xref:authorization-server:index.adoc[Authorization Server] add-ons.
+
+* Set up xref:authorization-server:obtaining-tokens.adoc#client-credentials-grant[Client Credentials] grant for a client.
+
+In the client application project:
+
+* Add the REST DataStore add-on as described <<installation,above>>.
+
+* Add an additional data store with `restds_RestDataStoreDescriptor` descriptor, for example:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=store]
+----
+
+* Specify service connection properties for the data store by its name, for example:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=connection]
+----
+
+[[authentication-with-password-grant]]
+=== Authentication With Password Grant
+
+If you want to authenticate real users in the service application as demonstrated in xref:separate-tiers-guide:index.adoc[] guide, set up the xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[Password Grant] in the service application and add the following properties to the client application:
+
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=authenticator]
+----
+
+* `[datastore-name].authenticator` property defines the name of a bean that implements the `RestAuthenticator` interface and is used to authenticate requests to the REST API.
++
+The `restds_RestPasswordAuthenticator` bean retrieves access and refresh tokens from the service application when the user logs in, saves the tokens in the user session and uses them for authenticating further requests to the service's REST API.
+
+* The `jmix.restds.authentication-provider-store` property is required for configuring the Spring Security's `AuthenticationProvider` which uses `restds_RestPasswordAuthenticator` during the user authentication process. The value of this property must contain the name of the corresponding REST DataStore.
+
+[[external-authentication]]
+=== External Authentication
+
+If you want to use an external authentication provider (for example Keycloak) instead of the Jmix Authorization Server, remove the Authorization Server add-on from the project and add the xref:oidc:index.adoc[] add-on.
+
+Define the following application properties:
+[source,properties]
+----
+include::restds-oidc-guide:example$integrated-apps/client-app/src/main/resources/application.properties[tags=restds-auth]
+----
+
+* `[datastore-name].authenticator` property defines the name of a bean that implements the `RestAuthenticator` interface and is used to authenticate requests to the REST API.
++
+The `restds_RestOAuth2ClientAuthenticator` bean uses the OAuth2 token of the current user.
+
+* `[datastore-name].oauth2-client-registration` defines the Spring Security OAuth2 client registration ID which is used in the `spring.security.oauth2.client.registration.[ID]` properties for connecting to an OIDC provider.
++
+For example, if you connect to Keycloak using this property:
++
+[source,properties]
+----
+spring.security.oauth2.client.registration.keycloak.client-id=integrated-apps-client
+----
++
+Then the `[datastore-name].oauth2-client-registration` property value should be `keycloak`.
+
+See the complete example in the xref:restds-oidc-guide:index.adoc[] guide.
+
+[[ui-user-settings]]
+=== UI User Settings
+
+To save UI user settings and filter configurations through the REST data store, do the following:
+
+* In `build.gradle`:
+** add `io.jmix.flowui:jmix-flowui-restds-starter` dependency
+** remove `io.jmix.flowui:jmix-flowui-data-starter` dependency
+* In `application.properties`, specify the name of the REST data store in the `jmix.restds.ui-config-store` property, for example:
++
+[source,properties]
+----
+jmix.restds.ui-config-store=serviceapp
+----
+
+See xref:separate-tiers-guide:index.adoc#frontend-application[Frontend Application Configuration] in the Separating Application Tiers guide for more information.
+
+[[rest-paths]]
+=== REST API Paths
+
+If the REST API endpoints have non-standard xref:rest:app-properties.adoc#paths[paths], you can configure access to them using the application properties shown below. The properties start from the data store name (`serviceapp` in this example):
+
+[source,properties]
+----
+serviceapp.basePath=/rest
+serviceapp.entitiesPath=/entities
+serviceapp.userInfoPath=/userInfo
+serviceapp.permissionsPath=/permissions
+serviceapp.capabilitiesPath=/capabilities
+----
+
+[[data-model]]
+== Data Model
+
+The client application should contain DTO entities that are equivalent to service entities. In order to be automatically mapped, the attributes of the entities must match by name and type.
+
+The set of attributes may be different. For example, a service entity may have more attributes than a client entity. Attributes that are not present in an entity on the other side will have null values after data transfer.
+
+The client DTO entity must have the `@Store` annotation specifying the additional data store.
+
+The following example demonstrates the `Region` entity definition in the service and client applications.
+
+[source,java,indent=0]
+.Region entity in service application
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/entity/Region.java[tags=jpa-entity]
+----
+
+[source,java,indent=0]
+.Region entity in client application
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Region.java[tags=restds-entity]
+----
+
+If the client entity name differs from the service one, use the `@RestDataStoreEntity` annotation to specify the service entity name explicitly. For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/RegionDto.java[tags=restds-entity]
+----
+
+For embedded attributes on the client side use the `@JmixEmbedded` annotation instead of JPA's `@Embedded`.
+
+For one-to-many composition attributes on the client side define the `inverse` attribute in the `@Composition` annotation.
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Customer.java[tags=restds-entity]
+----
+
+[[fetch-plans]]
+== Fetch Plans
+
+When you load an external entity in the client application, you can specify a xref:data-access:fetching.adoc[fetch plan] to load references.
+
+If the service application is built with Jmix before version 2.5, its generic REST API supports only xref:rest:entities-api/load-entities.adoc#named-fetch-plans[named fetch plans] defined in fetch plans repository. So the REST data store will request data from the service providing a fetch plan name. Therefore, both service and client applications must define all fetch plans in their fetch plan repositories, with corresponding names.
+
+Since Jmix 2.5, generic REST supports xref:rest:entities-api/load-entities.adoc#inline-fetch-plans[inline fetch plans], if this feature is not disabled by the xref:rest:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled] property. So you can define fetch plans in your client's view XML and Java code the same as when working with databases.
+
+The REST data store relies on the xref:rest:capabilities-api.adoc[] of the service application REST to determine if inline fetch plans are enabled. If the check confirms their availability, the REST data store passes inline fetch plans, otherwise it passes only names of the fetch plans.
+
+[[loaded-state]]
+== Loaded State
+
+If a fetch plan does not include an attribute, that attribute is not loaded. Unlike JPA entity attributes, the attributes of REST entities that are not loaded have a null value and do not throw any exceptions when accessed.
+
+When updating an entity, the REST data store only saves loaded attributes. If an attribute was not loaded from the service but changed from null to some value afterwards, it is considered loaded and the new value is therefore saved.
+
+The `EntityStates.isLoaded(entity, property)` method correctly returns information about whether a particular attribute of a REST entity is loaded.
+
+[[filtering-loaded-data]]
+== Filtering Loaded Data
+
+This section describes the filtering options supported when loading external entities using `DataManager`. All of these options lead to invoking the REST API xref:rest:entities-api/load-entities.adoc#load-list-search-filter[search endpoint] of the service application, so only the resulting entities are transferred over the wire.
+
+[[filter-by-conditions]]
+=== By Conditions
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-condition]
+----
+
+[[filter-by-query]]
+=== By Query
+
+The query is a JSON expression supported by generic REST in the xref:rest:entities-api/load-entities.adoc#load-list-search-filter[search endpoint]:
+
+[source]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-query]
+----
+
+[[filter-by-identifiers]]
+=== By Identifiers
+
+For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-ids]
+----
+
+[[using-query-in-view-xml]]
+=== Using Query in View XML
+
+The JSON query can be specified in view XML descriptors for data containers and `itemsQuery` elements:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/customer/customer-detail-view.xml[tags=items-query]
+----
+
+To specify a parameter instead of a literal value in JSON query conditions, use `parameterName` key instead of `value` as shown above. The REST data store will substitute this property with `"value": <parameter-value>` in the resulting request.
+
+The xref:flow-ui:facets/dataLoadCoordinator.adoc[] facet can also be used, but only with manual configuration. In the following example, the `regionsDc` and `customersDc` data containers are linked using a JSON query and `dataLoadCoordinator` to provide a master-detail list of regions and customers for the selected region:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/region/region-list-view.xml[tags=query]
+----
+
+[[entity-events]]
+== Entity Events
+
+REST data store sends xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent and EntityLoadingEvent] the same way as `JpaDataStore`. But it doesn't send xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent] because it cannot provide information about attributes changed since load. Instead of `EntityChangedEvent`, REST data store sends two specific events:
+
+* `RestEntitySavedEvent` - sent after the entity is successfully saved to the service. It contains the saved entity instance with the state right before sending to the service.
+* `RestEntityRemovedEvent` - sent after the entity is removed from the service. It contains removed entity with the state right before sending to the service.
+
+[[security]]
+== Security
+
+REST data store applies xref:security:resource-roles.adoc#entity-policy[entity operations policy] defined by resource roles and xref:security:row-level-roles.adoc#predicate-policy[predicate policy] defined by row-level roles.
+
+Authentication in REST data store can be done using Client Credentials Grant or Password Grant provided by the Authorization Server add-on. The latter requires setting the additional properties `<ds-name>.authenticator` and `jmix.restds.authentication-provider-store` as described in the <<configuration>> section.
+
+[[file-storage]]
+== File Storage
+
+The service application entities can contain `FileRef` links to files in its file storages. The REST DataStore add-on provides the `RestFileStorage` implementation of the `FileStorage` interface, which is a proxy that allows you to work with files located in file storages of the service application.
+
+`RestFileStorage` uses the generic REST xref:rest:files-api.adoc[] to transmit files between client and service application.
+
+To use `RestFileStorage` in your client application, define the following bean in the main application class or in any other Spring configuration class:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/RestDsClientApplication.java[tags=fileStorage]
+----
+
+Here `serviceapp` is the name of the REST DataStore as defined in `application.properties`, `fs` is the name of the corresponding file storage of the service application.
+
+The name of the REST file storage in the client application is formed by concatenating these parameters with a dash in between. So in the above example it will be `serviceapp-fs`. If you have multiple file storages in the client application (say local `fs` and remote `serviceapp-fs`), see xref:files:file-storage.adoc#multiple-fs[Using Multiple File Storages] for more information.
+
+See an example of working with `RestFileStorage` in the xref:separate-tiers-guide:index.adoc[] guide.
+
+[[invoking-services]]
+== Invoking Services
+
+If the service application xref:rest:business-logic.adoc#exposing-a-service[exposes a Java service] through the REST API, client applications can consume it.
+
+[[remote-service-interfaces]]
+=== @RemoteService Interfaces
+
+The simplest way to invoke a service is by creating an interface that mirrors the service methods and annotating it with `@RemoteService`. For interfaces marked with this annotation, the REST DataStore add-on generates client proxy objects. These objects automatically serialize parameters, invoke the remote REST services, and deserialize the results.
+
+The following example shows the service bean implementation:
+
+[source,java,indent=0]
+.CustomerService.java in the service application
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/service/CustomerService.java[tags=service]
+----
+
+The service method is accessible via the `/rest/services/customers/getCustomersByName` endpoint.
+
+To call this service from the client application, create the following interface:
+
+[source,java,indent=0]
+.CustomerService.java in the client application
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/service/CustomerService.java[tags=service]
+----
+
+The REST DataStore add-on will automatically create a bean for this interface, so you can inject it into a view or a bean and use as a regular Spring bean. For example:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/view/customer/CustomerDetailView.java[tags=service]
+----
+
+See another example of invoking a business service method in the xref:integrated-apps-guide:index.adoc[] guide.
+
+[IMPORTANT]
+====
+Methods of `@RemoteService` interfaces can have parameters and results of the following types:
+
+* Simple type: primitive (`int`, `double`, etc.), wrapper (`Integer`, `Double`, etc.), `String`.
+* xref:data-model:entities.adoc[Entity]
+* xref:data-model:enumerations.adoc[Enumeration]
+* A type that has a corresponding xref:data-model:datatype.adoc[Datatype]. These include types supported in xref:data-model:entities.adoc#attributes[entity attributes], as well as custom data types.
+* Arbitrary POJO or Java record with fields of all above types.
+* `java.util.List` parameterized with all above types.
+====
+
+[[using-rest-client]]
+=== Using RestClient
+
+You can also invoke any endpoints of the service application using the Spring's `RestClient` preconfigured with the connection and authentication parameters of the corresponding REST data store:
+
+. Obtain the `RestClient` instance from the `RestDataStoreUtils` bean using the `getRestClient(String dataStoreName)` method.
+
+. Use the `RestClient` API to invoke the endpoint with appropriate parameters.
+
+[[sharing-code]]
+== Sharing Code Between Applications
+
+You can share entity classes and service interfaces between applications integrated using the REST DataStore. This leads to tighter coupling between the applications, but reduces code duplication and development efforts.
+
+With this approach, the shared code is placed in a separate add-on that is used both by the client and service applications. The shared code may include JPA entities, business service interfaces, security roles, as well as any common utility classes.
+
+Below we will describe the necessary steps for sharing entities, service interfaces, and roles, using the Products and Orders applications as an example. The Products application exposes its `Product` and `ProductCategory` entities and `InventoryService` through the REST API. The Orders application uses these entities and invokes the service through the REST DataStore.
+
+[[shared-add-on]]
+=== Shared Add-On
+
+The shared add-on has been created using the standard `Add-On (Java)` template in the Studio's *New Project* wizard. It includes the `shared` and `shared-starter` modules:
+
+[source]
+----
+shared-addon
+├── shared
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── company
+│   │   │   │           └── shared
+│   │   │   │               ├── entity
+│   │   │   │               │   ├── Product.java
+│   │   │   │               │   └── ProductCategory.java
+│   │   │   │               ├── security
+│   │   │   │               │   └── ProductsRole.java
+│   │   │   │               ├── service
+│   │   │   │               │   └── InventoryService.java
+│   │   │   │               └── SharedConfiguration.java
+│   │   │   └── resources
+│   │   │       └── com
+│   │   │           └── company
+│   │   │               └── shared
+│   │   │                   ├── liquibase
+│   │   │                   │   ├── changelog
+│   │   │                   │   │   └── 010-init-products.xml
+│   │   │                   │   └── changelog.xml
+│   │   │                   ├── messages.properties
+│   │   │                   └── module.properties
+│   │   └── test
+│   │       └── ...
+│   └── shared.gradle
+├── shared-starter
+│   ├── src
+│   │   └── ...
+│   └── shared-starter.gradle
+├── build.gradle
+└── settings.gradle
+----
+
+The build script of the main `shared` module defines only minimal set of Jmix dependencies:
+
+[source,groovy]
+.shared-addon/shared/shared.gradle
+----
+include::example$rest-ds-shared/shared-addon/shared/shared.gradle[tags=dependencies]
+----
+
+The add-on includes the following shared code:
+
+* `Product` and `ProductCategory` JPA entities.
+* `ProductsRole` resource role defines policies enabling access to the entities and their attributes.
+* `InventoryService` is an interface defining some business method.
+* `010-init-products.xml` is a Liquibase changelog creating database schema for the `Product` and `ProductCategory` entities.
+
+[[sharing-code-service-application]]
+=== Service Application
+
+The Products service application includes the shared add-on in a standard manner without any specific configuration.
+
+The build script of the Products application defines a dependency on the shared add-on's starter:
+
+[source,groovy]
+.products/build.gradle
+----
+include::example$rest-ds-shared/products/build.gradle[tags=dependencies]
+----
+
+The application provides an implementation of the `InventoryService` interface:
+
+[source,java]
+.products/src/main/java/com/company/products/service/InventoryServiceImpl.java
+----
+include::example$rest-ds-shared/products/src/main/java/com/company/products/service/InventoryServiceImpl.java[tags=service]
+----
+
+[[sharing-code-client-application]]
+=== Client Application
+
+The Orders client application also includes the shared add-on:
+
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=dependencies]
+----
+
+Additionally, the client application tweaks the configuration of entities and remote services to handle the shared code properly.
+
+. The build script excludes the shared entities package from JPA mapping in `jmix.entitiesEnhancing.nonJpaPackages` property:
++
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=non-jpa-entities]
+----
++
+Another option is to exclude individual classes in `jmix.entitiesEnhancing.nonJpaClasses` property.
+
+. The `SharedEntitiesConfigurer` bean sets the `products` REST DataStore as a data store for the shared add-on's entities:
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java[]
+----
+
+. The `SharedServicesConfigurer` bean adds a scanner filter to find the shared add-on's service interfaces for making client proxies. It also defines the store name for the service interfaces:
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedServicesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedServicesConfigurer.java[]
+----
+
+[[limitations]]
+== Limitations
+
+The REST data store has the following limitations compared to the JPA data store:
+
+* Lazy loading of references is not supported. References that are not loaded by the fetch plan remain null when accessed.
+
+* There is no `EntityChangeEvent` with `AttributeChanges`.
+
+* `DataManager.loadValues()` and `loadValue()` methods throw `UnsupportedOperationException`.

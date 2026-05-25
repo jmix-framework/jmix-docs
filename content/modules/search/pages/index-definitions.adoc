@@ -1,0 +1,373 @@
+= Index Definitions
+
+Search indexes are specified through Java interfaces that outline which entities and attributes should be indexed. It is recommended to create these interfaces for every entity that requires full-text search functionality.
+
+[[interface]]
+== Index Definition Interface
+
+A Java interface defining an index must adhere to these requirements:
+
+* It can be named arbitrarily.
+* It must be annotated with the `@JmixEntitySearchIndex` annotation.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition]
+----
+
+[[interface-annotation]]
+=== @JmixEntitySearchIndex
+
+Attributes
+
+* `entity` - specifies the entity class associated with this Index Definition. Mandatory.
+* `indexName` - specifies the full name of the index that will be used for that entity. Optional. If not set, the index name is based on xref:search-properties.adoc#jmix.search.searchIndexNamePrefix[prefix and entity name].
+
+Indexed entity properties are specified using methods within the interface. These methods must adhere to the following guidelines:
+
+* They should return `void`.
+* They can be named arbitrarily.
+* They should not accept parameters.
+* They should not contain any implementation logic.
+* Each method should be annotated with the `@AutoMappedField` annotation.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition;order-mapping]
+----
+
+[[auto-mapped-field]]
+== AutoMappedField Annotation
+
+The `@AutoMappedField` annotation enables you to map specific entity attributes based on their data type (see <<automatic-mapping,below>>). It can include the following parameters:
+
+* `includeProperties` - a list of entity attributes to be indexed. It accepts dot notation to specify attributes of related entities. By default, none are indexed for search.
+
+* `excludeProperties` - a list of entity attributes to be excluded from indexing. It accepts dot notation to specify attributes of related entities. By default, none are excluded.
+
+* `analyzer` - the name of an analyzer defined in Elasticsearch/OpenSearch to be used in index field mapping. If not specified, the `standard` analyzer is used.
+
+* `indexFileContent` - a boolean flag that determines if the content of a file found in matched file properties should be indexed. By default, it is set to `true`.
+
+Both `includeProperties` and `excludeProperties` support `*` wildcard. It is expanded to local properties at the corresponding level:
+
+* `*` - local properties of the indexed entity.
+* `refField.*` - local properties of the entity referenced by the `refField` property.
+
+The wildcard does not apply to back-reference attributes and attributes of entity xref:data-model:entities.adoc#traits[traits] such as `version`, `createdBy`, etc.
+
+`excludeProperties` is beneficial only when `includeProperties` contains a wildcard to restrict its expansion. For instance:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CardIndexDefinition.java[tags=exclude]
+----
+
+An analyzer is employed to alter incoming text values in various manners, including language morphologies. A specified analyzer is utilized during both the indexing and searching phases.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=interface;method]
+----
+
+Multiple mapping annotations can be applied to a single method or distributed across multiple methods for some kind of grouping. The examples below illustrate the identical definition:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition;order-mapping]
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void orderMapping();
+}
+----
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product"})
+    void orderMapping();
+
+    @AutoMappedField(includeProperties = {"customer.status", "customer.lastName"})
+    void customerMapping();
+}
+----
+
+[[automatic-mapping]]
+== Automatic Mapping
+
+Automatic mapping by the `@AutoMappedField` annotation is supported for entity attributes of the following types:
+
+* <<textual-attributes,Textual>>
+* <<reference-attributes,Reference>>
+* <<file-attributes,File>>
+* <<enumeration-attributes,Enumerations>>
+* <<embedded-attributes,Embedded>>
+
+The wildcard encompasses all these attribute types.
+
+[[textual-attributes]]
+=== Textual Attributes
+
+These attributes are of the `String` type. It is the most common case, a value of an attribute is used as the indexed value.
+
+The field in the index appears as follows:
+
+[source,json]
+----
+"textualFieldName": "value"
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"textualFieldName": ["value1", "value2"]
+----
+
+[[reference-attributes]]
+=== Reference Attributes
+
+These are references to related entities. The indexed value comprises solely the instance name of the associated entity, omitting any nested properties. To index nested properties of a related entity, make sure to explicitly incorporate `refProperty.nestedProperty` or `refProperty.*` into your mapping.
+
+The field in the index appears as follows:
+
+[source,json]
+----
+"refFieldName": {
+  "_instance_name": "instanceNameValue"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"refFieldName": {
+  "_instance_name": ["instanceNameValue1", "instanceNameValue2"]
+}
+----
+
+[[file-attributes]]
+=== Files
+
+These are attributes of the `FileRef` type referring to files in xref:files:file-storage.adoc[File Storage]. By default, both the file name and content are utilized as indexed values. If you wish to index only the file name, you must adjust the `indexFileContent` parameter of `@AutoMappedField` to `false`:
+
+File content indexing is supported for the following file types:
+
+* PDF
+* DOC
+* XLS
+* DOCX
+* XLSX
+* ODT
+* ODS
+* RTF
+* TXT
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/EventIndexDefinition.java[tags=file]
+----
+
+The field in the index appears as follows:
+
+[source,json]
+----
+"fileRefField": {
+	"_file_name" : "File name",
+	"_content" : "File content if enabled"
+}
+----
+
+In case of multiple values:
+
+[source,json]
+----
+"fileRefField": [
+	{
+		"_file_name" : "File name 1",
+		"_content" : "File content 1"
+	},
+	{
+		"_file_name" : "File name 2",
+		"_content" : "File content 2"
+	}
+]
+----
+
+[[enumeration-attributes]]
+=== Enumeration Attributes
+
+In the case of xref:data-model:enumerations.adoc[enumeration] attributes, the indexed values include xref:localization:message-bundles.adoc#localizing-data-model[localized values] for all available locales.
+
+An entry in the index appears as:
+
+[source,json]
+----
+"enumFieldName": ["enValue", "ruValue"]
+----
+
+If multiple enumeration values are present, each value in all available locales is included, leading to a multiplication of values:
+
+[source,json]
+----
+"enumFieldName": ["enValue1", "ruValue1", "enValue2", "ruValue2"]
+----
+
+[[embedded-attributes]]
+=== Embedded Attributes
+
+These are references to embedded JPA entities. Adding an embedded attribute implies including all its nested attributes `("someEmbeddedProperty" = "someEmbeddedProperty.*")`. The index value is determined by the type of the nested attribute, and unsupported types will be ignored.
+
+For instance, imagine a root entity with a `customer` attribute linked to the embedded `Customer` entity, which holds the `firstName` and `lastName` attributes. If you choose to include the `customer` attribute, it will automatically trigger the inclusion of the `customer.firstName` and `customer.lastName` attributes.
+
+[[nested-attributes]]
+=== Nested Attributes and Collections
+
+You can specify nested properties using the dot notation: `refProperty.nestedRefProperty.targetDataProperty`.
+
+Furthermore, the system supports collection attributes, which include nested collections at various levels. In such cases, the index consolidates all attribute values at the lowest level. For instance, a property like `collectionOfReferences.nestedCollectionOfAnotherReferences.name` is stored in the following format:
+
+[source,json]
+----
+"collectionOfEntityA": {
+	"nestedCollectionOfEntityB": {
+		"name": ["value1", ..., "valueN"]
+	}
+}
+----
+
+Within the array, you'll find values of the `name` attribute from all instances of `EntityB` within all instances of `EntityA` in the root entity.
+
+[[programmatic-mapping]]
+== Programmatic Mapping
+
+Instead of using annotations, you can build mapping definition programmatically.
+
+To do this, you will need to define a method in your index definition interface. This method should satisfy the following conditions:
+
+* It must be a default method.
+* It can be named arbitrarily.
+* It can accept Spring beans as parameters for custom configuration.
+* It must return the `MappingDefinition` type.
+* It must be annotated with `@ManualMappingDefinition`.
+
+Within the method body, you can create a mapping definition using `MappingDefinition.builder()`.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=interface;manual-mapping]
+----
+<1> The `@ManualMappingDefinition` annotation marks methods with manual creation of mapping definition.
+<2> You can pass Spring beans as parameters for custom mapping configuration.
+<3> The list of properties that should be indexed. Here the `*` wildcard is used to include all local properties of the indexed `Customer` entity.
+<4> The list of properties that should not be indexed.
+<5> The `FieldMappingStrategy` implementation class that should be used to map properties. The mapping strategy can also be defined as an instance using the `withFieldMappingStrategy()` method with the strategy instance as a parameter.
+<6> An explicit property value extractor. For example, a `FilePropertyValueExtractor` instance can be used for processing attributes of the `FileRef` type.
+
+There is an option to define a text configuration for property mapping, for example:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=text-config]
+----
+<1> Excludes two specific properties: `firstName` and `lastName`. They will be processed separately by the following elements for fine-tuning.
+<2> Applies only to the `firstName` field.
+<3> First applies the automatic mapping strategy (to obtain a base mapping).
+<4> Defines field configuration as String json object with native configuration. The settings generated by the strategy are overridden and extended:
+* `"type": "text"` — explicitly specifies the text type.
+* `"analyzer": "standard"` — uses the standard Elasticsearch analyzer for token splitting.
+* `"boost": 2` — gives the firstName field double weight in search. Documents where the query matches the name will rank higher in results.
+<5> Fully defines the mapping, bypassing any strategy. The field will be indexed as text with the `"english"` analyzer, which specializes in the English language.
+<6> A mandatory parameter when specifying the configuration directly (`withFieldConfiguration`). Indicates which component should extract the value of this property from the `Customer` entity for indexing. Without an extractor, the engine will not know how to retrieve the data.
+<7> Sets the order for this mapping element. This can be important if elements conflict with each other.
+
+NOTE: There can be only one method with programmatic mapping. If a method with programmatic mapping exists, all mapping annotations are ignored.
+
+[[FieldMappingStrategy]]
+=== FieldMappingStrategy
+
+`io.jmix.search.index.mapping.strategy.FieldMappingStrategy` - base interface for mapping strategy.
+
+Defines how entity properties are transformed into search index fields. Each strategy determines:
+
+* Which property types it supports (`isSupported()` method).
+* How the field configuration is generated for the search engine.
+* What value extraction method to use.
+* Execution order when multiple strategies apply.
+
+[[PropertyValueExtractor]]
+=== PropertyValueExtractor
+
+`io.jmix.search.index.mapping.propertyvalue.PropertyValueExtractor` - a functional interface responsible for extracting property values from entity instances during indexing. It transforms entity property data into JSON format that can be indexed by the search engine. Use custom implementations when you need specialized value extraction logic beyond standard property mapping.
+
+[[extended-search]]
+== Extended Search Capabilities
+
+[[extended-search-annotation]]
+=== @ExtendedSearch Annotation
+
+The optional `@ExtendedSearch` annotation can be applied to an Index definition interface to enable prefix-based search functionality.
+
+By default, `Starts with` queries in search engines can be resource-intensive when using wildcards or regular expressions. The `@ExtendedSearch` annotation provides a high-performance alternative by pre-indexing word prefixes.
+
+When this annotation is present, the system creates additional "virtual" subfields for every "real" field defined in the index. These subfields store prepared prefix terms generated by a specialized analyzer.
+
+How it works:
+
+The underlying mechanism involves a specific analysis chain (filters and analyzers) applied to the virtual subfields:
+
+* *Prefix Generation*: For every word in the indexed text, the analyzer generates a set of prefixes starting from a minimum length up to a maximum length.
+* *Storage*: These prefixes are stored in the subfields.
+* *Search*: When a user performs a search, the system matches the query against these pre-indexed prefixes instead of performing a live wildcard computation.
+
+The granularity of the prefix generation is controlled via xref:search-properties.adoc#jmix.search.minPrefixLength[jmix.search.min-prefix-length] and xref:search-properties.adoc#jmix.search.maxPrefixLength[jmix.search.max-prefix-length] application properties.
+
+Attributes:
+
+* `enabled` - globally enables/disables extended search functionality. By default, it is set to `true`.
+
+* `tokenizer` - tokenizer used in prefix analyzer. The default value is `whitespace`.
+
+* `additionalFilters` - additional analysis filters beyond standard `lowercase` and `edge N-gram`. Default: `none`.
+
+Example:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=extended-search;index-definition]
+----
+
+[[indexable-predicate]]
+== Indexable Predicate
+
+The indexing process can have an additional instance-level condition.
+It can be added by configuring an Indexable Predicate. This predicate applies to each entity instance during indexing and defines whether it should be indexed.
+
+It doesn't apply during deletion.
+
+To configure Indexable Predicate add method that fulfils the following requirements:
+
+* With default modifier.
+* With any name.
+* With return type - `Predicate<TargetEntity>`, where 'TargetEntity' is the value of `entity()` parameter of current annotation.
+* With Spring beans required for predicate logic as parameters.
+* Annotated with `@IndexablePredicate`.
+
+Actual predicate should be created within method body and returned as a result.
+
+NOTE: Instance passed to predicate includes only declared indexable properties, others are unfetched. To get access to them you need to reload instance with proper fetch plan within predicate.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=interface;method;predicate]
+----

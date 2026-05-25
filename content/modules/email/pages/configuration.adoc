@@ -1,0 +1,322 @@
+= Email Properties
+
+[[spring-boot-mail-properties]]
+== Spring Boot Mail Properties
+
+Use Spring Boot {spring-boot-doc}/appendix/application-properties/index.html#appendix.application-properties.mail[mail properties^] to define basic email sending parameters, such as protocol, host, port, and others.
+
+For example:
+
+[source, properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=spring-boot-properties]
+----
+
+Also, you can specify `JavaMail` properties in the format `spring.mail.properties.*`. For example, the `mail.smtp.auth` property can be provided as follows:
+
+[source, properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=java-mail-properties]
+----
+
+[[email-properties]]
+== Jmix Email Properties
+
+Jmix email properties allow you to configure the functionality described in the xref:api.adoc[] section.
+
+[[jmix.email.from-address]]
+=== jmix.email.from-address
+
+Defines the default sender's address. It is used if the `EmailInfo.from` attribute is not specified.
+
+Default value: `DoNotReply@localhost`
+
+[[jmix.email.scheduled-sending-delay-call-count]]
+=== jmix.email.scheduled-sending-delay-call-count
+
+Property is used in asynchronous sending of emails to skip the first few calls of `Emailer.processQueuedEmails()` after server startup to reduce the load during application initialization. Email sending will start with the next call.
+
+Default value: `2`
+
+[[jmix.email.message-queue-capacity]]
+=== jmix.email.message-queue-capacity
+
+Property is used for asynchronous sending, the maximum number of messages read from the queue and sent in one call of `Emailer.processQueuedEmails()`.
+
+Default value: `100`
+
+[[jmix.email.default-sending-attempts-limit]]
+=== jmix.email.default-sending-attempts-limit
+
+Property is used for asynchronous sending, the default number of attempts to send an email. It is used if the `attemptsCount` parameter is not specified when calling `Emailer.sendEmailAsync()`.
+
+Default value: `10`
+
+[[jmix.email.sending-timeout-sec]]
+=== jmix.email.sending-timeout-sec
+
+Defines the maximum expected time in seconds, which is required to send an email to the SMTP server. It is used for asynchronous sending to optimize the selection of `SendingMessage` objects from the DB queue.
+
+Default value: `240`
+
+[[jmix.email.admin-address]]
+=== jmix.email.admin-address
+
+Defines the address, to which all messages are sent if the <<jmix.email.send-all-to-admin,jmix.email.send-all-to-admin>> property is switched on.
+
+Default value: `admin@localhost`
+
+[[jmix.email.send-all-to-admin]]
+=== jmix.email.send-all-to-admin
+
+Indicates that all messages should be sent to the <<jmix.email.admin-address,jmix.email.admin-address>> address, regardless of the specified recipient’s address. It is recommended to use this parameter during system development and debugging.
+
+Default value: `false`
+
+[[jmix.email.use-file-storage]]
+=== jmix.email.use-file-storage
+
+When turned on, the email body text and attachments will be stored in file storage instead of BLOB columns in the database. Should be used if the application stores lots of emails and/or email attachments.
+
+Default value: `false`
+
+[[jmix.email.async-sending-username]]
+=== jmix.email.async-sending-username
+
+Defines the login of the system user, used by asynchronous email sending code to be able to persist the information to the database. It is recommended to create a separate user (for example, emailer) without a password so that it will be impossible to log in under their name via user interface. This is also convenient to search for messages related to email sending in the server log.
+
+Default value: `admin`
+
+[[jmix.email.use-default-quartz-configuration]]
+=== jmix.email.use-default-quartz-configuration
+
+Defines whether the <<sending-default-quartz-configuration,Default Quartz Configuration>> of the Email Sending is used.
+
+Default value: `true`
+
+[[jmix.email.email-sending-cron]]
+=== jmix.email.email-sending-cron
+
+Defines the CRON expression that is used by default in quartz scheduling configuration of the Email Sending .
+
+Default value: `0 * * * * ?` (every minute).
+
+[[jmix.email.use-default-email-cleaning-quartz-configuration]]
+=== jmix.email.use-default-email-cleaning-quartz-configuration
+
+Defines whether the <<cleaning-default-quartz-configuration,Default Quartz Configuration>> of the Email Cleaning is used.
+
+Default value: `false`
+
+[[jmix.email.email-cleaning-cron]]
+=== jmix.email.email-cleaning-cron
+
+Defines the CRON expression that is used by default in quartz scheduling configuration of the Email Cleaning .
+
+Default value: `0 0 0 * * ?` (in the beginning of every day)
+
+[[jmix.email.max-age-of-important-messages]]
+=== jmix.email.max-age-of-important-messages
+
+Defines the maximum age (in days) of important messages after which they must be deleted. Zero value (`0`) means that messages won't be removed.
+
+Default value: `0`
+
+[[jmix.email.max-age-of-non-important-messages]]
+=== jmix.email.max-age-of-non-important-messages
+
+Defines the maximum age (in days) of messages after which they must be deleted. Zero value (`0`) means that messages won't be removed.
+
+Default value: `0`
+
+[[jmix.email.clean-file-storage]]
+=== jmix.email.clean-file-storage
+
+Defines whether the file storage cleaning should be performed while the cleaning scheduler is working.
+
+Default value: `false`
+
+[[jmix.email.oauth2.enabled]]
+=== jmix.email.oauth2.enabled
+
+If `true` enables using OAuth 2.0 token-based authorization to connect to email server.
+
+[[jmix.email.oauth2.provider]]
+=== jmix.email.oauth2.provider
+
+Specifies email OAuth provider.
+
+[[jmix.email.oauth2.client-id]]
+=== jmix.email.oauth2.client-id
+
+Specifies OAuth client id.
+
+[[jmix.email.oauth2.secret]]
+=== jmix.email.oauth2.secret
+
+Specifies OAuth client secret.
+
+[[jmix.email.oauth2.tenant-id]]
+=== jmix.email.oauth2.tenant-id
+
+Specifies OAuth tenant id.
+
+[[jmix.email.oauth2.refresh-token]]
+=== jmix.email.oauth2.refresh-token
+
+Specifies OAuth refresh token.
+
+[[email-sending-scheduler]]
+== Email Sending Scheduler
+
+When you call the `Emailer.sendEmailAsync()` method, an email is not sent but queued in the database. To send queued emails, you need to invoke the `Emailer.processQueuedEmails()` method.
+
+You can use Quartz Job Scheduler for periodic processing of the email queue as described below.
+
+[[sending-default-quartz-configuration]]
+=== Default Quartz Configuration
+
+The Email Sending add-on provides the default configuration of the Quartz job that processes the email sending queue. To use it, do the following:
+
+. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+
+. Change the CRON expression if necessary using the <<jmix.email.email-sending-cron,jmix.email.email-sending-cron>> property:
++
+[source, properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=email-sending-cron]
+----
+
+[[sending-custom-quartz-configuration]]
+=== Custom Quartz Configuration
+
+If you want to use a custom Quartz job configuration, do the following:
+
+. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+
+. Set the <<jmix.email.use-default-quartz-configuration>> application property to false:
++
+[source, properties,indent=0]
+----
+jmix.email.use-default-quartz-configuration = false
+----
+
+. Create a job class:
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/service/MyCustomEmailSendingJob.java[tags=quartz]
+----
+
+. In the running application, open the *Quartz -> Quartz jobs* view, and configure a job for the `MyCustomEmailSendingJob` class.
+
+. Alternatively, if you want to configure the email sending job at development time, add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/EmailEx1Application.java[tags=quartz]
+----
+<1> Start building a job definition using the `org.quartz.JobBuilder` class.
+<2> Create an `org.quartz.JobDetail` instance.
+<3> Start building a trigger definition using the `org.quartz.TriggerBuilder` class.
+<4> Link this trigger to the previously defined job.
+<5> Create an `org.quartz.Trigger` instance.
+
+[[email-cleaning-scheduler]]
+== Email Cleaning Scheduler
+
+The add-on has a built-in cleaning Quartz job that is switched off by default. You can use it for periodic cleaning of saved emails as described below.
+
+If you need to keep some emails longer, use the `important` flag and set the maximum age for important and non-important emails. You can set this flag using the `setImportant()` method of the `EmailInfoBuilder`.
+
+[[cleaning-default-quartz-configuration]]
+=== Default Quartz Configuration
+
+To use the default configuration of the Quartz job for regular cleaning of emails, do the following:
+
+. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+
+. Set the <<jmix.email.use-default-email-cleaning-quartz-configuration,jmix.email.use-default-email-cleaning-quartz-configuration>> property to `true`:
++
+[source, properties,indent=0]
+----
+jmix.email.use-default-email-cleaning-quartz-configuration=true
+----
+
+. Change the CRON expression if necessary using the <<jmix.email.email-cleaning-cron,jmix.email.email-cleaning-cron>> property.
++
+[source, properties,indent=0]
+----
+jmix.email.email-cleaning-cron=0 0 0 1/2 * ? 
+----
+
+. Set the age for important and non-important emails using the <<jmix.email.max-age-of-important-messages,jmix.email.max-age-of-important-messages>> and <<jmix.email.max-age-of-non-important-messages,jmix.email.max-age-of-non-important-messages>> properties, for example:
++
+[source, properties,indent=0]
+----
+jmix.email.max-age-of-non-important-messages=5
+jmix.email.max-age-of-important-messages=30
+----
+
+. Set the <<jmix.email.clean-file-storage,jmix.email.clean-file-storage>> property to `true` in case you want to delete attachments.
+
+[[cleaning-custom-quartz-configuration]]
+=== Custom Quartz Configuration
+
+If you want to use a custom Quartz job configuration, do the following:
+
+. Include Quartz add-on in your project as described in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+
+. Create a job class:
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/service/MyCustomEmailCleaningJob.java[tags=quartz]
+----
+
+. In the running application, open the *Quartz -> Quartz jobs* view, and configure a job for the `MyCustomEmailCleaningJob` class.
+
+. Alternatively, if you want to configure the email cleaning job at development time, add the following beans to the main application class:
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/EmailEx1Application.java[tags=quartz-clean]
+----
+<1> Start building a job definition using the `org.quartz.JobBuilder` class.
+<2> Create an `org.quartz.JobDetail` instance.
+<3> Start building a trigger definition using the `org.quartz.TriggerBuilder` class.
+<4> Link this trigger to the previously defined job.
+<5> Create an `org.quartz.Trigger` instance.
+
+. Set the age for important and non-important emails using the <<jmix.email.max-age-of-important-messages,jmix.email.max-age-of-important-messages>> and <<jmix.email.max-age-of-non-important-messages,jmix.email.max-age-of-non-important-messages>> properties, for example:
++
+[source, properties,indent=0]
+----
+jmix.email.max-age-of-non-important-messages=5
+jmix.email.max-age-of-important-messages=30
+----
+
+. Set the <<jmix.email.clean-file-storage,jmix.email.clean-file-storage>> property to `true` in case you want to delete attachments.
+
+[[file-storage-usage]]
+== File Storage Usage
+
+You can store email body text and attachments in file storage instead of BLOB columns in the database.
+
+To use file storage:
+
+. Ensure the following line is present in the `dependencies` section of your `build.gradle` file:
++
+[source,groovy,indent=0]
+----
+include::example$/email-ex1/build.gradle[tags=fs-dependency]
+----
++
+. Enable file storage usage. Set in the `application.properties` file:
++
+[source, properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=fs-enable]
+----
+
+By default, the local file storage is located in the application work directory at `${user.dir}/.jmix/work/filestorage`.

@@ -1,0 +1,226 @@
+= Datatype Interface
+:page-aliases: data-model:data-types.adoc
+
+Each non-reference entity attribute is associated with an implementation of the `Datatype` interface. This interface defines methods for converting attribute values to and from strings (formatting and parsing) when displaying entities in xref:flow-ui:index.adoc[] and serializing in xref:rest:index.adoc[].
+
+The framework provides a set of `Datatype` implementations corresponding to standard data types of xref:data-model:entities.adoc#attributes[entity attributes].
+
+NOTE: We use the term _datatype_ in all lowercase to refer to implementations of the `Datatype` interface.
+
+[[localized-format-strings]]
+== Localized Format Strings
+
+Many standard datatypes use a set of format strings defined in the xref:localization:message-bundles.adoc[message bundle]. It enables formatting and parsing dependent on the current user locale. The default set of format strings defined in the framework is the following:
+
+[source,properties]
+----
+# Date/time formats
+dateFormat = dd/MM/yyyy
+dateTimeFormat = dd/MM/yyyy HH:mm
+offsetDateTimeFormat = dd/MM/yyyy HH:mm Z
+timeFormat = HH:mm
+offsetTimeFormat = HH:mm Z
+
+# Number formats
+integerFormat = #,##0
+doubleFormat = #,##0.###
+decimalFormat = #,##0.##
+
+# Number separators
+numberDecimalSeparator = .
+numberGroupingSeparator = ,
+
+# Booleans
+trueString = True
+falseString = False
+----
+
+To provide your own format strings, add the corresponding messages to the message bundle of your application. For example, to use the United States date format with the English locale, add the following lines to your `messages_en.properties` file:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/data-model-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=format-strings]
+----
+
+Alternatively, define a separate `en_US` locale and set the data format strings in the `messages_en_US.properties` file.
+
+TIP: You can configure data format strings using Studio: open the *Locales* tab of the *Project Properties* window and click *Show data format strings* checkbox.
+
+[[custom-format]]
+== Customized Formatting and Parsing
+
+You can customize formatting and parsing of values for particular entity attributes by creating your own datatype and assigning it to the attributes.
+
+Suppose that some entity attributes in your application store calendar years, represented by integer numbers. Users should be able to view and edit a year, and if a user enters just two digits, the application should transform it to a year between 2000 and 2100. Otherwise, the whole entered number should be accepted as a year.
+
+First, create the `Datatype` implementation class and annotate it with `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/YearDatatype.java[tags=datatype]
+----
+
+<1> A unique identifier of the datatype.
+<2> Java class handled by the datatype.
+<3> Formatting without current user's locale. This method is called for system-level conversion.
+<4> Formatting considering current user's locale. This method is called in the UI.
+<5> Parsing without current user's locale. This method is called for system-level conversion.
+<6> Parsing considering current user's locale. This method is called in the UI.
+
+After creating a `Datatype` implementation, you can specify it for an entity attribute using the xref:entities.adoc#property-datatype[@PropertyDatatype] annotation:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Model.java[tags=datatype]
+----
+
+[NOTE]
+====
+`Datatype` implementations are Spring beans (because `@DatatypeDef` is itself annotated with `@Component`), but you cannot inject other beans like xref:localization:message-bundles.adoc#using-messages-in-java[Messages] directly into the datatype class using `@Autowired`, because datatypes are initialized early in the startup process and such injection will cause a circular dependency.
+
+Instead, inject `ApplicationContext` and use its `getBean()` methods to locate required beans when needed.
+====
+
+[[datatypeformatter]]
+== DatatypeFormatter
+
+`DatatypeFormatter` is a utility bean for programmatic formatting and parsing of values based on datatypes. It automatically applies the <<localized-format-strings, localized format strings>> for the current user's locale.
+
+Example usage:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/app/DataFormatterService.java[tags=datatypeformatter]
+----
+
+[[custom-type]]
+== Support for Custom Java Type
+
+You can use a custom Java class as a type of entity attributes.
+
+Suppose that you have created a Java class representing a geographical coordinate:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/GeoPoint.java[tags=datatype]
+----
+
+Now you want to use this class as a type of JPA entity attribute.
+
+First, create a JPA converter for your class:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/GeoPointConverter.java[tags=datatype]
+----
+
+<1> With `autoApply = true` you don't need to specify the converter on each attribute. The converter will be applied for all attributes of the corresponding type.
+
+Then create a `Datatype` implementation class for `GeoPoint` and annotate it with `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/GeoPointDatatype.java[tags=datatype]
+----
+
+<1> A unique identifier of the datatype.
+<2> Java class handled by the datatype.
+<3> `defaultForClass = true` means that the datatype will be automatically applied to all entity attributes of `GeoPoint` type.
+<4> The `@Ddl` annotation specifies that Studio should generate a `varchar(255)` column in the database for attributes of this type. See <<ddl-annotation,below>> for more information.
+<5> Formatting without current user's locale. This method is called for system-level conversion.
+<6> Formatting considering current user's locale. This method is called in the UI.
+<7> Parsing without current user's locale. This method is called for system-level conversion.
+<8> Parsing considering current user's locale. This method is called in the UI.
+
+After that, when you define an entity attribute of `GeoPoint` type, the framework will use your custom JPA converter and datatype:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Address.java[tags=datatype]
+----
+
+[[ddl-annotation]]
+=== @Ddl Annotation
+
+The `@Ddl` annotation on a datatype class allows you to specify what SQL type should be used for entity attributes. Studio considers this annotation when it generates xref:db-migration.adoc[database migration] scripts.
+
+The SQL type is specified in the `value` attribute of the annotation, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/FooDatatype.java[tags=ddl]
+----
+
+If you need to specify different SQL types for different databases, add several `@Ddl` annotations with `dbms` attributes. In the following example, the database column will be of `text` type in PostgreSQL, `varchar2(255)` type in Oracle, and `varchar(255)` type in all other databases:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/BarDatatype.java[tags=ddl]
+----
+
+Studio recognizes the following values in the `dbms` attribute:
+
+- `hsql`
+- `postgres`
+- `mysql`
+- `mssql`
+- `mssql-2005`
+- `mssql-2008`
+- `mssql-2012`
+- `oracle`
+
+// todo flowui
+// [[conversion-error]]
+// == Conversion Error Messages
+//
+// When a datatype is used by a UI component to parse string input, it may produce parsing exceptions. The UI component handles the exception and shows a user-friendly message. These messages are located in the xref:localization:message-bundles.adoc[message bundle] of the framework with the `databinding.conversion.error.<datatype-id>` keys. For example:
+//
+// [source,properties]
+// ----
+// databinding.conversion.error.boolean=Must be Boolean
+// ----
+//
+// For the whole list of messages, see https://github.com/jmix-framework/jmix/blob/master/jmix-ui/ui/src/main/resources/io/jmix/ui/messages.properties[messages.properties^] for the branch corresponding to Jmix version used in your project.
+//
+// If a message for a datatype does not exist, the following generic message is used:
+//
+// [source,properties]
+// ----
+// databinding.conversion.error.defaultMessage=Wrong format
+// ----
+//
+// You can override the error messages in your project just by providing messages with the same keys. Also, provide error messages for your custom datatypes, for example:
+//
+// [source,properties,indent=0]
+// ----
+// include::example$/ex1/src/main/resources/datamodel/ex1/messages.properties[tags=conversion-error]
+// ----
+//
+// [[using-datatype]]
+// == Using Datatype Directly
+//
+// Most of the time `Datatype` implementations are used internally by the framework to provide formatting and parsing of entity attributes. But sometimes you may need to use a datatype directly in your code.
+//
+// Consider that you have a `TextField` component not bound to any entity attribute:
+//
+// [source,xml,indent=0]
+// ----
+// include::example$/ex1/src/main/resources/datamodel/ex1/screen/order/order-browse.xml[tags=datatype]
+// ----
+//
+// Then, if you want to enter decimal values in this component, you can assign a datatype to it in the screen controller by obtaining the datatype from the `DatatypeRegistry` bean:
+//
+// [source,java,indent=0]
+// ----
+// include::example$/data-model-ex1/src/main/java/com/company/demo/screen/order/OrderBrowse.java[tags=datatype]
+// ----
+//
+// TIP: In fact, you can assign a datatype to a text field more easily in XML, see xref:ui:vcl/components/text-field.adoc#data-type[datatype] attribute of the component.
+//
+// If you need to get a datatype of an entity attribute, you can do it through xref:metadata.adoc[metadata]. Below is a rather synthetic example of parsing a decimal value using a datatype corresponding to an entity property:
+//
+// [source,java,indent=0]
+// ----
+// include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=get-datatype]
+// ----

@@ -1,0 +1,148 @@
+= Configuration
+
+[[https]]
+== Configuring HTTPS
+
+To authenticate desktop applications, the server must have HTTPS enabled. Here are simple instructions for configuring HTTPS in your development environment.
+
+[[trusted-certificate]]
+=== Generating Trusted Certificate
+
+Trusted certificates can be obtained from SSL certificate providers or generated with `certbot`. But for development purposes, you can issue your own root certificate and sign the development server certificate with it. To simplify this task, we recommend using the `mkcert` tool.
+
+. Install `mkcert` by following the instructions provided in its repository: https://github.com/FiloSottile/mkcert[https://github.com/FiloSottile/mkcert^].
+
+. Generate and install the root certificate:
++
+[source]
+----
+mkcert -install
+----
+
+. Create a certificate for localhost:
++
+[source]
+----
+mkcert -pkcs12 localhost 127.0.0.1 ::1
+----
++
+You will see the `localhost+2.p12` file in the current folder.
+
+. Create a keystore file with the certificate for your project:
++
+[source]
+----
+keytool -importkeystore -srckeystore localhost+2.p12 -srcstoretype pkcs12 -destkeystore localhost.jks
+----
++
+Enter `changeit` as the source keystore password.
++
+You will see the `localhost.jks` file in the current folder.
+
+[[configuring-server]]
+=== Configuring Server
+
+This section explains how to use the certificate generated in the previous section in your application when it runs from the IDE or as an executable JAR.
+
+. Create `src/main/resources/<base-package>/keystore` directory and copy `localhost.jks` into it.
+
+. Set the following properties in the `application.properties` file replacing `<base-package>` and `<password>` with actual values:
++
+[source,properties,indent=0]
+----
+# Enables HTTPS
+server.ssl.enabled=true
+# The format used for the keystore
+server.ssl.key-store-type = JKS
+# The path to the keystore containing the certificate
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# The password used to generate the keystore
+server.ssl.key-store-password = <password>
+# The alias mapped to the certificate
+server.ssl.key-alias = localhost
+
+# Changes the server's port
+server.port = 8443
+----
++
+[NOTE]
+====
+The `<base-package>` in the path to the keystore (`server.ssl.key-store` property) should be written as a slash-separated path:
+----
+server.ssl.key-store = classpath:com/example/demo/keystore/localhost.jks
+----
+====
+. Open the main application class and change the `printApplicationUrl()` method. The URL should be changed to `https://` after configuring HTTPS:
++
+[source,java,indent=0]
+----
+import com.google.common.base.Strings;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.event.EventListener;
+
+@EventListener
+    public void printApplicationUrl(final ApplicationStartedEvent event) {
+        LoggerFactory.getLogger(DemoApplication.class).info("Application started at "
+                + "https://localhost:"
+                + environment.getProperty("local.server.port")
+                + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+    }
+----
+
+[[maintenance]]
+== Maintenance Tasks
+
+The WebDAV add-on includes several maintenance tasks, as described below. To run these tasks regularly, include the Quartz add-on in your project as outlined in the xref:quartz:index.adoc#installation[Quartz / Installation] section.
+
+[[expired-lock-cleaning-job]]
+=== ExpiredLockCleaningJob
+
+This job removes expired xref:webdav-documents.adoc#lock-unlock[lock] objects. By default, it runs every two hours.
+
+To modify the job schedule, use the xref:webdav:webdav-properties.adoc#jmix.webdav.expired-lock-cleaning-cron[jmix.webdav.expired-lock-cleaning-cron] property.
+
+[[webdav-document-versions-cleaning-job]]
+=== WebdavDocumentVersionsCleaningJob
+
+This job removes `WebdavDocumentVersion` instances that are not associated with any documents. By default, it runs once a month.
+
+To change the job schedule, use the xref:webdav:webdav-properties.adoc#jmix.webdav.document-versions-cleaning-cron[jmix.webdav.document-versions-cleaning-cron] property.
+
+[[security]]
+== Configuring Security
+
+Access restrictions for documents are set up using xref:security:resource-roles.adoc[resource] and xref:security:row-level-roles.adoc[row-level] roles.
+
+[[predefined-roles]]
+=== Predefined Roles
+
+The Jmix application with the WebDAV add-on includes two default resource roles:
+
+* *WebDAV: minimal access* - a fundamental WebDAV role required for all users who use WebDAV functionality.
+* *WebDAV: view document browser* - provides permission to access the xref:webdav-documents.adoc[WebDAV documents] view.
+
+// [[row-level-restrictions]]
+// === Restricting Access to Documents
+//
+// Suppose that some group of users should be able to edit only the documents created by themselves. Below is an example of how to do it using row-level roles.
+//
+// //The following example shows how to restrict access to a particular group of users. Suppose that there is a row-level role called `Users`. It is required to configure this row-level role so that only document authors can edit documents and document versions.
+//
+// . Create a row-level role at runtime using UI screens available at *Administration → Row-level roles.*
+// . Create a row-level xref:security:row-level-roles.adoc#predicate-policy[predicate policy] for the `UPDATE` action and `WebdavDocument` entity.
+// . Define a Groovy script for the created policy:
+// +
+// [source,groovy,indent=0]
+// ----
+// import io.jmix.core.security.CurrentAuthentication
+//
+// def authBean = applicationContext.getBean(CurrentAuthentication)
+//
+// return {E}.createdBy.equals(authBean.user.username)
+// ----
+// . Assign the role to the users.
+//
+// The system will check whether the current user is a document author. If it is not the case, the user will not be allowed to edit a document, and the `Access denied` message will be displayed.
+//
+// The *OK* button intended to save document versions will be inactive. The document itself will be opened in read-only mode.

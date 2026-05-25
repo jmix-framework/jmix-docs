@@ -1,0 +1,919 @@
+= dataGrid
+:page-aliases: vcl/components/data-grid.adoc, vcl/components/table.adoc, vcl/components/group-table.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-simple" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+A table of data that can be edited, sorted, filtered, and aggregated based on a column. It performs lazy loading while scrolling to ensure efficiency with large datasets.
+[cols="1h,6", grid=none]
+|===
+|XML Element
+|`dataGrid`
+|Java Class
+|`DataGrid`
+|Attributes
+|*General:* xref:flow-ui:vc/common-attributes.adoc#id[id] - <<aggregatable,aggregatable>> - <<columnReorderingAllowed,columnReorderingAllowed>> - <<emptyStateText,emptyStateText>> - xref:flow-ui:vc/common-attributes.adoc#enabled[enabled] - <<selectionMode,selectionMode>> - xref:flow-ui:vc/common-attributes.adoc#visible[visible]
+|
+|*Data Binding:* xref:flow-ui:vc/common-attributes.adoc#dataContainer[dataContainer] - xref:flow-ui:vc/common-attributes.adoc#metaClass[metaClass]
+|
+|*Size:* xref:flow-ui:vc/common-attributes.adoc#height[height] - xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] - xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] - xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] - xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] - xref:flow-ui:vc/common-attributes.adoc#width[width]
+|
+|*Position:* xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] - xref:flow-ui:vc/common-attributes.adoc#colspan[colspan]
+|
+|*Look & Feel:* xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] - xref:flow-ui:vc/common-attributes.adoc#css[css] - xref:flow-ui:vc/common-attributes.adoc#themeNames[themeNames]
+|
+|*Other:* <<aggregationPosition,aggregationPosition>> - <<allRowsVisible,allRowsVisible>> - xref:flow-ui:vc/common-attributes.adoc#ariaLabel[ariaLabel] - <<detailsVisibleOnClick,detailsVisibleOnClick>> - <<dropMode,dropMode>> - <<editorBuffered,editorBuffered>> - xref:flow-ui:vc/common-attributes.adoc#focusShortcut[focusShortcut] - <<multiSort,multiSort>> - <<multiSortOnShiftClickOnly,multiSortOnShiftClickOnly>> - <<multiSortPriority,multiSortPriority>> - <<nestedNullBehavior,nestedNullBehavior>> - <<pageSize,pageSize>> - <<rowsDraggable,rowsDraggable>> - xref:flow-ui:vc/common-attributes.adoc#tabIndex[tabIndex]
+|Handlers
+|xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:vc/common-handlers.adoc#BlurEvent[BlurEvent] -
+<<CellFocusEvent,CellFocusEvent>> -
+<<ColumnReorderEvent,ColumnReorderEvent>> -
+<<ColumnResizeEvent,ColumnResizeEvent>> -
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
+xref:vc/common-handlers.adoc#FocusEvent[FocusEvent] -
+<<GridDragEndEvent,GridDragEndEvent>> -
+<<GridDragStartEvent,GridDragStartEvent>> -
+<<GridDropEvent,GridDropEvent>> -
+<<ItemClickEvent,ItemClickEvent>> -
+<<ItemDoubleClickEvent,ItemDoubleClickEvent>> -
+<<SortEvent,SortEvent>> -
+<<dataGenerator,dataGenerator>> -
+<<dragFilter,dragFilter>> -
+<<dropFilter,dropFilter>>
+<<enterPressHandler,enterPressHandler>> -
+<<itemSelectableProvider,itemSelectableProvider>> -
+<<tooltipGenerator,tooltipGenerator>>
+|Elements
+|<<actions,actions>> - <<columns,columns>> - <<column,column>> - <<context-menu-element,contextMenu>> - <<empty-state-component-element,emptyStateComponent>>
+|===
+
+[[basics]]
+== Basics
+
+To create the component, use the `dataGrid` XML element and bind it to a xref:flow-ui:data/data-containers.adoc[data container]. The component supports both collection and key-value containers. Then, specify which attributes from the container you want to display:
+
+* To display all attributes as specified in the fetch plan, add the <<columns,columns>> element with `includeAll = true`. To exclude unnecessary attributes, list them in the `exclude` attribute separated by commas.
+* To display only certain attributes, add the <<columns,columns>> element nesting individual <<column, column>> elements for each attribute you want to include.
+* If the fetch plan contains a reference attribute, this attribute will be displayed according to its xref:data-model:entities.adoc#instance-name[instance name]. To display a specific attribute, add it explicitly to the fetch plan as well as in the `column` element.
+
+The following example demonstrates how a basic `dataGrid` is created:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=data;usersDc;layout;basics]
+----
+
+<1> Reference attribute.
+<2> Column to display the attribute from the root entity.
+<3> Column to display the reference attribute accessed using dot notation.
+
+image::visual-components/components/data-grid-basics.png[align="center", width="804"]
+
+[[data-binding]]
+== Data Binding
+
+Data binding refers to linking a visual component to a data container. Data grid can display data loaded to either xref:data/collection-container.adoc[collection container] or xref:data/key-value-containers.adoc[key-value container].
+
+[[collection-container]]
+=== Collection Container
+
+Typically, you bind a `dataGrid` to data declaratively in the XML descriptor using the `dataContainer` attribute. This attribute should refer to a xref:flow-ui:data/collection-container.adoc[collection container],  that holds the data you want to display. Please see the relevant <<basics, example>> in the previous section.
+
+[[key-value-containers-binding]]
+=== Key-Value Container
+
+It is also possible to bind the DataGrid to a xref:flow-ui:data/key-value-containers.adoc[key-value container]. This allows you to display the results of a query that returns scalar values and/or aggregates. For example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=data;keyValueCollection;layout;with-key-value]
+----
+
+[[programmatic-binding]]
+=== Programmatic Binding
+
+If you need to define a data container programmatically, use the xref:flow-ui:vc/common-attributes.adoc#metaClass[metaClass] attribute instead of xref:flow-ui:vc/common-attributes.adoc#dataContainer[dataContainer]:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=metaClass]
+----
+
+After that, in the view controller, use the `ContainerDataGridItems` class to bind the data grid to a data container:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dataGrid;usersDc;onInit;setItems]
+----
+
+[[multi-select]]
+== Multi-Select Mode
+
+By default, the component operates in single‑selection mode. When you set <<selectionMode, selectionMode>> to `MULTI`, a checkbox column appears, allowing you to select any number of rows. To select every row, click the checkbox in the header row.
+
+image::visual-components/components/data-grid-multi-select.png[align="center", width="960"]
+
+NOTE: Range selection using *Shift + click*  or other shortcuts is not currently supported.
+
+[[inline-editing]]
+== Inline Editing
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-inline-editor" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+The component supports inline editing, allowing users to switch between reading and editing table data. Inline editing can be activated through buttons in the <<actions-column, actions column>> or on <<double-click-editing,double click>>.
+
+[NOTE]
+====
+Inline editing updates entity attributes in memory. To save changes to the database, use the following methods:
+
+* In a detail view, entities are merged into the xref:data/data-context.adoc[]. Changes will be saved automatically when the user clicks *OK*, triggering `DataContext.save()`.
+
+* In a list view, where `DataContext` is not used, save changes with `DataManager` as explained <<auto-save,below>>.
+====
+
+[[actions-column]]
+=== Actions Column
+
+Use `editorActionsColumn` to provide *Edit* and *Close* buttons next to each row. These enable users to start and stop editing respectively.
+
+NOTE: The actions column is added relatively to other columns. When `includeAll="true"` is set, the editor column is placed at the far right.
+
+// image::visual-components/components/data-grid-editing.gif[align="center"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-non-buffered-editor]
+----
+<1> Make appropriate columns <<editable, editable>>.
+<2> Button to initiate editing.
+<3> Button to stop editing.
+====
+
+==== Buffered Mode
+
+With <<editorBuffered, buffered mode>> on, users will have to confirm or cancel their edits reducing the risk of accidental modifications. Clicking on a different row discards edits.
+
+// image::visual-components/components/data-grid-buffered-editor.gif[align="center"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-buffered-editor]
+----
+<1> Enable buffered mode.
+<2> Make appropriate columns <<editable, editable>>.
+<3> Button to initiate editing.
+<4> Button to confirm changes.
+<5> Button to cancel changes.
+====
+// TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin documentation^]
+
+[[double-click-editing]]
+=== Edit on Double Click
+
+Sometimes it is more convenient to start inline editing by double-clicking the item.
+
+// image::visual-components/components/data-grid-double-click-editing.gif[align="center"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dblClickTable]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dblClickTable;onInit;addItemDoubleClickListener]
+----
+====
+
+[[auto-save]]
+=== Auto-Save Edits
+
+In a typical list view, loaded entities are not merged into `DataContext` (if the `loader` XML element has the `readOnly="true"` attribute). Besides, list views usually do not include confirmation actions such as *OK* or *Save*. Therefore, modified entities should be saved to the database explicitly.
+
+In non-buffered mode, you can do it by using `DataManager` in an `EditorCloseEvent` as follows:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=auto-save-non-buffered]
+----
+<1> Save the entity and get the saved instance.
+<2> Replace the current instance with the saved one in the data container. Further edits will be performed on the latest version of the entity.
+
+In buffered mode, do the same in the `EditorSaveEvent` listener:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=auto-save-buffered]
+----
+
+[TIP]
+====
+To generate listeners as annotated methods, use the *Handlers* tab of the Jmix Studio's *Component Inspector*, where editor event listeners are marked with `[Editor]` prefixes.
+
+The listeners can also be added programmatically via `dataGrid.getEditor().addSaveListener()` and similar methods.
+====
+
+[[DataGridEditor]]
+=== DataGridEditor
+
+The `io.jmix.flowui.component.grid.editor.DataGridEditor` interface provides additional editor functionality: configure an editor, open the editor, save and cancel a row editing, register listeners, and utility methods for defining column edit components.
+
+CAUTION: To support framework mechanisms like data containers, value sources, etc., the column editor component must be added using `DataGridEditor` methods (`DataGridEditor#setColumnEditorComponent()`) instead of direct column API `Column#setEditorComponent()`.
+
+See the example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=uiComponents;editableUserTable;onInit;DataGridEditor]
+----
+<1> Get the instance of `DataGridEditor`.
+<2> The `JmixComboBox` component instance is created using the `UiComponents` factory.
+<3> Set <<SupportsStatusChangeHandler,StatusChangeHandler>>.
+<4> The `setColumnEditorComponent()` method returns the visual component to be shown as the column editor component.
+
+[[SupportsStatusChangeHandler]]
+=== SupportsStatusChangeHandler
+
+By default, field components (for example, xref:flow-ui:vc/components/textField.adoc[textField], xref:flow-ui:vc/components/comboBox.adoc[comboBox]) display error messages in a label above them. Such behaviour has disadvantages in case of limited area of edit cell. The `io.jmix.flowui.component.SupportsStatusChangeHandler` interface enables to define different way of displaying error messages. Components that implement this interface support error handling delegation.
+
+By default, the inline editor uses `StatusChangeHandler` to set error message of a component as its xref:flow-ui:vc/common-attributes.adoc#title[title].
+
+[[header-footer]]
+== Header and Footer
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-header-footer" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+The component can include header and footer sections to show supplementary information. Each section can contain one or more rows, which you can add using the following methods:
+
+[cols="1h,6", grid=rows]
+|===
+|*Method*
+|*Description*
+|`appendHeaderRow()`
+|Adds a new row at the bottom of the header section.
+|`prependHeaderRow()`
+|Adds a new row at the top of the header section.
+|`appendFooterRow()`
+|Adds a new row at the bottom of the footer section.
+|`prependFooterRow()`
+|Adds a new row at the top of the footer section.
+|===
+
+The following example demonstrates a `dataGrid` that includes merged cells in its header and a computed value in the footer:
+
+image::visual-components/components/data-grid-header-footer.png[align="center", width="750"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=header-footer]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=injects;onInit;initHeader;initFooter;getActiveCount]
+----
+<1> Cells within the header can be merged together. This helps to provide general information about related columns.
+====
+
+TIP: Both the header and footer can contain rich content and components. See https://demo.jmix.io/ui-samples/sample/data-grid-header-footer[live demo^].
+
+[[column-filtering]]
+== Column Headers Filtering
+
+CAUTION: This is a preview feature. Its look and feel, as well as implementation details, may change significantly in future releases.
+
+Data in `dataGrid` can be filtered using xref:flow-ui:vc/components/propertyFilter.adoc[property filters] embedded into column headers.
+
+You can define which columns should have a filter using the `filterable` XML attribute. Filterable columns have the "funnel" icon (image:visual-components/components/funnel.svg[]) in their headers. If the user clicks this icon, a dialog with the property filter condition appears. If a condition is set, the icon in that column is highlighted.
+
+To make sure the filter icon is always visible, set an appropriate width for the column using the `width` or `autoWidth` attribute. Don't make the column resizable, otherwise users will be able to shrink the column width and lose the filter icon.
+
+For example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=filterable]
+----
+
+Property filters in column headers work in the same way as standalone property filters and xref:flow-ui:vc/components/genericFilter.adoc[] - they add conditions to the xref:flow-ui:data/data-loaders.adoc[data loader]. In the standard flow, the conditions are translated to the JPQL query and filter data on the database level.
+
+Filterable columns can be used together with `propertyFilter` and `genericFilter` components. Conditions of all filters are combined by logical `AND`.
+
+Currently, column filter conditions are not bound to the page URL. It means that if a user applies a filter and then navigates to a detail view and back, the filter will be cleared.
+
+[[actions]]
+== Actions
+
+The `dataGrid` component implements the `HasActions` interface and can contain both standard xref:flow-ui:actions/list-actions.adoc[list actions] and custom actions. Actions are invoked by clicking designated buttons or from the <<context-menu, context menu>> that appears on the right click.
+
+image::visual-components/components/data-grid-actions.png[align="center", width="732"]
+
+[TIP]
+====
+To add `action` in Jmix Studio, select the component in the view descriptor XML or in the *Jmix UI* structure panel and click on the xref:studio:screen-designer.adoc#add-action[Add->Action] button in the *Jmix UI* inspector panel.
+====
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-actions]
+----
+
+<1> Define `hbox` to contain action buttons.
+<2> Define the `list_create` standard action.
+<3> Define the `getInfo` custom action. Value of its xref:flow-ui:vc/common-attributes.adoc#text[text] attribute represents the action in the context menu and is used as the button caption.
+====
+
+[[context-menu]]
+== Context Menu
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-context-menu" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+The context menu offers an alternative way to access <<actions, actions>> through a right click. Each action is represented by its own menu item.
+
+Use the `contextMenu` element to refine the list of items in the menu, organizing them with separators and a hierarchical structure.
+
+image::visual-components/components/data-grid-context-menu.png[align="center", width="732"]
+
+.Show code
+[%collapsible]
+====
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=dataGrid-context-menu]
+----
+<1> Hide all actions from the menu. Or hide a specific action using its xref:vc/common-attributes.adoc#visible[visible] attribute.
+<2> Add menu items explicitly for necessary actions.
+<3> Nest items within each other to create a hierarchy.
+<4> The item with content added dynamically via <<dynamicContentHandler, dynamicContentHandler>>.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dynamicContentHandler]
+----
+====
+
+[[renderers]]
+== Renderers
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://vaadin.com/docs/latest/components/grid/flow/#using-renderers-in-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
+</div>
+++++
+
+Renderers are used to customize the display of data in a data grid. For example, you could use a renderer to:
+
+* Format dates or numbers.
+* Display custom icons or images.
+* Create interactive elements, such as buttons or links.
+* Show different content based on the value of the cell.
+
+Renderers can be defined in the following ways:
+
+* *Declaratively in XML*
++
+There are a few pre-built renderers that can be assigned to a column in XML:
+
+** `numberRenderer`
+** `localDateRenderer`
+** `localDateTimeRenderer`
++
+They accept a `format` string. For example:
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
++
+[TIP]
+====
+To add a renderer in Jmix Studio, select the `column` element in the view descriptor XML or in the *Jmix UI* structure panel and click on the xref:studio:screen-designer.adoc#component-inspector[Add-><Some>Renderer] button in the *Jmix UI* inspector panel.
+====
+
+* *Using @Supply Annotation*
++
+Renderers can be supplied in a view controller using the `@Supply` annotation. Methods annotated with `@Supply` return a value that will be passed as an input parameter to a method defined by `subject`.
++
+[TIP]
+====
+A custom renderer can be assigned to a column using the `renderer` handler which is available on the *Handlers* tab of the *Jmix UI* inspector for any `column` element.
+====
++
+[TIP]
+====
+The <<column,column>> element can be defined without the <<property,property>> attribute, that is without direct binding to an entity attribute. In this case, the `column` element must have the <<key,key>> attribute with a unique value.
+====
++
+Check out examples <<text-renderer,here>> and <<component-renderer,here>>.
+
+[[fragment-renderer]]
+* *Using FragmentRenderer*
++
+You can render columns using a nested `fragmentRenderer` element. Refer to the xref:flow-ui:vc/miscellaneous/renderers.adoc#fragment-renderer[Fragment Renderer] section for more information.
+
+* *Using addColumn() and addComponentColumn()*
++
+The `addColumn()` and `addComponentColumn()` methods allow you to add columns to the data grid.
++
+You can configure the added columns to use a renderer to show the data.
++
+In the following example, we will add a column displaying the user's picture:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=import-user;import-data-grid;import-file-storage-locator;import-grid;import-file-ref;import-image;import-ui-components;import-input-stream-download-handler;import-download-handler;import-input-stream;import-download-response;import-span;some-code;uiComponents;usersDtGr;fileStorage;onInit;addComponentColumn]
+----
+<1> Adds a new column that shows the `image` component.
+<2> The `Image` component instance is created using the `UiComponents` factory.
+<3> Creates a `DownloadHandler` that opens an input stream for the file referenced by the `picture` attribute of the `User` entity.
+<4> Sets the `DownloadHandler` as the source of the `Image` component.
+<5> The `addComponentColumn()` method returns the visual component to be shown in the column cells.
+
+[[local-date-renderer]]
+=== Local Date Renderer
+
+The `LocalDateRenderer` is responsible for presenting dates in the form of `LocalDate` values.
+
+Within the data grid's `column` element, there is a `localDateRenderer` sub-element that includes an optional `nullRepresentation` attribute and a mandatory `format` string attribute.
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
+
+The `nullRepresentation` attribute is used to specify the textual representation of `null` values.
+
+Below is an example using `LocalDateRenderer` with the `addColumn()` method:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=usersDtGr;onInit;addJoiningDate]
+----
+
+[[local-date-time-renderer]]
+=== Local Date Time Renderer
+
+The `LocalDateTimeRenderer` is responsible for presenting dates in the form of `LocalDateTime` values.
+
+Within the data grid's `column` element, there is a `localDateTimeRenderer` sub-element that includes an optional `nullRepresentation` attribute and a mandatory `format` string attribute.
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateTimeRenderer]
+----
+
+The `nullRepresentation` attribute is used to specify the textual representation of `null` values.
+
+[[number-renderer]]
+=== Number Renderer
+
+The `NumberRenderer` allows you to display numbers in a specified format within the grid cells. It is particularly useful for rendering various types of numbers, including floating-point values.
+
+Within the data grid's `column` element, there is a `numberRenderer` sub-element that includes an optional `nullRepresentation` attribute and a mandatory `format` or `numberFormat` attribute.
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=numberFormat]
+----
+
+The `nullRepresentation` attribute is used to specify the textual representation of `null` values.
+
+The `numberFormat` attribute follows the formatting rules and syntax of the `java.text.DecimalFormat` class.
+
+[NOTE]
+====
+`numberRenderer` requires only one format attribute. Without any attributes, it will throw a `GuiDevelopmentException`. Additionally, it is not possible to apply a format from two attributes defined together - a `GuiDevelopmenException` will be thrown.
+====
+
+[[text-renderer]]
+=== Text Renderer
+
+`TextRenderer` is a renderer for presenting simple plain-text string values.
+
+In the example below, a custom text is displayed in the column:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=textRenderer]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=textRenderer]
+----
+
+[[component-renderer]]
+=== Component Renderer
+
+The example below shows how to define a column with custom renderer which displays a checkbox:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=completed]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=ComponentRenderer]
+----
+
+[[item-details]]
+== Item Details
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-item-details" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+
+This component allows rows to expand, revealing additional information about each item. To implement this functionality, use the `setItemDetailsRenderer()` method. This method takes a <<component-renderer, ComponentRenderer>> as an argument, which specifies how the details are rendered.
+
+image::visual-components/components/data-grid-items-details.png[align="center", width="750"]
+
+The <<detailsVisibleOnClick, detailsVisibleOnClick>> attribute allows you to control whether these details appear when the row is clicked. If you prefer the details to be triggered by an event other than clicking, set this attribute to `false`.
+
+[[sorting]]
+== Sorting
+
+Any column can be used for sorting the data displayed. Clicking on the column header activates a special control in the grid that shows which column is currently being sorted and the sorting direction (ascending or descending). Each subsequent click on the same header will toggle the sorting direction.
+
+[NOTE]
+====
+xref:data-model:enumerations.adoc[Enumeration] attributes are sorted by their `id` values, not by localized captions displayed in the UI.
+
+As a result, the sorting order can differ from the visible order of enum values in a `dataGrid`, especially when enum values are localized.
+====
+
+[[multiple-sorting]]
+=== Sorting by Multiple Columns
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-grid-multi-sort" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+It is also possible to sort by multiple columns simultaneously. When sorting by multiple columns, the first selected column determines the primary sorting criterion, the second column sets the secondary criterion, and so on. You can configure it using <<multiSort, multiSort>>, <<multiSortOnShiftClickOnly, multiSortOnShiftClickOnly>>, and <<multiSortPriority, multiSortPriority>> attributes.
+
+For example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=multiSort]
+----
+
+[[aggregating]]
+== Aggregating
+
+The component supports aggregating values in its rows. When aggregation is enabled, it will display an additional row containing aggregated values. For example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-dataGrid]
+----
+
+<1> Set the <<aggregatable, aggregatable>> attribute to `true`.
+
+<2> Add the `aggregation` element for columns you want to aggregate. Add optional `cellTitle` attribute to display a hint when the user hovers aggregated value.
+
+<3> Specify xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter] to display the aggregated value in the format other than the standard for this data type.
+
+The `aggregation` element can specify a class with custom aggregation logic through `strategyClass` attribute:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=aggregatable-grid]
+----
+
+Such class must implement `AggregationStrategy` interface. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridUserStatusAggregation.java[tags=aggregatable-grid]
+----
+
+[[empty-state]]
+== Empty State
+
+When a data grid has no data to display, the area between the header and footer is blank by default. Use the empty state feature to display a message or UI component informing the user that there are no items to show.
+
+* Use the `emptyStateText` attribute to define the text that appears when the data grid is empty.
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=empty-state]
+----
++
+NOTE: This attribute takes precedence over any empty state component configured using the `setEmptyStateComponent(Component)` method in the view controller or the `emptyStateComponent` element in the view XML-descriptor. Setting `emptyStateText` will remove any existing component.
+* Use the `emptyStateComponent` element to define the component that appears when the grid is empty.
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-features-view.xml[tags=empty-state-comp]
+----
++
+Once you've set `emptyStateComponent`, you can interact with the nested component as usual. This includes customizing its styling and creating event handlers.
++
+NOTE: Setting this element overrides any empty state text defined using the `setEmptyStateText(String)` method in the view controller or the `emptyStateText` attribute in the view XML-descriptor.
+
+== Attributes
+
+xref:vc/common-attributes.adoc[Common attributes] serve the same purpose for all components.
+ The following attributes are specific to `dataGrid`:
+
+[cols="1h,5,1", grid=rows, frame=none]
+|===
+|*Name*
+|*Description*
+|*Default*
+|[[allRowsVisible]]allRowsVisible
+|If `true`, the data grid will display all rows at once with no scroll bars, effectively disabling virtual scrolling. This means that instead of only rendering the visible rows and loading more as the user scrolls, the grid will render all the rows in the DOM simultaneously.
+
+*Using this feature is discouraged for a large number of items as it may cause performance issues.*
+|`false`
+|[[aggregatable]]aggregatable
+|If `true`, enables aggregating of columns. See <<aggregating, Aggregating>>.
+|`false`
+|[[aggregationPosition]]aggregationPosition
+|If the data in the component is <<aggregatable,aggregatable>>, determines whether the aggregation row is displayed above or below the other rows. Possible values: `TOP` or `BOTTOM`. See <<aggregating, Aggregating>>.
+|`BOTTOM`
+|[[columnReorderingAllowed]]columnReorderingAllowed
+|If `true`, enables users to change the order of columns.
+|`false`
+|[[detailsVisibleOnClick]]detailsVisibleOnClick
+|If `true`, enables <<item-details,item details>> to be revealed on mouse click.
+|`true`
+|[[dropMode]]dropMode
+|Determines rows where a drop can happen. Possible values: `BETWEEN`, `ON_TOP`, `ON_TOP_OR_BETWEEN`, `ON_GRID`. This feature might be used, for example, to reorder rows and to drag rows between grids.
+|–
+|[[editorBuffered]]editorBuffered
+|If `true`, activates buffered mode for <<inline-editing, inline editing>>,  meaning that the user must confirm making changes by clicking a confirm button. This mode also allows users to cancel their changes. In unbuffered mode changes are applied without the need for confirmation.
+|`false`
+|[[emptyStateText]]emptyStateText
+|The text to display when the data grid is empty. Use null to remove the current empty state content. See <<empty-state, Empty State>>.
+|–
+|[[multiSort]]multiSort
+|If `true`, enables sorting by multiple columns.
+|`false`
+|[[multiSortOnShiftClickOnly]]multiSortOnShiftClickOnly
+|If `true`, multi-sorting is activated only when clicking on the column header while holding down the Shift key.
+|`false`
+|[[multiSortPriority]]multiSortPriority
+|Determines whether the clicked column is added to the end or beginning of the sorted columns list. Possible values: `PREPEND`, `APPEND`.
+|`PREPEND`
+|[[nestedNullBehavior]]nestedNullBehavior
+|Sets the behavior when parsing nested properties which may contain null values in the property chain. Possible values: `THROW`, `ALLOW_NULLS`.
+|`THROW`
+|[[pageSize]]pageSize
+|Determines the page size or the number of items that will be fetched from the data provider at a time.
+|`50`
+|[[rowsDraggable]]rowsDraggable
+|If `true`, enables users to drag rows in the grid.
+|`false`
+|[[selectionMode]]selectionMode
+|Sets the selection mode. Possible values: `SINGLE`, `MULTI`, `NONE`.
+|`SINGLE`
+|===
+
+== Handlers
+
+xref:vc/common-handlers.adoc[Common handlers] are configured in the same way for all components.
+The following handlers are specific to `dataGrid`:
+
+include::../handler-generation-tip.adoc[]
+
+[cols="1h,6", grid=rows, frame=none]
+|===
+|*Name*
+|*Description*
+|[[CellFocusEvent]]CellFocusEvent
+|`com.vaadin.flow.component.grid.CellFocusEvent` fired when a cell in the data grid is focused. Corresponds to the `grid-cell-focus` DOM event.
+|[[ColumnReorderEvent]]ColumnReorderEvent
+|`com.vaadin.flow.component.grid.ColumnReorderEvent` fired when the columns in the data grid are reordered. Corresponds to the `column-reorder-all-columns` DOM event.
+|[[ColumnResizeEvent]]ColumnResizeEvent
+|`com.vaadin.flow.component.grid.ColumnResizeEvent` fired when a data grid column is resized by the user. Corresponds to the `column-drag-resize` DOM event.
+|[[GridDragEndEvent]]GridDragEndEvent
+|`com.vaadin.flow.component.grid.dnd.GridDragEndEvent` - drag end event of dataGrid rows. Corresponds to the `grid-dragend` DOM event.
+|[[GridDragStartEvent]]GridDragStartEvent
+|`com.vaadin.flow.component.grid.dnd.GridDragStartEvent` - drag start event of dataGrid rows. Corresponds to the `grid-dragstart` DOM event.
+|[[GridDropEvent]]GridDropEvent
+|`com.vaadin.flow.component.grid.dnd.GridDropEvent` - drop event that occurs on the data grid or its rows. Corresponds to the `grid-drop` DOM event.
+|[[ItemClickEvent]]ItemClickEvent
+|`com.vaadin.flow.component.grid.ItemClickEvent` fired when a data grid item is clicked. Corresponds to the `item-click` DOM event.
+|[[ItemDoubleClickEvent]]ItemDoubleClickEvent
+|`com.vaadin.flow.component.grid.ItemDoubleClickEvent` fired when a data grid item is double-clicked. Corresponds to the `item-double-click` DOM event.
+|[[SortEvent]]SortEvent
+|`com.vaadin.flow.data.event.SortEvent` - event describing a change in sorting of a DataProvider. Fired by `SortNotifiers`. See https://demo.jmix.io/ui-samples/sample/data-grid-sort-event?tab=DataGridSortEvent.java[live demo^].
+|[[dataGenerator]]dataGenerator
+|Adds a data generator for the data grid. If the generator was already added, does nothing. See the `com.vaadin.flow.data.provider.HasDataGenerators` interface.
+|[[dragFilter]]dragFilter
+|Allows to control which specific rows can be dragged, rather than making all rows draggable with <<rowsDraggable, rowsDraggable>>.
+|[[dropFilter]]dropFilter
+|Allows to control which specific rows are valid drop targets.
+|[[enterPressHandler]]enterPressHandler
+|Handles the event when the user presses the Enter key.
+|[[itemSelectableProvider]]itemSelectableProvider
+|Sets a predicate to check whether a specific item in the grid may be selected or deselected by the user. The predicate receives an item instance and should return `true` if a user may change the selection state of that item, or `false` otherwise.
+|[[tooltipGenerator]]tooltipGenerator
+// Flow UI sample uses different approach.
+|Generates tooltip for the column cell based on given conditions. See https://demo.jmix.io/ui-samples/sample/data-grid-tooltip-generator[live demo^].
+|===
+
+== Elements
+
+Elements of `dataGrid` provide a wide range of options to control the appearance, behavior, and functionality of columns both collectively and individually.
+
+[TIP]
+====
+To add an element to a selected component click the xref:studio:screen-designer.adoc#add-column[Add] button in the *Jmix UI* inspector panel.
+====
+
+[[columns]]
+=== columns
+
+The `columns` element can specify a set of attributes to display and behaviors for all columns.
+
+[cols="1h,6", grid=none]
+|===
+|XML Element
+|`columns`
+|Attributes
+|<<exclude,exclude>> - <<includeAll,includeAll>> - <<resizable-columns,resizable>> - <<sortable-columns,sortable>>
+|Elements
+|<<column,column>> - <<actions-column,EditorActionsColumn>>
+|===
+
+.Attributes
+[cols="1h,5,1", grid=rows]
+|===
+|*Name*
+|*Description*
+|*Default*
+|[[exclude]]exclude
+|Excludes specific attributes from being shown. Several attributes must be separated with a comma. For example: `exclude = "id, version, sortValue"`.
+|–
+|[[includeAll]]includeAll
+|If `true` includes all the attributes specified in the corresponding data container's fetch plan.
+|–
+|[[resizable-columns]]resizable
+|If `true`, all columns are user-resizable.
+|`false`
+|[[sortable-columns]]sortable
+|If `true`, all columns are sortable.
+|`true`
+|===
+
+[[column]]
+=== column
+
+The `column` element defines an individual column. Attributes set for an individual column override those set for all columns.
+
+[cols="1h,6", grid=none]
+|===
+|XML Element
+|`column`
+|Attributes
+|<<autowidth,autowidth>> - <<editable,editable>> - <<filterable,filterable>> - <<flexGrow,flexGrow>> - <<footer,footer>> - <<frozen,frozen>> - <<header,header>> - <<key,key>> - <<property,property>> - <<resizable-column,resizable>> - <<sortable-column,sortable>> - <<textAlign,textAlign>> - <<visible,visible>> - <<width,width>>
+|Handlers
+|xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] - <<DataGridColumnVisibilityChangedEvent,DataGridColumnVisibilityChangedEvent>> - xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] - <<partNameGenerator,partNameGenerator>> - <<renderer,renderer>> - <<tooltipGenerator-column,tooltipGenerator>>
+|Elements
+|<<aggregating,Aggregation>> - <<fragment-renderer,FragmentRenderer>> - <<local-date-renderer,LocalDateRenderer>> - <<local-date-time-renderer,LocalDateTimeRenderer>> - <<number-renderer,NumberRenderer>>
+|===
+
+.Attributes
+[cols="1h,5,1", grid=rows]
+|===
+|*Name*
+|*Description*
+|*Default*
+|[[autowidth]] autoWidth
+|If `true`, the column width will adjust to its contents.
+|`false`
+|[[editable]]editable
+|If `true`, the column can be edited. See <<inline-editing, Inline Editing>>.
+|`false`
+|[[filterable]]filterable
+|If `true` enables filtering for this column. See <<column-filtering,Filtering>>.
+|`false`
+|[[flexGrow]]flexGrow
+|Sets the flex grow ratio for this column. When set to `0`, the column width is fixed.
+|`0`
+|[[footer]]footer
+|Sets a footer text to the column. The attribute value can either be the text itself or a key in the xref:localization:message-bundles.adoc[message bundle]. In case of a key, the value should begin with the `msg://` prefix.
+| –
+|[[frozen]]frozen
+|If `true`, freezes (locks in place) the column, so that it remains visible as the user scrolls the table horizontally. It's generally recommended to freeze columns from left to right.
+|`false`
+|[[header]]header
+|Sets the column header text. The attribute value can either be the text itself or a key in the xref:localization:message-bundles.adoc[message bundle]. In case of a key, the value should begin with the `msg://` prefix.
+| –
+|[[key]]key
+|Sets the user-defined identifier to map this column. The key can be used to fetch the column later with the `getColumnByKey(String)` method.
+
+The key has to be unique within the data grid, and it can’t be changed after set once.
+|–
+|[[property]]property
+|Specifies the name of an entity attribute to be displayed in the column. This can be an attribute of the root entity `property = "user"` or an attribute of its child entity `property = `user.department.name` (use dot notation to traverse the object graph).
+|–
+|[[resizable-column]]resizable
+|If `true`, the column is user-resizable.
+|`false`
+|[[sortable-column]]sortable
+|If `true`, the column is sortable.
+|`false`
+|[[textAlign]]textAlign
+|Specifies the alignment of the text with the following possible values: `START`, `CENTER`, `END`. See Text Alignment.
+|`START`
+|[[visible]]visible
+|If `true`, the column is visible.
+|`true`
+|[[width]]width
+|Sets the width of the column as a CSS string.
+|–
+|===
+
+.Handlers
+[cols="1h,6", grid=rows]
+|===
+|*Name*
+|*Description*
+|[[DataGridColumnVisibilityChangedEvent]]DataGridColumnVisibilityChangedEvent
+|Fired when the column visibility is changed through the xref:flow-ui:vc/components/gridColumnVisibility.adoc[] component.
+|[[partNameGenerator]]partNameGenerator
+|Generates parts of CSS class names for this column based on given conditions. This allows for customizing cell appearance based on the data displayed. See https://demo.jmix.io/ui-samples/sample/data-grid-part-name-generator[live demo^].
+|[[renderer]]renderer
+|Renders column content using text or components. See <<text-renderer,text renderer>> and <<component-renderer, component renderer>>.
+|[[tooltipGenerator-column]]tooltipGenerator
+|Generates tooltip for the column cell based on given conditions. See https://demo.jmix.io/ui-samples/sample/data-grid-tooltip-generator[live demo^].
+|===
+
+[[context-menu-element]]
+=== contextMenu
+
+The `contextMenu` element organizes items the right-click menu in a way that differs from their default arrangement. See the <<context-menu, example>>.
+
+[cols="1h,6", grid=none]
+|===
+|XML Element
+|`contextMenu`
+|Attributes
+
+|xref:vc/common-attributes.adoc#id[id] - xref:vc/common-attributes.adoc#classNames[classNames] - xref:vc/common-attributes.adoc#css[css] - xref:vc/common-attributes.adoc#enabled[enabled] - xref:vc/common-attributes.adoc#visible[visible]
+|Handlers
+|xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] - xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] - <<GridContextMenuOpenedEvent,GridContextMenuOpenedEvent>> - <<openedChangeEvent,openedChangeEvent>> - <<dynamicContentHandler,dynamicContentHandler>>
+|Elements
+|item - separator
+|===
+
+.Handlers
+[cols="1h,6", grid=rows]
+|===
+|*Name*
+|*Description*
+|[[GridContextMenuOpenedEvent]]GridContextMenuOpenedEvent
+|Fired when the context menu opened state changes. May return the target item or the id of the target column allowing the menu to display items based on the clicked item.
+|[[openedChangeEvent]]openedChangeEvent
+|Fired when the context menu opened state changes.
+|[[dynamicContentHandler]]dynamicContentHandler
+|Handles dynamic updates to the menu when it opens, such as adding menu items or their content. See the <<context-menu, example>>.
+|===
+
+[[empty-state-component-element]]
+=== emptyStateComponent
+
+The `emptyStateComponent` element defines the component to display when the grid is empty. Use null to remove the current empty state content. See <<empty-state, Empty State>>.
+
+== See Also
+
+See the https://vaadin.com/docs/latest/components/grid[Vaadin Docs^] for more information.

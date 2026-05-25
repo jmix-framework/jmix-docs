@@ -1,0 +1,149 @@
+= dataLoadCoordinator
+:page-aliases: facets/data-load-coordinator.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/data-load-coordinator" class="live-demo-btn" target="_blank">LIVE DEMO</a>
+</div>
+++++
+
+`dataLoadCoordinator` facet is designed for triggering data loaders and for declarative linking of data loaders to data containers, visual components, and view lifecycle events.
+
+[[basics]]
+== Basic Usage
+
+To trigger all data loaders on the view at xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent], just add `dataLoadCoordinator` with `auto="true"` to the view XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=dataLoadCoordinator]
+----
+
+[[working-modes]]
+== Working Modes
+
+You can configure `dataLoadCoordinator` to work in the automatic, manual or semi-automatic mode.
+
+[[automatic-mode]]
+=== Automatic Mode
+
+In automatic mode (`auto="true"`), `dataLoadCoordinator` *triggers every loader it can provide parameter values for* on xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]. The facet can automatically match parameters in the loader query to values that come from containers or visual components. To indicate the source, prepend the appropriate prefix to the parameter name: use `container_` for values taken from a container and `component_` for values taken from a visual component. For example, a parameter named `container_citiesDc` takes its value from the `citiesDc` container.
+
+TIP: You can change the default prefixes with the `<<componentPrefix,componentPrefix>>` and `<<containerPrefix,containerPrefix>>` attributes.
+
+If a query contains an arbitrary parameter without a prefix — e.g., `select e from User e where e.city = :city` — the facet won’t be able to match it, so the loader won’t be triggered automatically. In that case you must set the parameter value yourself and call `userDl.load()`. Adding arbitrary parameters within a xref:data/data-loaders.adoc#query-conditions[query condition] does not prevent the loader’s main query from running.
+
+Usage example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/automaticmode/automatic-mode-view.xml[tags=automatic-mode]
+----
+
+<1> *Data container* – holds the `City` entity. Its value is used as the `:container_citiesDc` parameter.
+<2> *City query* – includes no parameters and will execute on xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent].
+<3> *Query condition* – is appended to the city query when the user enters a value in `nameField`.
+<4> *Customer query* – reloads `Customer` rows each time the selected value in the `citiesDc` container changes.
+<5> *Facet set to automatic mode* – automatically coordinates loader execution, ensuring queries are run in the correct order.
+<6> *Input field* – the `nameField` text component whose value is bound to the `:component_nameField` in the city query.
+
+[[manual-mode]]
+=== Manual Mode
+
+In manual mode (`auto = false`) the facet no longer performs any automatic actions. You must specify the exact view event that triggers the loader (for instance,`InitEvent`) and specify the origin of every query parameter, whether it’s a component value or a container value. These details are provided through <<refresh, <refresh> >> elements placed within the facet declaration.
+
+Usage example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/manualmode/manual-mode-view.xml[tags=manual-mode]
+----
+
+<1> *Data container* – holds the `City` entity. Its value is used as the `city` parameter in the customer query.
+<2> *City query* – includes no parameters and will execute on xref:flow-ui:views/view-events.adoc#init-event[InitEvent] as per manual configuration.
+<3> *Query condition* – is appended to the query when the user enters a value in `nameField`.
+<4> *Customer query* – reloads `Customer` instances each time the selected value in the `citiesDc` container changes.
+<5> *Manual facet mode* – loading is controlled by the rules defined in the `<refresh>` elements.
+<6> *City loader refresh condition* – triggers a refresh of `citiesDl` on `InitEvent` and when the content of the `nameField` component passing its input as the `name` parameter.
+<7> *Customer loader refresh condition* – triggers a refresh of `customersDl` when the selected item in `citiesDc` container changes, passing that city as the `city` parameter.
+<8> *Input field* – the `nameField` text component whose value is bound to the City query via a `<refresh>` element.
+
+[[semi-automatic-mode]]
+=== Semi-automatic Mode
+
+The facet can be set to semiautomatic mode. In this mode the coordinator triggers loaders automatically (with `auto = "true"`), *but* also respects any manual rules you add.
+
+Usage example:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/semiautomaticmode/semiautomatic-mode-view.xml[tags=semiautomatic-mode]
+----
+
+<1> *Facet set to semiautomatic mode* – the facet will automatically trigger loaders unless overridden by manual rules.
+<2> *City loader refresh condition* – specifies that the `citiesDl` loader should be triggered when the view fires xref:flow-ui:views/view-events.adoc#ready-event[ReadyEvent].
+
+[[attributes]]
+== Attributes
+
+include::facet-tip.adoc[]
+
+[[auto]]
+* `auto` - defines `DataLoadCoordinator` working mode.
+The default value is `false`.
+
+[[componentPrefix]]
+* `componentPrefix` - defines a prefix for parameters which refer to xref:vc/components.adoc[visual components] from which `DataLoadCoordinator` will take parameter values in automatic mode. The default value is `component_`.
+
+[[containerPrefix]]
+* `containerPrefix` - defines a prefix for parameters which refer to xref:data/data-containers.adoc[data containers] from which `DataLoadCoordinator` will take parameter values in automatic mode. The default value is `container_`.
+
+[[refresh]]
+== Refresh Element
+
+The `refresh` element allows you to define conditions for when a data loader must be refreshed.
+
+[[loader]]
+The only attribute of this element is `loader` that defines the loader's `id`.
+
+The `refresh` element can have the following nested elements defining the triggering conditions:
+
+[[onComponentValueChanged]]
+. `onComponentValueChanged` - to trigger the loader when the value of a visual component is changed. It has the following attributes:
++
+[[component]]
+* `component` - specifies the `id` of the visual component.
++
+[[likeClause]]
+* `likeClause` - if you use the `like` expression in xref:data/data-loaders.adoc#query-conditions[query condition], you can define one of three possible search modes:
+** `NONE` - the default value.
+** `CASE_SENSITIVE` - case-sensitive search.
+** `CASE_INSENSITIVE` - case-insensitive search.
++
+[[component-param]]
+* `param` - specifies the query parameter name.
+[[onContainerItemChanged]]
+. `onContainerItemChanged` - to trigger the loader when the current item in a data container is changed. It has the following attributes:
++
+[[container]]
+* `container` - specifies the `id` of the data container.
++
+[[container-param]]
+* `param` - specifies the query parameter name.
+[[onViewEvent]]
+. `onViewEvent` - to trigger the loader on a view lifecycle event. It has the following attribute:
++
+[[onViewEvent-type]]
+* `type` - defines the type of the view event. Possible values:
+** `Init` - to trigger on `InitEvent`.
+** `BeforeShow` - to trigger on `BeforeShowEvent`.
+** `Ready` - to trigger on `ReadyEvent`.
+
+[[see-also]]
+== See Also
+
+Explore the following online examples to see `dataLoadCoordinator` in action:
+
+* https://demo.jmix.io/ui-samples/sample/data-load-coordinator[DataLoadCoordinator^]
+* https://demo.jmix.io/ui-samples/sample/cascading-dropdowns[Cascading dropdowns^]
+* https://demo.jmix.io/ui-samples/sample/custom-filter[Custom filter using declarative conditions^]

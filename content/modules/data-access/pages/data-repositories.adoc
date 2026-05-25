@@ -1,0 +1,198 @@
+= Data Repositories
+
+https://docs.spring.io/spring-data/commons/docs/current/reference/html/#repositories.core-concepts[Spring Data] repositories provide a useful abstraction for working with entities, especially when implementing business logic.
+
+Jmix data repositories are built on top of Spring Data and use xref:data-access:data-manager.adoc[DataManager] under the hood. It allows you to utilize the convenient repository interface while having the full support for advanced Jmix data access features, such as xref:data-access:entity-events.adoc[entity events], xref:data-model:entities.adoc#cross-data-store-ref[cross-datastore references], xref:security:authorization.adoc#data-access-checks[data access checks], etc.
+
+[[working-with-data-repositories]]
+== Working with Data Repositories
+
+You can create a Jmix data repository in two ways: using the xref:studio:data-repository-wizard.adoc[Data Repository Wizard] or following the steps below.
+
+. Create an interface extending `JmixDataRepository`. Use the entity class and the entity identifier class as type parameters for `JmixDataRepository`. For example:
++
+--
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=data-repository;data-repository-end]
+----
+--
+
+. Create a new Spring configuration class in the base package and add the `@EnableJmixDataRepositories` annotation to it:
++
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/JmixDataRepositoryConfiguration.java[]
+----
++
+Jmix will initialize all data repositories located under the base package of the application or the add-on. If you need more customized control over where to search for repositories, use the `basePackages`, `excludeFilters` and `includeFilters` attributes of the annotation.
+
+. Inject your repository into Spring beans or UI controllers using the `@Autowired` annotation:
++
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/repository/CustomerRepositoryTest.java[tags=inject]
+----
+
+[[jmix-data-repository-features]]
+== JmixDataRepository Features
+
+The `JmixDataRepository` interface extends the standard Spring Data https://docs.spring.io/spring-data/commons/docs/current/api/org/springframework/data/repository/PagingAndSortingRepository.html[PagingAndSortingRepository^]. It provides a few methods specific to Jmix:
+
+* Load methods, such as `findById()` or `findAll()`, can accept a xref:data-access:fetching.adoc#fetch-plan[fetch plan].
+* `create()` method xref:data-model:entities.adoc#instantiation[instantiates] a new entity.
+* `getById()` method with the non-optional result loads an entity by id and throws the exception if the entity is not found.
+* `getDataManager()` method returns xref:data-access:data-manager.adoc[DataManager] to use in default methods.
+* `save()` method persists the provided entity and returns the saved instance, loaded with the specified fetch plan. The method accepts the entity to be saved and fetch plan to apply when reloading the saved entity. The entity cannot be null, and fetch plan must be applicable to the entity.
+
+[[JmixDataRepositoryContext]]
+=== JmixDataRepositoryContext
+
+Load methods of repositories inherited from `JmixDataRepository` support an additional argument of the `JmixDataRepositoryContext` type. It allows you to pass the filtering, paging and sorting parameters collected from UI components to the `LoadContext` object. As a result, all the features of xref:flow-ui:vc/components/genericFilter.adoc[], xref:flow-ui:vc/components/simplePagination.adoc[] and xref:flow-ui:vc/components/dataGrid.adoc[] components will work seamlessly with data repositories.
+
+When you scaffold a view that works with a repository data loader, Studio generates a xref:flow-ui:data/data-loaders.adoc#load-from-repository-delegate[loadFromRepositoryDelegate] handler with `Pageable` and `JmixDataRepositoryContext` parameters.
+
+==== Converting `LoadContext` to `JmixDataRepositoryContext`
+
+Use the `JmixDataRepositoryUtils.buildRepositoryContext()` static method to convert a `LoadContext` to `JmixDataRepositoryContext`.
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/view/order/OrderListView2.java[tags=load-context-to-repository-context]
+----
+
+TIP: Because context settings are preserved during conversion, you can modify `LoadContext` and then convert it to `JmixDataRepositoryContext`.
+
+[[ApplyConstraints]]
+=== Security Constraints
+
+You can add the `io.jmix.core.repository.ApplyConstraints` annotation to your data repository. If the value of the annotation is `false`, the repository uses `UnconstrainedDataManager` instead of `DataManager`. The default annotation value is `true`.
+
+The `@ApplyConstraints` annotation can be used not only for the entire class, but also for individual methods to either ignore or enable constraints for them only.
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/OrderRepository.java[tags=ApplyConstraints]
+----
+
+In the example above, `@ApplyConstraints(false)` is applied specifically to two methods, and they will use `UnconstrainedDataManager`.
+
+In the example below, constraints are disabled for the entire class, but are specifically enabled for individual methods:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/ProductRepository.java[tags=ApplyConstraints]
+----
+
+The `findAll()` and `searchByIdNotNull()` methods will use the regular `DataManager`, while all other methods will use `UnconstrainedDataManager`.
+
+[[annotations]]
+=== Annotations
+
+You can use the following annotations on custom query methods:
+
+* `@io.jmix.core.repository.Query` defines a JPQL query string, similar to the Spring Data JPA `@Query` annotation.
+* `@io.jmix.core.repository.FetchPlan` defines a fetch plan to be used when loading data.
+* `@io.jmix.core.repository.QueryHints` and `@jakarta.persistence.QueryHint` allow you to specify hints for xref:data-model:soft-deletion.adoc#turn-soft-deletion-off[turning soft deletion off], xref:cache.adoc#query-cache[using query cache], and xref:dyn-attr:dynattr-api.adoc#loading-and-saving[loading dynamic attributes].
+
+[NOTE]
+====
+If a method name/query and method parameters specify different values for fetch plan and hints, the final values are based on priority, from highest to lowest.
+
+*FetchPlan:*
+
+. `FetchPlan` parameter. The fetch plan explicitly provided as a parameter to the method takes highest priority.
+. `JmixDataRepositoryContext#fetchPlan` parameter.
+. `@FetchPlan` annotation value.
+
+*Hints:*
+
+. `JmixDataRepositoryContext` parameter.
+. `@QueryHints` annotation value.
+
+For hints with the same key, the value from the higher priority source will override the value from the lower priority source. Different keys will be merged.
+====
+
+[[query-method-examples]]
+== Query Method Examples
+
+[[derived-methods]]
+=== Derived Methods
+
+Jmix data repositories support the standard Spring Data feature of deriving the query from the method name, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=name-based-method]
+----
+
+Query methods can accept `Pageable` for pagination and sorting:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=paging]
+----
+
+[[query-annotation]]
+=== @Query Annotation
+
+Similar to Spring Data JPA, a JPQL query can be defined explicitly using the `@io.jmix.core.repository.Query` annotation:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=query]
+----
+
+If the query returns multiple scalar values and/or aggregates, you should provide property names in the `properties` attribute of the `@Query` annotation. The method should return a list of `KeyValueEntity`. Each entity instance will have the properties defined for the query. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-multiple-fields]
+----
+
+If the query returns a list with a single scalar value, define the method return type as a list of that value:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-single-field]
+----
+
+If the query returns a single scalar value, define the method return type as that value:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-single-value]
+----
+
+[[jmix-specific-parameters]]
+=== Jmix-Specific Parameters
+
+Jmix data repositories accept xref:data-access:fetching.adoc#fetch-plan[fetch plan] as a parameter of query methods:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=fetch-plan]
+----
+
+A shared fetch plan can be defined in the `@io.jmix.core.repository.FetchPlan` annotation on the query method:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=fetch-plan]
+----
+
+A xref:cache.adoc#query-cache[cacheable] query can be specified using the `@io.jmix.core.repository.QueryHints` and `@jakarta.persistence.QueryHint` annotations:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository3.java[tags=cacheable]
+----
+
+You can also use `@io.jmix.core.repository.QueryHints` and `@jakarta.persistence.QueryHint` to load xref:dyn-attr:index.adoc[dynamic attributes] for entities returned by repository methods:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository4.java[tags=dynamic-attribute-query-hint]
+----
+
+Use it when your repository methods should always return entities with dynamic attributes initialized.

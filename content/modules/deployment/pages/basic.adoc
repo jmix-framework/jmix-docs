@@ -1,0 +1,296 @@
+= Basic Deployment
+
+[IMPORTANT]
+====
+Make sure your `build.gradle` contains the following code:
+
+[source,groovy]
+----
+vaadin {
+    optimizeBundle = false
+}
+----
+
+It is required for production builds.
+====
+
+[[bootJar]]
+== Creating Executable JAR
+
+Open the terminal in the project root folder and execute the following command:
+
+[source,shell script]
+.Linux and macOS
+----
+./gradlew -Pvaadin.productionMode=true bootJar
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootJar
+----
+
+The executable JAR name will consist of the name and the version of your project. For example, if you specified the following in your `settings.gradle`:
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+and in your `build.gradle`:
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+then the JAR name will be `myapp-0.0.1-SNAPSHOT.jar`.
+
+The executable JAR file is created in the `/build/libs` folder. You can copy it anywhere and run as follows:
+
+[source,shell script]
+----
+java -jar myapp-0.0.1-SNAPSHOT.jar
+----
+
+If you want to customize the packaging process or create a deployable WAR file, refer to the {spring-boot-doc}/gradle-plugin/packaging.html[Spring Boot Documentation^].
+
+[[docker-image]]
+== Creating Docker Image
+
+[[using-dockerfile]]
+=== Using Dockerfile
+
+The most standard and reliable way of creating a Docker image is to use a Dockerfile. It  works in any environment and can be adjusted for any requirements. The simplest Dockerfile is shown below:
+
+[source,dockerfile]
+.Dockerfile
+----
+FROM eclipse-temurin:21-jre-alpine
+COPY build/libs/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+----
+
+To build an image using a Dockerfile, do the following:
+
+. Create a Dockerfile in the project root folder.
+. Build an executable JAR file as described in the <<bootJar,previous section>>.
+. Build an image, executing the following command in the project root:
++
+[source,shell]
+----
+docker build -t IMAGE_NAME .
+----
++
+Replace `IMAGE_NAME` with your preferred image name.
+
+[[bootBuildImage]]
+=== Using bootBuildImage
+
+The Gradle's `bootBuildImage` task allows you to build an optimized image.
+
+Open the terminal in the project root folder and execute the following command:
+
+[source,shell script]
+.Linux and macOS
+----
+./gradlew -Pvaadin.productionMode=true bootBuildImage
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootBuildImage
+----
+
+By default, the image will be created with the name of your project and a tag that is equal to your project's version.
+
+For example, if you specified the following in your `settings.gradle`:
+
+[source,groovy]
+----
+rootProject.name = 'myapp'
+----
+
+and in your `build.gradle`:
+
+[source,groovy]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+then the created image will be `myapp:0.0.1-SNAPSHOT`.
+
+If you are using the xref:grid-export:index.adoc[] add-on for exporting to Excel, you may need to add the following configuration to your `build.gradle` to make sure the image includes all required fonts:
+
+[source,groovy]
+----
+tasks.named("bootBuildImage") {
+    builder = "paketobuildpacks/builder-jammy-full"
+}
+----
+
+You can find more information on image generation and customization in the {spring-boot-doc}/gradle-plugin/packaging-oci-image.html[Spring Boot Documentation^].
+
+[[bootWar]]
+== Deploying WAR
+
+If you want to build a WAR file for deployment to an application server, follow these steps:
+
+. Make sure your main application class extends `SpringBootServletInitializer`, for example:
++
+[source,java]
+----
+@SpringBootApplication
+public class MyApplication
+        extends SpringBootServletInitializer
+        implements AppShellConfigurator {
+    // ...
+}
+----
+
+. Add the `war` plugin to the `plugins` section of your `build.gradle` file:
++
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'war'
+}
+----
+
+. Open the terminal in the project root folder and execute the following command:
++
+[source,shell script]
+.Linux and macOS
+----
+./gradlew -Pvaadin.productionMode=true bootWar
+----
++
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootWar
+----
+
+The WAR file is created in the `/build/libs` folder. The file name is generated as described in the <<bootJar,previous section>>.
+
+[IMPORTANT]
+====
+You need at least Tomcat 10 to run applications because since Jmix 2.0 they require support for Jakarta EE 9 (`jakarta.*` namespace), see https://tomcat.apache.org/migration-10.html#Specification_APIs[Tomcat documentation^] for details.
+
+Use the latest Tomcat 10 to deploy Jmix WAR.
+====
+
+[[multiple-wars]]
+=== Multiple WARs
+
+Deploying more than one Jmix WAR on the same Tomcat server can cause a JMX beans names clash, producing:
+
+----
+Caused by: javax.management.InstanceAlreadyExistsException: jmix.ui:type=TemporaryStorage
+----
+
+To resolve this issue give each WAR its own JMX domain. Add this to the application properties:
+
+.application.properties
+----
+spring.jmx.default-domain=myDomain
+----
+
+[[jndi-data-source]]
+=== Using JNDI Data Source
+
+When deploying your application as a WAR, you can use a JNDI data source provided by the application server to externalize connection settings.
+
+See below how to configure the main `DataSource` of your application for development and production environments using the Spring's {spring-boot-doc}/reference/features/profiles.html[profiles^] feature.
+
+. In your main application class, add `@Profile("!prod")` annotation to `dataSourceProperties` and `dataSource` methods to make sure these beans are created only in development environment:
++
+[source,java,indent=0]
+----
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource")
+DataSourceProperties dataSourceProperties() {
+    return new DataSourceProperties();
+}
+
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource.hikari")
+DataSource dataSource(DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().build();
+}
+----
+
+. Add a method creating a `DataSource` bean for the production environment:
++
+[source,java,indent=0]
+----
+@Profile("prod")
+@Bean(name = "dataSource")
+@Primary
+DataSource prodDataSource(ApplicationContext context) {
+    JndiDataSourceLookup lookup = new JndiDataSourceLookup();
+    DataSource dataSource = lookup.getDataSource("java:comp/env/jdbc/demo"); // <1>
+
+    // to avoid org.springframework.jmx.export.UnableToRegisterMBeanException:
+    for (MBeanExporter mbeanExporter : context.getBeansOfType(MBeanExporter.class).values()) {
+        if (JmxUtils.isMBean(((Object) dataSource).getClass())) {
+            mbeanExporter.addExcludedBean("dataSource");
+        }
+    }
+
+    return dataSource;
+}
+----
+<1> JNDI name of the data source provided by the application server.
+
+. When running the application server, set active profile to `prod` in `spring.profiles.active` application property.
+
+Below is an example of configuring Tomcat for deploying a `demo.war` application.
+
+. Copy `demo.war` to `tomcat/webapps` folder.
+
+. Create `tomcat/bin/setenv.sh` file with the following content:
++
+[source,shell script]
+----
+CATALINA_OPTS="-Dspring.profiles.active=prod"
+----
+
+. Create `tomcat/conf/Catalina/localhost/demo.xml` file defining the data source and set appropriate database connection parameters (XML file name must be the same as your WAR name):
++
+[source,xml]
+----
+<Context>
+    <Resource type="javax.sql.DataSource"
+              name="jdbc/demo"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost/demo"
+              username="root"
+              password="root"
+              maxIdle="2"
+              maxTotal="20"
+              maxWaitMillis="5000"
+    />
+</Context>
+----
++
+Notice that the `name` attribute of the `Resource` element defines the JNDI name used in the `JndiDataSourceLookup.getDataSource()` method when creating the `DataSource` bean.
+
+. Copy an appropriate JDBC driver file (for example, `postgresql-42.2.9.jar`) to `tomcat/lib`.
+
+When you start Tomcat, the application will use the data source defined in the `tomcat/conf/Catalina/localhost/demo.xml` file.
+
+[[reverse-proxy]]
+== Reverse Proxy
+
+Refer to the {vaadin-docs}/flow/production/reverse-proxy[Vaadin reverse proxy guide^] for instructions on configuring *Apache HTTPD* or *nginx* in front of a Jmix application. This guide includes details on forwarding headers, WebSocket support, and path rewriting for various deployment layouts.

@@ -1,0 +1,76 @@
+= Getting Started with Email
+:page-aliases: email:quick-start.adoc
+
+This section introduces a minimal example of using the xref:index.adoc[] add-on. The goal is to create a newsfeed for application users. Such feed can be used to send announcements, updates, notifications, usage statistics, and other related information via email.
+
+To follow along, create a new Jmix project and xref:index.adoc#installation[install the add-on].
+
+== Creating Entity and Views
+
+First, create an entity to store news items along with simple CRUD views for managing them. Follow the steps below:
+
+. Create `NewsItem` entity with the following attributes:
+
+* `date` of type `LocalDate`.
+* `subject` of type `String`.
+* `content` of type `String` with unlimited length.
+
+. Create entity list and detail views for this entity.
+. Open the list view, add a new button, and bind it to the email sending action:
++
+.news-item-list-view.xml
+[source,xml,indent=0]
+----
+include::example$/email-ex1/src/main/resources/com/company/emailex1/view/newsitem/news-item-list-view.xml[tags=news-item-datagrid]
+----
++
+<1> Add a new button.
+<2> Add a new action.
+
+== Sending Email Logic
+
+With the UI ready, add logic to make it functional. This logic will use the xref:api.adoc[add-on's API].
+
+. Set up a handler for the `sendEmailAction` action. In the handler, show a dialog asking if the news can be queued for sending:
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=dialogs;send-email-handler]
+----
+<1> Inject the `io.jmix.flowui.Dialogs` object into the controller class.
++
+. Implement the `sendNewsByEmail()` method.
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=resources;emailer;send-news-by-mail]
+----
+<1> Inject the `io.jmix.email.Emailer` interface.
+<2> Inject the `io.jmix.core.Resources` interface.
+<3> To demonstrate how to add an attachment, we'll use an application icon file.
+<4> Create an `io.jmix.email.EmailAttachment` object.
+<5> Create an `io.jmix.email.EmailInfo` object using `io.jmix.email.EmailInfoBuilder`.
+<6> The *from* address will be taken from the xref:configuration.adoc#jmix.email.from-address[jmix.email.from-address] property.
+<7> Send the email asynchronously (in the background).
+
+== Configuring SMTP Server parameters
+
+Use Spring Boot xref:configuration.adoc#spring-boot-mail-properties[mail properties] to define basic email sending parameters, such as protocol, host, port, and others in the `application.properties` file.
+
+NOTE: You may need to obtain SMTP server configuration parameters from your system administrator or service provider. See the xref:oauth-providers.adoc[] for steps to configure email sending with these providers.
+
+== Working with User Interface
+
+Run the application, open the *News items* view. Click *Create* to compose a news item. After saving and returning to the previous view, select your item and click *Send Email*. The confirmation dialog will appear – click *Yes* to proceed.
+
+image::confirmation.png[align="center"]
+
+Go to the *Email -> xref:menu-views/email-history.adoc[]* view. A record with the `Queue` status indicates that the email is waiting to be sent. The email details will be displayed on the right as you click it.
+
+image::email-history.png[align="center"]
+
+To send an email from the UI, select it from the list and click *Resend email*. You can change or add recipients before sending. Once the email is sent, the status will change to `Sent`.
+
+TIP: To send queued emails regularly or on a specific schedule, set up the xref:configuration.adoc#email-sending-scheduler[Quartz Scheduler].
+
+image::resend.png[align="center"]

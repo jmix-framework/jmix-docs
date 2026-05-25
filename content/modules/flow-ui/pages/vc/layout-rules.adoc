@@ -1,0 +1,753 @@
+= Layout Rules
+:page-aliases: vcl/layout.adoc
+
+This section provides an explanation of the correct methods for positioning visual components and layouts in your views.
+
+[[component-sizes]]
+== Component Sizes
+
+Components that implement `com.vaadin.flow.component.HasSize` (e.g. xref:vc/components/button.adoc[], xref:vc/components/button.adoc[textField], xref:vc/components/button.adoc[dataGrid], xref:vc/components/button.adoc[vbox], etc.) have the following common attributes: xref:vc/common-attributes.adoc#width[width], xref:vc/common-attributes.adoc#minWidth[minWidth], xref:vc/common-attributes.adoc#maxWidth[maxWidth], xref:vc/common-attributes.adoc#height[height], xref:vc/common-attributes.adoc#minHeight[minHeight], xref:vc/common-attributes.adoc#maxHeight[maxHeight]. These attributes map directly to the corresponding CSS properties.
+
+TIP: The `min`/`max` size attributes can help in creating responsive designs, where elements need to adapt to different screen sizes. These attributes can also be used to prevent components from overflowing or becoming too large. See <<tips-and-tricks, Tips and Tricks>> for a practical example.
+
+Component dimensions can be of the following types:
+
+* Content-based - `AUTO`
+* Fixed, e.g. `25em`
+* Relative (in percentage) to parent layout, e.g. `100%`
+
+image::layout-rules/size-types.png[]
+
+IMPORTANT: The size value must be a correct CSS size string.
+
+[[content-based-size]]
+=== Content-Based Size
+
+The component will take enough space to fit its content.
+
+Examples:
+
+* For `button`, the size is defined by the `text` length.
+* For layouts, the size is defined by the sum of all component sizes inside the layout.
+
+.XML
+[source,xml]
+----
+<button text="Button" width="AUTO"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("AUTO");
+----
+
+Components with content-based size will adjust their dimensions during screen layout initialization or when the content size is changed.
+
+image::layout-rules/content-based-size.png[]
+
+[[fixed-size]]
+=== Fixed Size
+
+Fixed size implies that the component dimensions will not change at runtime.
+
+.XML
+[source,xml]
+----
+<vbox width="20em" height="15em"/>
+----
+
+.Java
+[source,java]
+----
+vBox.setWidth("20em");
+vBox.setHeight("15em");
+----
+
+image::layout-rules/fixed-size.png[]
+
+The size can be set using absolute length units (e.g. `px`) or relative length units (e.g. `em`). All platform views and components use relative length units such as `em` and `rem` so it is possible to change the entire application size.
+
+TIP: `em` is the size unit that is relative to parent font size. By default, the font size is `16px`. For more information on length units, see https://developer.mozilla.org/en-US/docs/Learn/CSS/Building_blocks/Values_and_units[CSS values and units^].
+
+NOTE: You may face a situation where you define a fixed size for a component, such as width, but it becomes smaller if there is not enough space in the parent layout. To bypass this effect, you can either set the `minWidth`/`minHeight` values to the same as the `width`/`height` values using the corresponding attributes, or set `flex-shrink: 0` using the xref:vc/common-attributes.adoc#css[css] attribute. +
+This happens because when components are placed inside https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout/Basic_concepts_of_flexbox[flexbox^] containers, for example xref:vc/layouts/hbox.adoc[hbox], xref:vc/layouts/vbox.adoc[vbox] or `flexLayout`, even if they have fixed size along the container's https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout/Basic_concepts_of_flexbox#the_main_axis[main axis^], their size cannot enlarge the parent's size. According to the https://www.w3.org/TR/css-flexbox-1/#propdef-flex-shrink[specification^], the initial value of the https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink[flex-shrink^] property is *1*, which means that, by default, a https://developer.mozilla.org/en-US/docs/Glossary/Flex_Item[flex-item^] reduces its size if there is not enough space available.
+
+
+[[relative-size]]
+=== Relative Size
+
+Relative size indicates the percentage of available space that will be occupied by the component.
+
+.XML
+[source,xml]
+----
+<button text="Button" width="50%"/>
+----
+
+.Java
+[source,java]
+----
+button.setWidth("50%");
+----
+
+Components with relative size will react to changes in the amount of the available space and adjust their actual size on the screen.
+
+image::layout-rules/relative-size.png[]
+
+[[layout-specifics]]
+=== Layout Specifics
+
+* The root `layout` element is a vertical layout (`vbox`), which by default has 100% width and height.
+
+* `scroller` must have fixed or relative (but not `AUTO`) width and height. Components inside `scroller`, positioned in the scrolling direction, should not have relative size.
+
+[[component-specifics]]
+=== Component Specifics
+
+* `dataGrid` does not need to be explicitly assigned `height="100%"` or <<expand,expanded>>  within `vbox` or root `layout` elements, because its https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] CSS property is set to `1`, which means that by default it is already expanded in the parent layout. However, it is recommended to set the `minHeight` attribute of the `dataGrid` to prevent collapsing when there is insufficient vertical space.
+
+[[expand]]
+=== Expanding Components
+
+Components can be instructed to expand and take up any extra space that a layout may have.
+
+[source,xml]
+----
+<hbox expand="btn" padding="true" width="100%">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with expand
+image::layout-rules/hbox-expand.png[]
+
+[source,xml]
+----
+<vbox expand="btn" width="100%" minHeight="20em">
+    <button text="Button"/>
+    <button id="btn" text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with expand
+image::layout-rules/vbox-expand.png[]
+
+NOTE: Expanding a component effectively means that its https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow[flex-grow^] CSS property is set to `1`.
+
+[[spacing-margin-padding]]
+== Spacing, Margin and Padding
+
+With spacing, margin and padding you can define an empty space around components and inside them.
+
+[[spacing]]
+=== Spacing
+
+The `spacing` attribute toggles `spacing` theme setting for the component. If a theme supports this attribute, it will apply or remove spacing for the component.
+
+.Horizontal Layout without spacing
+image::layout-rules/hbox-no-spacing.png[]
+
+.Horizontal Layout with default spacing
+image::layout-rules/hbox-spacing.png[]
+
+.Vertical Layout with default spacing
+image::layout-rules/vbox-spacing.png[]
+
+Spacing is on by default for `vbox` and `hbox` components.
+
+[[spacing-variants]]
+==== Spacing Variants
+
+The `spacing` attribute implicitly adds medium spacing to the component theme, which is equivalent to defining `themeNames="spacing"`. To set other options, use the `themeNames` attribute explicitly. Five different spacing theme variants are available:
+
+[cols="1,1"]
+|===
+|Theme Variant |Usage Recommendation
+
+|`spacing-xs`
+| Extra-small space between items
+
+|`spacing-s`
+| Small space between items
+
+|`spacing`
+| Medium space between items
+
+|`spacing-l`
+| Large space between items
+
+|`spacing-xl`
+| Extra-large space between items
+|===
+
+Example of adding `spacing-xl` spacing variant:
+
+[source,xml]
+----
+<vbox themeNames="spacing-xl" alignItems="STRETCH">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with spacing-xl theme variant
+image::layout-rules/vbox-spacing-xl.png[]
+
+[[padding]]
+=== Padding
+
+The `padding` attribute enables setting space between layout borders and nested components.
+
+.Vertical Layout with padding
+image::layout-rules/vbox-padding.png[]
+
+Padding is on by default for `vbox`. You can turn it off by setting the `padding` attribute to `false`. For `hbox`, padding is off by default and can be turned on by setting the `padding` attribute to `true`.
+
+[[margin]]
+=== Margin
+
+Margin is a space around layout borders.
+
+.Vertical Layout with margin
+image::layout-rules/vbox-margin.png[]
+
+Margin is off by default. You can turn it on using the `margin` attribute.
+
+[[alignment]]
+== Alignment
+
+[[justify-content-mode]]
+=== JustifyContent Mode
+
+The `justifyContent` attribute corresponds to the https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content[justify-content^] CSS property which defines how the browser distributes space between and around content items along the *main axis* of a flex container.
+
+[cols="1,1"]
+|===
+|Value |Descsription
+
+|`START` (default)
+|Items are positioned at the beginning of the container.
+
+|`CENTER`
+|Items are positioned at the center of the container.
+
+|`END`
+|Items are positioned at the end of the container.
+
+|`BETWEEN`
+|Items are positioned with space between the lines; first item is on the start line, last item on the end line.
+
+|`AROUND`
+|Items are evenly positioned in the line with equal space around them. Note that start and end gaps are half the size of the space between each item.
+
+|`EVENLY`
+|Items are positioned so that the spacing between any two items (and the space to the edges) is equal.
+|===
+
+For `vbox` and `flexLayout` with `flexDirection="COLUMN"` (that is when `flex-direction: column`) the `justifyContent` attribute works as follows:
+
+[source,xml]
+----
+<vbox justifyContent="START" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="START"
+image::layout-rules/vbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<vbox justifyContent="CENTER" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="CENTER"
+image::layout-rules/vbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<vbox justifyContent="END" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="END"
+image::layout-rules/vbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<vbox justifyContent="BETWEEN" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="BETWEEN"
+image::layout-rules/vbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<vbox justifyContent="AROUND" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="AROUND"
+image::layout-rules/vbox-justifyContent-around.png[]
+
+[source,xml]
+----
+
+<vbox justifyContent="EVENLY" minHeight="20em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</vbox>
+----
+
+.Vertical Layout with justifyContent="EVENLY"
+image::layout-rules/vbox-justifyContent-evenly.png[]
+
+
+For `hbox` and `flexLayout` with `flexDirection="ROW"` (that is when `flex-direction: row`), the `justifyContent` attribute works as follows:
+
+[source,xml]
+----
+<hbox justifyContent="START" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="START"
+image::layout-rules/hbox-justifyContent-start.png[]
+
+[source,xml]
+----
+<hbox justifyContent="CENTER" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="CENTER"
+image::layout-rules/hbox-justifyContent-center.png[]
+
+[source,xml]
+----
+<hbox justifyContent="END" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="END"
+image::layout-rules/hbox-justifyContent-end.png[]
+
+[source,xml]
+----
+<hbox justifyContent="BETWEEN" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="BETWEEN"
+image::layout-rules/hbox-justifyContent-between.png[]
+
+[source,xml]
+----
+<hbox justifyContent="AROUND" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="AROUND"
+image::layout-rules/hbox-justifyContent-around.png[]
+
+[source,xml]
+----
+<hbox justifyContent="EVENLY" padding="true" width="100%">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+.Horizontal Layout with justifyContent="EVENLY"
+image::layout-rules/hbox-justifyContent-evenly.png[]
+
+[[align-items]]
+=== AlignItems
+
+The `alignItems` attribute corresponds to the https://developer.mozilla.org/en-US/docs/Web/CSS/align-items[align-items^] CSS property which defines the default behavior for how flex items are placed out along the cross axis on the current line. Think of it as the `justify-content` version for the *cross axis* (perpendicular to the *main axis*).
+
+[cols="1,1"]
+|===
+|Value |Description
+
+|`START`
+|Items are placed at the start of the cross axis.
+
+|`CENTER`
+|Items are centered in the cross axis.
+
+|`END`
+|Items are placed at the end of the cross axis.
+
+|`STRETCH`
+|Items with *undefined size along the cross axis* are stretched to fit the container.
+
+|`BASELINE`
+|Items are positioned at the baseline of the container. Works for `flex-direction: row` only.
+
+|`AUTO`
+|The element inherits its parent container's align-items property, or "stretch" if it has no parent container.
+|===
+
+For `vbox` and `flexLayout` with `flexDirection="COLUMN"` (when `flex-direction: column`), the `alignItems` attribute works as follows:
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Vertical Layout with alignItems="START"
+image::layout-rules/vbox-alignItems-start.png[]
+
+[source,xml]
+----
+<vbox alignItems="CENTER">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Vertical Layout with alignItems="CENTER"
+image::layout-rules/vbox-alignItems-center.png[]
+
+[source,xml]
+----
+<vbox alignItems="END">
+    <button text="Button" width="6em"/>
+    <button text="Button" width="7em"/>
+    <button text="Button" width="5em"/>
+</vbox>
+----
+
+.Vertical Layout with alignItems="END"
+image::layout-rules/vbox-alignItems-end.png[]
+
+[source,xml]
+----
+<vbox alignItems="STRETCH">
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+    <button text="Button" width="AUTO"/>
+</vbox>
+----
+
+.Vertical Layout with alignItems="STRETCH"
+image::layout-rules/vbox-alignItems-stretch.png[]
+
+
+For `hbox` and `flexLayout` with `flexDirection="ROW"` (when `flex-direction: row`), the `alignItems` attribute works as follows:
+
+[source,xml]
+----
+<hbox alignItems="START" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="START"
+image::layout-rules/hbox-alignItems-start.png[]
+
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="CENTER"
+image::layout-rules/hbox-alignItems-center.png[]
+
+[source,xml]
+----
+<hbox alignItems="END" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="END"
+image::layout-rules/hbox-alignItems-end.png[]
+
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+    <button text="Button" height="AUTO"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="STRETCH"
+image::layout-rules/hbox-alignItems-stretch.png[]
+
+[source,xml]
+----
+<hbox alignItems="BASELINE" padding="true" width="100%" minHeight="10em">
+    <button text="Button" height="2em"/>
+    <button text="Button" height="3em"/>
+    <button text="Button" height="1.5em"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="BASELINE"
+image::layout-rules/hbox-alignItems-baseline.png[]
+
+
+[[align-self]]
+=== AlignSelf
+
+The `alignSelf` attribute corresponds to the https://developer.mozilla.org/en-US/docs/Web/CSS/align-self[align-self] CSS property which defines an alignment for individual components inside the container. This individual alignment for the component overrides any alignment set by <<align-items,alignItems>>.
+
+[source,xml]
+----
+<vbox alignItems="START">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</vbox>
+----
+
+.Vertical Layout with alignItems="START" and different alignSelf for nested components
+image::layout-rules/vbox-alignSelf.png[]
+
+[source,xml]
+----
+<hbox alignItems="START" justifyContent="BETWEEN" padding="true" width="100%" minHeight="10em">
+    <button text="alignSelf=END" alignSelf="END"/>
+    <button text="alignSelf=CENTER" alignSelf="CENTER"/>
+    <button text="alignSelf=AUTO" alignSelf="AUTO"/>
+</hbox>
+----
+
+.Horizontal Layout with alignItems="START" and different alignSelf for nested components
+image::layout-rules/hbox-alignSelf.png[]
+
+[[common-layout-mistakes]]
+== Common Layout Mistakes
+
+*Common mistake 1. Setting relative size for a component within a container with content-based size*
+
+.Example of incorrect layout:
+[source,xml]
+----
+<vbox>
+    <dataGrid id="usersDataGrid" dataContainer="usersDc"
+              width="100%" height="100%">
+        <actions/>
+        <columns>
+            <column property="firstName"/>
+            <column property="lastName"/>
+            <column property="username"/>
+        </columns>
+    </dataGrid>
+</vbox>
+----
+
+In this example, `dataGrid` has 100% height, while the default height for `vbox` is `AUTO`, i.e. content-based. As a result, `dataGrid` is collapsed.
+
+.Example of relative size for a component within a container with content-based size
+image::layout-rules/dataGrid-relative-size.png[]
+
+*Common mistake 2. Not disabling padding for nested `vbox` containers*
+
+.Example of incorrect layout:
+[source,xml]
+----
+<layout>
+    <genericFilter ...>
+        ...
+    </genericFilter>
+
+    <vbox width="100%">
+        <hbox id="buttonsPanel" classNames="buttons-panel">
+            ...
+        </hbox>
+        <dataGrid id="usersDataGrid" ...>
+            ...
+        </dataGrid>
+    </vbox>
+    <hbox>
+        ...
+    </hbox>
+</layout>
+----
+
+In this example, `dataGrid` and `hbox` are placed inside a `vbox` which by default has padding enabled. As a result, components inside `vbox` are not aligned with the ones outside.
+
+.Example of nested Vertical Layout with enabled padding
+image::layout-rules/vbox-incorrect-padding.png[]
+
+*Common mistake 3. Aligning components with relative size*
+
+.Example of incorrect layout:
+[source,xml]
+----
+<hbox alignItems="CENTER" padding="true" width="100%" minHeight="10em">
+    <span text="Span" height="100%"/>
+</hbox>
+----
+
+In this example, `span` has 100% height within `hbox` container which defines `alignItems="CENTER"`. As a result, text is placed in the top left corner.
+
+.Example of aligning components with relative size
+image::layout-rules/relative-size-alignment.png[]
+
+*Common mistake 4. Stretching components with fixed size*
+
+.Example of incorrect layout:
+[source,xml]
+----
+<hbox alignItems="STRETCH" padding="true" width="100%" minHeight="10em">
+    <button text="Button"/>
+    <button text="Button"/>
+    <button text="Button"/>
+</hbox>
+----
+
+In this example, buttons have default height defined in styles. As a result, buttons are not stretched vertically.
+
+.Example of stretching components with fixed size
+image::layout-rules/fixed-size-stretching.png[]
+
+*Common mistake 5. Setting size without size unit*
+
+.Example of incorrect size:
+[source,xml]
+----
+<textField width="400"/>
+----
+
+In this example, `textField` has no size unit specified. As a result, the size value is ignored, because there is no default size unit.
+
+[[tips-and-tricks]]
+== Tips and Tricks
+
+[[adapting-to-different-screen-size]]
+=== Adapting to Different Screen Size
+
+An example of defining a responsive text field that has fixed size on big screens and 100% width on small ones:
+
+[source,xml]
+----
+<hbox width="100%">
+    <textField width="100%" maxWidth="40em"/>
+    <button text="Button"/>
+</hbox>
+----
+
+// image::layout-rules/responsive-text-field.gif[]
+
+
+An example of defining a form layout with a single column that has fixed size on big screens and 100% width on small ones:
+
+[source,xml]
+----
+<formLayout id="form"
+            dataContainer="taskTypeDc"
+            classNames="mx-m"
+            maxWidth="40em"> <!--2-->
+    <responsiveSteps>
+        <responsiveStep minWidth="0" columns="1"/> <!--1-->
+    </responsiveSteps>
+
+    <textField id="nameField" property="name"/>
+    <textArea id="descriptionField" property="description"
+              height="9.5em"/>
+</formLayout>
+----
+<1> Defining that the form layout must have a single column for all layout sizes
+<2> Setting the maximum width
+
+// image::layout-rules/single-column-formLayout.gif[]
+
+[[using-lumo-utility-classes]]
+=== Using Lumo Utility Classes
+
+For simple styling, you can use {vaadin-docs}/styling/lumo/utility-classes[Lumo Utility Classes^] provided by Vaadin. *Lumo Utility Classes* are predefined CSS class names and stylesheets. They can be used to style HTML elements and layouts without having to write CSS.
+
+Each utility class applies a particular style to the element, such as background color, borders, fonts, sizing, or spacing. Classes for applying CSS flexbox and grid layout features are also available.
+
+The {vaadin-api}/com/vaadin/flow/theme/lumo/LumoUtility.html[LumoUtility^] Java class contains `String` constants for all utility classes. They're divided into nested category classes, such as `LumoUtility.Margin`.
+
+An example of using Lumo utility classes to add a border with roundness to a container:
+
+[source,xml]
+----
+<vbox id="imageWrapper"
+      classNames="border                <!--1-->
+                  rounded-m             <!--2-->
+                  border-contrast-20"   <!--3-->
+      alignItems="CENTER"
+      width="100%" maxWidth="30em">
+----
+<1> Adds border with default border color
+<2> Sets border radius equal to `var(--lumo-border-radius-m)`
+<3> Sets border color equal to `var(--lumo-contrast-20pct)`
+
+image::layout-rules/LumoUtility-example.png[]
+
+An example of aligning a component to the end of horizontal container:
+
+[source,xml]
+----
+<header id="header" classNames="jmix-main-view-header">
+    <drawerToggle id="drawerToggle"
+                  classNames="jmix-main-view-drawer-toggle"
+                  themeNames="contrast"
+                  ariaLabel="msg://drawerToggle.ariaLabel"/>
+    <h1 id="viewTitle" classNames="jmix-main-view-title"/>
+
+    <button id="logoutButton" icon="SIGN_OUT" classNames="ms-auto me-s"/> <!--1-->
+</header>
+----
+<1> `ms-auto` effectively means `margin-inline-start: auto`, i.e. defines the logical inline start margin of an element, which maps to a physical margin depending on https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction[flex-direction^]; `me-s` effectively means `margin-inline-end: var(--lumo-space-s)`, i.e. defines the logical inline end margin of an element.
+
+image::layout-rules/align-to-end.png[]

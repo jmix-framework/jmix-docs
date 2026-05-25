@@ -1,0 +1,110 @@
+= Using Search in UI
+
+[[visual-components]]
+== Visual Components
+
+The Search add-on provides two UI components: xref:search-field-component.adoc[SearchField] and xref:full-text-filter-component.adoc[FullTextFilter].
+
+[[search-strategies]]
+== Search Strategies
+
+A search strategy defines how the search term is processed. Basically, it configures a search request with a query.
+
+The xref:search-field-component.adoc[SearchField] and xref:full-text-filter-component.adoc[FullTextFilter] components support the following built-in search strategies:
+
+* `startsWith`
++
+NOTE: This strategy is **only available** when xref:index-definitions.adoc#extended-search[@ExtendedSearch] is enabled on at least one index definition.
++
+Performs prefix-based search using pre-indexed Edge N-Gram subfields:
+
+** Generates all prefixes from xref:search-properties.adoc#jmix.search.minPrefixLength[jmix.search.min-prefix-length] (default: `3`) to xref:search-properties.adoc#jmix.search.maxPrefixLength[jmix.search.max-prefix-length] (default: `8`).
+** Provides significantly faster performance than wildcard queries.
+** When input exceeds maximum prefix length, falls back to wildcard query if xref:search-properties.adoc#jmix.search.wildcardPrefixQueryEnabled[jmix.search.wildcard-prefix-query-enabled] = `true` (default).
++
+NOTE: Terms shorter than `jmix.search.min-prefix-length` always return empty results.
+
+* `phrase`
++
+Performs exact phrase matching:
+
+** Documents must contain all search terms in the **exact order** within a single field.
+** Equivalent to a traditional phrase query in search engines.
+** Ideal for name, title, or exact wording searches.
+
+* `anyTermAnyField`
++
+Performs disjunctive term matching across all fields:
+
+** Documents matching **any** of the input terms in **any** indexed field are returned.
+** Terms are combined with OR logic.
+** Default strategy for backward compatibility.
+
++
+This strategy is set by default.
+
+CAUTION: `allTermsAnyField` and `allTermsSingleField` are deprecated and hidden from UI but can be reimplemented if needed.
+
+You can set the proper strategy by using the `searchStrategy` attribute, for example:
+
+[source,xml,indent=0]
+----
+include::example$/search-ex1/src/main/resources/com/company/demo/view/search/filter-view.xml[tags=strategy]
+----
+
+To override the default strategy, add the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=default-strategy]
+----
+
+[[custom-search-strategies]]
+=== Custom Search Strategies
+
+Additionally, you can create a custom search strategy. For that purpose, you need to create a new Spring bean implementing one of the platform-specific interfaces:
+
+* `OpenSearchSearchStrategy` - if you use OpenSearch.
+* `ElasticsearchSearchStrategy` - if you use Elasticsearch.
+
+Then you need to implement 2 methods:
+
+* `String getName()` - should return a unique strategy name.
+
+* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - configure your search request using the provided builder according to your requirements.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
+----
+
+After that, you can assign your custom strategy to the xref:search-field-component.adoc[SearchField] or xref:full-text-filter-component.adoc[FullTextFilter] component using the strategy name.
+
+[[fts-condition-in-filter-component]]
+== Full-text Search Condition in GenericFilter Component
+
+When the Search add-on is added to the project, a new condition appears in the *Add condition* dialog of the xref:flow-ui:vc/components/genericFilter.adoc[GenericFilter] component:
+
+image:search:add_condition.png[align="center",width="1151"]
+
+Within the *Full-text filter condition editor* dialog, you can define a caption for the full-text filter and choose a search strategy. If no search strategy is selected, then the default one is used.
+
+image:search:condition_editor.png[align="center",width="642"]
+
+Subsequently, the records in the list component linked to the filter will undergo filtering based on the outcome of the full-text search.
+
+[[using-search-api-in-views]]
+== Using Search API in Views
+
+You can use Search API in view controllers. Let's look at the example:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/view/search/UsingApiView.java[tags=inject;click-event]
+----
+<1> API is called from the view when clicking on a button.
+<2> Defining the search string is mandatory: here, the query will look through all fields marked for indexing that contain the `"silver"` string.
+<3> Adds the conditions for the query: firstly, the max amount of records in the result set. Default value is `10`.
+<4> Next, the list of entities to search within. By default, all indexed entities are included.
+<5> The `EntitySearcher` service is used to start searching.
+<6> `SearchResultProcessor` is used for fetching entities from the search result.

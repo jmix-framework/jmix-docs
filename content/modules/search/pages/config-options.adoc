@@ -1,0 +1,165 @@
+= Search Configuration Options
+
+[[indexes-creation]]
+== Index Creation
+
+The Search add-on checks the current configuration of Elasticsearch indexes and compares it to the expected ones. Further actions depend on the selected Index Schema Management Strategy:
+
+* `create-only` - every missing index will be created, existing indexes with irrelevant configuration will be kept as is.
+* `create-or-recreate` - every missing index will be created, existing indexes with irrelevant configuration will be recreated (all data will be lost). This is the default strategy.
+* The `create-or-update` strategy manages search indexes by creating missing ones and updating the configuration of existing ones without full recreation.
++
+When using this strategy:
+
+** If a new field or fields are added to an existing index, the index will not be recreated. All previously indexed instances will remain in the index (with data corresponding to the old configuration), while newly indexed instances will be added with the new configuration (including the extra field or fields).
+** If any fields are deleted from the index, that index will become unavailable. Such an index must be manually recreated using the JMX console.
+* `none` - missing indexes are ignored, existing indexes with irrelevant configuration will be kept as is. This option may be used if you want to operate indexes manually.
+
+The strategy can be configured by adding the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=management-strategy]
+----
+
+The index schema synchronization is automatically performed on application startup. Besides, it can be manually performed using `synchronizeXXX` operations of xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean].
+
+The EntityIndexing MBean also contains the `recreateIndex` operation. It drops and creates an index without taking into account the current Index Schema Management Strategy, even if the target index has an actual configuration. All index data will be lost.
+
+[[index-naming]]
+== Index Naming
+
+Search indexes have the following naming template: `<prefix><entity_name>`.
+
+The default prefix is `search_index_`.
+
+If multiple projects use the same Elasticsearch service, you should ensure that index names are unique: all projects should have unique entity names or projects should have different prefixes.
+
+Prefixes can be configured by adding the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=prefix]
+----
+
+Also, you can specify a full index name in the `indexName` attribute of `@JmixEntitySearchIndex`.
+
+[[existing-data-indexing]]
+== Existing Data Indexing
+
+There are two approaches to existing data indexing:
+
+* *Automatic* - is a part of the index schema synchronization and enabled by default. It enqueues all instances of each entity whose index has been created (in the background process). Automatic indexing can be enabled for specific entities only.
+
+* *Manual* - by using the `enqueueIndexAll` operation of xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean].
+
+To enable automatic indexing for specific entities, add the following application property:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=auto-index]
+----
+
+Also, you can completely disable automatic indexing by adding the following application property:
+
+[source,properties]
+----
+jmix.search.enqueue-index-all-on-startup-index-recreation-enabled = false
+----
+
+[[tracking-changes]]
+== Entities Tracking
+
+By default, the system tracks changes of indexed entities. It stores information about all entity instances affected by the changes to the indexing queue.
+
+This behavior can be disabled by adding the following application property:
+
+[source,properties]
+----
+jmix.search.changed-entities-indexing-enabled = false
+----
+
+[[roles]]
+== Security Roles
+
+To utilize the functionality of the Search add-on, users with limited access to the system should have one of the following roles:
+
+* *Search: edit filter* provides permissions to add full-text search conditions to the filter.
+* *Search: view search results* provides permissions to access the Search Results view.
+
+[[index-settings]]
+== Index Settings and Analysis
+
+The add-on allows you to configure index settings, including analysis configuration.
+
+NOTE: This setup depends on your search platform (OpenSearch or Elasticsearch) and must be recreated if you switch between them.
+
+=== Configuration API
+
+[NOTE]
+====
+The configuration API has been redesigned to separate index settings from analysis settings.
+The previous methods (`getCommonSettingsBuilder`, `getEntitySettingsBuilder`) are **deprecated**.
+They continue to work only until any of the new API methods are used or if xref:index-definitions.adoc#extended-search[@ExtendedSearch] is enabled.
+As soon as the new API is utilized, the deprecated API is ignored.
+====
+
+==== Create a Configurer Bean
+
+Create a Spring bean that implements:
+
+* `OpenSearchIndexSettingsConfigurer` – for OpenSearch.
+* `ElasticsearchIndexSettingsConfigurer` – for Elasticsearch.
+
+Implement the `configure()` method, which provides a `ConfigurationContext` object.
+
+==== Configure Index Settings
+
+Index settings are configured using dedicated **index settings builders**:
+
+* `getCommonIndexSettingsBuilder()` – applies to **all** indexes.
+* `getEntityIndexSettingsBuilder(Class<?> entityClass)` – applies to a **specific** entity index.
+Entity-specific settings have higher priority and _override common settings_.
+
+==== Configure Analysis
+
+Analysis settings are configured using dedicated **analysis builders**:
+
+* `getCommonAnalysisBuilder()` – applies to **all** indexes.
+* `getEntityAnalysisBuilder(Class<?> entityClass)` – applies to a **specific** entity index.
+
+Use the `.analysis()` method on the builder to define:
+
+* **Analyzers** – `.analyzer()`
+* **Tokenizers** – `.tokenizer()`
+* **Filters** – `.filter()`
+* **Character filters** – `.charFilter()`
+* **Normalizers** – `.normalizer()`
+
+=== Complete Example
+
+The following example demonstrates a custom configurer for OpenSearch.
+It configures common index settings and analysis, then overrides them with entity-specific settings for the `Order` entity.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchIndexSettingsConfigurer.java[tags=import;index-settings-configurer;configure;configure-body]
+----
+
+=== API Migration Guide
+
+If you are upgrading from an earlier version, replace the deprecated methods as follows:
+
+|===
+| Deprecated  | New API
+| `getCommonSettingsBuilder()` | `getCommonIndexSettingsBuilder()` +
+`getCommonAnalysisBuilder()`
+| `getEntitySettingsBuilder(Class)` | `getEntityIndexSettingsBuilder(Class)` +
+`getEntityAnalysisBuilder(Class)`
+|===
+
+[WARNING]
+====
+Do not mix old and new APIs. Once you start using the new builder methods, the deprecated ones will be ignored.
+This is **especially important** if you are using `@ExtendedSearch`, which **requires** the new API.
+====

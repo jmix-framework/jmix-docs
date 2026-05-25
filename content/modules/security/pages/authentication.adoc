@@ -1,0 +1,258 @@
+= Authentication
+
+Authentication is the process of verifying the identity of a user or process that interacts with the system. For example, the system can authenticate users by their username and password. For authenticated users, the system can perform xref:authorization.adoc[authorization], which is a check of permissions to a particular resource.
+
+Jmix directly uses Spring Security {spring-security-doc}/servlet/authentication/index.html[servlet authentication^], so if you are familiar with this framework, you can easily extend or override the standard authentication mechanism provided by Jmix out-of-the-box.
+
+[[current]]
+== Current User
+
+To determine who is currently authenticated, use the `CurrentAuthentication` bean. It has the following methods:
+
+* `getUser()` returns the currently authenticated user as {spring-security-api}/org/springframework/security/core/userdetails/UserDetails.html[UserDetails^]. You can cast it to the class of xref:users.adoc#entity[users] defined in your project.
+
+* `getAuthentication()` returns the {spring-security-api}/org/springframework/security/core/Authentication.html[Authentication^] object associated with the current execution thread. The `Authentication` object stores the names of the user's roles.
++
+Jmix uses the Spring Security https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/authority/SimpleGrantedAuthority.html[SimpleGrantedAuthority^] class to represent user roles. This class effectively stores a single string representing a role. The format of this string is:
++
+--
+** For xref:resource-roles.adoc[resource] roles: `ROLE_<role-code>`, for example, `ROLE_system-full-access`.
+** For xref:row-level-roles.adoc[row-level] roles: `ROW_LEVEL_ROLE_<role-code>`, for example, `ROW_LEVEL_ROLE_my-role`.
+--
++
+Granted authorities of the appropriate Java class and content can be created from role codes using the `RoleGrantedAuthorityUtils` class.
++
+[TIP]
+====
+You can customize the prefix for resource role authorities using the standard Spring mechanism by configuring the  `org.springframework.security.config.core.GrantedAuthorityDefaults` bean.
+
+Similarly, you can adjust the prefix for row-level role authorities using the `jmix.security.default-row-level-role-prefix` application property.
+====
+
+* `getLocale()` returns the locale of the current user.
+
+* `getTimeZone()` returns the time zone of the current user. The <<time-zones,next section>> explains how the user time zone is determined and how it is used by the framework.
+
+* `isSet()` returns `true` if the current execution thread is authenticated, that is, contains information about the user. If it's not, the `getUser()`, `getLocale()`, and `getTimeZone()` methods described above will throw `IllegalStateException`.
+
+Below is an example of getting the information about the current user:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/authtest/AuthTestView.java[tags=current-auth]
+----
+
+[NOTE]
+====
+`CurrentAuthentication` is just a wrapper around {spring-security-api}/org/springframework/security/core/context/SecurityContextHolder.html[SecurityContextHolder^], so it is fully compatible with all Spring Security mechanisms.
+
+For example, you can use `DelegatingSecurityContextRunnable` to propagate authentication to new threads as described in {spring-security-doc}/servlet/integrations/concurrency.html[Spring Security documentation^].
+====
+
+[[time-zones]]
+=== Using Time Zones
+
+Jmix automatically converts values in UI components between server and user time zones for entity attributes of the following types:
+
+* `OffsetDateTime`
+* `java.util.Date` with `@Temporal(TemporalType.TIMESTAMP)`, which corresponds to the `DateTime` attribute type in Studio.
+
+Below we explain how to specify the user and server time zones.
+
+By default, the `User` entity implements the `HasTimeZone` interface with two methods:
+
+* `getTimeZoneId()` is implemented in the `User` entity and returns a time zone set for the user in the database.
+
+* `isAutoTimeZone()` method returns `false` by default for all users. You can implement this method in the `User` entity and return `true` for all users, or map it to a database column as it is done for `getTimeZoneId()` to have different values for different users.
+
+The time zone of the current user returned by `CurrentAuthentication.getTimeZone()` is determined in the following order:
+
+* A non-empty value returned by the `User.getTimeZoneId()` method is used to construct the `TimeZone` object.
+
+* If the `User.isAutoTimeZone()` method returns `true`, the framework tries to obtain the time zone from the user's web browser through a `DeviceTimeZoneProvider` implementation.
+
+* If both previous steps were unsuccessful, the server default time zone is used.
+
+The server time zone is defined by the server operating system. You can set it explicitly using the `user.timezone` Java system property or `TimeZone` class. For example:
+
+[source,java]
+----
+@SpringBootApplication
+public class DemoApplication {
+
+    public static void main(String[] args) {
+        System.setProperty("user.timezone", "UTC");
+        SpringApplication.run(DemoApplication.class, args);
+    }
+----
+
+We recommend also setting the same time zone for the database. For example, in PostgreSQL you can do it using the following command:
+
+[source,sql]
+----
+ALTER DATABASE demo SET timezone TO 'UTC'
+----
+
+[[client]]
+== Client Authentication
+
+The backend of a Jmix application can have different clients, for example, Jmix UI or REST API. Each client has its own standard authentication mechanism, such as the UI login view or xref:rest:access-control.adoc[REST access token].
+
+[[custom-password-validation]]
+=== Custom Password Validation
+
+To implement a custom password validation in the application, create a bean (or multiple beans) implementing the `PasswordValidator` interface, for example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/MyPasswordValidator.java[]
+----
+
+All password validators will be automatically used in the ChangePassword action dialog.
+
+To add the validation to the User detail view, use the `PasswordValidation` helper bean:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/user/UserDetailView.java[tags=password-validation]
+----
+
+[[brute-force-protection]]
+=== BruteForce Protection
+
+The framework has a mechanism for protection against password brute force cracking.
+
+The <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>> application property enables the protection. If the protection is enabled, the combination of user login and IP address is blocked for a time interval in case of multiple unsuccessful login attempts. A maximum number of login attempts for the combination of user login and IP address is defined by the <<jmix.security.bruteforceprotection.max-login-attempts-number,jmix.security.bruteforceprotection.max-login-attempts-number>> application property. Blocking interval in seconds is determined by the <<jmix.security.bruteforceprotection.block-interval,jmix.security.bruteforceprotection.block-interval>> application property.
+
+[[jmix.security.bruteforceprotection.enabled]]
+* `jmix.security.bruteforceprotection.enabled`
++
+Enables a mechanism for the protection against password brute force cracking. The default value: `false`.
+
+[[jmix.security.bruteforceprotection.block-interval]]
+* `jmix.security.bruteforceprotection.block-interval`
++
+Defines the blocking interval in seconds after exceeding a maximum number of failed login attempts if the <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>> property is on. The default value: `60 seconds`.
+
+[[jmix.security.bruteforceprotection.max-login-attempts-number]]
+* `jmix.security.bruteforceprotection.max-login-attempts-number`
++
+Defines a maximum number of failed login attempts for the combination of user login and IP address if the <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>> property is on. The default value: `5`.
+
+[[system]]
+== System Authentication
+
+The execution thread may not be authenticated if it was started by an internal scheduler or handles a request from the JMX interface. At the same time, your business logic or data access code usually requires information on who is currently working with the system for logging or authorization.
+
+To temporarily associate the current execution thread with a user, use the `SystemAuthenticator` bean. It has the following methods:
+
+* `withSystem()` - accepts a lambda and executes it as the xref:users.adoc#built-in[system] user.
+
+* `withUser()` - accepts a username of a regular application user and a lambda and executes the lambda as the given user with their permissions.
+
+Below is an example of authenticating an MBean operation:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/mbean/SettingsManagementFacade.java[tags=system-authenticator;current-authentication;system-auth-code]
+----
+
+You can also use the `@Authenticated` annotation to authenticate an entire bean method as executed by the `system` user. For example:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/mbean/SettingsManagementFacade.java[tags=current-authentication;system-auth-ann]
+----
+
+[[authentication-events]]
+== Authentication Events
+
+The Spring Framework sends specific application events related to authentication.
+
+TIP: Studio can help you generate listeners to authentication events. Click *New (+) -> Event Listener* in the *Jmix* tool window and select *Authentication Event* in the dialog.
+
+Below is an example of handling authentication events.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/AuthenticationEventListener.java[tags=import-user;import-logger;import-logger-factory;import-event-listener;import-auth-failure-event;import-auth-success-event;import-interactive-auth-success-event;import-logout-success-event;import-component;class]
+----
+
+<1> `InteractiveAuthenticationSuccessEvent` is sent when a user logs in to the system through UI or REST API.
+<2> `InteractiveAuthenticationSuccessEvent` contains the user entity.
+<3> `AuthenticationSuccessEvent` is sent on any successful authentication including <<system,system>>.
++
+CAUTION: Do not use `CurrentAuthentication` bean to get <<current,current user>> in this event listener. This event is sent too early in the authentication process and the bean will throw an exception or return a previous authentication object. Instead, get the current user from the `AuthenticationSuccessEvent` object.
+
+<4> `AuthenticationSuccessEvent` contains the user entity.
+<5> `AbstractAuthenticationFailureEvent` is sent when the authentication attempt has failed, for example because of invalid credentials.
+<6> `AbstractAuthenticationFailureEvent` contains only the user name provided for authentication.
+<7> `LogoutSuccessEvent` is sent when the user logs out.
+<8> `LogoutSuccessEvent` contains the user entity.
+
+[[user-session]]
+== User Session
+
+When connecting to a Jmix application via Jmix UI or REST API, a user session based on HTTP session is created. This section provides details on user sessions in different clients, how to manage the session timeout, and how to store custom values in a user session.
+
+You can track user sessions at runtime using the xref:audit:user-sessions.adoc[] view of the *Audit* add-on.
+
+The maximum number of sessions per user can be defined using the xref:ROOT:app-properties.adoc#jmix.core.session.maximum-sessions-per-user[jmix.core.session.maximum-sessions-per-user] property.
+
+[[sessions-in-ui]]
+=== Sessions in UI
+
+By default, the UI user session is active as long as at least one browser tab with the application is open. If all browser tabs are closed, the user session lasts for the period defined in the {spring-boot-doc}/appendix/application-properties/index.html#application-properties.server.server.servlet.session.timeout[server.servlet.session.timeout^] application property.
+
+NOTE: The `server.servlet.session.timeout` property affects the embedded web server that is used when deploying the application as executable JAR. If you use WAR deployment to an external web server, use its configuration to set the HTTP session expiration timeout.
+
+The following application properties affect the session expiration:
+
+* `vaadin.heartbeatInterval` - the interval in seconds between heartbeat requests that the client sends to the server while a browser tab is open. The default value is 300 (5 minutes). These heartbeat requests ensure that the session remains active even in the absence of user activity. The interval between requests should be shorter than `server.servlet.session.timeout`.
+
+* `vaadin.closeIdleSessions` - if set to `true`, the heartbeat requests are ignored, and session is expired after the period of inactivity defined in `server.servlet.session.timeout`.
+
+For example, the following application properties set the session timeout to 10 minutes and heartbeat interval to 3 minutes:
+
+[source,properties]
+----
+server.servlet.session.timeout=10m
+vaadin.heartbeatInterval=90
+----
+
+See also {vaadin-docs}/flow/advanced/application-lifecycle#application.lifecycle.session[Vaadin Documentation: User Session^] for more information.
+
+[[sessions-in-rest-api]]
+=== Sessions in REST API
+
+By default, user sessions in REST API are created for each request and expired according to the `server.servlet.session.timeout` property value. If the client supports cookies, the session will be maintained across all requests with the same cookie.
+
+The *Jmix Sessions* subsystem binds user sessions to OAuth2 tokens that are used for authentication in REST endpoints. This allows you to maintain the session across all requests with the same token. To include *Jmix Sessions* in your project, add the following dependency to the `build.gradle` file:
+
+[source,groovy]
+----
+implementation 'io.jmix.sessions:jmix-sessions-starter'
+----
+
+NOTE: If the session is lost on the server restart, and the corresponding token is preserved (for example if it is stored in the database), a new session is created for the same token.
+
+[[session-attributes]]
+=== Session Attributes
+
+If you need to share some values across multiple requests within the same user session, use the `SessionData` bean. It has methods for reading and writing named values stored in the current user session.
+
+You can inject the `SessionData` bean into UI views directly:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/customer/CustomerListView.java[tags=session-data]
+----
+
+In a singleton bean, use `SessionData` through `org.springframework.beans.factory.ObjectProvider`:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/service/CustomerService.java[tags=session-data]
+----
+
+TIP: Session attributes can also be used in xref:data-access:jpql-extensions.adoc#session-and-user-attributes[JPQL queries].

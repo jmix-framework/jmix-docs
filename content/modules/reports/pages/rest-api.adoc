@@ -1,0 +1,188 @@
+= Reports REST API
+:page-aliases: reports:api.adoc
+
+The Reports add-on REST API provides the following functions:
+
+* Getting a list of reports.
+
+* Getting the details on a specific report.
+
+* Running a report and getting the result.
+
+* Getting the details on a specific report group.
+
+* Getting Swagger documentation.
+
+Reports REST API uses the OAuth2 protocol for authentication in the same way as xref:rest:access-control.adoc[Generic REST].
+
+To enable REST API for reports, make sure your `build.gradle` contains the following dependencies:
+
+[source,groovy,indent=0]
+----
+include::example$/library/build.gradle[tags=reports-rest]
+----
+
+To make a report available through the REST API, select the *Available through REST API* checkbox on the xref:reports:creation/details.adoc[Report details] tab.
+
+Below we provide a formal description of some features specific to the Reports add-on. For more information on how to get an OAuth token and other REST API features, see REST API add-on xref:rest:index.adoc[documentation].
+
+[[rest_reports_get_all]]
+== Getting Reports List
+
+--
+The list of existing reports can be retrieved with the following *GET* request:
+
+[source, plain,indent=0]
+----
+/rest/reports/report
+----
+
+For example:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report
+
+Authorization: Bearer j-Rn3PPAiH7cZZfaDiDWQEDp9YU
+Content-Type: application/json
+----
+
+The response body will contain the list of brief information on the reports marked as *Available through REST API*:
+
+[source, json,indent=0]
+----
+[
+    {
+        "id": "cb090350-2694-e2bb-f5d9-813daa8dc418", //<1>
+        "name": "booksAvailability(xlsx)",//<2>
+        "code": "BOOKS_AVAIL",//<3>
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"//<4>
+    },
+    {
+        "id": "d8c7f4c5-2dd7-c7f1-7286-f8dd286d2603",
+        "name": "LiteratureTypes(csv)",
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"
+    }
+]
+----
+
+<1> Report ID,
+<2> Report name,
+<3> xref:creation/details.adoc[Report system code] (if it exists),
+<4> Group ID.
+--
+
+[[rest_reports_get_one]]
+== Getting Report Info
+
+--
+The detailed information on a specific report is retrieved with the following *GET* request:
+
+[source, plain,indent=0]
+----
+/rest/reports/report/{id}
+----
+
+The last part of the query here is the report identifier, for example:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report/cb090350-2694-e2bb-f5d9-813daa8dc418
+----
+
+The returned JSON object will contain the following information on the passed report:
+
+* ID
+* report name
+* group ID
+* xref:creation/details.adoc[system code] (if it exists)
+* xref:creation/templates.adoc[report templates]
+* xref:creation/parameters.adoc[parameters] and their types
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/report_info.json[]
+----
+--
+
+[[rest_reports_run]]
+== Running Report
+
+--
+To run a report, send the following *POST* request:
+
+[source, plain,indent=0]
+----
+/rest/reports/run/{id}
+----
+
+The last part of the query here is the report identifier, for example:
+
+[source, plain,indent=0]
+----
+POST http://localhost:8080/rest/reports/run/2dd27fbf-8830-416a-899f-339543f8f27a
+----
+
+The report parameters are passed in the request body:
+
+[source, plain,indent=0]
+----
+{parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+
+To print a report with a non-default template, pass the template code in the request body:
+
+[source, plain,indent=0]
+----
+{template: 'Template_1', parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+--
+
+[[rest_reports_get_group_details]]
+== Getting Report Group Info
+
+--
+The detailed information on a specific report group is retrieved with the following *GET* request:
+
+[source, plain,indent=0]
+----
+/rest/reports/group/{groupId}
+----
+
+The last part of the query here is the group identifier, for example:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/group/4e083530-0b9c-11e1-9b41-6bdaa41bff94
+----
+
+The returned JSON object will contain the following information on the passed group:
+
+* group ID
+* group title
+* group code (if it exists)
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/group_info.json[]
+----
+--
+
+[[rest_reports_openapi]]
+== Getting the OpenAPI Documentation
+
+--
+The complete OpenAPI documentation on the Reports add-on can be retrieved with the *GET* request on the address:
+
+[source, plain,indent=0]
+----
+http://localhost:8080/rest/reports/docs/openapi.json
+http://localhost:8080/rest/reports/docs/openapi.yaml
+----
+
+[CAUTION]
+====
+When fetching `openapi.yaml` from the server, the response returns the `application/yaml` content type, so you should use `Accept: application/yaml` in the request header.
+====
+
+--

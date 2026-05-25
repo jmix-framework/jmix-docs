@@ -1,0 +1,434 @@
+= Using DataManager
+
+`DataManager` is the main interface for CRUD (Create, Read, Update, Delete) operations on entities. It allows you to load graphs of entities by ID or query, to save changed instances or remove them. You can use xref:data-access:entity-events.adoc[entity event] listeners to perform actions on loading and saving of particular entities. `DataManager` maintains cross-datastore references for both JPA, DTO, and mixed entity graphs.
+
+You can inject `DataManager` to a Spring bean or a screen controller, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=inject-dm]
+----
+
+In the examples below, we skip the definition and assume that the `dataManager` variable is a reference to `DataManager`.
+
+[[load]]
+== Loading Entities
+
+`DataManager` provides a fluent API for loading entities. Use `load()` methods accepting entity class or `Id` as entry points to this API.
+
+[[load-by-id]]
+=== Loading Entity by Id
+
+The following method loads an entity by its identifier value:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-id]
+----
+<1> Entry point to the fluent loader API.
+<2> `id()` method accepts the identifier value.
+<3> `one()` method loads the entity instance. If there is no entity with the given identifier, the method throws `IllegalStateException`.
+
+The identifier can also be specified using `Id<E>` class which contains information about the entity type. Then the application code doesn't need to use concrete type of the entity identifier (`UUID`, `Long`, etc.) and the loading code becomes even shorter:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-generic-id]
+----
+
+If the entity with the given identifier may not exist, instead of `one()` terminal method use `optional()` which returns `Optional<E>`. In the example below, if the entity is not found, a new instance is created and returned:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-optional]
+----
+<1> Returns `Optional<Customer>`.
+
+You can also load a list of entities by their identifiers passed to the `ids()` method, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-ids]
+----
+
+Entities in the result list have the same order as provided identifiers.
+
+[[load-all]]
+=== Loading All Entities
+
+The following method loads all instances of the entity in a list:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-all]
+----
+
+CAUTION: Load all instances only if you are sure that the number of rows in the corresponding table is always low. Otherwise, use a <<load-by-query,query>>, <<load-by-conditions,conditions>> and/or <<paging-and-sorting,paging>>.
+
+[[load-by-query]]
+=== Loading Entities by Query
+
+When working with relational databases, use https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] queries to load data. See the xref:data-access:jpql-extensions.adoc[] for information on how JPQL in Jmix differs from the JPA standard. Also note that `DataManager` can execute only "select" queries.
+
+The following method loads a list of entities using a full JPQL query and two parameters:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-full-query]
+----
+
+The `query()` method of the fluent loader interface accepts both full and abbreviated query string. The latter should be created in accordance with the following rules:
+
+* You can always omit the `"select <alias>"` clause.
+
+* If the `"from"` clause contains a single entity and you don’t need a specific alias for it, you can omit the `"from <entity> <alias> where"` clause. In this case, the framework assumes that the alias is `e`.
+
+* You can use positional parameters and pass their values right to the `query()` method as additional arguments.
+
+Below is an abbreviated equivalent of the previous example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-query]
+----
+
+An example of a more complex abbreviated query with join:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-by-query]
+----
+
+[[load-by-conditions]]
+=== Loading Entities by Conditions
+
+You can use conditions instead of a JPQL query to filter results. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-conditions]
+----
+<1> `condition()` method accepts a single root condition.
+<2> `LogicalCondition.and()` method creates AND condition with the given nested conditions.
+<3> Property conditions compare entity attributes with the specified values.
+
+If you need a single property condition, pass it directly to the `condition()` method:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-condition]
+----
+
+`PropertyCondition` lets you specify properties of referenced entities, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-by-condition]
+----
+
+[[load-scalars]]
+=== Loading Scalar and Aggregate Values
+
+Besides entity instances, `DataManager` can load scalar and aggregate values in the form of xref:data-model:entities.adoc#key-value[key-value entities].
+
+The `loadValues(String query)` method loads a list of `KeyValueEntity` instances populated with the given query result. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-values]
+----
+<1> Specify the data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+<2> Specify names of the resulting key-value entity attributes. The order of the properties must correspond to the columns in the query result set.
+<3> Get loaded values from the key-value entity attributes.
+
+The `loadValue(String query, Class valueType)` method loads a single value of the given type by the query. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-value]
+----
+<1> The type of the returned value.
+<2> Specify the data store where the requested entities are located. Omit this method if the entity is located in the main data store.
+
+[[load-scalars-limitations]]
+==== Limitations
+
+The `loadValues()` and `loadValue()` have the following limitations:
+
+. The query must be a valid JPQL query for the single specified data store. It can contain only persistent attributes of JPA entities.
+
+. xref:data-model:entities.adoc#cross-data-store-ref[Cross-datastore references] are not supported.
+
+. These methods are not implemented in xref:rest-ds:index.adoc[].
+
+[[element-collections]]
+=== Element Collections
+
+Take into account the following information when working with xref:data-model:entities.adoc#element-collections[element collection] attributes.
+
+[[element-collection-queries]]
+==== Queries with Element Collections
+
+Use `join` to query entities by an item value:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag]
+----
+
+An abbreviated query should include the `from` clause:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag-like]
+----
+
+This is how you can find empty collections:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-empty-tags]
+----
+
+Use `join` when loading element collections as scalar values. The following method will return the list of `KeyValue` entities with the "name -> tag" pairs:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-values]
+----
+
+All collection items can be loaded using the following query:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-value]
+----
+
+[CAUTION]
+====
+*Not supported*:
+
+* Element collection as a scalar value. The following query will fail: `select p.name, p.tags from sample_Product p`
+* `in` operator. The following query will fail: `select p from sample_Product p where :tag in (p.tags)`
+====
+
+[[element-collection-conditions]]
+==== Conditions with Element Collections
+
+When using `PropertyCondition`, the `[NOT_]EQUAL`, `GREATER[_OR_EQUAL]`, `LESS[_OR_EQUAL]`, `CONTAINS`, `[STARTS|ENDS]_WITH` operations compare elements of the collection.
+
+For example, the following method actually executes the `select e from sample_Product e join e.tags t where t = :tag` query and returns products that contain a given value in their `tags` collection:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag-using-condition]
+----
+
+This is how you can find empty collections using `PropertyCondition`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-empty-tags-using-condition]
+----
+
+[[paging-and-sorting]]
+=== Paging and Sorting
+
+When you load entities using `all()`, `query()` or `condition()` methods, you can also sort results and split them into pages.
+
+Use `firstResult()` and `maxResults()` methods for paging:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-page-by-query]
+----
+
+Use `sort()` method for sorting results:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-and-sort]
+----
+
+In the `Sort.by()` method, you can specify properties of referenced entities, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-sorted]
+----
+
+When loading by a JPQL query, you can also use the standard `order by` clause in the query:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-query-sorted]
+----
+
+[[lock]]
+=== Using Locks
+
+The `lockMode()` method accepting the `jakarta.persistence.LockModeType` enum values can be used for locking JPA entities on the database level. For example, the following example obtains a pessimistic lock using a `select ... for update` SQL statement:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=using-locks]
+----
+
+[[save]]
+== Saving Entities
+
+Use `save()` method to save new and modified entities in the database.
+
+In the simplest form, the method accepts an entity instance and returns a saved instance:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save]
+----
+
+NOTE: Usually the passed and returned instances are not the same. The returned instance can be affected by entity event listeners, database triggers or access control rights. So if you need to save an entity and then continue working with it, always use the instance returned from the `save()` method.
+
+If you don't need the saved instance immediately, use the `saveWithoutReload()` method. This will improve performance because `DataManager` will not fetch the saved entity back from the database. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save-without-reload]
+----
+
+The `save()` method can accept multiple instances at once. In this case, it returns the `EntitySet` object which can be used to easily get the saved instances. In the example below, we create and save two linked entities, and return one of them:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-multiple]
+----
+<1> Save two linked entities. The order of `save()` parameters is not important.
+<2> The `EntitySet.get()` method lets you obtain the saved instance by its source instance.
+
+If you need to save a collection of entities (`List`, `Set`, etc.), and return the saved instances, use the `saveAll()` method. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save-all]
+----
+
+The `saveWithoutReload()` method also accepts multiple instances and collections. Use it instead of `save()` and `saveAll()` if you don't need the saved entities for further actions.
+
+The most powerful form of the `save()` method accepts a `SaveContext` object that can be used to add multiple instances and specify additional parameters of saving. In the example below, we save a collection of entities using `SaveContext`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-context]
+----
+
+[[save-performance]]
+=== Save Performance
+
+There are a few techniques for improving performance of the save operation. They are especially useful if you are working with a large collection of entities.
+
+First of all, instead of passing each entity instance to separate calls of the `save(entity)` method, consider saving all entities (if the collection is not very large, say, less than 1000) in a single transaction by invoking the save method once for the whole collection.
+
+If you don't need the saved instances immediately, use `saveWithoutReload()` method. To achieve the same result when using the `SaveContext` object, invoke the `setDiscardSaved(true)` method on it. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-discard]
+----
+
+If you don't need to check current user security permissions, use `UnconstrainedDataManager` to get an additional performance gain. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-unconstrained]
+----
+
+If the collection is large (more than 1000 instances), it is vital for the good performance to split the save operation to batches. For example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-batches]
+----
+
+See the comparison of different saving methods in the https://github.com/jmix-framework/jmix-data-performance-tests[jmix-data-performance-tests^] project on GitHub.
+
+[[remove]]
+== Removing Entities
+
+Use `remove()` method to remove entities from the database.
+
+In the simplest form, the method accepts an entity instance to remove:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove]
+----
+
+The `remove()` method can accept multiple instances, arrays and collections:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove-list]
+----
+
+If you remove linked entities, the order of parameters can be important. First pass the entities that depend on the others, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=remove-multiple]
+----
+
+If you don't have an entity instance but only its identifier, construct the `Id` object from the identifier and pass it to the `remove()` method:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove-by-id]
+----
+
+If you need to specify additional parameters of the remove operation, for example to turn off xref:data-model:soft-deletion.adoc[soft deletion] and completely remove from the database an entity with the soft delete trait, use the `save()` method with `SaveContext` and pass the removed entities to its `removing()` method:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=hard-delete]
+----
+
+[[transactions]]
+== Transactions in DataManager
+
+When working with JPA entities, `DataManager` by default joins the current transaction or creates and commits a new one if there is no existing transaction.
+
+You can manage transactions using annotations or `TransactionTemplate` as described in the xref:transactions.adoc[] section.
+
+Besides, `DataManager` allows you to control its own internal transactional behavior.
+
+When loading data using the fluent API, you can use the `joinTransaction(false)` method to begin and commit a separate transaction for this operation:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-in-separate-transaction]
+----
+
+When saving entities, use the `setJoinTransaction(false)` method of `SaveContext` to begin and commit a separate transaction for the operation with this context:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save-in-separate-transaction]
+----
+
+[[security]]
+== Security in DataManager
+
+`DataManager` performs the xref:security:resource-roles.adoc#entity-policy[entity policy] checks:
+
+* If the user has no rights to CREATE, UPDATE or DELETE action, the `save()` and `remove()` methods will throw the `io.jmix.core.security.AccessDeniedException` exception on the corresponding operation.
+
+* If the user has no rights to the READ action, the `load()` methods will return the empty result: `null` or an empty list. This applies only to the root entity of the loaded object graph; the references are always loaded.
+
+`DataManager` also respects the xref:security:row-level-roles.adoc#policies[row-level policies]. The JPQL policy affects only the root entity of the loaded object graph, while the predicate policy affects the root entity and all linked entities.
+
+The `UnconstrainedDataManager` interface has the same methods as `DataManager` but it doesn't check the security policies. You can use it instead of the `DataManager` to bypass the security in your code, for example:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=unconstrained-dm]
+----
+
+See more information about security in the xref:security:authorization.adoc#data-access-checks[Data Access Checks] section.

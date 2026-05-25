@@ -1,0 +1,83 @@
+= Entity Log
+
+Entity Log is a mechanism for monitoring changes made to JPA entities. It records changes in entity attributes and provides a user interface for querying and displaying details regarding the changes:
+
+* What entity instance was changed.
+* Old and new values of changed attributes.
+* When the entity was changed.
+* Which user changed the entity.
+
+[[register-changes]]
+== Registering Changes
+
+Entity Log automatically records changes made to JPA entities upon transaction commit when working with xref:data-access:data-manager.adoc[DataManager] or xref:data-access:entity-manager.adoc[EntityManager]. It is not operational when native SQL is used.
+
+Also, if you load entities by `EntityManager`, you can use the `EntityLog` bean directly to log changes in entities from your application code. In this case, invoke `registerCreate()`, `registerModify()` and `registerDelete()` methods with the `auto` parameter set to `false`. When the entity log is called automatically by the framework, this parameter is set to `true`.
+
+NOTE: `EntityLog` can register changes only when used for _managed_ entities inside a transaction. It means that you should invoke `EntityLog` from application code only if you use `EntityManager` for loading data. Entities loaded with `DataManager` are always _detached_ and their changes cannot be registered by invoking `EntityLog` manually.
+
+[[setup]]
+== Setting Up Entity Log
+
+NOTE: To be able to use the administrative UI at runtime, a user must have the `entity-log` resource role provided by the Audit add-on.
+
+You can configure the entity log in the *Audit -> Entity Log* view. Switch to the *Setup* tab:
+
+image::entity-log-set.png[align="center",width="1300"]
+
+To establish entity log configuration, click the *Create* button.
+
+* Choose the entity from the *Name* drop-down list and select the attributes for auditing.
+
+* The *Auto* checkbox determines whether the system logs changes when `EntityLog` is invoked by the JPA subsystem on transaction commit (with `auto = true` parameter).
+
+* The *Manual* checkbox determines whether the system logs changes when `EntityLog` is invoked by application code (with `auto = false` parameter).
+
+* The *Export* and *Import* actions allow you to export and import configurations in JSON or ZIP format.
+
+Also, you can set up entity log by entering some records in the database if you want to include the configuration in database initialization.
+
+Logging configuration involves the `LoggedEntity` and `LoggedAttribute` entities, which correspond to the `AUDIT_LOGGED_ENTITY` and `AUDIT_LOGGED_ATTR` tables.
+
+* `LoggedEntity` specifies the entity types to be logged.
+
+* `LoggedAttribute` defines the entity attribute to be logged and contains a link to the `LoggedEntity` and the attribute name.
+
+To configure logging for a specific entity, insert the corresponding entries into the `AUDIT_LOGGED_ENTITY` and `AUDIT_LOGGED_ATTR` tables.
+
+In the following example, logging changes to the `phone` attribute of the `Customer` entity is configured during database initialization:
+
+[source,xml,indent=0]
+----
+include::example$/audit-ex1/src/main/resources/com/company/demo/liquibase/changelog/2024/02/21-153813-a38a565c.xml[tags=changelog]
+----
+
+[[view]]
+== Viewing Entity Log
+
+To access the content of the entity log, navigate to the *View* tab within the *Audit → Entity Log* view. Configure the required filters to locate specific log entries.
+
+image::entity-log-view.png[align="center",width="1417"]
+
+Additionally, you can access the log entries for a particular entity from any application view.
+
+Log entries are stored in the `AUDIT_ENTITY_LOG` table corresponding to the `EntityLogItem` entity. Changed attribute values are stored in the `CHANGES` column and are converted to instances of `EntityLogAttr` entity.
+
+In the following example, an `Order` detail view displays data grids containing the entity log information. Below is an excerpt from the view's XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/audit-ex1/src/main/resources/com/company/demo/view/order/order-detail-view.xml[tags=order-xml]
+----
+<1> Loading a collection of `EntityLogItem` into the `entityLogItemsDc` data container.
+<2> Loading associated `EntityLogAttr` instances into the `entityLogAttrDc` data container.
+<3> Binding a data grid to the `entityLogItemsDc` container.
+<4> Binding a data grid to the `entityLogAttrDc` container.
+
+`Order` view controller looks like this:
+
+[source,java,indent=0]
+----
+include::example$/audit-ex1/src/main/java/com/company/demo/view/order/OrderDetailView.java[tags=order-java]
+----
+<1> In the `ItemChangeEvent` handler of the `orderDc` container, a parameter is set to the dependent loader and it is triggered.

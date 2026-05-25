@@ -1,0 +1,54 @@
+= Uploading Files
+
+This section explains how to upload files from the user's computer using UI components. For information on how to upload files through REST API, see the xref:rest:files-api.adoc[Files API] section.
+
+[[file-upload-components]]
+== File Upload Components
+
+Jmix provides a set of UI components for uploading files. All of them contain a button that, when clicked, opens a file system dialog for choosing files. Here's a quick rundown of the differences between the components. For complete details on each component, refer to their respective sections.
+
+* xref:flow-ui:vc/components/fileUploadField.adoc[] lets users select a single file and save it as a byte array to an entity attribute. Users can also access the file's content directly from the component's value without associating it with an entity.
+
+* xref:flow-ui:vc/components/fileStorageUploadField.adoc[] allows users to select a single file and save it to the xref:file-storage.adoc[file storage]. The component's value is a `FileRef` object. Users can link the component to an entity attribute of `FileRef` type to automatically save the file reference to the database.
+
+* xref:flow-ui:vc/components/upload.adoc[] lets users upload one or multiple files at once. It provides a base for handling file uploads but doesn't directly interact with entities or storage systems.
+
+[[using-temporary-storage]]
+== Using TemporaryStorage
+
+The `FileStorageUploadField` component has the xref:flow-ui:vc/components/fileStorageUploadField.adoc#fileStoragePutMode[fileStoragePutMode] attribute with the default value `IMMEDIATE`. If you set it to `MANUAL`, the component uploads the file to the temporary storage in the file system of the application, and gives you full control over the uploaded file: you can transfer the file to the file storage as is, pre-process it, or do whatever you need with the file without saving it to the file storage at all.
+
+// todo fileMultiUploadField
+// The same is true for the xref:ui:vcl/components/file-multi-upload-field.adoc[FileMultiUploadField] component: it just uploads files to the temporary storage and notifies your code that the upload is complete.
+
+The `TemporaryStorage` interface provides an API to create temporary files, save them to the file storage, or remove them.
+
+Below is an example of using `fileStorageUploadField` in manual mode to transfer the uploaded file from temporary storage to the file storage.
+
+[source,xml,indent=0]
+----
+include::example$/files-ex1/src/main/resources/com/company/demo/view/files/files-view.xml[tags=put-mode-manual]
+----
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/view/files/FilesView.java[tags=temporary-storage-1;temporary-storage-2]
+----
+<1> Get local file from the temporary storage using identifier provided by the upload event.
+<2> Transfer local file to the file storage.
+
+The `putFileIntoStorage()` method also removes the temporary local file.
+
+If you only need to process the file locally without saving it to file storage, use the `deleteFile()` method of `TemporaryStorage` after working with the file, for example:
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/view/files/FilesView.java[tags=get-and-delete]
+----
+
+The temporary storage tends to accumulate files that were not deleted for various reasons. So it provides a JMX interface for removing such old unused files.
+
+// todo flowui JMXConsole
+// You can find it by *jmix.ui:type=TemporaryStorage* name in *System -> JMX Console* screen.
+
+The MBean has the `clearTempDirectory()` method that removes all files from the temporary directory of the application (`.jmix/temp` by default) which are older than 2 days. You can call this method manually, or use a xref:quartz:index.adoc[Quartz] job to do it periodically. In a job, you should inject the `TemporaryStorageManagementFacade` bean and call its `clearTempDirectory()` method.

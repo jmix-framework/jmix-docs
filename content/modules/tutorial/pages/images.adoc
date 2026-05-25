@@ -1,0 +1,211 @@
+= 6. Working with Images
+
+In this chapter, you will add the `picture` attribute to the `User` entity and learn how to upload and display images in the UI.
+
+[[file-ref-attr]]
+== Adding File Reference Attribute
+
+Jmix allows you to store uploaded files outside the database in a so-called _file storage_. In the simple case, it's just a file system directory with a special structure. To link the file located in the file storage to an entity, you create an attribute of the `FileRef` type.
+
+Let's create such an attribute for managing the user picture.
+
+If your application is running, stop it using the *Stop* button (image:common/suspend.svg[]) in the main toolbar.
+
+Double-click on the `User` entity in *Jmix* tool window and select the `joiningDate` attribute (to add the new attribute after it).
+
+Click *Add* (image:common/add.svg[]) in the *Attributes* toolbar. In the *New Attribute* dialog, enter `picture` into the *Name* field and select `FileRef` in the *Type* dropdown:
+
+image::images/attribute-2.png[align="center", width="862"]
+
+Accept the suggested value (1024) in the *Length* field. For `FileRef` attribute it defines the column length for storing a reference, not the file itself, so it doesn't limit the file size.
+
+Click *OK*.
+
+Select the `picture` attribute and click the *Add to Views* (image:common/add-attribute-to-screens.svg[]) button in the *Attributes* toolbar.
+
+The dialog window that appears will show all views that display the `User` entity. Select the `User.detail` view and click *OK*.
+
+Studio will create the `pictureField` component in the `formLayout` of the `User.detail` view:
+
+[source,xml]
+----
+<formLayout id="form" dataContainer="userDc">
+    ...
+    <fileStorageUploadField id="pictureField" property="picture"/>
+</formLayout>
+----
+
+Click the *Debug* button (image:common/start-debugger.svg[]) in the main toolbar.
+
+Before running the application, Studio will generate a Liquibase changelog:
+
+image::images/run-app-1.png[align="center"]
+
+As you can see, the changelog contains a command for adding the `PICTURE` column to the `USER_` table. The column is of type `VARCHAR(1024)`, because the file reference is actually a string.
+
+Click *Save and run*.
+
+Studio will execute the changelog, then build and run the application.
+
+Open `++http://localhost:8080++` in your web browser and log in to the application with `admin` / `admin` credentials.
+
+Click on the `Users` item in the `Application` menu.
+
+Click *Edit* for a user. The UI control for uploading a picture is shown on the form:
+
+image::images/run-app-3.png[align="center"]
+
+[[image-in-form]]
+== Displaying Image in Form
+
+In this section, you will improve the detail view to display the uploaded picture in the form.
+
+First, let's wrap `fileStorageUpload` into the collapsible `Details` layout:
+
+// image::images/form-1.gif[]
+
+Now the field is located not immediately in the `formLayout` which defines the data container for its nested components, so set the `dataContainer` to the field explicitly:
+
+image::images/form-4.png[align="center",width="338"]
+
+Then add the `image` component below `fileStorageUpload` with the following attributes:
+
+[source,xml]
+----
+<details summaryText="Picture">
+    <hbox>
+        <fileStorageUploadField id="pictureField" dataContainer="userDc" property="picture"/>
+        <image id="image" property="picture" dataContainer="userDc" height="10em" width="10em"
+            classNames="user-picture"/>
+    </hbox>
+</details>
+----
+
+* `dataContainer="userDc" property="picture"` attributes bind the `image` component to the `picture` attribute of the `User` entity.
+* `classNames="user-picture"` refers to CSS class defined below.
+
+Open `onboarding.css` file from the *User Interface* -> *Themes* section and define the `user-picture` class:
+
+image::images/form-5.png[align="center",width="680"]
+
+`object-fit: contain` property makes sure the image fills the whole allocated area but keeps the proportions.
+
+[source,css]
+----
+.user-picture {
+    object-fit: contain;
+}
+----
+
+Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User detail view and try to upload an image:
+
+image::images/form-2.png[align="center"]
+
+[[image-in-table]]
+== Displaying Image in Data Grid
+
+Let's create the column to render the image in the data grid of the `User.list` view.
+
+Open `user-list-view.xml` and add the following column to `usersDataGrid`:
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
+Add the following fields to the `UserListView` class:
+
+[source,java]
+----
+@ViewComponent
+private DataGrid<User> usersDataGrid;
+
+@Autowired
+private UiComponents uiComponents;
+
+@Autowired
+private FileStorage fileStorage;
+----
+
+TIP: You can use *Inject* button in the top actions panel of the editor to inject dependencies into view controllers and Spring beans.
+
+Select the `picture` column, switch to the *Handlers* tab of the component inspector and create the `renderer` handler method. Implement the method as follows:
+
+[source,java]
+----
+import com.company.onboarding.entity.User;
+import com.company.onboarding.view.main.MainView;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.Renderer;
+import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
+import com.vaadin.flow.server.streams.InputStreamDownloadHandler;
+import io.jmix.core.FileRef;
+import io.jmix.core.FileStorageLocator;
+import io.jmix.flowui.UiComponents;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.InputStream;
+
+@Route(value = "users", layout = MainView.class)
+@ViewController(id = "User.list")
+@ViewDescriptor(path = "user-list-view.xml")
+@LookupComponent("usersDataGrid")
+@DialogMode(width = "50em", height = "37.5em")
+public class UserListView extends StandardListView<User> {
+
+    @Autowired
+    private UiComponents uiComponents;
+
+    @Autowired
+    private FileStorageLocator fileStorageLocator;
+
+    @Supply(to = "usersDataGrid.picture", subject = "renderer")
+    private Renderer<User> usersDataGridPictureRenderer() {
+        return new ComponentRenderer<>(user -> { // <1>
+            FileRef fileRef = user.getPicture();
+            if (fileRef != null) {
+                Image image = uiComponents.create(Image.class);  // <2>
+                image.setWidth("30px");
+                image.setHeight("30px");
+                InputStreamDownloadHandler handler =
+                        DownloadHandler.fromInputStream(event -> {
+                            InputStream inputStream = fileStorageLocator.getByName(
+                                    fileRef.getStorageName()).openStream(fileRef);
+                            return new DownloadResponse(
+                                    inputStream, fileRef.getFileName(), fileRef.getContentType(), -1);
+                        });
+                image.setSrc(handler); // <3>
+                image.setClassName("user-picture");
+                return image; // <4>
+            } else {
+                return null;
+            }
+        });
+    }
+}
+----
+<1> The method returns a `Renderer` object that creates a UI component to be rendered in the column. The renderer receives an entity instance for the current row.
+<2> The `Image` component instance is created using the `UiComponents` factory.
+<3> The image component gets its content from the file storage by the reference stored in the `picture` attribute of the `User` entity.
+<4> The renderer returns the visual component to be shown in the column cells.
+
+Press *Ctrl/Cmd+S* and switch to the running application. Refresh the User list view. You will see the user's picture in the first table column:
+
+image::images/table-3.png[]
+
+[[summary]]
+== Summary
+
+In this section, you have added the ability to upload and show a user's picture.
+
+You have learned that:
+
+* xref:files:uploading-files.adoc[Uploaded files] can be stored in a xref:files:file-storage.adoc[file storage] and linked with entities using attributes of the `FileRef` type.
+
+* The xref:flow-ui:vc/components/fileStorageUploadField.adoc[] component allows you to upload files, save them into the file storage and link to an entity attribute.
+
+* The xref:flow-ui:vc/html-components/image.adoc[] component can display images saved in the file storage.

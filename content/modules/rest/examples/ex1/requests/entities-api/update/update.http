@@ -1,0 +1,181 @@
+## Execute 'authenticate.http' first to get have a valid access token for the API
+
+# Update a Customer
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Customer
+         /13f01f59-8e5f-4fd9-802b-66501d49ac99
+Authorization: Bearer {{access_token}}
+
+{
+  name: "Randall Bishop Wurst updated 2"
+}
+
+> {%
+
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("new Entity is returned", function() {
+      client.assert(
+          response.body["id"],
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+  %}
+
+###
+
+
+# Update an Order with many order lines
+# 1:N Composition
+
+
+
+GET {{baseRestUrl}}
+         /entities
+         /rstex11_Order
+         /43a4339f-d04f-aebe-c557-610b267982e8?fetchPlan=order-with-details
+Authorization: Bearer {{access_token}}
+
+###
+GET {{baseRestUrl}}
+         /entities
+         /rstex11_OrderLine
+         /faf8c2e5-034c-fd34-91c6-c93c0abf0a59
+Authorization: Bearer {{access_token}}
+
+###
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Order
+         /43a4339f-d04f-aebe-c557-610b267982e8
+Authorization: Bearer {{access_token}}
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": []
+}
+
+###
+
+# Partial Update of entities
+
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Order
+         /5a8adc2f-f4ef-17a9-9f97-1e715b3ade3d
+         ?responseFetchPlan=order-with-details
+Authorization: Bearer {{access_token}}
+
+{
+  "date": "2020-12-06"
+}
+
+###
+GET {{baseRestUrl}}
+         /entities
+         /rstex11_Order
+         /5a8adc2f-f4ef-17a9-9f97-1e715b3ade3d?fetchPlan=order-with-details
+Authorization: Bearer {{access_token}}
+
+
+###
+
+
+# Create a product with many tags
+
+POST {{baseRestUrl}}
+         /entities
+         /rstex11_Product?responseFetchPlan=product-with-tags
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695"
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+
+> {%
+    client.test("Response Code is 201", function() {
+      client.assert(
+          response.status === 201,
+          "Response status is not 201 - Created"
+      );
+    });
+
+    client.test("new Entity is returned", function() {
+      client.assert(
+          response.body["id"],
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+
+
+    client.global.set("productId", response.body["id"])
+  %}
+
+###
+
+# remove one of the product tags and create another one
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Product
+         /{{productId}}
+         ?responseFetchPlan=product-with-tags
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "d6ab132e-a0bd-a624-c6ad-cc544e83c584"
+    },
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695"
+    }
+  ]
+}
+
+> {%
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("updated Entity is returned", function() {
+      client.assert(
+          response.body["id"] === client.global.get("productId"),
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+
+    client.test("Product contains two Tags", function() {
+      client.assert(
+          response.body["tags"].length == 2,
+          "Product does not contains two Tags"
+      );
+    });
+  %}

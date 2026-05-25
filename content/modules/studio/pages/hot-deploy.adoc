@@ -1,0 +1,120 @@
+= Hot Deploy
+
+Jmix supports Hot Deploy technology that helps to apply project changes to the running application immediately without restarting the application server.
+
+The following classes and resources are hot deployed:
+
+* View descriptors and controllers
+* Classes used by view controllers by instantiating them or via static methods. Examples of such classes are described in the subsection <<examples,below>>.
+* Localized messages
+* Menu
+* Fetch plans
+* Resource roles
+* Row-level roles
+
+Entity classes and Spring beans are not hot deployed.
+
+The hot deploy works as follows:
+
+* Studio detects changed source files and
+** if it's a resource file, Studio copies it to the `.jmix/conf` directory;
+** if it's a Java or Kotlin file, Studio compiles it and copies to the `build/classes` project directory.
+* When the application opens a view, it loads new classes and resources from the above directories.
+
+The location of the directory for hot deploying resources is determined by the xref:ROOT:app-properties.adoc#jmix.core.conf-dir[jmix.core.conf-dir] application property. This directory is cleaned on the application start by the *Before launch* task configured in xref:studio:project.adoc#run-debug-configuration-settings[Run/Debug Configuration Settings].
+
+Additionally, to ensure that the cleanup is more reliable and not dependent on Studio, there is a Gradle task called `cleanConf`. This task runs every time before launching the application using the `bootRun` task.
+
+If you encounter any issues with this feature, you can disable the `cleanConf` task in your project by adding the following property to your `build.gradle` file:
+
+[source,gradle]
+----
+jmix {
+    // ...
+    confDirCleanupEnabled = false
+}
+----
+
+Studio also sends signals to the application to clear appropriate caches to make it load the changed resources. These are messages cache and the configurations of fetch plans, registered views and menu. Signals are implemented as trigger files created in the `.jmix/temp/triggers` directory (its location can be changed by the xref:ROOT:app-properties.adoc#jmix.core.temp-dir[jmix.core.temp-dir] property).
+
+NOTE: The application may require 2-3 seconds to reload classes and resources after saving them in Studio. If you don't see expected changes after opening a view, try to refresh the web page again.
+
+[[examples]]
+== Examples of Hot-Deployed Classes
+
+Here are some practical examples of classes that are hot-deployed when used by view controllers. Note that these are only a few common cases; other classes that meet the criteria (instantiated in the view controller or called via static methods) will also be hot-deployed.
+
+=== Custom UI Components
+
+If you create a xref:flow-ui:vc/creating-components/creating-components.adoc[custom UI component] and use it in a view, changes to that component will be applied without restarting the application.
+
+An example of such a component can be found in xref:flow-ui:vc/creating-components/using-element-api.adoc[Using Element API].
+
+=== Utility Classes with Static Methods
+
+Utility classes that contain static methods are hot-deployed when called from view controllers.
+
+[source,java]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/util/DateUtils.java[tag=DateUtils]
+----
+
+In the view controller:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/view/component/textfield/TextFieldView.java[tag=use-utils]
+----
+
+=== Value Description Classes for Charts
+
+For example, classes that prepare or transform data for charts are hot-deployed.
+
+An example of such a class is `ValueDescription` in the https://demo.jmix.io/ui-samples/sample/simple-data-item?tab=SimpleDataItemSample.java[UI Samples^].
+
+[[indicator]]
+== Hot Deploy Indicator
+
+Studio displays a status indicator icon in the top-right corner of hot-deployable files. This icon, which appears on files such as view controllers, view descriptors, message bundles, roles, and other similar resources, provides at-a-glance feedback on the current hot deployment status for that specific file.
+
+The primary purpose of this indicator is to continuously inform developers about the propagation of their latest source code changes to the running application. The icon's appearance changes to reflect whether the changes have been successfully deployed, are in the process of being deployed, or if any errors occurred during the deployment process, providing immediate visual feedback on the state of hot deployment.
+
+Let's examine the different states of the hot-deploy indicator.
+
+. *Application not running*:
++
+image::hot-deploy-ind-1.png[align="center",width="760"]
++
+The indicator displays with a gray outline. Clicking the indicator will trigger a pop-up message with an option to start the application.
+
+. *Application running, no file changes*:
++
+image::hot-deploy-ind-2.png[align="center",width="760"]
++
+The indicator displays with a green outline. Clicking the indicator will trigger a pop-up message indicating that the file has not yet been hot-deployed.
+
+. *File modified, hot deployment available*: The indicator turns solid green. Clicking the indicator will trigger a pop-up message with an option to initiate hot deployment.
++
+image::hot-deploy-ind-3.png[align="center",width="760"]
++
+After hot deployment is initiated, the indicator remains solid green, and the pop-up message displays the time of the last hot deployment:
++
+image::hot-deploy-ind-4.png[align="center",width="333"]
+
+. *Hot deployment failed*: The indicator turns red, indicating that hot deployment was unsuccessful due to a compilation error or other issue.
++
+image::hot-deploy-ind-5.png[align="center",width="760"]
+
+[[troubleshooting]]
+== Troubleshooting
+
+In some cases, for example, for non-standard multi-module project configurations, Jmix Studio may fail to determine the module compiler output path. This affects hot deploy because Studio cannot properly resolve the classpath needed for the hot-deploy compilation process.
+
+If you encounter this issue, you can manually specify the module compiler output path using a special property in your `build.gradle` script:
+
+[source,gradle,indent=0]
+----
+ext.jmixCompilerOutputPath = "build/classes/java/main"
+----
+
+The path should be specified relative to the folder containing the build script. Jmix Studio will resolve this value during Gradle sync and use it in the hot-deploy compilation process classpath.

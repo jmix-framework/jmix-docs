@@ -1,0 +1,96 @@
+= Getting Started with Search
+
+This guide provides instructions on getting started with Search in your application.
+
+Suppose you wish to introduce a few entities to your application and enable searching across their attributes.
+
+To begin, follow these steps:
+
+. Include Search in your project following the guidelines in the xref:search:index.adoc#installation[installation] section.
+. xref:search:index.adoc#connecting-to-search-engine-service[Configure] the connection based on the service location.
+
+[[data-model-views-creation]]
+== Create Data Model and Views
+
+Let's create the classes listed below:
+
+. The `Status` enumeration with the `SILVER` and `GOLD` values.
+. The `Customer` entity with the fields:
+
+* `firstName` with `String` type
+* `lastName` with `String` type
+* `status` with `Status` type
+* `card` with `FileRef` type
+
+. The `Order` entity with the fields:
+
+* `date` with `Date` type
+* `number` with `String` type
+* `amount` with `Integer` type
+* `product` with `String` type
+* `customer` with association to `Customer`, many-to-one cardinality
+
+Set up the xref:data-model:entities.adoc#instance-name[instance name] for the `Order` entity to be displayed as the search result.
+
+Create detail and list views for the `Customer` and `Order` entities.
+
+[[index-definition]]
+== Create Index Definition Interface
+
+Next, it is necessary to establish an Index Definition - an interface outlining which entities and attributes are to be indexed. Suppose we intend to search orders based on their number, product name, customer status, or customer last name. Within the Index Definition, we will define a method to specify the required attributes.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDefinition.java[tags=index-definition;order-mapping]
+----
+. The interface should be annotated with `@JmixEntitySearchIndex` with the required parameter `entity`.
+. The interface can be named arbitrarily.
+. The `@AutoMappedField` annotation automatically maps requested properties. Here, we will utilize the `includeProperties` parameter to indicate the attributes to be indexed.
+. The method can be named at your discretion.
+
+[[configure-index-naming]]
+== Configure Index Naming
+By default, the index name is formed as `<prefix><entity_name>`. The default prefix is `search_index_`.
+
+As you may utilize the same Elasticsearch/OpenSearch service across multiple projects, it is advisable to customize the default prefix for unique index names. To implement this change, add the following property to your `application.properties` file:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=prefix]
+----
+
+As an alternative, you can specify the full index name in the `indexName` attribute of `@JmixEntitySearchIndex`.
+
+[[configure-indexing-queue]]
+== Configure Indexing Queue Processing
+
+The Jmix application monitors data modifications but does not automatically synchronize them with the search engine service. To ensure regular index updates, simply add the xref:quartz:index.adoc[] add-on to the project. The Search add-on will use Quartz for scheduled processing of the indexing queue with default configuration.
+
+[[create-search-view]]
+== Create Search View
+
+. Create an empty view named *Search* by utilizing the `Blank view` Studio template.
+. Click *Add Component* in the actions panel, find the `SearchField` item, and then double-click it.
+. The newly added `searchField` element will appear in both the *Jmix UI* structure panel and in the XML. You can configure attributes like `id`, `height`, `width`, etc., in the same way as it is done for other xref:flow-ui:vc/components.adoc[UI components].
++
+[source,xml,indent=0]
+----
+include::example$/search-ex1/src/main/resources/com/company/demo/view/search/search-view.xml[tags=search-field]
+----
+
+Now, the view includes a text field for inputting the search term and a button to execute the search.
+
+[[test-searching]]
+== Test Searching in Application
+
+Now, we are ready to launch and test the application.
+
+Initially, add some instances of the `Customer` and `Order` entities.
+
+Navigate to the *Search* view to locate customers with the `Silver` status.
+
+The search outcomes will appear in the *Search results* view.
+
+image::search-result.png[align="center",width="1301"]
+
+Clicking on a result will redirect you to the entity detail view.

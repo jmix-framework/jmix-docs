@@ -1,0 +1,119 @@
+= Getting Started with REST
+:page-aliases: rest:quick-start.adoc
+
+This section contains an example of retrieving the information about application users through the Generic REST API.
+
+First, add the Generic REST add-on to your project according to the xref:index.adoc#installation[installation] section.
+
+[[obtaining-access-token]]
+== Obtaining Access Token
+
+To access a protected resource, the client must present a valid access token. The OAuth 2.1 specification provides several ways to get an access token from the authorization server. They are called grant types. In this example, we will use the {oauth-specification-page}#name-client-credentials-grant[Client Credentials grant^], which is suitable for confidential clients, such as backend integrations.
+
+The functionality responsible for issuing tokens and supporting OAuth 2.1 protocol features is located inside the Authorization Server add-on. You must add this add-on to your application. See the xref:authorization-server:index.adoc#installation[Authorization Server] add-on documentation for instructions on how to do this.
+
+[source,groovy,indent=0]
+----
+implementation 'io.jmix.authserver:jmix-authserver-starter'
+----
+
+The idea is that in a Jmix application we must register the client (for example, an external application that needs to access Jmix REST API), define a client ID and secret, and then use these credentials to get the access token by a special HTTP request.
+
+The simplest way to register a client is to add standard Spring Authorization Server application properties:
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-registration]
+----
+
+The next set of application properties is Jmix-specific and defines which resource and row-level roles must be assigned to the access token issued to the client. In this example we will assign two resource roles:
+
+* `rest-minimal` (REST: minimal access) - to enable REST API endpoints access.
+* `user-management` (User management) - to allow operations with the User entity using the REST API.
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-role-assignment]
+----
+
+The `user-management` role looks as follows:
+
+[source,java,indent=0]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/security/UserManagementRole.java[tags=user-management-role]
+----
+<1> The API scope indicates the role will be applied for REST API requests
+
+After these properties are defined in the application, it should be possible to obtain access tokens. In this example, we will use the `curl` command-line tool to interact with the REST API.
+
+[source, bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user my-client:my-secret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=client_credentials"
+----
+
+TIP: On Windows, remove `\` symbols and write the command in a single line.
+
+As a result, you should get something like this:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token":"hKhgNyGMTqaKd6prH-GoHF8zFVTSr9tKKyE3OnMoafRO4FT4Xq_cewHr28cIRITaRmF0olRXpVTyFdxcOPTAl8Vc7xopHrdNuXNXwEeBn7NSiEMvQXW5zO0dwMn_H8FQ",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+The `access_token` attribute is the token you can use for further requests as part of the `Authorization` Header. It acts as a temporary credential that grants you access to the application.
+
+[[rest-endpoints-security]]
+== Configuring REST Endpoints Security
+
+By default, when you add the REST API add-on to the application, no security settings are applied to the REST endpoints. There are xref:security:custom-endpoints.adoc[multiple ways] to protect these endpoints. One way is to configure authenticated URLs for resource server by adding the following application property:
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=rest-authenticated-url-patterns]
+----
+
+IMPORTANT: If the security of the REST endpoints is not configured in one way or another, then accessing them will either redirect to the UI login page or result in a server error due to executing code without the user's security context.
+
+[[retrieve-entity-list]]
+== Retrieving Entity List
+
+With the access token you can use the generic REST API endpoints to load a list of users (replace `<access_token>` with the value obtained on the previous step). In this example, we will fetch all the users that are present in the application through the Entities API:
+
+[source, bash]
+----
+curl -X GET http://localhost:8080/rest/entities/User \
+    -H "Authorization: Bearer <access_token>"
+----
+
+[NOTE]
+====
+This request supposes that your project contains an entity named `User`.
+
+The entity name is either a Java class name or the value of `name` attribute in the `@Entity` or `@JmixEntity` annotation.
+If you have specified a *Project id* when the project was created, the entity name is `<projectid>_User`.
+====
+
+The response will contain all users that are available in the application:
+
+.HTTP/1.1 200
+[source, json]
+----
+[
+  {
+    "_entityName": "User",
+    "_instanceName": "[admin]",
+    "id": "60885987-1b61-4247-94c7-dff348347f93",
+    "version": 1,
+    "active": true,
+    "username": "admin"
+  }
+]
+----
