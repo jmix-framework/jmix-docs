@@ -1,0 +1,247 @@
+= Запуск отчетов
+
+Пользователи могут запускать отчеты через административный интерфейс или из соответствующих экранов приложения с помощью действий, предоставляемых дополнением Reports. Механизм отчетов загружает определение отчета и шаблон из кода приложения или из базы данных и генерирует выходной документ:
+
+.Запуск отчета
+image::run/run-1.svg[align="center", width="552"]
+
+[[run-from-list]]
+== Запуск из списка отчетов
+
+Самый простой способ запустить отчеты - из экрана xref:reports-ui.adoc#run-report-view[Run report]. Пользователь должен иметь разрешение на доступ к этому экрану. Список будет содержать все отчеты, xref:creation/permissions.adoc[доступные пользователю] в соответствии с его ролью. Если отчет имеет внешние параметры, они будут запрошены в специальной форме при запуске отчета.
+
+[[run-actions]]
+== Запуск из экранов
+
+Пользователи могут запускать отчеты из произвольных экранов, используя специальные действия и связанные с ними кнопки или пункты контекстного меню компонентов. В этом случае проверяется xref:creation/permissions.adoc[доступность] отчета в данном экране в дополнение к роли пользователя.
+
+Типы действий и примеры их использования описаны ниже.
+
+[[run-report-action]]
+=== RunReportAction
+
+`io.jmix.reportsflowui.action.RunReportAction` - это xref:flow-ui:actions/standard-actions.adoc[стандартное действие] для запуска отчетов, связанных с текущим экраном или компонентом списка. Оно должно быть определено для `Button` или компонента списка (xref:flow-ui:vc/components/dataGrid.adoc[], xref:flow-ui:vc/components/treeDataGrid.adoc[]).
+
+Ниже приведен пример использования декларативного действия для `DataGrid`:
+
+[source,xml,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/view/book/book-list-view.xml[tags=buttonsPanel;reportRun;booksDataGrid;actions;report_runReport]
+----
+<1> Добавляет кнопку с действием запуска отчета.
+<2> Атрибут `type` определяет конкретный тип действия `report_runReport`, предоставляемый дополнением Reports.
+
+Пример программного создания действия вместе с кнопкой, объявленной в XML-дескрипторе экрана:
+
+[source,java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/book/BookListView.java[tags=runBtn;actions;onInit;create]
+----
+
+При выполнении действия появится модальное диалоговое окно *Run report*, в котором отобразятся отчеты, связанные с текущим экраном. Когда пользователь выберет отчет из списка, отобразится форма ввода параметров (если они были определены), и отчет будет сгенерирован.
+
+[[run-list-entity-report-action]]
+=== RunListEntityReportAction
+
+`io.jmix.reportsflowui.action.RunListEntityReportAction` - это xref:flow-ui:actions/standard-actions.adoc[стандартное действие] для печати отчетов для экземпляров сущностей, связанных с компонентом списка (xref:flow-ui:vc/components/dataGrid.adoc[], xref:flow-ui:vc/components/treeDataGrid.adoc[]).
+
+Действие выбирает только отчеты, имеющие внешний параметр типа *Entity* или *List of entities*, где тип сущности параметра совпадает с типом сущности, отображаемой компонентом списка. Если в результате выбора доступен только один отчет, он вызывается немедленно. Если доступно несколько отчетов, их список предлагается пользователю для выбора.
+
+Значение внешнего параметра передается в отчет по следующим правилам:
+
+* Если параметр имеет тип *List of entities*, в него передается список экземпляров, выбранных в данный момент в компоненте списка.
+
+* Если параметр имеет тип *Entity*, и в компоненте списка выбран один экземпляр (выделена одна строка), то этот экземпляр передается в отчет.
+
+* Если параметр имеет тип *Entity*, и в компоненте списка выбрано несколько строк, то отчет запускается несколько раз в соответствии с количеством выбранных экземпляров. После выполнения пользователь получает один ZIP-архив, содержащий все сгенерированные отчеты.
+
+Ниже приведен пример использования декларативного действия для `DataGrid`:
+
+[source, xml,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/view/author/author-list-view.xml[tags=buttonsPanel;runList;authorsDataGrid;actions]
+----
+<1> Добавляет кнопку с действием запуска отчета для списка сущностей.
+<2> Атрибут `type` определяет конкретный тип действия `report_runListEntityReport`, предоставляемый фреймворком.
+
+Пример программного создания действия вместе с кнопкой, объявленной в XML-дескрипторе экрана:
+
+[source,java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/author/AuthorListView.java[tags=runBtn;actions;onInit;runList]
+----
+
+При выполнении действия, если ни одна сущность не была выбрана из компонента списка, будет отображено окно подтверждения.
+
+image::run-list-entity-report-action-confirmation.png[align="center",width="402"]
+
+После этого откроется модальное диалоговое окно *Run report*, в котором будут отображены отчеты, связанные с текущим экраном. Из этого модального окна пользователь может запустить какой-либо отчет для выбранной сущности.
+
+[[run-single-entity-report-action]]
+=== RunSingleEntityReportAction
+
+`io.jmix.reportsflowui.action.RunSingleEntityReportAction` - это действие, связанное с экраном деталей сущности. Действие выбирает только отчеты, имеющие внешний параметр типа *Entity* или *List of entities*, где тип сущности параметра совпадает с типом редактируемой сущности. Если в результате выбора доступен только один отчет, он вызывается немедленно. Если доступно несколько отчетов, их список предлагается пользователю для выбора.
+
+Значение внешнего параметра - экземпляр редактируемой сущности - передается в отчет. Если параметр имеет тип *List of entities*, то передается список, содержащий один элемент.
+
+Ниже приведен пример использования действия в кнопке, расположенной рядом со стандартными кнопками *OK* и *Cancel*:
+
+[source, xml,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/view/book/book-detail-view.xml[tags=detailActions]
+----
+
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/book/BookDetailView.java[tags=actions;reportButton;onInitEntity;RunSingleEntityReportAction]
+----
+
+[[reports-api]]
+== API отчетов
+
+TIP: Используйте xref:jmix:studio:code-snippets.adoc[], чтобы сгенерировать код для запуска отчетов с помощью API.
+
+[[report-runner]]
+=== ReportRunner
+
+`ReportRunner` - это интерфейс, используемый для запуска отчетов. Все его методы возвращают объект `ReportOutputDocument`, который содержит результат выполнения отчета.
+
+Ниже приведено несколько примеров использования `ReportRunner`.
+
+. Запуск отчета на основе информации, указанной в объекте <<report-run-context,ReportRunContext>>:
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=inject-report-runner;rrc-btn2-start;report-runner-v1;rrc-btn2-end]
+----
+<1> `ReportRunContext` содержит сущность отчета и параметры.
+
+. Запуск отчета по его коду и дополнительной информации, указанной с использованием интерфейса fluent:
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=inject-report-runner;rr-btn1-start;report-runner-v2;rr-btn1-end]
+----
+<1> Точка входа в fluent-интерфейс для отчета с указанным кодом.
+<2> Добавляет входной параметр в карту параметров.
+<3> Устанавливает код шаблона, который будет использоваться для запуска отчета.
+<4> Создает экземпляр `ReportRunContext` и запускает отчет, используя этот контекст запуска.
+
+. Запуск отчета по сущности отчета и дополнительной информации, указанной с использованием интерфейса fluent:
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=inject-report-runner;rr-btn2-start;report-runner-v3;rr-btn2-end]
+----
+<1> Устанавливает тип выходного документа.
+<2> Устанавливает шаблон имени выходного документа.
+
+Вы можете получить содержимое отчета и имя файла непосредственно из `ReportOutputDocument`:
+
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=get-content]
+----
+
+[[ui-report-runner]]
+=== UIReportRunner
+
+`UiReportRunner` - это интерфейс для выполнения отчетов из экранов приложения. В дополнение к опциям, необходимым для запуска отчета, `UiReportRunner` позволяет настроить следующие функции:
+
+* Отображение результата выполнения отчета в браузере (в случае табличных шаблонов).
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=run-and-show]
+----
+
+* Показывать ли диалог для ввода параметров отчета перед запуском. Используйте для этого `ParametersDialogShowMode`. Поддерживаются три режима:
+
+** `YES` - показывать диалог для ввода параметров отчета.
+** `NO` - не показывать диалог для ввода параметров отчета.
+** `IF_REQUIRED` - показывать диалог для ввода параметров отчета, если:
++
+*** Отчет имеет входные параметры;
+*** Отчет имеет несколько шаблонов;
+*** Отчет имеет один шаблон с изменяемым типом вывода.
+
+* Выполнять генерацию отчета синхронно или в фоновом режиме:
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=in-background]
+----
+
+* Запустить отчет несколько раз для указанного псевдонима параметра и значений:
++
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=run-multiple-reports]
+----
++
+Метод `runMultipleReports()` запускает отчет для каждого объекта из указанной коллекции. Объекты в коллекции должны иметь тот же тип, что и входной параметр с указанным псевдонимом.
+
+[[report-run-context]]
+=== ReportRunContext
+
+Класс `ReportRunContext` хранит следующую информацию, необходимую для запуска отчета:
+
+* Сущность `Report`;
+* Сущность `ReportTemplate`: если не указана, используется шаблон по умолчанию;
+* Входные параметры;
+* Тип выходного документа;
+* Шаблон имени выходного документа.
+
+Рассмотрим примеры создания `ReportRunContext`:
+
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=report-run-context-v1;report-run-context-v2]
+----
+
+[[report-zip-utils]]
+=== ReportZipUtils
+
+Интерфейс `ReportZipUtils` помогает упаковать список объектов `ReportOutputDocument` в один ZIP-архив.
+
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/view/runreport/RunReportView.java[tags=report-zip-utils]
+----
+
+// TODO cancel report #22
+// [[run_cancel]]
+// == Cancelling Reports Execution
+
+// If the report execution is running as a background task, it can be interrupted by the user.
+
+// To add the cancel option, set the xref:app-properties.adoc#jmix.reports.client.useBackgroundReportProcessing[jmix.reports.client.useBackgroundReportProcessing] property to `true`:
+
+// [source, groovy,indent=0]
+// ----
+// jmix.reports.client.useBackgroundReportProcessing = true
+// ----
+
+// Thus, the window with the progress bar and the *Cancel* button will be displayed:
+
+// .Cancel report
+// image::run_cancel.png[align="center"]
+
+// You can also set the processing timeout using the xref:app-properties.adoc#jmix.reports.client.backgroundReportProcessingTimeoutMs[jmix.reports.client.backgroundReportProcessingTimeoutMs] property:
+
+// [source, groovy,indent=0]
+// ----
+// jmix.reports.client.backgroundReportProcessingTimeoutMs = 30000
+// ----
+
+// When the time is up, the task will be canceled regardless the result, and the user will receive an error message:
+
+// .Report error
+// image::run_timeout.png[align="center"]
+
+// To cancel the report execution programmatically, use the `cancelReportExecution()` method of the `ReportService` interface that takes the identifiers of the user session and the report:
+
+// [source, java,indent=0]
+// ----
+// reportService.cancelReportExecution(userSessionId, report.getId());
+// ----

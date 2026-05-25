@@ -1,0 +1,188 @@
+= REST API отчетов
+:page-aliases: reports:api.adoc
+
+REST API дополнения Reports предоставляет следующие функции:
+
+* Получение списка отчетов.
+
+* Получение деталей по конкретному отчету.
+
+* Запуск отчета и получение результата.
+
+* Получение деталей по конкретной группе отчетов.
+
+* Получение документации Swagger.
+
+REST API отчетов использует протокол OAuth2 для аутентификации таким же образом, как и xref:rest:access-control.adoc[Generic REST].
+
+Чтобы включить REST API для отчетов, убедитесь, что ваш `build.gradle` содержит следующие зависимости:
+
+[source,groovy,indent=0]
+----
+include::example$/library/build.gradle[tags=reports-rest]
+----
+
+Чтобы сделать отчет доступным через REST API, установите флажок *Available through REST API* на вкладке xref:reports:creation/details.adoc[Детали отчета].
+
+Ниже мы предоставляем формальное описание некоторых функций, специфичных для дополнения Reports. Для получения дополнительной информации о том, как получить токен OAuth и о других функциях REST API, смотрите xref:rest:index.adoc[документацию] дополнения REST API.
+
+[[rest_reports_get_all]]
+== Получение списка отчетов
+
+--
+Список существующих отчетов можно получить с помощью следующего *GET* запроса:
+
+[source, plain,indent=0]
+----
+/rest/reports/report
+----
+
+Например:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report
+
+Authorization: Bearer j-Rn3PPAiH7cZZfaDiDWQEDp9YU
+Content-Type: application/json
+----
+
+Тело ответа будет содержать список краткой информации об отчетах, помеченных как *Available through REST API*:
+
+[source, json,indent=0]
+----
+[
+    {
+        "id": "cb090350-2694-e2bb-f5d9-813daa8dc418", //<1>
+        "name": "booksAvailability(xlsx)",//<2>
+        "code": "BOOKS_AVAIL",//<3>
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"//<4>
+    },
+    {
+        "id": "d8c7f4c5-2dd7-c7f1-7286-f8dd286d2603",
+        "name": "LiteratureTypes(csv)",
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"
+    }
+]
+----
+
+<1> ID отчета,
+<2> Название отчета,
+<3> xref:creation/details.adoc[Системный код отчета] (если существует),
+<4> ID группы.
+--
+
+[[rest_reports_get_one]]
+== Получение информации об отчете
+
+--
+Детальная информация о конкретном отчете извлекается с помощью следующего *GET* запроса:
+
+[source, plain,indent=0]
+----
+/rest/reports/report/{id}
+----
+
+Последняя часть запроса здесь - это идентификатор отчета, например:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report/cb090350-2694-e2bb-f5d9-813daa8dc418
+----
+
+Возвращаемый JSON-объект будет содержать следующую информацию о переданном отчете:
+
+* ID
+* название отчета
+* ID группы
+* xref:creation/details.adoc[системный код] (если существует)
+* xref:creation/templates.adoc[шаблоны отчета]
+* xref:creation/parameters.adoc[параметры] и их типы
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/report_info.json[]
+----
+--
+
+[[rest_reports_run]]
+== Запуск отчета
+
+--
+Чтобы запустить отчет, отправьте следующий *POST* запрос:
+
+[source, plain,indent=0]
+----
+/rest/reports/run/{id}
+----
+
+Последняя часть запроса здесь - это идентификатор отчета, например:
+
+[source, plain,indent=0]
+----
+POST http://localhost:8080/rest/reports/run/2dd27fbf-8830-416a-899f-339543f8f27a
+----
+
+Параметры отчета передаются в теле запроса:
+
+[source, plain,indent=0]
+----
+{parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+
+Чтобы напечатать отчет с нестандартным шаблоном, передайте код шаблона в теле запроса:
+
+[source, plain,indent=0]
+----
+{template: 'Template_1', parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+--
+
+[[rest_reports_get_group_details]]
+== Получение информации о группе отчетов
+
+--
+Детальная информация о конкретной группе отчетов извлекается с помощью следующего *GET* запроса:
+
+[source, plain,indent=0]
+----
+/rest/reports/group/{groupId}
+----
+
+Последняя часть запроса здесь - это идентификатор группы, например:
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/group/4e083530-0b9c-11e1-9b41-6bdaa41bff94
+----
+
+Возвращаемый JSON-объект будет содержать следующую информацию о переданной группе:
+
+* ID группы
+* название группы
+* код группы (если существует)
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/group_info.json[]
+----
+--
+
+[[rest_reports_openapi]]
+== Получение документации OpenAPI
+
+--
+Полная документация OpenAPI по дополнению Reports может быть получена с помощью GET запроса по адресу:
+
+[source, plain,indent=0]
+----
+http://localhost:8080/rest/reports/docs/openapi.json
+http://localhost:8080/rest/reports/docs/openapi.yaml
+----
+
+[CAUTION]
+====
+При получении `openapi.yaml` с сервера ответ возвращает тип контента `application/yaml`, поэтому в заголовке запроса следует использовать `Accept: application/yaml`.
+====
+
+--

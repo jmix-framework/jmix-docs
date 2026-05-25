@@ -1,0 +1,274 @@
+= Создание сущностей
+
+Entities API позволяет создавать сущности с помощью выполнения запроса `POST` к операции (endpoint) `/entities/:entityName`.
+
+[[create-entity]]
+== Создать сущность
+
+Тело запроса содержит объект JSON с атрибутами сущности.
+
+NOTE: Атрибуты из xref:data-model:entities.adoc#traits[черт сущностей], такие как `id` или `createdBy`, не должны добавляться в запрос. Jmix автоматически добавляет эти атрибуты при сохранении сущности.
+
+Когда сущность успешно создана, возвращается код состояния HTTP `201 - Created`. По умолчанию возвращается представление метаданных сущности в формате JSON, в основном содержащее только что созданный атрибут `id` для дальнейшего использования.
+
+[source, http request]
+.Create Customer Request
+----
+POST http://localhost:8080/rest/entities/sample_Customer
+
+{
+  name: "Randall Bishop"
+}
+----
+
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "_entityName": "sample_Customer",
+  "_instanceName": "Randall Bishop",
+  "id": "78e7996d-8b69-6526-8e9f-16262a1c4113"
+}
+----
+
+В качестве альтернативы можно определить, какие атрибуты должны быть возвращены после создания объекта. Это можно сделать с помощью параметра URL-запроса `responseFetchPlan`.
+
+Например, URL `/entities/sample_Order?responseFetchPlan=order-with-details` будет возвращать полный заказ Order со всеми его деталями, включая строки заказа, ссылки на клиентов и т. д.
+
+TIP: Заголовок ответа HTTP `Location` также указывает URL-адрес созданного экземпляра сущности для дальнейших операций (таких как извлечение, обновление или удаление).
+
+[[entity-validation]]
+== Валидация сущности
+
+При создании или обновлении сущности активна и применяется обычная валидация сущности по умолчанию. Это означает, что недопустимый ввод (в соответствии с аннотациями валидации сущности) из API отклоняется с кодом состояния HTTP `400 - Bad Request` в ответе.
+
+API возвращает подробные сообщения об ошибках для каждого нарушения валидации в форме массива JSON, показанной ниже. Каждая запись имеет следующую структуру:
+
+message:: (переведенное) удобочитаемое сообщение об ошибке валидации
+messageTemplate:: неинтерполированное сообщение об ошибке для данного нарушения ограничения
+path:: имя атрибута (или путь к свойству), вызвавшего нарушение
+invalidValue:: значение, которое было частью запроса атрибута, вызывающего нарушение
+
+
+Следующий запрос содержит две ошибки в запросе, так как 1. требуется атрибут `customer` и 2. дата `date` не может быть в будущем.
+
+[source, http request]
+.Invalid Order Request
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "date": "2048-01-01",
+  "amount": 49.99,
+  "customer": null
+}
+----
+
+Затем API возвращает список нарушений валидации сущности.
+
+[source, json]
+.Response: 400 - Bad Request
+----
+[
+  {
+    "message": "jakarta.validation.constraints.PastOrPresent.message",
+    "messageTemplate": "{jakarta.validation.constraints.PastOrPresent.message}",
+    "path": "date",
+    "invalidValue": "2048-01-01"
+  },
+  {
+    "message": "may not be null",
+    "messageTemplate": "{jakarta.validation.constraints.NotNull.message}",
+    "path": "customer",
+    "invalidValue": null
+  }
+]
+----
+
+[[association-attributes]]
+== Атрибуты ассоциации
+
+Если создаваемая сущность должна быть связана с другой существующей сущностью, в запросе необходимо указать ссылку на нужную сущность.
+
+Возьмем предыдущий пример с заказом (Order). Вам нужно сослаться на Customer через атрибут `customer` при создании Order. Это делается с помощью объекта JSON, содержащего только идентификатор существующей сущности. Jmix выполнит поиск по customer по предоставленному идентификатору из запроса JSON и свяжет Customer с новым Order.
+
+[source, http request]
+.Request with N:1 reference
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08
+}
+----
+
+Для всех видов ассоциаций `1:N`, `N:1`, `M:N` ссылки на другие сущности всегда осуществляются через их идентификатор.
+
+Во втором примере показано, как связать `Product` с несколькими сущностями `ProductTag` через отношение `M:N`, как описано в определении сущности Product.
+
+[source,java]
+.Product.java
+----
+
+@JmixEntity
+@Table(name = "SAMPLE_PRODUCT")
+@Entity(name = "sample_Product")
+public class Product {
+
+    @JoinTable(name = "SAMPLE_PRODUCT_PRODUCT_TAG_LINK",
+            joinColumns = @JoinColumn(name = "PRODUCT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PRODUCT_TAG_ID"))
+    @ManyToMany
+    private List<ProductTag> tags;
+
+    // ...
+
+}
+----
+
+В запросе экземпляры сущностей `ProductTag` являются ссылками по идентификаторам. В этот раз объект JSON помещается в массив, так как есть несколько тегов продукта для ссылки.
+
+[source, http request]
+.Request with `M:N` references
+----
+POST http://localhost:8080/rest/entities/sample_Product?responseFetchPlan=product-with-tags
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695" // <1>
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+----
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "id": "f0e04748-dcdf-d856-2482-2904f2126fcc",
+  "price": 99.95,
+  "name": "123",
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695", // <2>
+      "name": "shiny"
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502",
+      "name": "great"
+    }
+  ]
+}
+----
+<1> Ссылки на теги выполнены как список объектов JSON, содержащих идентификатор уже существующей `ProductTag`.
+<2> Ответ содержит сохраненную ассоциацию с двумя сущностями `ProductTag`.
+
+[[composition-attributes]]
+== Атрибуты композиции
+
+Ситуация с атрибутами, помеченными как `@Composition`, несколько иная. Поскольку этот тип отношения указывает, что дочерние сущности существуют только как часть родительской, становится возможно создавать их напрямую как часть запроса на создание родительской сущности.
+
+В следующем примере `OrderLine` является дочерней сущностью `Order`. Это выражается через аннотацию `@Composition` атрибута `lines` сущности `Order`.
+
+[source, java]
+.Order.java
+----
+public class Order {
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
+
+    @Composition
+    @OneToMany(mappedBy = "order")
+    private List<OrderLine> lines;
+
+    // ...
+}
+----
+
+При создании Order через API можно создавать его строки напрямую как часть запроса. В этом случае необходимо предоставить все атрибуты дочерней сущности. Отношение от родительского к дочернему элементу не нуждаются в дополнительных ссылках. Чтобы установить связь, достаточно поместить дочернюю сущность в массив JSON.
+
+Следующий запрос JSON создаст заказ Order со строками заказа:
+
+[source, http request]
+.Request with child entities
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": [ // <1>
+    {
+      "quantity": 2,
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83"  // <2>
+      }
+    },
+    {
+      "quantity": 1,
+      "product": {
+        "code": "1ed85c7a-89f1-c339-a738-16307ed6003a"
+      }
+    }
+  ]
+}
+----
+<1> Строки заказа создаются как массив объектов JSON, содержащий все атрибуты сущности.
+<2> В случае, если дочерней сущности необходимо сослаться на другую сущность (например, ссылку `N:1` с `OrderLine` на `Product`), применяются те же правила связи через содержащий идентификатор объект JSON.
+
+[[bulk-creation]]
+== Массовое создание
+
+Create Entity API позволяет также создавать несколько сущностей в одном запросе. Для этого тело запроса JSON должно содержать массив объектов JSON, представляющих каждую сущность.
+
+[source, http request]
+.Bulk Creation Request
+----
+POST http://localhost:8080/rest
+            /entities
+            /sample_Customer
+
+[
+  {
+    "name": "Randall Bishop"
+  },
+  {
+    "name": "Sarah Doogle"
+  }
+]
+----
+
+[source, json]
+.Response: 201 - Created
+----
+[
+  {
+    "id": "c5fea05d-9062-6ac8-e9b1-7051616de102"
+  },
+  {
+    "id": "4a6a3aa0-ecf5-dcf4-7b37-a268a4cd3720"
+  }
+]
+----
+
+В случае нарушения валидации, сущности не будут созданы, и будет возвращено соответствующее сообщение об ошибке. Подробнее см. в разделе <<entity-validation>>.
+
+////
+NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.
+////

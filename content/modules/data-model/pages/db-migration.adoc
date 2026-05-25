@@ -1,0 +1,115 @@
+= Миграция схемы БД
+
+_Миграция схемы базы данных_, или сокращенно миграция базы данных, – это процесс обновления схемы базы данных в соответствии с изменениями модели данных приложения.
+
+Jmix использует https://www.liquibase.org[Liquibase^] в качестве инструмента миграции базы данных.
+
+[[workflow]]
+== Процесс
+
+Jmix Studio создает скрипты миграции в формате Liquibase changelog, сравнивая текущее состояние xref:entities.adoc[сущностей] JPA с текущей схемой базы данных соответствующего xref:data-stores.adoc[хранилища данных]. Это происходит автоматически при xref:jmix:studio:project.adoc#starting-application[запуске приложения] с использованием конфигурации Run/Debug. Файл changelog сохраняется в исходном коде приложения и собирается в составе бинарного артефакта.
+
+TIP: Автоматическую генерацию Liquibase changelog можно отключить, открыв на редактирование xref:studio:project.adoc#run-debug-configuration-settings[Run/Debug configuration] и удалив шаг *Check Jmix Database*, выполняющийся перед запуском.
+
+Когда приложение запускается, оно автоматически запускает Liquibase со сгенерированными changelog для обновления подключенной базы данных.
+
+TIP: Вы также можете в любое время создать changelog с помощью xref:jmix:studio:data-stores.adoc#data-store-actions[действия] *Generate Liquibase Changelog* и выполнить его с помощью действия *Update* в хранилище данных в окне инструментов Studio Jmix.
+
+Дополнения, от которых зависит ваше приложение, также могут содержать файлы Liquibase changelog. Файлы changelog из зависимостей выполняются в базе данных раньше, чем в приложении.
+
+[[changelogs]]
+== Структура файлов changelog
+
+Studio генерирует файлы changelog в каталоге `src/main/resources/<base_package>/liquibase` проекта приложения. Там Studio создает каталог `changelog` для основного хранилища данных и каталоги `<store>-changelog` для дополнительных хранилищ данных. Файлы changelog создаются в подкаталогах, соответствующих году и месяцу текущей даты. Имя каждого файла включает текущий день, порядковый номер в течение дня и случайную последовательность символов, чтобы избежать конфликтов, если несколько разработчиков работают над одним и тем же проектом.
+
+.src/main/resources/com/company/demo/
+[source,text]
+----
+├── liquibase/ <1>
+│   ├── changelog/ <2>
+│   │   ├── 010-init-user.xml <3>
+│   │   └── 2020/
+│   │       ├── 11/
+│   │       │   ├── 12-010-fe2b82e6.xml <4>
+│   │       │   └── 27-010-fe2b82e6.xml
+│   │       └── 12/
+│   │           └── 17-010-fe2b82e6.xml
+│   ├── changelog.xml <5>
+│   ├── locations-changelog/ <6>
+│   │   └── 2020/
+│   │       └── 11/
+│   │           ├── 25-010-fe2b82e6.xml
+│   │           └── 28-010-fe2b82e6.xml
+│   └── locations-changelog.xml <7>
+----
+
+<1> Корень структуры файлов changelog Liquibase.
+<2> Каталог файлов changelog основного хранилища данных.
+<3> Файл changelog, предоставляемый в новом проекте. Он создает таблицу для сущности `User`.
+<4> Файлы changelog, которые генерирует Studio.
+<5> Корневой файл changelog основного хранилища данных.
+<6> Каталог файлов changelog хранилища данных `locations`.
+<7> Корневой файл changelog хранилища данных `locations`.
+
+Для каждого хранилища данных существует корневой файл changelog, расположенный в каталоге `src/main/resources/<base_package>/liquibase`. Он содержит директиву для включения всех сгенерированных файлов changelog в подкаталог `changelog`. Проект должен содержать свойство `<data-store-name>.liquibase.change-log`, указывающее путь к корневому changelog, например:
+
+[source,text]
+----
+main.liquibase.change-log = com/company/demo/liquibase/changelog.xml
+----
+
+Корневой файл Liquibase changelog для главного хранилища содержит директивы `include` для файлов changelog всех дополнений, используемых в проекте. Это делает changelog совместимым с плагином https://github.com/liquibase/liquibase-gradle-plugin[Gradle для Liquibase^] и Liquibase CLI, что позволяет запускать Liquibase вне Studio и приложения, например на сервере CI.
+
+Studio поддерживает включения автоматически при добавлении и удалении дополнений. Кроме того, при старте приложения Studio проверяет что включения в корневом changelog соответствуют дополнениям, используемым в проекте. При обнаружении расхождения отображается диалог с рекомендациями. Определенные пути можно добавить в игнорируемые, чтобы не получать о них уведомление впредь.
+
+Вы можете написать файлы changelog Liquibase вручную и поместить их в структуру, описанную выше. Liquibase выполняет включенные файлы changelog в алфавитном порядке, учитывая их полный путь, поэтому давайте файлам соответствующие имена.
+
+WARNING: Никогда не удаляйте корневой файл `changelog.xml`, так как он требуется для запуска процесса миграции. Кроме того, не удаляйте файл `changelog/010-init-user.xml` если не собираетесь реализовывать нестандартную систему безопасности.
+
+TIP: Вы можете объединить несколько последних файлов changelog в один файл, используя действие *Aggregate Liquibase Changelogs* в xref:studio:data-stores.adoc#data-store-actions[контекстном меню] хранилища данных в Jmix Studio.
+
+[[configuration]]
+== Настройка Liquibase
+
+Вы можете настроить свойства Liquibase для основного хранилища данных в `application.properties` таким же образом, как описано в {spring-boot-doc}/appendix/application-properties/index.html#appendix.application-properties.data-migration[документации Spring Boot] (см. свойства `spring.liquibase.*`), но заменяя префикс `spring.liquibase` на `main.liquibase`, например:
+
+[source,text]
+----
+main.liquibase.enabled = false
+----
+Для xref:data-stores.adoc#additional[дополнительного хранилища данных] замените `main` в имени свойства именем этого хранилища.
+
+[NOTE]
+====
+Файл `application.properties` должен содержать явный путь к корневому файлу Liquibase changelog для каждого хранилища. Например:
+
+[source,text]
+----
+main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
+
+second.liquibase.change-log=com/company/demo/liquibase/second-changelog.xml
+----
+====
+
+[[ignoring-existing-tables]]
+=== Игнорирование существующих таблиц
+
+По умолчанию, Jmix Studio сравнивает с моделью данных все таблицы базы данных, и генерирует скрипты миграции, включающие команды `DROP TABLE` для таблиц, не отображенных на сущности. Если в вашей базе данных есть таблицы, не связанные с сущностями приложения, вы можете проигнорировать их, указав их префиксы или имена целиком через запятую в свойстве `main.datasource.studio.liquibase.exclude-prefixes`. Например:
+[source, properties]
+----
+main.datasource.studio.liquibase.exclude-prefixes = abc_,foo,bar
+----
+
+[[ignoring-foreign-key-constraint]]
+=== Игнорирование внешнего ключа
+
+Jmix Studio учитывает ограничения JPA при генерации changelog файлов. Если вам нужен столбец без внешнего ключа (например, при работе с устаревшей схемой базы данных), установите `ConstraintMode.NO_CONSTRAINT` в `@JoinColumn` на стороне владельца:
+
+[source,java]
+----
+@JoinColumn(name = "AUTHOR_ID",
+        foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+private Author author;
+----
+
+Если указан `ConstraintMode.NO_CONSTRAINT` в сгенерированном changelog будут скрипты для создания колонки и индекса, но не для внешнего ключа.

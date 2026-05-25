@@ -1,0 +1,93 @@
+= Управление транзакциями
+
+Jmix поддерживает оба стандартных способа управления транзакциями в приложениях Spring: декларативный (с аннотациями) и программный.
+
+[[declarative-transactions]]
+== Декларативное управление транзакциями
+
+Самый простой способ управления транзакциями в приложениях Jmix – это использовать аннотацию `@org.springframework.transaction.annotation.Transactional`. Она указывает метод, который должен выполняться внутри транзакции базы данных. При использовании на уровне класса `@Transactional` применяется ко всем методам этого класса и его подклассов.
+
+Аннотация `@Transactional` автоматически создаст транзакцию при вызове метода, а коммит или откат будут управляться Spring неявно. Таким образом, декларативное управление транзакциями позволяет сократить объем шаблонного кода.
+
+Для уточнения поведения `@Transactional` можно использовать ряд параметров, например, уровень изоляции или распространения: эти параметры описаны в https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html[документации Spring^].
+
+Пример использования `@Transactional` для обновления нескольких сущностей в рамках одной транзакции:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/TransactionService.java[tags=transactional]
+----
+<1> Просто разместите аннотацию, Spring сделает все остальное: прокси будет создан для инжектирования транзакционной логики до (запуска транзакции) и после (коммита или отката) запущенного метода.
+
+CAUTION: Имейте в виду, что декларативная разметка работает только в том случае, если метод вызывается в экземпляре, инжектированном в другой бин, или полученном с помощью `ApplicationContext.getBean()`, то есть через созданный контейнером прокси. Вызов аннотированного метода из другого метода того же объекта не приведет к запуску транзакции.
+
+Если нужно объявить транзакцию для xref:data-model:data-stores.adoc#additional[дополнительного хранилища данных], укажите имя бина менеджера транзакций хранилища в аннотации `@Transactional`. Если хранилище данных создано с помощью Studio, имя бина его менеджера транзакций – `<DATA-STORE-NAME>TransactionManager`. Например, если имя хранилища данных – `db1`, транзакционный метод для него определяется следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/TransactionService.java[tags=transactional-additional-ds]
+----
+
+[[programmatic-transactions]]
+== Программное управление транзакциями
+
+Для программного управления транзакциями Spring предлагает `org.springframework.transaction.support.TransactionTemplate`.
+
+[[creating-transaction-template]]
+=== Создание TransactionTemplate
+
+Чтобы создать экземпляр `TransactionTemplate`, можно объявить бин в основном классе приложения (с аннотацией `@SpringBootApplication`) и инициализировать его с помощью `PlatformTransactionManager`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/DemoApplication.java[tags=transaction-template]
+----
+
+Теперь вы можете инжектировать `TransactionTemplate` в любой бин приложения:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=transaction-template-inject]
+----
+
+Для дополнительных хранилищ данных, если таковые имеются, требуются собственные экземпляры `TransactionTemplate`. Если создать дополнительное хранилище данных с помощью Studio, класс конфигурации Spring хранилища данных будет автоматически создан с некоторыми бинами. Добавьте новый бин для создания `TransactionTemplate` с аннотацией `Qualifier` следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/Db1StoreConfiguration.java[tags=transaction-template]
+----
+<1> Аннотация `@Qualifier` используется для инжектирования конкретного бина по его имени: в данном случае это `PlatformTransactionManager`, определенный для дополнительного хранилища данных с именем `db1`.
+
+Таким образом, можно инжектировать необходимый `TransactionTemplate` с аннотацией `Qualifier` для управления транзакциями в дополнительном хранилище данных:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/TransactionService.java[tags=transaction-template-inject]
+----
+<1> Здесь аннотация `@Qualifier` позволяет Spring выбрать бин, который мы определили выше для хранилища данных `db1`.
+
+Если вам не нужно, чтобы `TransactionTemplate` был доступен везде в проекте, можно создать его локально в бине, используя `PlatformTransactionManager`. В приведенном ниже примере показано создание двух шаблонов с различным поведением при распространении:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=transaction-template]
+----
+
+[[using-transaction-template]]
+=== Использование TransactionTemplate
+
+Используйте метод `execute()` для запуска блока кода внутри транзакции. Этот метод обрабатывает жизненный цикл транзакции и возможные исключения, поэтому вам не нужно обрабатывать их явно:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=transaction-template-execute]
+----
+
+Если вам не нужно возвращать какой-либо результат из блока транзакционного кода, можно использовать метод `executeWithoutResult()`, который является производным от `execute()`, но использует интерфейс обратного вызова `TransactionCallbackWithoutResult`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=transaction-template-without-result]
+----
+
+https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#tx-prog-template-settings[ Параметры транзакции^] по умолчанию, такие как режим распространения, уровень изоляции, время ожидания и т.д., Можно настроить с помощью сеттеров `TransactionTemplate`.

@@ -1,0 +1,417 @@
+= Работа с DataManager
+
+`DataManager` – это основной интерфейс для CRUD (Create, Read, Update, Delete) операций с сущностями. Он позволяет загружать графы сущностей по идентификатору или запросу, сохранять измененные экземпляры или удалять их. Вы можете использовать слушатели xref:data-access:entity-events.adoc[событий сущностей] для выполнения действий по загрузке и сохранению определенных сущностей. `DataManager` поддерживает ссылки между сущностями из разных хранилищ данных как для JPA и DTO, так и для смешанных графов сущностей.
+
+Вы можете инжектировать `DataManager` в бин Spring или контроллер экрана, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=inject-dm]
+----
+
+В приведенных ниже примерах переменная `dataManager` является ссылкой на `DataManager`.
+
+[[load]]
+== Загрузка сущностей
+
+`DataManager` предоставляет fluent API для загрузки сущностей. Используйте методы `load()`, принимающие класс сущности или `Id`, в качестве точек входа в этот API.
+
+[[load-by-id]]
+=== Загрузка сущности по идентификатору
+
+Следующий метод загружает сущность по значению ее идентификатора:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-id]
+----
+<1> Точка входа в fluent loader API.
+<2> Метод `id()` принимает значение идентификатора.
+<3> Метод `one()` загружает экземпляр сущности. Если нет сущности с заданным идентификатором, метод выдает исключение `IllegalStateException`.
+
+Идентификатор также может быть указан с помощью класса `Id<E>`, который содержит информацию о типе сущности. Тогда в прикладном коде не нужно использовать конкретный тип идентификатора сущности (`UUID`, `Long` и т.п.), и код загрузки становится еще короче:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-generic-id]
+----
+
+Если сущность с заданным идентификатором может не существовать, вместо терминального метода `one()` используйте `optional()`, который возвращает `Optional<E>`. В приведенном ниже примере если сущность не найдена, создается и возвращается новый экземпляр:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-optional]
+----
+<1> Возвращает `Optional<Customer>`.
+
+Вы также можете загрузить список сущностей по их идентификаторам, переданным в метод `ids()`, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-ids]
+----
+
+Сущности в списке результатов будут в том же порядке, что и предоставленные идентификаторы.
+
+[[load-all]]
+=== Загрузка всех сущностей
+
+Следующий метод загружает все экземпляры сущности в список:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-all]
+----
+
+CAUTION: Загружайте все экземпляры только в том случае, если вы уверены, что количество строк в соответствующей таблице всегда будет небольшим. В противном случае используйте <<load-by-query,запрос>>, <<load-by-query,условия>> и/или <<paging-and-sorting,пейджинг>>.
+
+[[load-by-query]]
+=== Загрузка сущностей по запросу
+
+При работе с реляционными базами данных используйте запросы на https://en.wikibooks.org/wiki/Java_Persistence/JPQL[JPQL^] для загрузки данных. В разделе xref:data-access:jpql-extensions.adoc[] приведена информация о том, чем JPQL в Jmix отличается от стандартного JPA. Также обратите внимание, что `DataManager` может выполнять только запросы "select".
+
+Следующий метод загружает список сущностей, используя полный запрос на JPQL и два параметра:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-full-query]
+----
+
+Метод `query()` fluent-интерфейса принимает строку запроса как в полном, так и в сокращенном формате. Сокращенный запрос формируется следующим образом:
+
+* Выражение `"select <alias>"` всегда можно опустить.
+
+* Если выражение `"from"` содержит одну сущность, и вам не нужен особенный алиас, то выражение `"from <entity> <alias> where"` можно опустить. В этом случае фреймворк будет использовать алиас `e`.
+
+* Можно использовать позиционные параметры и передавать их значения прямо в метод `query()` в дополнительных аргументах.
+
+Ниже приведен сокращенный эквивалент предыдущего примера:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-query]
+----
+
+Пример более сложного сокращенного запроса с join:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-by-query]
+----
+
+[[load-by-conditions]]
+=== Загрузка сущностей по условиям
+
+Вы можете использовать условия вместо запроса на JPQL для фильтрации результатов. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-conditions]
+----
+<1> Метод `condition()` принимает одно корневое условие.
+<2> Метод `LogicalCondition.and()` создает условие AND с заданными вложенными условиями.
+<3> Условия свойства сравнивают атрибуты сущности с указанными значениями.
+
+Если вам нужно одно условие свойства, передайте его непосредственно в метод `condition()`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-condition]
+----
+
+`PropertyCondition` позволяет указать свойства ссылаемых сущностей, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-by-condition]
+----
+
+[[load-scalars]]
+=== Загрузка скалярных и агрегатных значений
+
+Помимо экземпляров сущностей, `DataManager` может загружать скалярные и агрегатные значения в виде xref:data-model:entities.adoc#key-value[сущностей Key-Value].
+
+Метод `loadValues(String query)` загружает список экземпляров `KeyValueEntity`, заполненный результатами данного запроса. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-values]
+----
+<1> Обозначение хранилища данных, в котором находятся запрашиваемые сущности. Данный метод можно опустить, если сущность находится в основном хранилище.
+<2> Перечисление имен атрибутов результирующей сущности Key-Value. Порядок имен должен соответствовать колонкам результирующего набора в запросе.
+<3> Получение загруженных значений из атрибутов сущности Key-Value.
+
+Метод `loadValue(String query, Class valueType)` загружает одно значение заданного типа с помощью запроса. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-value]
+----
+<1> Тип возвращаемого значения.
+<2> Обозначение хранилища данных, в котором находятся запрашиваемые сущности. Данный метод можно опустить, если сущность находится в основном хранилище.
+
+[[load-scalars-limitations]]
+==== Ограничения
+
+Методы `loadValues()` и `loadValue()` имеют следующие ограничения:
+
+. Запрос должен быть валидным JPQL запросом для одного указанного хранилища данных. Он может содержать только персистентные атрибуты JPA-сущностей.
+
+. xref:data-model:entities.adoc#cross-data-store-ref[Ссылки между сущностями из разных хранилищ] не поддерживаются.
+
+. Данные методы не реализованы в xref:rest-ds:index.adoc[].
+
+[[element-collections]]
+=== Коллекции элементов
+
+Учитывайте следующую информацию при работе с xref:data-model:entities.adoc#element-collections[коллекциями элементов].
+
+[[element-collection-queries]]
+==== Запросы с коллекциями элементов
+
+Используйте `join` для запроса сущностей по значению элемента:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag]
+----
+
+Сокращенный запрос должен включать предложение `from`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag-like]
+----
+
+Так можно найти пустые коллекции:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-empty-tags]
+----
+
+Используйте `join` при загрузке коллекций элементов как скалярных значений. Следующий метод вернет список `KeyValueEntity` с парами "имя -> тег":
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-values]
+----
+
+Все элементы коллекции можно загрузить с помощью следующего запроса:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-value]
+----
+
+[CAUTION]
+====
+*Не поддерживается*:
+
+* Коллекция элементов как скалярное значение. Следующий запрос вызовет ошибку: `select p.name, p.tags from sample_Product p`
+* Оператор `in`. Следующий запрос вызовет ошибку: `select p from sample_Product p where :tag in (p.tags)`
+====
+
+[[element-collection-conditions]]
+==== Условия с коллекциями элементов
+
+При использовании `PropertyCondition` операции `[NOT_]EQUAL`, `GREATER[_OR_EQUAL]`, `LESS[_OR_EQUAL]`, `CONTAINS`, `[STARTS|ENDS]_WITH` сравнивают элементы коллекции.
+
+Например, следующий метод фактически выполняет запрос `select e from sample_Product e join e.tags t where t = :tag` и возвращает продукты, содержащие заданное значение в своей коллекции `tags`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-tag-using-condition]
+----
+
+Так можно найти пустые коллекции с помощью `PropertyCondition`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/ProductService.java[tags=load-by-empty-tags-using-condition]
+----
+
+[[paging-and-sorting]]
+=== Пейджинг и сортировка
+
+При загрузке сущностей с использованием методов `all()`, `query()` или `condition()` результаты можно сортировать и разбивать на страницы.
+
+Используйте методы `firstResult()` и `maxResults()` для пейджинга:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-page-by-query]
+----
+
+Используйте метод `sort()` для сортировки результатов:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-and-sort]
+----
+
+В методе `Sort.by()` можно указать свойства ссылаемых сущностей, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=load-sorted]
+----
+
+При загрузке с помощью запроса на JPQL можно использовать стандартное выражение `order by` в запросе:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-by-query-sorted]
+----
+
+[[lock]]
+=== Блокировка
+Метод `lockMode()` с параметром из перечисления `jakarta.persistence.LockModeType` используется для задания блокировки JPA сущностей на уровне базы данных. В следующем примере показано получение пессимистичной блокировки при выполнении SQL запроса вида `select ... for update`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=using-locks]
+----
+
+[[save]]
+== Сохранение сущностей
+
+Используйте метод `save()` для сохранения новых и измененных сущностей в базу данных.
+
+В своей простейшей форме этот метод принимает экземпляр сущности и возвращает сохраненный экземпляр:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save]
+----
+
+NOTE: Обычно переданные и возвращаемые экземпляры не совпадают. На возвращаемый экземпляр могут повлиять слушатели событий сущности, триггеры базы данных или права доступа. Поэтому, если вам нужно сохранить сущность, а затем продолжить работу с ней, всегда используйте экземпляр, возвращенный методом `save()`.
+
+Метод `save()` может принимать несколько экземпляров одновременно. В этом случае он возвращает объект `EntitySet`, из которого можно легко получить сохраненные экземпляры. В приведенном ниже примере создаются и сохраняются две связанные сущности и возвращается одна из них:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-multiple]
+----
+<1> Сохранение двух связанных сущностей. Порядок параметров `save()` не имеет значения.
+<2> Метод `EntitySet.get()` позволяет получить сохраненный экземпляр по его исходному экземпляру.
+
+Наиболее универсальная форма метода `save()` принимает объект `SaveContext`, который можно использовать для добавления нескольких экземпляров и указания дополнительных параметров сохранения. В приведенном ниже примере коллекция сущностей сохраняется с использованием `SaveContext`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-context]
+----
+
+[[save-performance]]
+=== Производительность операции сохранения
+
+Существует несколько методик улучшения производительности операции сохранения. Они особенно полезны при работе с большими коллекциями сущностей.
+
+Во первых, вместо передачи каждого экземпляра в метод `save(entity)` по отдельности, рекомендуется сохранять все экземпляры в одной транзакции (если коллекция не слишком большая, не более 1000). Это можно сделать, добавляя экземпляры в `SaveContext` и используя метод `save(SaveContext)`, как было рассмотрено в предыдущем разделе.
+
+Если сохраненные экземпляры не нужны вам немедленно, используйте метод `SaveContext.setDiscardSaved(true)`. Это повысит производительность, поскольку `DataManager` не будет извлекать сохраненные cущности из базы данных. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-discard]
+----
+
+Если не требуется проверка разрешений безопасности для текущего пользователя, можно получить дополнительный выигрыш в производительности используя `UnconstrainedDataManager`. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-unconstrained]
+----
+
+Если коллекция большая (более 1000 экземпляров), нужно обязательно разбивать операцию сохранения на пакеты. Например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=save-batches]
+----
+
+См. сравнение различных методов сохранения сущностей в проекте https://github.com/jmix-framework/jmix-data-performance-tests[jmix-data-performance-tests^] на GitHub.
+
+[[remove]]
+== Удаление сущностей
+
+Используйте метод `remove()` для удаления сущностей из базы данных.
+
+В своей простейшей форме данный метод принимает экземпляр сущности для удаления:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove]
+----
+
+Также метод `remove()` может принимать несколько экземпляров, массивов и коллекций:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove-list]
+----
+
+Если вы удаляете связанные объекты, может быть важен порядок параметров. Сначала передайте сущности, которые зависят от других, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=remove-multiple]
+----
+
+Если у вас нет экземпляра сущности, а есть только его идентификатор, создайте объект `Id` из идентификатора и передайте его методу `remove()`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=remove-by-id]
+----
+
+Если вам необходимо указать дополнительные параметры операции удаления, например, чтобы отключить xref:data-model:soft-deletion.adoc[мягкое удаление] и полностью удалить из базы данных сущность с чертой Soft Delete, используйте метод `save()` с `SaveContext` и передайте удаленные сущности его методу `removing()`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=hard-delete]
+----
+
+[[transactions]]
+== Транзакции в DataManager
+
+При работе с JPA сущностями `DataManager` по умолчанию использует текущую транзакцию или создает и коммитит новую, если текущей транзакции нет.
+
+Управлять транзакциями можно используя аннотации или `TransactionTemplate`, как описано в разделе xref:transactions.adoc[].
+
+Кроме того, `DataManager` позволяет контролировать свое собственное внутреннее транзакционное поведение.
+
+При загрузке данных с использованием fluent API можно использовать метод `joinTransaction(false)`, чтобы начать и закоммитить отдельную транзакцию для данной операции:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=load-in-separate-transaction]
+----
+
+При сохранении сущностей используйте метод `setJoinTransaction(false)` класса `SaveContext`, чтобы начать и закоммитить отдельную транзакцию для операции с этим контекстом:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=save-in-separate-transaction]
+----
+
+[[security]]
+== Безопасность в DataManager
+
+`DataManager` выполняет проверки xref:security:resource-roles.adoc#entity-policy[политики сущностей]:
+
+* Если у пользователя нет прав на действия CREATE, UPDATE или DELETE, методы `save()` и `remove()` выбросят исключение `io.jmix.core.security.AccessDeniedException` при соответствующей операции.
+
+* Если у пользователя нет прав на действие READ, методы `load()` вернут пустой результат: `null` или пустой список. Это касается только корневой сущности загруженного графа объектов; ссылки загружаются всегда.
+
+`DataManager` также учитывает xref:security:row-level-roles.adoc#policies[политики уровня строк]. JPQL-политика влияет только на корневую сущность загруженного графа объектов, в то время как предикатная политика влияет на корневую сущность и все связанные сущности.
+
+Интерфейс `UnconstrainedDataManager` имеет те же методы, что и `DataManager`, но не проверяет политики безопасности. Его можно использовать вместо `DataManager`, чтобы обойти проверки безопасности в вашем коде, например:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=unconstrained-dm]
+----
+
+См. дополнительную информацию о безопасности в разделе xref:security:authorization.adoc#data-access-checks[Проверки доступа к данным].

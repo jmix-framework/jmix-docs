@@ -1,0 +1,164 @@
+= Фасеты во фрагментах
+
+Фрагменты поддерживают тот же механизм фасетов, что и экраны. Вы можете использовать предоставляемые фреймворком фасеты внутри фрагментов для добавления переиспользуемой функциональности. Общее введение в фасеты смотрите в разделе xref:flow-ui:facets.adoc[Фасеты].
+
+Следующие фасеты доступны для использования во фрагментах:
+
+* `timer` – создает клиентский таймер, который может инициировать периодические действия.
+* `fragmentSettings` – сохраняет настройки UI-компонентов для конкретного пользователя.
+* `fragmentDataLoadCoordinator` – управляет загрузкой данных во фрагмент.
+* `urlQueryParameters` – сохраняет состояние UI-компонентов в URL.
+
+Например:
+
+[source,xml,indent=0]
+----
+<fragment xmlns="http://jmix.io/schema/flowui/fragment">
+<!-- some code -->
+    <facets>
+        <timer id="timer" delay="1000" autostart="true" repeating="true"/>
+        <fragmentSettings auto="true"/>
+        <fragmentDataLoadCoordinator auto="true"/>
+        <urlQueryParameters>
+            <dataGridFilter component="usersDataGrid"/>
+            <pagination component="simplePagination"/>
+            <propertyFilter component="propertyFilter"/>
+            <genericFilter component="genericFilter"/>
+        </urlQueryParameters>
+    </facets>
+    <content>
+        <!-- some code -->
+    </content>
+</fragment>
+----
+
+[[facets-with-required-id]]
+[CAUTION]
+====
+Некоторые фасеты требуют, чтобы фрагмент имел идентификатор (ID). Вы можете установить его либо в XML с помощью атрибута `id`, либо программно в контроллере экрана.
+
+[source,xml,indent=0]
+.settings-fragment-view.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/usingfacetfragment/settings-fragment-view.xml[tags=xml-fragment]
+----
+<1> Включите фрагмент в экран, используя элемент `fragment` с атрибутом `class`, указывающим полное имя класса фрагмента, и атрибутом `id`, который будет присвоен фрагменту.
+<2> Контейнер `details` для программного определения фрагмента в контроллере экрана.
+
+Тот же фрагмент может быть создан программно с использованием бина `Fragments`. ID устанавливается в методе `create()`:
+
+.SettingsFragmentView.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/usingfacetfragment/SettingsFragmentView.java[tags=view]
+----
+<1> Инжектирует бин `Fragments`, который используется для создания фрагментов.
+<2> Создает экземпляр фрагмента, используя его класс контроллера и ID, который будет присвоен фрагменту.
+<3> Добавляет экземпляр фрагмента в компонент-контейнер `details`.
+====
+
+[[timer]]
+== Фасет Timer
+
+Фасет `timer` создает клиентский элемент таймера. Он использует ту же реализацию, что и xref:flow-ui:facets/timer.adoc[таймер] на уровне экрана, поэтому все свойства и события работают одинаково во фрагментах.
+
+Пример XML фрагмента:
+
+[source,xml,indent=0]
+.timer-fragment.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/fragments/timerfragment/timer-fragment.xml[tags=timer-fragment]
+----
+
+Пример контроллера фрагмента:
+
+.TimerFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/fragments/timerfragment/TimerFragment.java[tags=fragment-java]
+----
+
+[[fragmentSettings]]
+== Фасет Fragment Settings
+
+Фасет `fragmentSettings` сохраняет настройки для визуальных компонентов. Сохранение происходит при закрытии экрана, аналогично фасету xref:flow-ui:facets/settings.adoc[setting] для экранов.
+
+CAUTION: Фрагмент, использующий `fragmentSettings`, *должен иметь* идентификатор (ID). Вы можете установить его <<facets-with-required-id,в XML или программно>>.
+
+Ключевые отличия от настроек экрана:
+
+* Настройки применяются на событии `HostView.ReadyEvent` в жизненном цикле фрагмента (вместо `ReadyEvent` для экранов).
+* Это гарантирует, что настройки будут применены в максимально поздний момент жизненного цикла как экрана, так и фрагмента.
+* Каждый фрагмент на экране хранит свой собственный отдельный набор настроек.
+* Используется выделенный XML-тег `fragmentSettings`.
+
+Пример XML фрагмента:
+
+[source,xml,indent=0]
+.settings-fragment.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/fragments/settingsfragment/settings-fragment.xml[tags=xml-fragment]
+----
+
+Пример контроллера фрагмента:
+
+.SettingsFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/fragments/settingsfragment/SettingsFragment.java[tags=fragment-java]
+----
+
+[[fragmentDataLoadCoordinator]]
+== Фасет Fragment Data Load Coordinator
+
+Фасет `fragmentDataLoadCoordinator` управляет загрузкой данных во фрагменте. Например, вы можете установить триггер загрузки на определенные события жизненного цикла фрагмента.
+
+Доступные события жизненного цикла для фрагментов:
+
+* `Fragment.ReadyEvent`
+* `HostView.InitEvent`
+* `HostView.BeforeShowEvent`
+* `HostView.ReadyEvent`
+
+Остальная функциональность работает так же, как и фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[dataLoadCoordinator] для экранов.
+
+Пример XML фрагмента:
+
+[source,xml,indent=0]
+.data-load-coordinator-fragment.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/fragments/dataloadcoordinatorfragment/data-load-coordinator-fragment.xml[]
+----
+
+Пример контроллера фрагмента:
+
+.DataLoadCoordinatorFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/fragments/dataloadcoordinatorfragment/DataLoadCoordinatorFragment.java[tags=fragment-java]
+----
+
+[[urlQueryParameters]]
+== Фасет Url Query Parameters
+
+Фасет `urlQueryParameters` сохраняет состояние компонента в URL. Это полезно при использовании подхода "сначала URL" (URL-first) – выход из экрана и возврат в него сохраняет такую информацию, как состояния фильтров.
+
+CAUTION: Фрагмент *должен иметь* идентификатор (ID), так как его значение используется для сериализации. Вы можете установить ID <<facets-with-required-id,в XML или программно>>.
+
+Принцип работы аналогичен фасету xref:flow-ui:facets/urlQueryParameters.adoc[urlQueryParameters] для экранов.
+
+Пример XML фрагмента:
+
+[source,xml,indent=0]
+.url-query-parameters-fragment.xml
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/fragments/urlqueryparametersfragment/url-query-parameters-fragment.xml[]
+----
+
+Пример контроллера фрагмента:
+
+.UrlQueryParametersFragment.java
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/fragments/urlqueryparametersfragment/UrlQueryParametersFragment.java[tags=fragment-java]
+----

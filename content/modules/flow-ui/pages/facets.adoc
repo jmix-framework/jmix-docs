@@ -1,0 +1,82 @@
+= Фасеты
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/facets" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Фасеты - это невизуальные компоненты, которые добавляют дополнительное поведение к экрану или его компонентам.
+
+[[built-in]]
+== Встроенные фасеты
+
+Фреймворк предоставляет следующие фасеты:
+
+* xref:facets/dataLoadCoordinator.adoc[]
+* xref:facets/settings.adoc[]
+* xref:facets/timer.adoc[]
+* xref:facets/urlQueryParameters.adoc[]
+
+Чтобы добавить какой-либо фасет на экран, используйте Jmix Studio.
+
+Нажмите *Add Component* на панели действий, затем выберите раздел *Facets* и дважды кликните по выбранному элементу фасета.
+
+image::facets/add-facet.png[align="center", width="769"]
+
+Студия создаст элемент `<facets>`:
+
+[source,xml,indent=0]
+----
+    <facets>
+        <settings auto="true"/>
+    </facets>
+----
+
+include::facets/facet-tip.adoc[]
+
+[[custom]]
+== Пользовательские фасеты
+
+Приложения или дополнения могут предоставлять свои собственные фасеты. Чтобы создать пользовательский фасет, выполните следующие шаги:
+
+. Создайте интерфейс, расширяющий `io.jmix.flowui.facet.Facet`.
+. Создайте класс реализации на основе `io.jmix.flowui.facet.impl.AbstractFacet`.
+. Зарегистрируйте фасет, используя `FacetRegistrationBuilder` (смотрите подробности ниже).
+. Создайте XSD-схему для использования фасета в XML-дескрипторах экранов.
+. Опционально создайте аннотированный интерфейс для добавления поддержки фасета на панели инспектора *Jmix UI* в дизайнере экранов Студии.
+
+Классы `DataLoadCoordinator` и `UrlQueryParametersFacet` фреймворка могут быть хорошими примерами для создания фасета.
+
+[[registering-custom-facet]]
+=== Регистрация пользовательского фасета
+
+Механизм регистрации фасетов состоит из трех основных компонентов:
+
+* Реализация - класс, реализующий логику фасета.
+* Загрузчик (Loader) - класс, который читает конфигурацию фасета из XML и создает экземпляр фасета.
+* Тег (Tag) - имя XML-элемента, используемое для объявления фасета в экране.
+
+Вы можете зарегистрировать новые комбинации фасетов, используя `FacetRegistrationBuilder`.
+
+Пример регистрации пользовательского фасета таймера:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/facets/timer/FacetConfiguration.java[tags=register]
+----
+<1> Указывает класс, реализующий фасет.
+<2> Используется, если ваш фасет должен заменить существующий фасет фреймворка (например, стандартный `Timer`). Этот вызов заменяет все использования оригинального фасета в экранах вашей пользовательской реализацией.
+<3> Связывает XML-тег (например, `"timer"`) с классом загрузчика. Загрузчик должен расширять `io.jmix.flowui.xml.facet.loader.FacetLoader` и знать, как создать фасет из XML.
+
+Если ваш фасет не заменяет существующий, вы можете опустить `replaceFacet()` и просто предоставить загрузчик:
+
+[source,java,indent=0]
+----
+@Bean
+    public FacetRegistration customTimerFacet() {
+        return FacetRegistrationBuilder.create(TimerExtImpl.class)
+                .withFacetLoader("customTimer", TimerFacetExtLoader.class)
+                .build();
+    }
+----

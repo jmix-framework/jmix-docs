@@ -1,0 +1,667 @@
+= Загрузка сущностей
+
+Entities API позволяет различными способами загружать сущности через API:
+
+* <<load-by-id>> загружает одну сущность по ее уникальному идентификатору (ID).
+
+* <<load-list>> загружает все сущности с разбивкой на страницы и сортировкой.
+
+* <<load-list-search-filter>> позволяет фильтровать сущности по критериям фильтрации в запросе.
+
+* <<load-list-jpql>> загружает сущности с помощью предварительной настройки именованных запросов JPQL.
+
+[[load-by-id]]
+== Загрузка сущности по ID
+
+Первый способ загрузки объекта через Entities API – это загрузка по идентификатору. Соответствующей для этого операцией является конечная точка Load Entity `/entities/:entityName/:entityId`.
+
+Параметр пути `:entityName` определяет тип сущности. Значение задается в определении сущности:
+
+[source,java]
+.Order.java
+----
+
+@JmixEntity
+@Table(name = "SAMPLE_ORDER")
+@Entity(name = "sample_Order") //<1>
+public class Order {
+    // ...
+}
+----
+<1> Значение атрибута имени `sample_Order` аннотации JPA `@Entity` указывает параметр `entityName` в Entities API.
+
+Операция Load Entity возвращает один экземпляр, если он найден по своему идентификатору. В противном случае возвращается код состояния HTTP `404 - Not Found`.
+
+
+[source, http request]
+.Load Order Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "sample_Order", //<1>
+  "_instanceName": "rest.sample.entity.Order-21021f78-edac-224b-e6f8-6e71e02a0f0d [detached]",
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13", //<2>
+  "amount": 49.99,
+  "createdDate": "2021-02-06T12:03:38.049",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-02-06T12:03:38.049",
+  "version": 1
+}
+----
+<1> Некоторые метаданные об экземпляре сущности возвращаются в виде ключей JSON (`entityName`, `_instanceName` и `id`).
+<2> Объект JSON содержит каждый бизнес-атрибут в качестве ключа.
+
+[NOTE]
+====
+Если сущность имеет составной идентификатор, передавайте его при вызове REST в виде JSON, закодированного в Base64.
+
+Например, если класс ID содержит два поля `code1` и `code2`, то значение идентификатора в JSON будет выглядеть как `{"code1": "val1","code2": "val2"}`, а весь URL с закодированным идентификатором так:
+
+[source, http request]
+----
+GET http://localhost:8080/rest
+            /entities
+            /MyEntity
+            /eyJjb2RlMSI6ICJ2YWwxIiwiY29kZTIiOiAidmFsMiJ9
+----
+====
+
+[TIP]
+====
+Некоторые атрибуты сущности `Order` отсутствуют в JSON, так как по умолчанию загружаются только локальные и постоянные атрибуты. В случае, если ссылочные атрибуты также должны быть включены в ответ, используйте <<Using Fetch Plans,фетч-планы>>, как описано ниже.
+
+Если вы хотите включить в ответ xref:dyn-attr:index.adoc[динамические атрибуты], используйте параметр `dynamicAttributes`, чтобы добавить в запрос специальную подсказку:
+
+[source, http request]
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?dynamicAttributes=true
+----
+====
+
+[[load-list]]
+== Загрузка списка сущностей
+
+Вы можете загрузить список сущностей любого типа, используя операцию Load Entity List API: `/entities/:entityName`. Этот API включает в себя разбивку на страницы, сортировку и фетч-планы.
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest/entities/sample_Customer
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler"
+  },
+  {
+    "id": "22efc597-69a9-aeef-4e4a-7afccd8e5767",
+    "name": "Randall Bishop"
+  },
+  {
+    "id": "bd1c8e90-3d35-cbe2-9efd-167202c758d2",
+    "name": "Shelby Robinson"
+  }
+]
+----
+
+NOTE: Каждая сущность в ответе имеет атрибут `_entityName` с именем сущности и атрибут `_instanceName` с xref:data-model:entities.adoc#instance-name[именем экземпляра] сущности.
+
+Также можно дополнительно проконтролировать поведение API, используя следующие параметры URL-запроса:
+
+dynamicAttributes:: следует ли загружать xref:dyn-attr:index.adoc[динамические атрибуты] для сущности `(Boolean)`.
+fetchPlan:: имя или URL-encoded JSON-объект xref:data-access:fetching.adoc[фетч-плана] `(String)`.
+limit:: количество сущностей, которое должен вернуть API `(int)`.
+offset:: позиция первой возвращенной сущности `(int)`.
+sort:: атрибут сущности, который будет использоваться для сортировки `(String)`.
++
+* `+attribute` или просто `attribute` для порядка по возрастанию.
+* `-attribute` для порядка по убыванию.
+
+[[load-list-sorting]]
+=== Использование сортировки
+
+Load Entities API поддерживает сортировку результата по атрибутам сущности. Для управления порядком сущностей используется параметр URL `sort`.
+
+NOTE: Если параметр `sort` не указан, порядок сортировки по умолчанию зависит от реализации базы данных. Обычно базы данных сортируют по времени создания записи, но это поведение не гарантировано и может отличаться в разных ситуациях.
+
+Jmix имеет специальный синтаксис для определения порядка сортировки. Порядок по возрастанию выражается через `+` перед именем атрибута, что необязательно, так как это поведение по умолчанию. Для порядка по убыванию необходимо поставить перед атрибутом сущности символ `-`.
+
+В следующем примере показано, как можно отсортировать клиентов (Customer) по возрастанию их атрибутов `name`.
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            ?sort=name
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "d83c9d66-cb23-075a-8d3c-d4035d338705",
+    "name": "Klaudia Kleinert"
+  },
+  {
+    "id": "8985ba1e-1cc8-eb5c-f9e0-738aee9d2ef1",
+    "name": "Randall Bishop"
+  }
+]
+----
+
+Можно также сортировать по нескольким атрибутам. В этом случае порядок сортировки принимает список атрибутов, разделенных запятыми.
+
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order?sort=+date,-amount
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
+    "date": "2021-02-02", // <1>
+    "amount": 283.55
+  },
+  {
+    "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
+    "date": "2021-03-01",
+    "amount": 249.99, // <2>
+    "lastModifiedBy": "admin"
+  },
+  {
+    "id": "1068c217-5868-faf4-16aa-23655e9492da",
+    "date": "2021-03-01",
+    "amount": 130.08
+  }
+]
+----
+<1> Первым возвращается результат с самой старой датой.
+<2> Когда атрибут `date` одинаков, для сортировки результатов используется `amount`.
+
+
+[[load-list-pagination]]
+=== Использование разбивки на страницы
+
+Entities API поддерживает разбивку на страницы для соблюдения ограничений обработки данных, которые могут присутствовать на стороне сервера или клиента. Если вы хотите загрузить только определенное подмножество сущностей, можно указать параметры URL `offset` и `limit` .
+
+[NOTE]
+====
+Разбивка на страницы активна по умолчанию, даже если она не запрошена клиентом явно. Если в запросе не указано значение `limit`, Load API вернут только первые `10,000` сущностей.
+
+Это значение по умолчанию настраивается глобально в xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] или для каждого сущности отдельно в xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize].
+====
+
+В следующем примере показано, как загрузить третью страницу, содержащую две сущности `Customer` (5. и 6.):
+
+[source, http request]
+.Load Customer Request with Pagination
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            ?limit=2
+            &offset=4
+            &sort=createdDate
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "2d620164-1e80-0696-c3aa-45b7b5c81f2c",
+    "name": "Maria Mitchell"
+  },
+  {
+    "id": "3c7ec69d-9b85-c6e9-387b-42a5bccb79de",
+    "name": "Anthony Knutson"
+  }
+]
+----
+
+
+[[load-list-search-filter]]
+== Загрузка сущностей через фильтр поиска
+
+Вы можете указать критерии фильтрации при загрузке сущностей с помощью операции Entity Search: `/entities/:entityName/search`.
+
+При взаимодействии с операцией поиска возможно использовать оба метода HTTP `GET` и `POST`. В обоих случаях критерий фильтрации должен быть предоставлен как часть запроса.
+
+Определение фильтра — это структура JSON, содержащая набор условий. Условие состоит из следующих атрибутов:
+
+property:: атрибут объекта, по которому проводится фильтрация (например, `amount` сущности Order).
++
+Если атрибут является ссылкой на другую сущность, он также может быть путем к свойству, например `customer.name`
+
+operator:: оператор фильтра. Оператор описывает, как фильтровать определенный атрибут. Существует несколько операторов, которые можно использовать независимо от типа данных:
++
+* Стандартные операторы: `=`, `<>`, `notEmpty`, `isNull`
+* Операторы списка: `in`, `notIn`
+
+Кроме того, некоторые операторы возможны только для определенных типов данных:
+[cols="1,1"]
+|===
+|Datatype | Специальные операторы
+
+|String, UUID
+|`startsWith`, `endsWith`, `contains`, `doesNotContain`
+
+|Integer, Long, Double, BigDecimal, Date, DateTime, Time, LocalDate, LocalDateTime,  LocalTime, OffsetDateTime, OffsetTime
+|`=`, `<>`, `>`, `>=`, `<`, `&lt;=`
+
+|===
+
+value:: значение для поиска. Не требуется для операторов `notEmpty` и `isNull`.
+
+Помимо этого условия можно комбинировать с помощью групповых условий `AND` и `OR` для определения более сложного критерия фильтрации. JSON-структура определений фильтров выглядит следующим образом:
+
+[source,json]
+.Filter Criterion JSON structure
+----
+{
+  "conditions": [
+    {
+      "group": "OR",
+      "conditions": [
+        {
+          "property": "stringField",
+          "operator": "=",
+          "value": "stringValue"
+        },
+        {
+          "property": "intField",
+          "operator": ">",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "property": "booleanField",
+      "operator": "=",
+      "value": true
+    }
+  ]
+}
+----
+
+Это представление критерия фильтра `\((stringField = stringValue) OR (intField > 100) AND (booleanField = true))`.
+
+При использовании метода HTTP `POST` фильтр является частью тела запроса.
+
+[source,http request]
+.Filter POST Request
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  }
+}
+----
+
+При использовании метода `GET` критерий фильтра JSON необходимо передавать через параметр URL-запроса `filter`.
+
+[source, http request]
+.Filter GET Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /search
+            ?filter={"conditions":[{"property":"customer.name","operator":"contains","value":"Shelby"}]}
+----
+
+[IMPORTANT]
+.Кодировка URI
+====
+Стандарт HTTP URI допускает символы ASCII только как часть URI/URL. При использовании параметров URL-запроса для определения фильтра определение JSON должно быть URL-закодировано, чтобы соответствовать этому требованию. Это также верно в случае данных `value`, которые обычно содержат пользовательский ввод.
+
+Практическое ограничение длины URI может оказаться проблемой для больших определений фильтров, поэтому метод фильтрации сущностей `POST` предпочтительнее, так как к нему не применяются эти ограничения.
+====
+
+
+[[load-list-jpql]]
+== Загрузка сущностей через JPQL
+
+Другой альтернативой загрузке сущностей из приложения является использование предопределенных запросов JPQL. За предоставление этой возможности отвечает операция Entity Query `/queries/:entityName/:queryName`. Запросы могут содержать список параметров, которые должен предоставить клиент. Кроме того, конечная точка содержит все те же общие параметры для разбивки на страницы, фетч-планы и т. д.
+
+
+[TIP]
+.Когда использовать JPQL вместо фильтра поиска?
+====
+Jmix предоставляет различные способы общей загрузки данных сущности. Используйте предопределенные запросы JPQL, если фильтр поиска недостаточно продвинут для выражения критерия фильтра, а также в случае, если параметр должен быть предопределен и не может быть изменен клиентом API.
+====
+
+[[jpql-query-config]]
+=== Конфигурация запроса JPQL
+
+Чтобы использовать операцию Entity Query, необходимо определить доступные запросы через файл конфигурации XML, обычно называемый `rest-queries.xml`. Создайте этот новый файл в вашем приложении Jmix в `src/main/resources`. В нем перечисляются все опубликованные запросы с информацией об их параметрах.
+
+[source,xml]
+.rest-queries.xml
+----
+<?xml version="1.0"?>
+<queries xmlns="http://jmix.io/schema/rest/queries">
+    <query name="ordersByDate" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.date = :orderDate]]></jpql>
+        <params>
+            <param name="orderDate" type="java.time.LocalDate"/>
+        </params>
+    </query>
+    <query name="ordersByCustomerName" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.customer.name = :customerName]]></jpql>
+        <params>
+            <param name="customerName" type="java.lang.String"/>
+        </params>
+    </query>
+</queries>
+----
+
+Запрос должен иметь уникальное значение `name`, а также ссылку `entity`. Сочетание `name` и `entity` должно быть уникальным. Кроме того, необходима ссылка на `fetchPlan`, чтобы указать возвращаемые атрибуты сущности.
+
+В теге `<jpql>` конфигурируется сам запрос. Параметры должны быть перечислены внутри тега `params`, определяющего их имя и тип Java. В параметрах запроса можно ссылаться через их имя с префиксом двоеточия, например `:customerName`.
+
+После создания файла и определения запросов необходимо зарегистрировать конфигурацию `rest-queries.xml` в `application.properties` вашего приложении Jmix:
+
+[source,properties]
+.application.properties
+----
+jmix.rest.queries-config = rest/sample/rest-queries.xml
+----
+
+Операцию Entity Query можно вызвать с помощью HTTP метода `GET` или `POST`. В случае выбора `GET` параметры добавляются как параметры URL-запроса.
+
+[source, http request]
+.Query API GET Request
+----
+GET http://localhost:8080/rest
+        /queries
+        /sample_Order
+        /ordersByDate
+        ?orderDate=2020-02-02
+----
+
+
+[IMPORTANT]
+.URI-Кодировка
+====
+URL-адрес должен содержать только символы ASCII. Это означает, что значения параметров должны быть URL-закодированы, поскольку эти значения обычно представляют собой прямой пользовательский ввод, и гарантировать использование отличных от ASCII символов невозможно.
+====
+
+В случае использования `POST` параметры запроса передаются в теле JSON, содержащем каждый параметр в качестве ключа.
+
+[source, http request]
+.Query API POST Request
+----
+POST http://localhost:8080/rest/queries/sample_Order/ordersByCustomerName
+
+{
+  "customerName": "Shelby Robinson"
+}
+----
+
+=== Параметры коллекции
+
+Также возможно определить параметр как тип коллекции. В этом случае определение запроса должно содержать индикатор `[]` после типа Java.
+
+[source,xml]
+.rest-queries.xml
+----
+<?xml version="1.0"?>
+<queries xmlns="http://jmix.io/schema/rest/queries">
+    <query name="ordersByIds" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.id in :ids]]></jpql>
+        <params>
+            <param name="ids" type="java.util.UUID[]"/> // <1>
+        </params>
+    </query>
+</queries>
+----
+<1> Параметр `ids` помечен как коллекция типа `UUID`.
+
+Когда этот параметр используется в запросе, соответствующие идентификаторы должны быть предоставлены в виде массива JSON.
+
+[source, http request]
+.Query API Collection Parameters Request
+----
+POST http://localhost:8080/rest/queries/sample_Order/ordersByIds
+
+{
+  "ids": [
+    "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
+    "21021f78-edac-224b-e6f8-6e71e02a0f0d"
+  ]
+}
+----
+
+
+[[empty-values-json]]
+== Возврат пустых значений в JSON
+
+По умолчанию Jmix удаляет пустые значения (`null`) из ответа JSON, чтобы ключи атрибутов не присутствовали в документе JSON.
+
+Вы можете управлять этим поведением, используя параметр URL-запроса `returnNulls` и присвоив ему значение `true`. Тогда Jmix будет всегда добавлять ключи атрибутов к ответу, независимо от того, является ли значение пустым или нет.
+
+В следующем примере `Customer` загружается по его идентификатору, а также запрашиваются все пустые значения:
+
+[source, http request]
+.Load Customer with empty values
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            /1eab4973-25f9-70d9-5356-6990dd8f79e2
+            ?returnNulls=true
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "sample_Customer",
+  "_instanceName": "Sidney Chandler",
+  "id": "0826806e-6074-90fa-f241-564b5c94d018",
+  "createdDate": "2021-06-09T08:42:39.291",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-06-09T08:42:39.291",
+  "deletedDate": null,
+  "lastModifiedBy": null,
+  "name": "Sidney Chandler",
+  "type": null, // <1>
+  "version": 1,
+  "deletedBy": null
+}
+----
+<1> Ответ содержит ключ `type`, хотя тот пуст
+
+NOTE: Параметр `returnNulls` присутствует во всех Entity Load API: Загрузка по ID, Загрузка списка, Поиск и загрузка по запросу.
+
+[[fetch-plans]]
+== Использование фетч-планов
+
+Необходимые атрибуты сущности обычно зависят от варианта использования клиента, пользовательского интерфейса или сценария интеграции. Загрузка только прямых атрибутов сущности часто оказывается недостаточной.
+
+Без возможности загрузить связанные сущности в одном запросе потребовались бы дополнительные запросы для получения связанных данных, что приводит к проблеме N+1 запросов. Это может вызвать значительные накладные расходы, особенно в HTTP-взаимодействиях.
+
+Для решения этой проблемы API загрузки сущностей поддерживает xref:data-access:fetching.adoc[фетч-планы]. Фетч-планы позволяют определить иерархию атрибутов, которые будут загружены из базы данных одной партией и доставлены клиенту, оптимизируя производительность и снижая накладные расходы.
+
+[[named-fetch-plans]]
+=== Именованные фетч-планы
+
+Именованные фетч-планы регистрируются в общем репозитории фетч-планов приложения (см. xref:data-access:fetching.adoc#creating-fetch-plans[Создание фетч-планов]). Они могут быть использованы в REST-запросах путем указания их имен.
+
+Следующий пример демонстрирует, как загрузить список заказов с дополнительной информацией о соответствующем клиенте, связанных строках заказа и продукте каждой строки заказа.
+
+Сначала необходимо зарегистрировать фетч-план `order-with-details` в конфигурационном файле `fetch-plans.xml`:
+
+[source,xml]
+.fetch-plans.xml
+----
+<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
+    <fetchPlan class="rest.sample.entity.Order"
+               extends="_base"
+               name="order-with-details">
+        <property name="customer"/>
+        <property name="lines" fetchPlan="_base">
+            <property name="product" fetchPlan="_instance_name" />
+        </property>
+    </fetchPlan>
+</fetchPlans>
+----
+
+С этой конфигурацией фетч-плана вы можете выполнить GET-запрос и сослаться на фетч-план, используя параметр URL `fetchPlan`.
+
+В примере ниже заказ с ID `21021f78-edac-224b-e6f8-6e71e02a0f0d` загружается с фетч-планом `order-with-details`, чтобы дополнительно загрузить данные о `customer` и `lines`:
+
+[source, http request]
+.Запрос на загрузку заказа с фетч-планом
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13",
+  "amount": 49.99,
+  "lines": [ //<1>
+    {
+      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ],
+  "version": 1,
+  "customer": {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler",
+  }
+}
+----
+<1> Фетч-план `order-with-details` гарантирует, что дополнительные атрибуты, такие как `lines` и `customer`, также включены.
+
+При использовании POST-запроса для загрузки данных, например, в эндпойнте <<load-list-search-filter,search>>, передайте имя фетч-плана в свойстве `fetchPlan` JSON тела запроса:
+
+[source,http request]
+.POST-запрос с фильтром и именованным фетч-планом
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": "order-with-details"
+}
+----
+
+[[inline-fetch-plans]]
+=== Встроенные фетч-планы
+
+Начиная с Jmix 2.5, API сущностей также поддерживает встроенные (inline) фетч-планы.
+
+Встроенные фетч-планы передаются с REST-запросами в виде JSON-объектов, представляющих структуру фетч-плана. Локальные атрибуты сущностей указываются по их именам, ссылки указываются вложенными JSON-объектами, состоящими из имени атрибута и его вложенного фетч-плана. Свойство `entity` на верхнем уровне должно указывать имя корневой сущности.
+
+Если вы делаете запросы к универсальному REST из другого приложения Jmix, вы можете использовать бин `FetchPlanSerialization` для преобразования фетч-планов в JSON-строки.
+
+Встроенный фетч-план может быть использован во всех эндпойнтах, принимающих фетч-планы. Например:
+
+[source,http request]
+.POST-запрос с фильтром и встроенным фетч-планом
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": {
+    "entity": "sample_Order",
+    "properties": [
+      "id",
+      "number",
+      "date",
+      "amount",
+      {
+        "name": "customer",
+        "fetchPlan": {
+          "properties": [
+            "id",
+            "name",
+            "status"
+          ]
+        }
+      }
+    ]
+  }
+}
+----
+
+При использовании встроенных фетч-планов в GET-запросах в качестве параметра URL, JSON должен быть URL-кодирован. Например:
+
+[source, http request]
+.Загрузка заказа с встроенным фетч-планом
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=%7B%22entity%22%3A%22sample_Order%22%2C%22properties%22%3A%5B%22id%22%2C%22number%22%2C%22date%22%2C%22amount%22%2C%7B%22name%22%3A%22customer%22%2C%22fetchPlan%22%3A%7B%22properties%22%3A%5B%22id%22%2C%22name%22%2C%22status%22%5D%7D%7D%5D%7D
+----
+
+Встроенные фетч-планы могут быть отключены с использованием свойства приложения xref:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled].

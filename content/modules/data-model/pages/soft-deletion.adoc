@@ -1,0 +1,209 @@
+= Мягкое удаление
+
+В режиме _Soft Deletion_ операция удаления объектов JPA просто помечает записи базы данных как удаленные, не удаляя их на самом деле. Позже системный администратор может либо полностью стереть записи, либо восстановить их.
+
+Мягкое удаление может помочь вам снизить риск потери данных, вызванной неверными действиями пользователя. Оно также позволяет пользователям мгновенно сделать определенные записи недоступными, даже если на них есть ссылки из других таблиц.
+
+Механизм мягкого удаления в Jmix прозрачен для разработчиков приложений. Если вы определяете xref:entities.adoc#soft-delete-trait[черту Soft Delete] для сущности, фреймворк помечает записи базы данных удаленных экземпляров сущности и загружает удаленные экземпляры в соответствии со следующими правилами:
+
+* Мягко удаленные экземпляры не возвращаются при загрузке по Id и отфильтровываются из результатов запросов JPQL.
+
+* В загруженных графах сущностей экземпляры, удаленные мягко отфильтровываются из атрибутов-коллекций (ссылки "много-ко-многим"), но присутствуют в единичных атрибутах (ссылки "много-к-одному").
++
+Например, представим модель данных Customer - Order - OrderLine. Первоначально Customer ссылался на Order и пять экземпляров OrderLine. Вы мягко удалили экземпляр Customer и один из экземпляров OrderLine. Затем, если вы загрузите Order вместе с Customer и коллекцией OrderLine, он будет содержать ссылку на удаленного Customer и четыре экземпляра OrderLine в коллекции.
+
+[[references]]
+== Обработка связей
+
+Когда удаляется обычная (жестко удаляемая) сущность, внешние ключи в базе данных определяют обработку ссылок на эту сущность. По умолчанию вы не можете удалить сущность, если на нее есть ссылки от других сущностей. Чтобы удалить ссылающуюся сущность вместе с ней или установить для ссылки значение null, вы определяете правила `ON DELETE CASCADE` или `ON DELETE SET NULL` для внешнего ключа.
+
+Для мягко удаленных сущностей также существуют внешние ключи, но они не могут повлиять на удаление, поскольку с точки зрения базы данных удаление не выполняется. Поэтому по умолчанию, когда экземпляр сущности мягко удаляется, это не влияет ни на какие связанные сущности.
+
+Jmix предлагает аннотации xref:entities.adoc#on-delete[@OnDelete] и xref:entities.adoc#on-delete-inverse[@OnDeleteInverse] для обработки ссылок между мягко удаленными сущностей.
+
+TIP: Дизайнер сущностей Studio содержит визуальные подсказки, которые помогут вам выбрать правильные аннотации и их значения.
+
+* Аннотация `@OnDelete` указывает, что делать со ссылочной сущностью при удалении текущей сущности. В следующем примере все экземпляры `OrderLine` удаляются при удалении экземпляра-владельца `Order`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Order.java[tags=class-def;on-delete]
+----
+
+* `@OnDeleteInverse` аннотация указывает, что делать с текущей сущностью при удалении ссылаемой сущности. В следующем примере экземпляр `Customer` нельзя удалить, если на него есть ссылка из экземпляра `Order`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Order.java[tags=class-def;on-delete-inverse]
+----
+
+Эти аннотации могут иметь одно из следующих значений:
+
+* `DeletePolicy.DENY` – чтобы выбросить исключение при попытке удалить сущность, если ссылка не является null.
+
+* `DeletePolicy.CASCADE` – чтобы удалить связанные сущности вместе.
+
+* `DeletePolicy.UNLINK` – чтобы разъединить связанные сущности, установив для ссылочного атрибута значение null. Используйте это значение только на стороне владельца ассоциации (той, что имеет аннотацию `@JoinColumn`).
+
+[[unique-constraints]]
+== Ограничения уникальности
+
+Мягкое удаление усложняет создание ограничений уникальности базы данных. Ограничение должно учитывать, что может быть несколько записей с одним и тем же значением уникального поля: одна не удаленная и любое количество мягко удаленных.
+
+Эта проблема решается по-разному для разных баз данных. Следуйте рекомендациям, приведенным ниже, и используйте вкладку `Indexes` xref:studio:entity-designer.adoc[дизайнера сущностей] для задания ограничений уникальности.
+
+[[postgresql-uniqueness]]
+=== PostgreSQL
+
+Для PostgreSQL, мы рекомендуем использовать частичные индексы.
+
+Задайте ограничение уникальности для колонки. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo" dbms="postgresql">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+    </createIndex>
+
+    <modifySql>
+        <append value="where DELETED_DATE is null"/>
+    </modifySql>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает частичный индекс в базе данных:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL) where DELETED_DATE is null
+----
+
+[[oracle-mssql-uniqueness]]
+=== Oracle и Microsoft SQL Server
+
+Oracle и Microsoft SQL Server разрешают только одно значение null в композитном индексе. В этом случае мы рекомендуем использовать композитный индекс, включающий колонку `DELETED_DATE`.
+
+Задайте ограничение уникальности для колонки. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE"/>
+    </createIndex>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает композитный индекс в базе данных:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE)
+----
+
+[[mysql-mssql-uniqueness]]
+=== MySQL и HSQL
+
+Для MySQL и HSQL, мы рекомендуем создать дополнительную non-null колонку и использовать композитный индекс, включающий эту колонку.
+
+Создайте дополнительный атрибут и сделайте так, чтобы он обновлялся из сеттера `deletedDate`:
+
+[source,java,indent=0]
+----
+@SystemLevel
+@Column(name = "DELETED_DATE_NN")
+private OffsetDateTime deletedDateNN = OffsetDateTime.of(
+            1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC
+    ); // add initializer manually
+
+public OffsetDateTime getDeletedDateNN() {
+    return deletedDateNN;
+}
+
+public void setDeletedDateNN(OffsetDateTime deletedDateNN) {
+    this.deletedDateNN = deletedDateNN;
+}
+
+public void setDeletedDate(OffsetDateTime deletedDate) {
+    this.deletedDate = deletedDate;
+    setDeletedDateNN(deletedDate == null ? OffsetDateTime.of(
+            1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC
+    ) : deletedDate); // add this manually
+}
+----
+
+Задайте ограничение уникальности, включающее колонку `DELETED_DATE_NN`. Определение ограничения в сущности должно выглядеть следующим образом:
+
+[source]
+----
+@Table(name = "CUSTOMER", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_CUSTOMER_UNQ_EMAIL", columnNames = {"EMAIL", "DELETED_DATE_NN"})
+})
+----
+
+Studio сгенерирует следующий Liquibase changelog:
+
+[source,xml]
+----
+<changeSet id="1" author="demo">
+    <createIndex indexName="IDX_CUSTOMER_UNQ_EMAIL" tableName="CUSTOMER" unique="true">
+        <column name="EMAIL"/>
+        <column name="DELETED_DATE_NN"/>
+    </createIndex>
+</changeSet>
+----
+
+На основе данного changelog, Liquibase создает композитный индекс в базе данных:
+
+[source,sql]
+----
+create unique index IDX_CUSTOMER_UNQ_EMAIL on CUSTOMER (EMAIL, DELETED_DATE_NN)
+----
+
+[[turn-soft-deletion-off]]
+== Отключение мягкого удаления
+
+По умолчанию мягкое удаление включено для всех объектов, имеющих xref:entities.adoc#soft-delete-trait[черту Soft Delete]. Но вы можете отключить его для определенной операции, используя hint `PersistenceHints.SOFT_DELETION` со значением `false`.
+
+* При загрузке сущностей с помощью `DataManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=data-manager;load-hard-deleted]
+----
++
+Результаты будут включать в себя удаленные мягко экземпляры.
+
+* При удалении сущностей с помощью `DataManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=data-manager;hard-delete]
+----
+
+* При работе с `EntityManager`:
++
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=hard-delete-em]
+----

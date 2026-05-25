@@ -1,0 +1,183 @@
+= Кластер Kubernetes
+
+В данном разделе описывается развертывание приложения Jmix в кластер Kubernetes. Мы будем использовать одноузловой кластер, предоставляемый https://minikube.sigs.k8s.io/[minikube^]. Вы можете установить его на свою машину разработки, чтобы протестировать развертывание локально.
+
+Данное руководство сфокусировано на настройке приложения для запуска в Kubernetes. По нему вы можете подготовить свое приложение к такому развертыванию без каких-либо предварительных знаний о Kubernetes. Однако для реального развертывания в продакшн вы должны быть хорошо знакомы с этой технологией.
+
+Более подробная информация о работе Jmix-приложений в кластере приведена в разделе xref:features:cluster-communication.adoc[].
+
+[[app-configuration]]
+== Настройка приложения
+
+[[build-image]]
+=== Настройка создания образа
+
+Плагин Spring Boot Gradle предоставляет задачу `bootBuildImage`, которая собирает ваше приложение и создает образ Docker. Чтобы указать имя образа, добавьте следующий раздел в файл `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=bootBuildImage]
+----
+
+[[hazelcast-configuration]]
+=== Настройка Hazelcast
+
+Модули фреймворка Jmix используют различные кэши: кэши сущностей JPA и запросов, пессимистические блокировки, конфигурации динамических атрибутов и т.д. При запуске в кластере приложение Jmix требует координации кэшей между узлами кластера.
+
+Все кэши Jmix поддерживают координацию через https://docs.hazelcast.com/imdg/latest/index.html[Hazelcast^]. В данном руководстве мы будем использовать Hazelcast во встроенном режиме вместе с плагином https://github.com/hazelcast/hazelcast-kubernetes[hazelcast-kubernetes^] для автоматического обнаружения в среде Kubernetes.
+
+Следуйте приведенной ниже инструкции, чтобы настроить Hazelcast для координации кэшей в кластере Kubernetes.
+
+. Добавьте зависимость Hazelcast в `build.gradle`:
++
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=dependencies]
+----
+
+. Укажите Hazelcast в качестве провайдера JCache, добавив следующее свойство в файл `application.properties`:
++
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=properties]
+----
+
+. Создайте файл `hazelcast.yaml` в корне `resources`:
++
+[source,yaml,indent=0]
+----
+include::example$/ex1/src/main/resources/hazelcast.yaml[]
+----
+
+Свойство `hazelcast.network.join.kubernetes.service-name` должно указывать на службу приложения, определенную в <<app-service-config,файле конфигурации сервиса приложения>>.
+
+Обратите внимание, что свойству `hazelcast.network.join.kubernetes.enabled` в этом файле присвоено значение `false`. Это сделано для того, чтобы иметь возможность запускать приложение локально без Kubernetes. Свойство устанавливается в `true`, когда приложение фактически запускается в Kubernetes, используя переменную окружения `HZ_NETWORK_JOIN_KUBERNETES_ENABLED` в файле конфигурации сервиса приложения.
+
+[[k8s-config]]
+== Создание конфигурационных файлов Kubernetes
+
+Создайте папку `k8s` в корне проекта и добавьте в нее перечисленные ниже файлы.
+
+[[db-service-config]]
+=== Конфигурация службы базы данных
+
+Этот файл определяет службу базы данных PostgreSQL с именем `sample-db-service`.
+
+.k8s/db.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/db.yaml[]
+----
+
+[[app-service-config]]
+=== Конфигурация службы приложения
+
+Этот файл определяет службу приложения с именем `sample-app-service`. Использует <<build-image,образ>> Docker `mycompany/sample-app` для приложения.
+
+.k8s/app.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/app.yaml[]
+----
+
+[[load-balancer-config]]
+=== Настройка балансировщика нагрузки
+
+xref:flow-ui:index.adoc[Пользовательский интерфейс] Jmix ожидает, что все запросы от пользователя поступают на один и тот же сервер. В кластерной среде с несколькими серверами для этого требуется балансировщик нагрузки с "липкими сессиями" (sticky sessions). Ниже приведена конфигурация NGINX Ingress Controller с https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#session-affinity[session affinity^].
+
+.k8s/balancer.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/balancer.yaml[]
+----
+
+[[hazelcast-rbac-config]]
+=== Настройка контроля доступа Hazelcast
+
+.k8s/hazelcast-rbac.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/hazelcast-rbac.yaml[]
+----
+
+[[local-k8s]]
+== Настройка локального Kubernetes
+
+. Убедитесь, что на вашей машине запущен Docker. Приведенная ниже команда отображает версию Docker:
++
+[source,shell script]
+----
+docker -v
+----
++
+Если команда не выполняется, обратитесь к https://docs.docker.com/get-docker[документации Docker^] Docker о том, как установить и запустить Docker.
+
+. Установите Minikube, как описано в https://minikube.sigs.k8s.io/docs/start[инструкции по установке^].
+
+. Запустите Minikube:
++
+[source,shell script]
+----
+minikube start --vm-driver=virtualbox
+----
+
+. Включите Ingress Controller:
++
+[source,shell script]
+----
+minikube addons enable ingress
+----
+
+. Настройте инструмент командной строки Kubernetes для использования Minikube:
++
+[source,shell script]
+----
+kubectl config use-context minikube
+----
+
+. Чтобы открыть панель мониторинга Kubernetes в веб-браузере, выполните следующую команду в отдельном терминале:
++
+[source,shell script]
+----
+minikube dashboard
+----
+
+[[build-and-run-app]]
+== Сборка и запуск приложения
+
+. Соберите образ Docker:
++
+[source,shell script]
+----
+./gradlew -Pvaadin.productionMode=true bootBuildImage
+----
+
+. Загрузите образ в Minikube:
++
+[source,shell script]
+----
+minikube image load mycompany/sample-app:latest
+----
+
+. Примените <<k8s-config,конфигурационные файлы>> Kubernetes:
++
+[source,shell script]
+----
+kubectl apply -f ./k8s
+----
+
+. Чтобы увеличить количество экземпляров приложения, используйте следующую команду:
++
+[source,shell script]
+----
+kubectl scale deployment sample-app --replicas=2
+----
+
+. Определите IP-адрес кластера:
++
+[source,shell script]
+----
+minikube ip
+----
++
+Используйте этот адрес для открытия приложения в веб-браузере, например: `++http://192.168.99.100++`

@@ -1,0 +1,87 @@
+= Контроль доступа
+
+[[protecting-api-using-access-tokens]]
+== Защита API с использованием токенов доступа
+
+Доступ к эндпойнтам REST API может быть защищен с помощью токенов доступа. Для получения токенов доступа можно использовать дополнение Authorization Server. См. xref:authorization-server:protecting-resources.adoc#protecting-rest-api-endpoints[его документацию] для получения подробной информации.
+
+[[anonymous-access]]
+== Анонимный доступ
+
+Можно открыть доступ к определенным частям REST API без аутентификации, используя функцию анонимного доступа в Jmix. В этом случае запрос к API выполняется от имени пользователя `anonymous`, который настроен по умолчанию в приложении Jmix.
+
+Для каждого защищенного эндпойнта, к которому выполняется запрос без заголовка `Authorization`, аутентификация пользователя будет выполнена с использованием сессии пользователя `anonymous`.
+
+См. раздел xref:security:custom-endpoints.adoc#token-based-authentication[Аутентификация на основе токенов] для получения информации о том, как настроить доступ к анонимным ресурсам. Самый простой способ — задать свойство приложения со списком URL-шаблонов для анонимного доступа, разделенных запятыми.
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=resource-server-anonymous-url-patterns]
+----
+
+После того как это свойство установлено, можно взаимодействовать с `ProductService` без отправки заголовка `Authorization`:
+
+.Запрос GetProductInformation
+[source, http request]
+----
+GET {{baseRestUrl}}
+         /services
+         /productService
+         /getProductInformation
+         ?productId=123
+# Authorization: не задан
+----
+
+Этот запрос вернет успешный ответ от сервиса:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "name": "Apple iPhone",
+  "productId": "123",
+  "price": 499.99
+}
+----
+
+Если вы хотите предоставить анонимный доступ к некоторым эндпойнтам xref:entities-api.adoc[сущностей], убедитесь, что у пользователя `anonymous` есть права на эти сущности. Это можно сделать, создав xref:security:resource-roles.adoc[ресурсную роль] и назначив ее пользователю `anonymous` в методе `DatabaseUserRepository.initAnonymousUser()`. Например:
+
+[source,java,indent=0]
+----
+@ResourceRole(name = "AnonymousRestRole", code = AnonymousRestRole.CODE, scope = "API")
+public interface AnonymousRestRole {
+
+    String CODE = "anonymous-rest-role";
+
+    @EntityAttributePolicy(entityClass = Product.class,
+        attributes = "*",
+        action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = Product.class,
+        actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void product();
+}
+----
+
+[source,java,indent=0]
+----
+@Primary
+@Component("UserRepository")
+public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
+    // ...
+
+    @Override
+    protected void initAnonymousUser(User anonymousUser) {
+        Collection<GrantedAuthority> authorities = getGrantedAuthoritiesBuilder()
+                .addResourceRole(AnonymousRestRole.CODE)
+                .build();
+        anonymousUser.setAuthorities(authorities);
+    }
+}
+----
+
+TIP: Функция анонимного доступа *не требует*, чтобы у пользователя `anonymous` была роль `rest-minimal`.
+
+[[predefined-roles]]
+== Предопределенные роли
+
+*REST: минимальный доступ* (`rest-minimal`): позволяет пользователям взаимодействовать с приложением через API.

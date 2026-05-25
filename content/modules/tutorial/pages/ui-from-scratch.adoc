@@ -1,0 +1,475 @@
+= 7. Создание пользовательского интерфейса с нуля
+
+На данном этапе в приложении есть все необходимое для администраторов и HR-менеджеров: они могут настраивать отделы и шаги онбординга, управлять пользователями, генерировать и отслеживать шаги онбординга для каждого пользователя.
+
+Теперь вам нужно создать пользовательский интерфейс, чтобы пользователи могли управлять своим собственным процессом онбординга. Пользователь должен иметь возможность войти в систему и открыть экран `My Onboarding`, на котором показаны его онбординг шаги. Каждый шаг можно отметить как выполненный, установив флажок. Просроченные шаги следует выделять.
+
+Ниже приведен макет экрана `My Onboarding`:
+
+image::ui-from-scratch/my-onboarding.svg[]
+
+Ранее вы создавали пользовательский интерфейс, генерируя и изменяя CRUD-экраны для сущностей. В этой главе вы создадите экран `My Onboarding` с нуля.
+
+[[create-blank-view]]
+== Создание пустого экрана
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *View*:
+
+image::ui-from-scratch/create-screen-1.png[align="center", width="367"]
+
+В окне *Create Jmix View* выберите шаблон `Blank view`:
+
+image::ui-from-scratch/create-screen-2.png[align="center", width="776"]
+
+Нажмите кнопку *Next*.
+
+На следующем шаге мастера введите:
+
+* *Descriptor name*: `my-onboarding-view`
+* *Controller name*: `MyOnboardingView`
+* *Package name*: `com.company.onboarding.view.myonboarding`
+
+image::ui-from-scratch/create-screen-3.png[align="center", width="776"]
+
+Нажмите кнопку *Next*.
+
+На следующем шаге мастера измените заголовок экрана на `My onboarding`:
+
+image::ui-from-scratch/create-screen-4.png[align="center", width="726"]
+
+Нажмите кнопку *Create*.
+
+Студия создаст пустой экран и откроет его в дизайнере:
+
+image::ui-from-scratch/create-screen-5.png[align="center"]
+
+Новый экран также будет добавлен в главное меню. Дважды щелкните по пункту *User Interface* -> *Main Menu* в окне инструментов *Jmix* и перейдите на вкладку *Structure*. Перетащите экран `MyOnboardingView` наверх:
+
+image::ui-from-scratch/create-screen-6.png[align="center",width="1142"]
+
+Запустите приложение, нажав кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов. Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение.
+
+Раскройте меню *Application*, нажмите на подпункт *My onboarding* и убедитесь, что ваш пустой экран открывается.
+
+[[add-table]]
+== Добавление таблицы (dataGrid)
+
+Давайте начнем с добавления на экран таблицы, отображающей шаги онбординга текущего пользователя.
+
+[[define-data-container]]
+=== Определение контейнера данных
+
+Во-первых, добавьте контейнер данных, который предоставит набор сущностей `UserStep` для UI-таблицы. Нажмите на кнопку *Add Component* на панели действий, выберите раздел `Data components` и дважды щелкните на элементе `Collection`. В окне *Data Container Properties Editor* в поле *Entity* выберите `UserStep` и нажмите кнопку *OK*:
+
+// image::ui-from-scratch/data-container-1.gif[]
+
+Студия создаст контейнер коллекции:
+
+[source,xml]
+----
+<data>
+    <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
+        <fetchPlan extends="_base"/>
+        <loader id="userStepsDl" readOnly="true">
+            <query>
+                <![CDATA[select e from UserStep e]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+
+[[load-data]]
+=== Загрузка данных
+
+Прежде всего, удалите атрибут `readOnly="true"` у сгенерированного загрузчика, потому что объекты, отображаемые в этом экране, нужно будет изменять и сохранять. Вы можете сделать это в инспекторе компонентов или прямо в XML:
+
+[source,xml]
+----
+<loader id="userStepsDl">
+    <query>
+        <![CDATA[select e from UserStep e]]>
+    </query>
+</loader>
+----
+
+Запрос по умолчанию загрузит все экземпляры `UserStep`, но вам нужно выбрать только шаги текущего пользователя и в определенном порядке. Давайте изменим запрос с помощью конструктора JPQL. Выберите контейнер `userStepsDc` на панели структуры *Jmix UI* и щелкните на значение атрибута `query`. Затем добавьте условие `where` по атрибуту `user` с параметром `:user`, и выражение `order by` по атрибуту `sortValue`.
+
+Результирующий запрос должен быть таким:
+
+[source,xml]
+----
+<query>
+    <![CDATA[select e from UserStep e
+    where e.user = :user
+    order by e.sortValue asc]]>
+</query>
+----
+
+Следующая задача - указать значение для параметра `:user`. Вы можете сделать это в обработчике `BeforeShowEvent`. Переключитесь на класс контроллера `MyOnboardingView`, нажмите кнопку *Generate Handler* на верхней панели действий и выберите *Controller handlers* -> `BeforeShowEvent`:
+
+image::ui-from-scratch/data-container-3.png[]
+
+Нажмите на кнопку *OK*. Студия сгенерирует заглушку метода обработчика:
+
+[source,java]
+----
+@Route(value = "MyOnboardingView", layout = MainView.class)
+@ViewController(id = "MyOnboardingView")
+@ViewDescriptor(path = "my-onboarding-view.xml")
+public class MyOnboardingView extends StandardView {
+    @Subscribe
+    public void onBeforeShow(final BeforeShowEvent event) {
+
+    }
+}
+----
+
+Теперь вам нужно получить текущего пользователя, вошедшего в систему, и установить его в качестве параметра запроса загрузчика.
+
+Нажмите на кнопку *Code Snippets* на панели действий для генерации кода и получения текущего пользователя:
+
+// image::ui-from-scratch/data-container-4.gif[align="center"]
+
+Затем инжектируйте загрузчик `userStepsDl` используя кнопку *Inject* в панели действий, установите параметр `:user` для текущего пользователя и вызовите его метод `load()` для выполнения запроса и загрузки данных в контейнер коллекции:
+
+Результирующий код для загрузки данных в контейнер коллекции:
+
+[source,java]
+----
+@Autowired
+private CurrentAuthentication currentAuthentication;
+
+@ViewComponent
+private CollectionLoader<UserStep> userStepsDl;
+
+@Subscribe
+public void onBeforeShow(final BeforeShowEvent event) {
+    final User user = (User) currentAuthentication.getUser();
+    userStepsDl.setParameter("user", user);
+    userStepsDl.load();
+}
+----
+
+[TIP]
+====
+На экранах списка и деталей сущности, генерируемых Studio по шаблонам, загрузка данных по умолчанию инициируется фасетом `DataLoadCoordinator`:
+
+[source,xml]
+----
+<facets>
+    <dataLoadCoordinator auto="true"/>
+</facets>
+----
+
+Поэтому вы не вызывали метод `load()` загрузчиков данных на CRUD-экранах, созданных в предыдущих главах.
+====
+
+[[set-up-data-grid]]
+=== Настройка таблицы (dataGrid)
+
+На панели структуры *Jmix UI* нажмите правой кнопкой мыши на элементе `layout` и выберите пункт *Add Component* в контекстном меню. Найдите и дважды щелкните на компоненте `DataGrid`. В диалоге *DataGrid* выберите контейнер данных `userStepsDc` и отключите все флажки *Actions*:
+
+image::ui-from-scratch/table-1.png[align="center",width="741"]
+
+Нажмите *OK*.
+
+Как вы можете видеть, в таблице нет колонки для отображения названия шага:
+
+[source,xml]
+----
+<dataGrid id="userStepsDataGrid" dataContainer="userStepsDc" width="100%">
+    <columns>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="sortValue"/>
+    </columns>
+</dataGrid>
+----
+
+`Step` является ссылочным атрибутом и по умолчанию не включается в фетч-план и таблицу. Вы уже видели эту ситуацию в xref:tutorial:data-in-ui.adoc#rearrange-data-grid-columns[предыдущей главе], когда отображалась таблица UserSteps на экране деталей пользователя.
+
+Добавьте атрибут `step.name` в колонки и в фетч-план и удалите ненужную колонку `sortValue`:
+
+На этом этапе XML-дескриптор экрана должен быть таким, как показано ниже:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://myOnboardingView.title">
+    <data>
+        <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
+            <fetchPlan extends="_base">
+                <property name="step" fetchPlan="_base"/>
+            </fetchPlan>
+            <loader id="userStepsDl">
+                <query>
+                    <![CDATA[select e from UserStep e
+                    where e.user = :user
+                    order by e.sortValue asc]]>
+                </query>
+            </loader>
+        </collection>
+    </data>
+    <layout>
+        <dataGrid id="userStepsDataGrid" dataContainer="userStepsDc" width="100%">
+            <columns>
+                <column property="step.name"/>
+                <column property="dueDate"/>
+                <column property="completedDate"/>
+            </columns>
+        </dataGrid>
+    </layout>
+</view>
+----
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Убедитесь, что у вашего текущего пользователя (возможно, это `admin`) есть несколько пользовательских шагов, сгенерированных на экране редактирования пользователя. Обновите экран `My onboarding` и посмотрите ваши онбординг-шаги:
+
+image::ui-from-scratch/table-3.png[align="center"]
+
+[[add-component-column]]
+=== Добавление колонки с компонентом
+
+В этом разделе вы добавите колонку с флажками, чтобы отметить выполненные шаги по онбордингу. Вы уже делали это xref:data-in-ui.adoc#component-column[раньше] для таблицы UserSteps на экране деталей пользователя.
+
+В XML-дескрипторе добавьте колонку `completed`:
+
+[source,xml]
+----
+<columns>
+    <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+В контроллере инжектируйте фабрику `UiComponents`. Сгенерируйте для колонки `completed` обработчик `renderer` и реализуйте его следующим образом:
+
+[source,java]
+----
+@Autowired
+private UiComponents uiComponents;
+
+@Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
+        Checkbox checkbox = uiComponents.create(Checkbox.class);
+        checkbox.setValue(userStep.getCompletedDate() != null);
+        checkbox.addValueChangeListener(e -> {
+            if (userStep.getCompletedDate() == null) {
+                userStep.setCompletedDate(LocalDate.now());
+            } else {
+                userStep.setCompletedDate(null);
+            }
+        });
+        return checkbox;
+    });
+}
+----
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран `My onboarding` и протестируйте свои последние изменения:
+
+image::ui-from-scratch/gen-column-1.png[align="center"]
+
+[[add-labels]]
+== Добавление надписей
+
+Таблица почти готова. Теперь давайте добавим надписи, отображающие счетчики общего количества, выполненных и просроченных шагов.
+
+Нажмите на кнопку *Add Component* на панели действий и перетащите `Layouts` -> `VBox` (контейнер с вертикальным размещением) в элемент `layout` на панель структуры *Jmix UI* перед `userStepsDataGrid`. Затем добавьте три компонента `HTML` -> `Span` в `vbox`.
+
+Установите идентификаторы надписей, как показано ниже:
+
+[source,xml]
+----
+<layout>
+    <vbox>
+        <span id="totalStepsLabel"/>
+        <span id="completedStepsLabel"/>
+        <span id="overdueStepsLabel"/>
+    </vbox>
+----
+
+Теперь вам нужно вычислить и установить их значения программно в контроллере. Переключитесь на контроллер `MyOnboardingView`, инжектируйте надписи и контейнер коллекции `userStepsDc`:
+
+[source,java]
+----
+@ViewComponent
+private Span completedStepsLabel;
+
+@ViewComponent
+private Span overdueStepsLabel;
+
+@ViewComponent
+private Span totalStepsLabel;
+
+@ViewComponent
+private CollectionContainer<UserStep> userStepsDc;
+----
+
+Затем добавьте пару методов для вычисления и определения счетчиков:
+
+[source,java]
+----
+private void updateLabels() {
+    totalStepsLabel.setText("Total steps: " + userStepsDc.getItems().size());
+
+    long completedCount = userStepsDc.getItems().stream()
+            .filter(us -> us.getCompletedDate() != null)
+            .count();
+    completedStepsLabel.setText("Completed steps: " + completedCount);
+
+    long overdueCount = userStepsDc.getItems().stream()
+            .filter(us -> isOverdue(us))
+            .count();
+    overdueStepsLabel.setText("Overdue steps: " + overdueCount);
+}
+
+private boolean isOverdue(UserStep us) {
+    return us.getCompletedDate() == null
+            && us.getDueDate() != null
+            && us.getDueDate().isBefore(LocalDate.now());
+}
+----
+
+Наконец, вызовите метод `updateLabels()` из двух обработчиков событий:
+
+. Вызовите `updateLabels()` из существующего обработчика `BeforeShowEvent`:
++
+[source,java]
+----
+@Subscribe
+public void onBeforeShow(final BeforeShowEvent event) {
+    // ...
+    updateLabels();
+}
+----
++
+Таким образом, надписи будут обновлены при открытии экрана.
+
+. Нажмите *Generate Handler* и выберите *Data container handlers* -> `userStepsDc` -> `ItemPropertyChangeEvent`:
++
+image::ui-from-scratch/label-2.png[align="center"]
++
+. Вызовите метод `updateLabels()` из обработчика, который вы только что сгенерировали:
++
+[source,java]
+----
+@Subscribe(id = "userStepsDc", target = Target.DATA_CONTAINER)
+public void onUserStepsDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<UserStep> event) {
+    updateLabels();
+}
+----
++
+С помощью обработчика `ItemPropertyChangeEvent` надписи будут обновлены, когда вы измените их атрибут `completedDate`, используя флажки в таблице.
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран `My onboarding` и проверьте значения надписей:
+
+image::ui-from-scratch/label-3.png[align="center"]
+
+[[save-changes-and-close-screen]]
+== Сохранение изменений и закрытие экрана
+
+Теперь вы можете изменить состояние шагов по онбордингу, но изменения будут потеряны, если вы снова откроете экран. Давайте добавим кнопку `Save`, чтобы сохранить и закрыть экран, и кнопку `Discard`, чтобы закрыть без сохранения.
+
+Сначала нажмите *Add Component*, выберите `Layouts` -> `HBox` (контейнер с горизонтальным размещением) и поместите его после `userStepsDataGrid`. Затем добавьте в него две кнопки:
+
+Задайте идентификаторы кнопок и подписи к ним. Для кнопки `Save` добавьте `primary` в атрибуте `themeNames`:
+
+[source,xml]
+----
+<hbox>
+    <button id="saveButton" text="Save" themeNames="primary"/>
+    <button id="discardButton" text="Discard"/>
+</hbox>
+----
+
+Сгенерируйте обработчики нажатия кнопок с помощью вкладки *Handlers* панели инспектора *Jmix UI*:
+
+Инжектируйте `DataContext` в класс контроллера и реализуйте обработчики нажатия кнопок:
+
+[source,java]
+----
+@ViewComponent
+private DataContext dataContext;
+
+@Subscribe(id = "saveButton", subject = "clickListener")
+public void onSaveButtonClick(final ClickEvent<JmixButton> event) {
+    dataContext.save(); // <1>
+    close(StandardOutcome.SAVE); // <2>
+}
+
+@Subscribe(id = "discardButton", subject = "clickListener")
+public void onDiscardButtonClick(final ClickEvent<JmixButton> event) {
+    close(StandardOutcome.DISCARD); // <2>
+}
+----
+<1> `DataContext` отслеживает изменения в сущностях, загруженных в контейнеры данных. Когда вы вызываете его метод `save()`, все измененные экземпляры сохраняются в базе данных.
+<2> Метод `close()` закрывает экран. Он принимает объект "outcome", который может быть проанализирован вызывающим кодом.
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран `My onboarding` и посмотрите на кнопки в действии:
+
+image::ui-from-scratch/buttons-3.png[align="center"]
+
+[[styling-data-grid]]
+== Стилизация таблицы (dataGrid)
+
+Последнее требование к экрану `My onboarding` - выделить просроченные шаги, изменив цвет шрифта в ячейках с `Due date`. Вы сделаете это, создав класс CSS и используя его в таблице.
+
+Сначала назначьте класс `onboarding-steps` компоненту `dataGrid` добавив его в свойство `classNames`:
+
+image::ui-from-scratch/theme-1.png[align="center", width="282"]
+
+Выберите колонку `dueDate`, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `partNameGenerator`. Реализуйте его следующим образом:
+
+[source,java]
+----
+@Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+    return isOverdue(userStep) ? "overdue-step" : null;
+}
+----
+Обработчик принимает экземпляр UserStep отображаемой строки и возвращает имя для использования в специальном CSS-селекторе для этой колонки.
+
+Наконец, откройте файл `onboarding.css` из раздела *User Interface* -> *Themes* и добавьте следующий код CSS:
+
+[source,css]
+----
+vaadin-grid.onboarding-steps::part(overdue-step) {
+    color: red;
+}
+----
+
+В данном селекторе `vaadin-grid.onboarding-steps` указывает на конкретный экземпляр компонента `dataGrid`, а `::part(overdue-step)` указывает на ячейки, которые необходимо подсветить.
+
+
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран `My onboarding` и проверьте работу стиля для просроченных шагов:
+
+image::ui-from-scratch/theme-4.png[align="center"]
+
+[[summary]]
+== Резюме
+
+В этом разделе вы с нуля разработали целый экран для работы с данными.
+
+Вы узнали, что:
+
+* Запрос xref:flow-ui:data/data-loaders.adoc[загрузчика данных] может содержать параметры. Значения параметров могут быть установлены в обработчике событий `BeforeShowEvent` или в любом другом обработчике событий экрана или UI компонента.
+
+* Чтобы запустить загрузку данных, вы должны либо вызвать метод `load()` загрузчика данных в обработчике событий, либо добавить на экран фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[].
+
+* Контейнеры xref:flow-ui:vc/layouts/vbox.adoc[] и xref:flow-ui:vc/layouts/hbox.adoc[] используются для размещения компонентов пользовательского интерфейса вертикально или горизонтально. Корневой контейнер `layout` сам по себе представляет собой контейнер с вертикальным размещением.
+
+* Метод `save()` объекта xref:flow-ui:data/data-context.adoc[DataContext] сохраняет все измененные объекты в базе данных.
+
+* Экран может быть закрыт программно с помощью метода `close()`, предоставляемого базовым классом `View`.
+
+* CSS-файл, находящийся в проекте может определять стили визуальных компонентов.
+
+* The `partNameGenerator` handler should be used to change the style of a table cell.
+
+* Палитру xref:studio:code-snippets.adoc[Code Snippets] можно использовать для быстрого поиска и генерации кода, работающего с API фреймворка.
+
+// todo flowui layout rules
+// TIP: Смотрите подробную информацию о расположении UI компонентов и контейнеров в разделе xref:ui:vcl/layout.adoc[Правила компоновки экрана].

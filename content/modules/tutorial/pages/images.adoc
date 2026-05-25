@@ -1,0 +1,212 @@
+= 6. Работа с изображениями
+
+В этой главе вы добавите атрибут `picture` к сущности `User` и узнаете, как загружать и отображать изображения в пользовательском интерфейсе.
+
+[[file-ref-attr]]
+== Добавление атрибута-ссылки на файл
+
+Jmix позволяет хранить загруженные файлы вне базы данных в так называемом _файловом хранилище_ (_file storage_). В простом случае это каталог файловой системы со специальной структурой. Чтобы связать файл, расположенный в файловом хранилище, с сущностью, необходимо создать атрибут типа `FileRef`.
+
+Давайте создадим такой атрибут для управления изображением пользователя.
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+Дважды щелкните на сущности `User` в окне инструментов *Jmix* и выберите атрибут `joiningDate` (чтобы добавить новый атрибут после него).
+
+Нажмите на кнопку *Add* (image:common/add.svg[]) на панели *Attributes*. В диалоговом окне *New Attribute* введите `picture` в поле *Name* и выберите `FileRef` в раскрывающемся списке *Type*:
+
+image::images/attribute-2.png[align="center", width="862"]
+
+Примите предложенное значение (1024) в поле *Length*. Для атрибута `FileRef` это значение определяет длину столбца для хранения ссылки, а не сам файл. Таким образом, значение свойства `Length` не ограничивает размер файла.
+
+Нажмите на кнопку *OK*.
+
+Выберите атрибут `picture` и нажмите на кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*.
+
+В появившемся диалоговом окне будут показаны все экраны, на которых отображается сущность `User`. Выберите экран `User.detail` и нажмите *OK*.
+
+Studio создаст компонент `pictureField` в форме экрана `User.detail`:
+
+[source,xml]
+----
+<formLayout id="form" dataContainer="userDc">
+    ...
+    <fileStorageUploadField id="pictureField" property="picture"/>
+</formLayout>
+----
+
+Нажмите на кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Перед запуском приложения Studio сгенерирует Liquibase changelog:
+
+image::images/run-app-1.png[align="center"]
+
+Как вы можете видеть, changelog содержит команду для добавления столбца `PICTURE` в таблицу `USER_`. Столбец имеет тип `VARCHAR(1024)`, потому что ссылка на файл на самом деле является строкой.
+
+Нажмите на кнопку *Save and run*.
+
+Студия выполнит changelog, затем соберет и запустит приложение.
+
+Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
+
+Раскройте меню *Application* и нажмите на подпункт *Users*.
+
+Выделите пользователя в таблице и нажмите на кнопку *Edit*. UI-компонент для загрузки изображения показан на форме:
+
+image::images/run-app-3.png[align="center"]
+
+[[image-in-form]]
+== Отображение изображения в форме
+
+В этом разделе вы улучшите экран деталей, чтобы отобразить загруженное изображение в форме.
+
+Сначала оберните компонент `fileStorageUpload` в сворачиваемый контейнер `Details`:
+
+// image::images/form-1.gif[]
+
+Теперь компонент `fileStorageUpload` расположен не непосредственно в `formLayout`, который определяет контейнер данных для своих вложенных компонентов. Поэтому необходимо установить свойство `dataContainer` в `fileStorageUpload` явно:
+
+image::images/form-4.png[align="center",width="338"]
+
+Затем добавьте компонент `image` и установите следующие атрибуты:
+
+[source,xml]
+----
+<details summaryText="Picture">
+    <hbox>
+        <fileStorageUploadField id="pictureField" dataContainer="userDc" property="picture"/>
+        <image id="image" property="picture" dataContainer="userDc" height="10em" width="10em"
+            classNames="user-picture"/>
+    </hbox>
+</details>
+----
+
+* `dataContainer="userDc" property="picture"` связывают компонент `image` с атрибутом `picture` сущности `User`.
+* `classNames="user-picture"` указывает класс CSS, который задается далее.
+
+Откройте файл `onboarding.css` из раздела *User Interface* -> *Themes* и задайте класс `user-picture`:
+
+image::images/form-5.png[align="center",width="680"]
+
+Свойство `object-fit: contain` гарантирует, что изображение заполнит всю выделенную область, но сохранит пропорции.
+
+[source,css]
+----
+.user-picture {
+    object-fit: contain;
+}
+----
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и попробуйте загрузить изображение:
+
+image::images/form-2.png[align="center"]
+
+[[image-in-table]]
+== Отображение изображения в таблице
+
+Давайте создадим колонку для отображения изображения в таблице экрана `User.list`.
+
+Откройте `user-list-view.xml` и добавьте следующую колонку в `usersDataGrid`:
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
+Добавьте следующие поля в класс `UserListView`:
+
+[source,java]
+----
+@ViewComponent
+private DataGrid<User> usersDataGrid;
+
+@Autowired
+private UiComponents uiComponents;
+
+@Autowired
+private FileStorage fileStorage;
+----
+
+TIP: Вы можете использовать кнопку *Inject* в верхней панели действий редактора, чтобы инжектировать зависимости в контроллеры экрана и бины Spring.
+
+Выберите колонку `picture` в иерархии, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `renderer. Реализуйте его следующим образом:
+
+[source,java]
+----
+import com.company.onboarding.entity.User;
+import com.company.onboarding.view.main.MainView;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.renderer.Renderer;
+import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
+import com.vaadin.flow.server.streams.InputStreamDownloadHandler;
+import io.jmix.core.FileRef;
+import io.jmix.core.FileStorageLocator;
+import io.jmix.flowui.UiComponents;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.InputStream;
+
+@Route(value = "users", layout = MainView.class)
+@ViewController(id = "User.list")
+@ViewDescriptor(path = "user-list-view.xml")
+@LookupComponent("usersDataGrid")
+@DialogMode(width = "50em", height = "37.5em")
+public class UserListView extends StandardListView<User> {
+
+    @Autowired
+    private UiComponents uiComponents;
+
+    @Autowired
+    private FileStorageLocator fileStorageLocator;
+
+    @Supply(to = "usersDataGrid.picture", subject = "renderer")
+    private Renderer<User> usersDataGridPictureRenderer() {
+        return new ComponentRenderer<>(user -> { // <1>
+            FileRef fileRef = user.getPicture();
+            if (fileRef != null) {
+                Image image = uiComponents.create(Image.class);  // <2>
+                image.setWidth("30px");
+                image.setHeight("30px");
+                InputStreamDownloadHandler handler =
+                        DownloadHandler.fromInputStream(event -> {
+                            InputStream inputStream = fileStorageLocator.getByName(
+                                    fileRef.getStorageName()).openStream(fileRef);
+                            return new DownloadResponse(
+                                    inputStream, fileRef.getFileName(), fileRef.getContentType(), -1);
+                        });
+                image.setSrc(handler); // <3>
+                image.setClassName("user-picture");
+                return image; // <4>
+            } else {
+                return null;
+            }
+        });
+    }
+}
+----
+<1> Метод возвращает объект `Renderer`, создающий UI-компонент, отображаемый в ячейках колонки. Рендерер принимает экземпляр сущности данной строки.
+<2> Экземпляр компонента `Image` создается с помощью фабрики компонентов `UiComponents`.
+<3> Компонент изображения получает свое содержимое из файлового хранилища по ссылке, хранящейся в атрибуте `picture` сущности `User`.
+<4> Рендерер возвращает визуальный компонент, который будет отображаться в ячейках колонки.
+
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран списка пользователей. Вы увидите изображение пользователя в первой колонке таблицы:
+
+image::images/table-3.png[]
+
+[[summary]]
+== Резюме
+
+В этом разделе вы добавили возможность загружать и показывать изображение пользователя.
+
+Вы узнали, что:
+
+* xref:files:uploading-files.adoc[Загруженные файлы] могут храниться в xref:files:file-storage.adoc[файловом хранилище] и связываться с сущностями с использованием атрибутов типа `FileRef`.
+
+* Компонент xref:flow-ui:vc/components/fileStorageUploadField.adoc[] позволяет загружать файлы, сохранять их в хранилище файлов и связывать с атрибутом сущности.
+
+* Компонент xref:flow-ui:vc/html-components/image.adoc[] может отображать изображения, сохраненные в файловом хранилище.

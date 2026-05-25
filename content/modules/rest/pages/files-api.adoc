@@ -1,0 +1,198 @@
+= Files API
+
+Этот API использует xref:files:index.adoc[механизм Files] фреймворка Jmix, чтобы позволить клиентским приложениям загружать и скачивать файлы в/из приложения Jmix.
+
+[[uploading-files]]
+== Загрузка файлов
+
+Операция (endpoint) Upload Files API `/files` с использованием метода HTTP `POST` позволяет передать файл в приложение Jmix.
+
+Существует два различных способа передачи данных:
+
+1. Используя `multipart/form-data`.
+2. Используя различные типы содержимого с телом, содержащим двоичные данные.
+
+В зависимости от варианта использования любой из этих двух способов может оказаться предпочтительным. В обоих случаях API возвращает сообщение `201 - Created` об успешном сохранении файла.
+
+NOTE: Чтобы загружать файлы, у пользователя должна быть роль со xref:security:resource-roles.adoc#specific-policy[специальной политикой] `rest.fileUpload.enabled`.
+
+[[using-multipart-form-data]]
+=== Использование Multipart/form-data
+
+При использовании стандартной формы браузера для отправки файла в приложение Jmix предпочтительным способом является первый, поскольку в этом случае браузеры по умолчанию используют Content-Type `multipart/form-data`. Содержащие двоичный файл формы должны быть названы `file`, чтобы Jmix воспринимал их как содержимое файла.
+
+В этом примере по запросу `multipart/form-data` загружается файл `cat.jpg` в его необработанной HTTP-форме:
+
+[source, http request]
+.Upload File as Multipart/form-data Request
+----
+POST http://localhost:8080/rest/files
+Content-Type: multipart/form-data; boundary=WebAppBoundary // <1>
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="cat.jpg" // <2>
+Content-Type: image/jpeg
+
+< ./cat.jpg // <3>
+--WebAppBoundary--
+----
+<1> `Content-Type` HTTP-запроса – `multipart/form-data`
+<2> Часть `Content-Disposition` с именем `file` обозначает файл для загрузки. Имя файла указано там же.
+<3> `< ./cat.jpg` обозначает двоичные данные файла (_фактическое двоичное содержимое здесь не отображается_).
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileRef": "fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg", // <1>
+  "name": "cat.jpg",
+  "size": 85862
+}
+----
+<1> `fileRef` содержит ссылку для последующего использования.
+
+Если вы хотите контролировать имя, под которым хранится файл, задайте параметр URL `name` следующим образом: `POST http://localhost:8080/rest/files?name=dog.jpg`. Jmix возьмет имя файла из параметра и не будет учитывать
+`POST http://localhost:8080/rest/files?name=dog.jpg``Content-Disposition`.
+
+Для ограничения размера загружаемого файла используйте следующее свойство приложения:
+
+[source, properties]
+----
+spring.servlet.multipart.max-file-size=10MB
+----
+
+[[using-direct-upload]]
+=== Использование прямой загрузки
+
+Также файл можно загрузить без использования `multipart/form-data`. Вместо этого можно напрямую использовать Content-Type файла. В этом случае тело HTTP-запроса содержит непосредственно содержимое двоичного файла. Вам необходимо предоставить параметр URL `name`, чтобы указать, какое имя использовать для файла.
+
+Например:
+
+[source, http request]
+.Upload File as Direct Request
+----
+POST http://localhost:8080/rest/files?name=cat-via-direct-request.jpg // <1>
+Content-Type: image/jpeg // <2>
+
+< ./cat.jpg // <3>
+----
+<1> Параметр URL `name` предоставляет имя файла.
+<2> `Content-Type` – тип содержимого файла.
+<3> `< ./cat.jpg` обозначает двоичные данные файла (`фактическое двоичное содержимое здесь не отображается`).
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileRef": "fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg",
+  "name": "cat-via-direct-request.jpg",
+  "size": 85862
+}
+----
+
+[[downloading-files]]
+== Скачивание файлов
+
+Загруженные в приложение Jmix файлы можно скачать или отобразить.
+
+Для этого необходимо использовать операцию Downloading Files: `/files?fileRef=:fileRef` через HTTP `GET`. API возвращает `200 - OK`, если файл существует вместе с двоичным содержимым файла как часть тела HTTP. В противном случае возвращается `404 - Not Found`.
+
+В следующем примере ранее загруженный файл скачивается через API:
+
+[source, http request]
+.Download File Request
+----
+GET http://localhost:8080/rest
+            /files
+            ?fileRef=fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg // <1>
+----
+<1> `fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg` идентифицирует файл по его ссылке.
+
+[NOTE]
+====
+Параметр `fileRef` должен быть всегда URL-закодирован, чтобы предотвратить любые проблемы со специальными символами. Таким образом, URL-адрес из приведенного выше примера должен выглядеть так при запросе из API:
+
+`fileRef=fs%3A%2F%2F2021%2F03%2F12%2F2266c97c-cf23-c202-481d-04d972e185b4.jpg%3Fname%3Dcat-via-direct-request.jpg`
+====
+
+Если файл существует, он будет сдержаться в ответе как показано ниже:
+
+[source, http request]
+.Response: 200 - OK
+----
+Content-Disposition: inline; filename="cat-via-direct-content-type.jpg" // <1>
+Content-Type: image/jpeg // <2>
+
+> ./cat-via-direct-content-type.jpg // <3>
+----
+<1> Заголовок `Content-Disposition` содержит имя файла, а также информацию о том, как обрабатывать файл после скачивания (`inline` или `attachment`).
+<2>	Заголовок `Content-Type` содержит тип содержимого файла.
+<3> `> ./cat-via-direct-content-type.jpg` обозначает двоичные данные файла (`фактическое двоичное содержимое здесь не отображается`).
+
+Вы можете управлять заголовком `Content-Disposition` ответа, установив параметр запроса `attachment`. Если установлено значение true, то `Content-Disposition` будет установлен в `attachment`, а в противном случае – в `inline`.
+
+[source, http request]
+.Attachment request parameter
+----
+GET http://localhost:8080/rest
+            /files
+            ?fileRef=<your-file-ref>
+            &attachment=true
+----
+
+Список расширений файлов, которые можно скачать с заголовком `Content-Disposition: inline`, установлен в свойстве приложения xref:app-properties.adoc#jmix.rest.inline-enabled-file-extensions[jmix.rest.inline-enabled-file-extensions].
+
+NOTE: Чтобы скачивать файлы, пользователю необходимо иметь роль со xref:security:resource-roles.adoc#specific-policy[специальной политикой] `rest.fileDownload.enabled`.
+
+[[referencing-files-from-entities]]
+== Ссылка на файлы из сущностей
+
+Вы можете связать файлы с сущностями после того, как файл будет сохранен в приложении Jmix.
+
+Во-первых, файл нужно загрузить, как описано в разделе <<uploading-files>>. В ответ возвращается ссылка на файл, например `fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg`. Ее можете использовать при создании/обновлении сущностей и связывать их с файлом.
+
+В следующем примере сущность `Product` использует ссылку на файл для хранения изображения продукта.
+
+[source,java]
+.Product.java
+----
+@JmixEntity
+@Table(name = "RSTEX11_PRODUCT")
+@Entity(name = "rstex11_Product")
+public class Product {
+
+    @PropertyDatatype("fileRef")
+    @Column(name = "IMAGE")
+    private FileRef image;
+
+    //...
+}
+----
+
+При создании Product через Create Entities API в качестве значения атрибута `image` необходимо передать ранее полученную ссылку на файл:
+
+[source, http request]
+.Create Product with File Reference Request
+----
+POST http://localhost:8080/rest
+            /entities
+            /rstex11_Product
+            ?responseFetchPlan=_local
+
+{
+  "name": "Product with Image",
+  "price":100,
+  "image": "fs://2021/03/13/f623e8ab-524e-51ed-1a9f-b1c1369239e3.jpg?name=cat.jpg"
+}
+----
+
+[source,json]
+.Response: 201 - Created
+----
+{
+  "id": "ea6f1b3c-0e74-c90b-b009-9f58ac964034",
+  "image": "fs://2021/03/13/f623e8ab-524e-51ed-1a9f-b1c1369239e3.jpg?name=cat.jpg",
+  "price": 100.00,
+  "name": "Product with Image"
+}
+----

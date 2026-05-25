@@ -1,0 +1,121 @@
+= Начало работы с REST
+:page-aliases: rest:quick-start.adoc
+
+В этом разделе представлен пример получения через REST API информации о пользователях приложения.
+
+Для начала добавьте REST в свой проект как описано в разделе xref:index.adoc#installation[Установка].
+
+[[obtaining-access-token]]
+== Получение токена доступа
+
+Для доступа к защищенному ресурсу клиент должен предоставить действующий токен доступа. Спецификация OAuth 2.1 предоставляет несколько способов получения токена от сервера авторизации. Они называются типами разрешения (grant types). В этом примере мы будем использовать тип разрешения {oauth-specification-page}#name-client-credentials-grant[Client Credentials^], который подходит для конфиденциальных клиентов, таких как бэкенд-интеграции.
+
+Функциональность, ответственная за выдачу токенов и поддержку всех функций протокола OAuth 2.1, предоставляется дополнением Authorization Server. Вам необходимо добавить это дополнение в ваш проект, см. xref:authorization-server:index.adoc#installation[документацию] по установке дополнения.
+
+[source,groovy,indent=0]
+----
+implementation 'io.jmix.authserver:jmix-authserver-starter'
+----
+
+Идея заключается в том, что в приложении Jmix мы должны зарегистрировать клиента (например, внешнее приложение, которому необходим доступ к Jmix REST API), определить идентификатор и секрет клиента, а затем, используя эти учетные данные, мы сможем получить токен доступа с помощью специального HTTP-запроса.
+
+Простейший способ зарегистрировать клиента - добавить стандартные свойства Spring Authorization Server:
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-registration]
+----
+
+Следующий набор свойств приложения специфичен для Jmix и определяет, какие ресурсные роли и роли уровня строк должны быть назначены токену, выданному клиенту. В данном примере мы назначим две ресурсные роли:
+
+* `rest-minimal` (REST: minimal access) - чтобы разрешить доступ к REST API.
+* `user-management` (User management) - чтобы разрешить операции с сущностью User через REST API.
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-role-assignment]
+----
+
+Роль `user-management` выглядит следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/security/UserManagementRole.java[tags=user-management-role]
+----
+<1> "API" scope указывает, что роль будет применяться для запросов к REST API.
+
+После того как эти свойства заданы в приложении, должна появиться возможность получить токены доступа.
+
+В данном примере для взаимодействия с REST API мы будем использовать инструмент командной строки `curl`.
+
+[source, bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user my-client:my-secret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=client_credentials"
+----
+
+TIP: В Windows удалите символы `\` и вводите команду одной строкой.
+
+Вы должны получить ответ подобный этому:
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token":"hKhgNyGMTqaKd6prH-GoHF8zFVTSr9tKKyE3OnMoafRO4FT4Xq_cewHr28cIRITaRmF0olRXpVTyFdxcOPTAl8Vc7xopHrdNuXNXwEeBn7NSiEMvQXW5zO0dwMn_H8FQ",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+Атрибут `access_token` — это токен, который можно использовать для дальнейших запросов в заголовке  `Authorization`. Он действует как временные учетные данные, которые предоставляют вам доступ к приложению от имени пользователя.
+
+[[rest-endpoints-security]]
+== Настройка безопасности REST-эндпойнтов
+
+По умолчанию, когда вы добавляете дополнение REST API в приложение, к REST-эндпойнтам не применяются настройки безопасности. Существуют xref:security:custom-endpoints.adoc[несколько способов] для защиты этих эндпойнтов. Один из способов — указать аутентифицируемые URL сервера ресурсов путем добавления следующего свойство приложения:
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=rest-authenticated-url-patterns]
+----
+
+IMPORTANT: Если не настроить безопасность REST-эндпойнтов тем или иным способом, то обращение к ним будет либо перенаправляться на страницу логина UI, либо выдавать ошибку сервера из-за выполнения кода без контекста безопасности пользователя.
+
+[[retrieve-entity-list]]
+== Запрос списка сущностей
+
+С токеном доступа вы можете использовать операции (endpoints) REST API для загрузки списка пользователей. Замените `<access_token>` значением, полученным на предыдущем шаге. Мы извлечем всех пользователей в приложении через Entities API:
+
+[source, bash]
+----
+curl -X GET http://localhost:8080/rest/entities/User \
+    -H "Authorization: Bearer <access_token>"
+----
+
+[NOTE]
+====
+Этот запрос предполагает, что ваш проект содержит сущность с именем `User`.
+
+Имя сущности является либо именем класса Java, либо значением атрибута `name` в аннотации `@Entity` или `@JmixEntity`.
+Если вы указали *Project id* при создании проекта, имя сущности будет `<projectid>_User`.
+====
+
+Ответ будет содержать всех пользователей, доступных в приложении:
+
+.HTTP/1.1 200
+[source, json]
+----
+[
+  {
+    "_entityName": "User",
+    "_instanceName": "[admin]",
+    "id": "60885987-1b61-4247-94c7-dff348347f93",
+    "version": 1,
+    "active": true,
+    "username": "admin"
+  }
+]
+----

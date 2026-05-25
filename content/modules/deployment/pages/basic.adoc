@@ -1,0 +1,292 @@
+= Базовое развертывание
+
+[IMPORTANT]
+====
+Убедитесь что файл `build.gradle` вашего проекта содержит следующий код:
+
+[source,groovy]
+----
+vaadin {
+    optimizeBundle = false
+}
+----
+
+Он требуется для продакшн-сборки.
+====
+
+[[bootJar]]
+== Создание исполняемого JAR
+
+Откройте терминал в корневом каталоге проекта и выполните следующую команду:
+
+[source,shell script]
+.Linux и macOS
+----
+./gradlew -Pvaadin.productionMode=true bootJar
+
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootJar
+----
+
+Имя исполняемого JAR будет состоять из имени и версии вашего проекта. Например, если в `settings.gradle` указано следующее:
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+а в `build.gradle`:
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+то именем JAR будет `myapp-0.0.1-SNAPSHOT.jar`.
+
+Исполняемый JAR-файл создается в папке `/build/libs`. Его можно скопировать в любое место и запустить следующим образом:
+
+[source,shell script]
+----
+java -jar myapp-0.0.1-SNAPSHOT.jar
+----
+
+Если вы хотите настроить процесс упаковки или создать развертываемый WAR-файл, обратитесь к {spring-boot-doc}/gradle-plugin/packaging.html[документации Spring Boot^].
+
+[[docker-image]]
+== Создание образа Docker
+
+[[using-dockerfile]]
+=== Использование Dockerfile
+
+Наиболее стандартный и надежный способ создания образа Docker — это использование Dockerfile. Он работает в любой среде и может быть настроен под любые требования. Простейший Dockerfile показан ниже:
+
+[source,dockerfile]
+.Dockerfile
+----
+FROM eclipse-temurin:21-jre-alpine
+COPY build/libs/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+----
+
+Чтобы создать образ с помощью Dockerfile, выполните следующее:
+
+. Создайте файл Dockerfile в корневой папке проекта.
+. Создайте исполняемый JAR файл, как описано в <<bootJar,предыдущем разделе>>.
+. Создайте образ, выполнив следующую команду в корневой папке проекта:
++
+[source,shell]
+----
+docker build -t IMAGE_NAME .
+----
++
+Замените `IMAGE_NAME` на желаемое имя образа.
+
+[[bootBuildImage]]
+=== Использование bootBuildImage
+
+Задача Gradle `bootBuildImage` позволяет создавать оптимизированные образы.
+
+Откройте терминал в корневом каталоге проекта и выполните следующую команду:
+
+[source,shell script]
+.Linux и macOS
+----
+./gradlew -Pvaadin.productionMode=true bootBuildImage
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootBuildImage
+----
+
+По умолчанию созданный образ будет иметь имя вашего проекта и соответствующий версии проекта тег
+
+Например, если в `settings.gradle` указано следующее:
+
+[source,groovy]
+----
+rootProject.name = 'myapp'
+----
+
+а в `build.gradle`:
+
+[source,groovy]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+то созданным образом будет `myapp:0.0.1-SNAPSHOT`.
+
+Если вы используете дополнение xref:grid-export:index.adoc[] для экспорта в Excel, вам может понадобиться добавить следующую конфигурацию в `build.gradle`, чтобы образ содержал все необходимые шрифты:
+
+[source,groovy]
+----
+tasks.named("bootBuildImage") {
+    builder = "paketobuildpacks/builder-jammy-full"
+}
+----
+
+Более подробная информация о создании образа и его настройке доступна в {spring-boot-doc}/gradle-plugin/packaging-oci-image.html[документации Spring Boot^].
+
+[[bootWar]]
+== Развертывание WAR
+
+Чтобы создать WAR-файл для развертывания на сервере приложения, выполните следующие действия:
+
+. Убедитесь, что ваш основной класс приложения расширяет `SpringBootServletInitializer`, например:
++
+[source,java]
+----
+@SpringBootApplication
+public class MyApplication
+        extends SpringBootServletInitializer
+        implements AppShellConfigurator {
+    // ...
+}
+----
+
+. Добавьте плагин `war` в раздел `plugins` вашего файла `build.gradle`:
++
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'war'
+}
+----
+
+. Откройте терминал в корневом каталоге проекта и выполните следующую команду:
++
+[source,shell script]
+.Linux и macOS
+----
+./gradlew -Pvaadin.productionMode=true bootWar
+----
++
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootWar
+----
+
+WAR-файл будет создан в папке `/build/libs`. Имя файла генерируется по описанному в <<bootJar,предыдущем разделе>> принципу.
+
+IMPORTANT: Для запуска приложений Jmix необходим как минимум Tomcat 10, так как начиная с Jmix 2.0 требуется поддержка Jakarta EE 9 (пространство имен `jakarta.*`). Подробности см. в https://tomcat.apache.org/migration-10.html#Specification_APIs[документации Tomcat^].
+
+[[multiple-wars]]
+=== Развертывание нескольких WAR файлов
+
+Развёртывание нескольких WAR файлов Jmix на одном сервере Tomcat может привести к конфликту имён JMX бинов, вызывая ошибку:
+
+----
+Caused by: javax.management.InstanceAlreadyExistsException: jmix.ui:type=TemporaryStorage
+----
+
+Чтобы устранить проблему, задайте каждому WAR файлу собственный JMX домен. Для этого добавьте следующее в файл свойств приложения:
+
+.application.properties
+----
+spring.jmx.default-domain=myDomain
+----
+
+[[jndi-data-source]]
+=== Использование источника данных JNDI
+
+При развертывании приложения в WAR вы можете использовать предоставляемый сервером приложений источник данных JNDI для выноса из приложения настроек подключения.
+
+Ниже представлена настройка основного `DataSource` приложения для сред разработки и производственных сред с помощью функции {spring-boot-doc}/reference/features/profiles.html[профилей^] Spring.
+
+. В основном классе приложения добавьте аннотацию `@Profile("!prod")` к методам `dataSourceProperties` и `dataSource`, чтобы удостовериться, что эти бины создаются только в среде разработки:
++
+[source,java,indent=0]
+----
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource")
+DataSourceProperties dataSourceProperties() {
+    return new DataSourceProperties();
+}
+
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource.hikari")
+DataSource dataSource(DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().build();
+}
+----
+
+. Добавьте метод, создающий бин `DataSource` для производственной среды:
++
+[source,java,indent=0]
+----
+@Profile("prod")
+@Bean(name = "dataSource")
+@Primary
+DataSource prodDataSource(ApplicationContext context) {
+    JndiDataSourceLookup lookup = new JndiDataSourceLookup();
+    DataSource dataSource = lookup.getDataSource("java:comp/env/jdbc/demo"); // <1>
+
+    // to avoid org.springframework.jmx.export.UnableToRegisterMBeanException:
+    for (MBeanExporter mbeanExporter : context.getBeansOfType(MBeanExporter.class).values()) {
+        if (JmxUtils.isMBean(((Object) dataSource).getClass())) {
+            mbeanExporter.addExcludedBean("dataSource");
+        }
+    }
+
+    return dataSource;
+}
+----
+<1> JNDI-имя источника данных, предоставляемого сервером приложения.
+
+. При запуске сервера приложений установите для активного профиля значение `prod` в свойстве приложения `spring.profiles.active`.
+
+Ниже приведен пример конфигурации Tomcat для развертывания приложения `demo.war`.
+
+. Скопируйте `demo.war` в папку `tomcat/webapps`.
+
+. Создайте файл `tomcat/bin/setenv.sh` со следующим содержимым:
++
+[source,shell script]
+----
+CATALINA_OPTS="-Dspring.profiles.active=prod"
+----
+
+. Создайте файл `tomcat/conf/Catalina/localhost/demo.xml`, определяющий источник данных, и установите соответствующие параметры подключения к БД (имя XML-файла должно совпадать с именем WAR):
++
+[source,xml]
+----
+<Context>
+    <Resource type="javax.sql.DataSource"
+              name="jdbc/demo"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost/demo"
+              username="root"
+              password="root"
+              maxIdle="2"
+              maxTotal="20"
+              maxWaitMillis="5000"
+    />
+</Context>
+----
++
+Обратите внимание, что атрибут `name` элемента `Resource` определяет имя JNDI, используемое в методе `JndiDataSourceLookup.getDataSource()` при создании бина `DataSource`.
+
+. Скопируйте соответствующий файл JDBC-драйвера (например, ``postgresql-42.2.9.jar`) в `tomcat/lib`.
+
+При запуске Tomcat приложение будет использовать источник данных, определенный в файле `tomcat/conf/Catalina/localhost/demo.xml`.
+
+[[reverse-proxy]]
+== Reverse Proxy
+
+Обратитесь к {vaadin-docs}/flow/production/reverse-proxy[руководству Vaadin по обратному прокси^] для инструкций по настройке *Apache HTTPD* или *nginx*, установленного перед приложением Jmix. Это руководство включает в себя информацию о переадресации заголовков, поддержке WebSocket и переписывании путей для различных вариантов развертывания.

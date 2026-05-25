@@ -1,0 +1,56 @@
+= Асинхронные задачи
+
+Бин `UiAsyncTasks` позволяет выполнить операцию в отдельном потоке с использованием контекста безопасности текущего пользователя, а затем обновить экран с результатом этой операции.
+
+Бин `UiAsyncTasks` использует под капотом `CompletableFuture`.
+
+Если необходимо показать прогресс операции и дать пользователям возможность прервать её, используйте более мощный механизм xref:background-tasks.adoc[фоновых задач].
+
+[[ascync-tasks-with-result]]
+== Асинхронные задачи с результатом
+
+Чтобы выполнить задачу, возвращающую результат, используйте билдер `supplierConfigurer()` и терминальный метод `supplyAsync()`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/uiasynctaskssample/UiAsyncTasksSampleView.java[tags=supply-async;load-customers]
+----
+<1> Supplier, переданный в метод `supplierConfigurer()`, будет выполнен с использованием контекста безопасности текущего пользователя.
+<2> Код, выполняемый внутри потребителя `withResultHandler()`, может безопасно обновлять компоненты экрана.
+
+[[ascync-tasks-without-result]]
+== Асинхронные задачи без результата
+
+Чтобы выполнить задачу, не возвращающую результат, используйте билдер `runnableConfigurer()` и терминальный метод `runAsync()`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/uiasynctaskssample/UiAsyncTasksSampleView.java[tags=run-async;synchronize-customers]
+----
+
+[[exception-handling]]
+== Обработка исключений
+
+По умолчанию, если выполнение задачи завершится с исключением, оно будет записано в журнал приложения. Вы можете настроить это поведение, предоставив обработчик исключений:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/uiasynctaskssample/UiAsyncTasksSampleView.java[tags=exception-handler]
+----
+
+[[timeout-handling]]
+== Обработка таймаутов
+
+Используйте метод `withTimeout()`, чтобы задать значение таймаута выполнения. Если время ожидания превышено, будет выброшено исключение `TimeoutException`. Исключение `TimeoutException` можно обработать в методе `withExceptionHandler()`.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/uiasynctaskssample/UiAsyncTasksSampleView.java[tags=timeout]
+----
+
+Если явные значения таймаута не указаны, будет использоваться значение по умолчанию — 5 минут. Чтобы изменить это значение по умолчанию, используйте свойство приложения xref:ui-properties.adoc#jmix.ui.async-task.default-timeout-sec[jmix.ui.async-task.default-timeout-sec].
+
+[[executor-service-configuration]]
+== Конфигурация ExecutorService
+
+Бин `UiAsyncTasks` использует собственный `ExecutorService` для выполнения задач в отдельных потоках. Чтобы изменить размер пула по умолчанию для `ExecutorService`, используйте свойство приложения xref:ui-properties.adoc#jmix.ui.async-task.executor-service.maximum-pool-size[jmix.ui.async-task.executor-service.maximum-pool-size].

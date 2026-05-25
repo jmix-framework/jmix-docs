@@ -1,0 +1,255 @@
+= Аутентификация
+
+Аутентификация – это процесс проверки личности пользователя или процесса, который взаимодействует с системой. Например, система может аутентифицировать пользователей по их имени и паролю. Для аутентифицированных пользователей система может выполнить xref:authorization.adoc[авторизацию], которая представляет собой проверку разрешений для определенного ресурса.
+
+Jmix напрямую использует {spring-security-doc}/servlet/authentication/index.html[Servlet аутентификацию^] Spring Security, поэтому если вы знакомы с этой платформой, то вы можете легко расширить или переопределить стандартный механизм аутентификации, предоставляемый Jmix "из коробки".
+
+[[current]]
+== Текущий пользователь
+
+Чтобы определить, кто в данный момент аутентифицирован, используйте бин `CurrentAuthentication`. Он имеет следующие методы:
+
+* `getUser()` возвращает текущего аутентифицированного пользователя как {spring-security-api}/org/springframework/security/core/userdetails/UserDetails.html[UserDetails^]. Его можно привести к классу xref:users.adoc#entity[пользователя], определенному в проекте.
+
+* `getAuthentication()` возвращает объект {spring-security-api}/org/springframework/security/core/Authentication.html[Authentication^], связанный с текущим потоком выполнения. Объект `Authentication` хранит имена ролей пользователя.
++
+Jmix использует класс Spring Security https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/core/authority/SimpleGrantedAuthority.html[SimpleGrantedAuthority^] для представления ролей пользователей. Этот класс фактически хранит одну строку, представляющую роль. Формат этой строки:
++
+--
+** Для xref:resource-roles.adoc[ресурсных] ролей: `ROLE_<role-code>`, например, `ROLE_system-full-access`.
+** Для ролей xref:row-level-roles.adoc[уровня строк]: `ROW_LEVEL_ROLE_<role-code>`, например, `ROW_LEVEL_ROLE_my-role`.
+--
++
+Granted authorities нужного Java-класса и содержания могут быть созданы из кодов ролей с использованием класса `RoleGrantedAuthorityUtils`.
++
+[TIP]
+====
+Вы можете настроить префикс для полномочий ресурсных ролей, используя стандартный механизм Spring, путем конфигурирования бина `org.springframework.security.config.core.GrantedAuthorityDefaults`.
+
+Аналогично, вы можете скорректировать префикс для полномочий ролей уровня строк, используя свойство приложения `jmix.security.default-row-level-role-prefix`.
+====
+* `getLocale()` возвращает локаль текущего пользователя.
+
+* `getTimeZone()` возвращает часовой пояс текущего пользователя. <<time-zones,Ниже>> объясняется, как часовой пояс пользователя определяется и как он используется фреймворком.
+
+* `isSet()` возвращает значение `true`, если текущий поток выполнения аутентифицирован, то есть содержит информацию о пользователе. Если это не так, методы `getUser()`, `getLocale()` и `getTimeZone()`, описанные выше, выбросят исключение `IllegalStateException`.
+
+Ниже приведен пример получения информации о текущем пользователе:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/authtest/AuthTestView.java[tags=current-auth]
+----
+
+[NOTE]
+====
+`CurrentAuthentication` – это просто обёртка вокруг {spring-security-api}/org/springframework/security/core/context/SecurityContextHolder.html[SecurityContextHolder^], поэтому он полностью совместим со всеми механизмами Spring Security.
+
+Например, вы можете использовать `DelegatingSecurityContextRunnable` для передачи контекста аутентификации в новые потоки как описано в {spring-security-doc}/servlet/integrations/concurrency.html[документации Spring Security^].
+====
+
+[[time-zones]]
+=== Использование часовых поясов
+
+Jmix автоматически преобразует значения UI-компонентов между часовыми поясами сервера и пользователя для атрибутов сущностей следующих типов:
+
+* `OffsetDateTime`
+* `java.util.Date` с аннотацией `@Temporal(TemporalType.TIMESTAMP)`, что соответствует типу атрибута `DateTime` в Studio.
+
+Ниже мы объясняем, как указать часовые пояса пользователя и сервера.
+
+По умолчанию сущность `User` реализует интерфейс `HasTimeZone` с двумя методами:
+
+* `getTimeZoneId()` реализован в сущности `User` и возвращает часовой пояс, установленный для пользователя в базе данных.
+
+* Метод `isAutoTimeZone()` по умолчанию возвращает `false` для всех пользователей. Вы можете реализовать этот метод в сущности `User` и возвращать `true` для всех пользователей или сопоставить его со столбцом базы данных, как это сделано для `getTimeZoneId()`, чтобы иметь разные значения для разных пользователей.
+
+Часовой пояс текущего пользователя, возвращаемый `CurrentAuthentication.getTimeZone()`, определяется в следующем порядке:
+
+* Непустое значение, возвращаемое методом `User.getTimeZoneId()`, используется для создания объекта `TimeZone`.
+
+* Если метод `User.isAutoTimeZone()` возвращает `true`, фреймворк пытается получить часовой пояс из веб-браузера пользователя через реализацию `DeviceTimeZoneProvider`.
+
+* Если оба предыдущих шага не увенчались успехом, используется часовой пояс сервера по умолчанию.
+
+Часовой пояс сервера определяется операционной системой сервера. Вы можете задать его явно с помощью системного свойства Java `user.timezone` или класса `TimeZone`. Например:
+
+[source,java]
+----
+@SpringBootApplication
+public class DemoApplication {
+
+    public static void main(String[] args) {
+        System.setProperty("user.timezone", "UTC");
+        SpringApplication.run(DemoApplication.class, args);
+    }
+----
+
+Мы также рекомендуем установить тот же часовой пояс для базы данных. Например, в PostgreSQL это можно сделать с помощью следующей команды:
+
+[source,sql]
+----
+ALTER DATABASE demo SET timezone TO 'UTC'
+----
+
+[[client]]
+== Аутентификация клиента
+
+У бэкенда приложения Jmix могут быть разные клиенты, например, Jmix UI или REST API. Каждый клиент имеет свой собственный стандартный механизм аутентификации, такой как окно логина UI или xref:rest:access-control.adoc[токен доступа REST].
+
+[[custom-password-validation]]
+=== Собственная валидация паролей
+
+Чтобы реализовать собственную валидацию паролей в приложении, достаточно создать бин (или несколько бинов), реализующий интерфейс `PasswordValidator`. Например:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/MyPasswordValidator.java[]
+----
+
+Все валидаторы будут автоматически использованы в диалоге действия ChangePassword.
+
+Для добавления кастомной валидации в экран деталей сущности User, используйте бин-помощник `PasswordValidation`:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/user/UserDetailView.java[tags=password-validation]
+----
+
+[[brute-force-protection]]
+=== Защита от взлома методом перебора
+
+В фреймворке есть механизм защиты от взлома паролей методом перебора, которая обеспечивается свойством приложения <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>>. Если она включена, комбинация логина пользователя и IP-адреса блокируется на определенный промежуток времени в случае нескольких неудачных попыток входа в систему. Максимальное количество попыток определяется свойством приложения <<jmix.security.bruteforceprotection.max-login-attempts-number,jmix.security.bruteforceprotection.max-login-attempts-number>>. Интервал блокировки в секундах определяется свойством приложения <<jmix.security.bruteforceprotection.block-interval,jmix.security.bruteforceprotection.block-interval>>.
+
+[[jmix.security.bruteforceprotection.enabled]]
+* `jmix.security.bruteforceprotection.enabled`
++
+Включает механизм защиты от взлома пароля методом перебора. Значение по умолчанию: `false`.
+
+[[jmix.security.bruteforceprotection.block-interval]]
+* `jmix.security.bruteforceprotection.block-interval`
++
+Определяет интервал блокировки в секундах после превышения максимального количества неудачных попыток входа в систему, если включено свойство <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>>. Значение по умолчанию: `60 seconds`.
+
+[[jmix.security.bruteforceprotection.max-login-attempts-number]]
+* `jmix.security.bruteforceprotection.max-login-attempts-number`
++
+Определяет максимальное количество неудачных попыток входа в систему для комбинации логина пользователя и IP-адреса, если включено свойство <<jmix.security.bruteforceprotection.enabled,jmix.security.bruteforceprotection.enabled>>. Значение по умолчанию: `5`.
+
+[[system]]
+== Системная аутентификация
+
+Поток выполнения может быть не аутентифицирован, если был запущен внутренним планировщиком или обрабатывает запрос из JMX-интерфейса. Однако обычно бизнес-логике или коду доступа к данным для журналирования или авторизации требуется информация о том, кто в данный момент работает с системой.
+
+Чтобы временно связать текущий поток выполнения с пользователем, используйте бин `SystemAuthenticator`. Он имеет следующие методы:
+
+* `withSystem()` - принимает lambda-выражение и выполняет его от имени xref:users.adoc#built-in[системного] пользователя.
+
+* `withUser()` - принимает имя обычного пользователя приложения и lambda-выражение и выполняет его от имени данного пользователя с соответствующими разрешениями.
+
+Ниже приведен пример аутентификации операции MBean:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/mbean/SettingsManagementFacade.java[tags=system-authenticator;current-authentication;system-auth-code]
+----
+
+Также можно использовать аннотацию `@Authenticated` для аутентификации всего метода бина, как выполняемого пользователем `system`. Например:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/mbean/SettingsManagementFacade.java[tags=current-authentication;system-auth-ann]
+----
+
+[[authentication-events]]
+== События аутентификации
+
+Фреймворк Spring посылает определенные события приложения, связанные с аутентификацией.
+
+TIP: Studio может помочь вам создать слушателей событий аутентификации. Нажмите *New (+) -> Event Listener* в окне инструментов *Jmix* и выберите *Authentication Event* в диалоговом окне.
+
+Ниже приведен пример обработки событий аутентификации.
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/AuthenticationEventListener.java[tags=import-user;import-logger;import-logger-factory;import-event-listener;import-auth-failure-event;import-auth-success-event;import-interactive-auth-success-event;import-logout-success-event;import-component;class]
+----
+
+<1> `InteractiveAuthenticationSuccessEvent` посылается, когда пользователь входит в систему через UI или REST API.
+<2> `InteractiveAuthenticationSuccessEvent` содержит сущность пользователя.
+<3> `AuthenticationSuccessEvent` отправляется при любой успешной аутентификации, включая <<system,системную>>.
++
+CAUTION: Не используйте бин `CurrentAuthentication` для получения <<current,текущего пользователя>> в этом слушателе. Данное событие отправляется слишком рано в процессе аутентификации, из-за чего бин вызовет исключение или вернет предыдущий объект аутентификации. Вместо этого получайте текущего пользователя из объекта `AuthenticationSuccessEvent`.
+
+<4> `AuthenticationSuccessEvent` содержит сущность пользователя.
+<5> `AbstractAuthenticationFailureEvent` посылается, если попытка аутентификации не удалась, например, из-за ввода неверных учетных данных.
+<6> `AbstractAuthenticationFailureEvent` содержит только имя пользователя, указанное при аутентификации.
+<7> `LogoutSuccessEvent` посылается при выходе пользователя из системы.
+<8> `LogoutSuccessEvent` содержит сущность пользователя.
+
+[[user-session]]
+== Пользовательская сессия
+
+При подключении к приложению Jmix через Jmix UI или REST API, создается пользовательская сессия на основе HTTP-сессии. В этом разделе описаны детали работы пользовательских сессий для разных клиентов, управление временем жизни сессии и хранение пользовательских значений в сессии.
+
+Вы можете отслеживать пользовательские сессии во время выполнения в экране xref:audit:user-sessions.adoc[User sessions] дополнения *Audit*.
+
+Максимальное количество сессий на одного пользователя можно задать с помощью свойства xref:ROOT:app-properties.adoc#jmix.core.session.maximum-sessions-per-user[jmix.core.session.maximum-sessions-per-user].
+
+[[sessions-in-ui]]
+=== Сессии в UI
+
+По умолчанию пользовательская сессия в UI активна, пока открыта хотя бы одна вкладка браузера с приложением. Если все вкладки закрыты, сессия сохраняется в течение периода, заданного в свойстве {spring-boot-doc}/appendix/application-properties/index.html#application-properties.server.server.servlet.session.timeout[server.servlet.session.timeout^].
+
+NOTE: Свойство `server.servlet.session.timeout` влияет на встроенный веб-сервер, используемый при развертывании приложения в виде исполняемого JAR-файла. Если вы используете развертывание WAR во внешнем веб-сервере, настройте время жизни HTTP-сессии в его конфигурации.
+
+На завершение сессии влияют следующие свойства приложения:
+
+* `vaadin.heartbeatInterval` — интервал в секундах между heartbeat-запросами, которые клиент отправляет на сервер, пока открыта вкладка браузера. Значение по умолчанию — 300 (5 минут). Эти запросы поддерживают сессию активной даже при отсутствии действий пользователя. Интервал между запросами должен быть меньше, чем `server.servlet.session.timeout`.
+
+* `vaadin.closeIdleSessions` — если установлено в `true`, heartbeat-запросы игнорируются, и сессия завершается после периода неактивности, заданного в `server.servlet.session.timeout`.
+
+Например, следующие свойства приложения устанавливают время жизни сессии в 10 минут и интервал heartbeat-запросов в 3 минуты:
+
+[source,properties]
+----
+server.servlet.session.timeout=10m
+vaadin.heartbeatInterval=90
+----
+
+Подробнее см. в {vaadin-docs}/flow/advanced/application-lifecycle#application.lifecycle.session[документации Vaadin: User Session^].
+
+[[sessions-in-rest-api]]
+=== Сессии в REST API
+
+По умолчанию пользовательские сессии в REST API создаются для каждого запроса и завершаются в соответствии со значением свойства `server.servlet.session.timeout`. Если клиент поддерживает cookies, сессия будет поддерживаться между всеми запросами с одинаковым cookie.
+
+Подсистема *Jmix Sessions* привязывает пользовательские сессии к OAuth2-токенам, используемым для аутентификации в REST-эндпойнтах. Это позволяет поддерживать сессию между всеми запросами с одинаковым токеном. Чтобы включить *Jmix Sessions* в проект, добавьте следующую зависимость в файл `build.gradle`:
+
+[source,groovy]
+----
+implementation 'io.jmix.sessions:jmix-sessions-starter'
+----
+
+NOTE: Если сессия теряется при перезапуске сервера, а соответствующий токен сохраняется (например, если он хранится в базе данных), для этого токена создается новая сессия.
+
+[[session-attributes]]
+=== Атрибуты сессии
+
+Если вам необходимо использовать некоторые значения в нескольких запросах от одного и того же подключенного пользователя, используйте бин `SessionData`. В нем есть методы для чтения и записи именованных значений, хранящихся в текущей сессии пользователя.
+
+Бин `SessionData` можно инжектировать напрямую в экраны UI:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/view/customer/CustomerListView.java[tags=session-data]
+----
+
+В singleton-бине используйте `SessionData` через `org.springframework.beans.factory.ObjectProvider`:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/service/CustomerService.java[tags=session-data]
+----
+
+TIP: Атрибуты сессии также можно использовать в xref:data-access:jpql-extensions.adoc#session-and-user-attributes[запросах JPQL].

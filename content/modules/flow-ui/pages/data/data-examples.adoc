@@ -1,0 +1,155 @@
+= Использование компонентов данных
+
+В данном разделе рассмотрены практические примеры работы с компонентами данных.
+
+[[declarative-usage]]
+== Декларативное использование
+
+Обычно компоненты данных определяются и привязываются к визуальным компонентам декларативно в XML-дескрипторе экрана. Если экран для сущности создан с помощью Studio, можно увидеть корневой элемент `<data>`, содержащий объявления компонентов данных.
+
+Ниже приведен пример компонентов данных на экране деталей сущности `User`, который содержит to-one ссылку на `Department` и to-many ссылку на сущность `UserStep`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/user/user-detail-view-2.xml[tags=data]
+----
+<1> Корневой элемент `data` определяет экземпляр xref:data/data-context.adoc[DataContext].
+<2> Контейнер `InstanceContainer` сущности `User`.
+<3> Опциональный атрибут xref:data-access:fetching.adoc#fetch-plan[fetchPlan] определяет граф объектов, который должен быть жадно загружен из базы данных.
+<4> `InstanceLoader`, загружающий экземпляры сущности `User`.
+<5> Контейнер `CollectionPropertyContainer` для вложенной сущности `UserStep`. Этот контейнер привязан к атрибуту-коллекции `User.steps`.
+<6> Контейнер `CollectionContainer` для сущности `Department`. Он может быть использован как источник элементов выпадающего списка выбора `Department`.
+<7> `CollectionLoader`, загружающий экземпляры сущности `Department` по определенному запросу.
+
+Заданные выше контейнеры данных могут использоваться в визуальных компонентах следующим образом:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/user/user-detail-view-2.xml[tags=components]
+----
+<1> Отдельные поля имеют атрибуты `dataContainer` и `property`.
+<2> Компонент `formLayout` распространяет свой `dataContainer` на все вложенные поля, поэтому они требуют только указания атрибута `property`.
+<3> Компонент `entityComboBox` имеет атрибут `itemsContainer` для получения списка опций.
+<4> У таблицы `dataGrid` есть только атрибут `dataContainer`.
+
+[[programmatic-usage]]
+== Программное использование
+
+Компоненты данных можно создавать и использовать программно.
+
+В следующем примере мы создадим экран деталей с теми же компонентами данных и визуальными компонентами, которые мы определяли декларативно в предыдущем примере, только на Java без XML-дескриптора.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserDetailViewProgrammatic.java[tags=progr]
+----
+<1> `DataComponents` - это фабрика для создания компонентов данных.
+<2> Регистрируем в экране экземпляр `DataContext`, чтобы обеспечить работу стандартного действия сохранения экрана.
+<3> Загрузчик `userDl` загружает данные в контейнер `userDc`.
+<4> Загрузчик `userDl` помещает загруженные сущности в data context для отслеживания изменений.
+<5> `stepsDc` создается как контейнер свойства.
+<6> Определяем запрос для загрузчика `departmentsDl`.
+<7> `ContainerValueSource` используется для связи одиночных полей с контейнерами данных.
+<8> `CollectionContainer` напрямую используется для предоставления списка элементов для полей выбора.
+<9> `ContainerDataGridItems` используется для связи таблиц `dataGrid` с контейнерами.
+<10> Переопределяем `getEditedEntityContainer()`, чтобы указать контейнер вместо аннотации `@EditedEntityContainer`.
+<11> Загружаем данные перед отображением экрана. Идентификатор редактируемой сущности будет автоматически передан в загрузчик `userDl`.
+
+[[dependencies-between-data-components]]
+== Зависимости между компонентами данных
+
+Иногда требуется загружать и отображать данные, которые зависят от других данных в том же экране. К примеру, на скриншоте ниже таблица слева отображает список пользователей (сущность `User`), а таблица справа – список шагов онбординга (сущность `UserStep`) выбранного сотрудника. Список справа обновляется каждый раз, когда меняется выбранный элемент в таблице слева.
+
+image::data/dependent-tables.png[align="center"]
+
+В этом примере сущность `User` содержит атрибут `steps`, который является коллекцией с отношением one-to-many. Самый простой способ реализации такого экрана – загружать список пользователей с xref:data-access:fetching.adoc#fetch-plan[фетч-планом], содержащим атрибут `steps`, и использовать xref:flow-ui:data/property-containers.adoc[контейнер свойств] для работы со списком зависимых строк `UserStep`. Затем связать левую таблицу с родительским контейнером, а правую – с контейнером свойства.
+
+Однако этот подход имеет следующие последствия для производительности: экземпляры `UserStep` будут сразу загружены для всех пользователей из левой таблицы, несмотря на то, что в один момент времени отображаются строки только для одного выбранного пользователя. При большом количестве пользователей это вызовет большую бессмысленную нагрузку на сервер. Поэтому мы рекомендуем использовать контейнеры свойств и глубокие фетч-планы только тогда, когда нужно загрузить единственный экземпляр корневой сущности: например, в экране деталей одного сотрудника.
+
+Кроме того, корневая сущность может не иметь прямого атрибута, указывающего на зависимую сущность. В этом случае подход с использованием контейнера свойств совсем не подходит.
+
+Наиболее общей практикой организации отношений между данными в экране является использование запросов с параметрами. Зависимый загрузчик содержит запрос с параметром, который связывает данные с главным контейнером. Когда меняется текущий экземпляр в главном контейнере, этот экземпляр передается в качестве параметра в зависимый загрузчик и вызывается его перезагрузка.
+
+Рассмотрим пример экрана, в котором есть две зависимых пары контейнер/загрузчик и привязанные к ним таблицы для отображения данных.
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/user/user-with-steps-list-view.xml[tags=depend]
+----
+<1> Главный контейнер и загрузчик.
+<2> Зависимый контейнер и загрузчик.
+<3> Фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] здесь не используется, поэтому загрузчики нужно вызвать программно в контроллере.
+<4> Главная таблица.
+<5> Зависимая таблица.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/user/UserWithStepsListView.java[tags=depend]
+----
+<1> Главный загрузчик вызывается обработчиком `BeforeShowEvent`.
+<2> В обработчике `ItemChangeEvent`  главного контейнера передается параметр в зависимый загрузчик и вызывается его загрузка.
+
+TIP: Фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] позволяет устанавливать связи между компонентами данных декларативно без написания кода на Java.
+
+// [[using-view-parameters-in-loaders]]
+// == Using Screen Parameters in Loaders
+//
+// It is often required to load data in a view depending on parameters passed to that view. Below is an example of a browse view that accepts a parameter and uses it to filter the loaded data.
+//
+// Suppose we have two entities: `Country` and `City`. The `City` entity has the `country` attribute that is a reference to `Country`. The cities browser accepts a country instance and shows cities only of this country.
+//
+// First, consider the cities view XML descriptor. Its loader contains a query with a parameter:
+//
+// [source,xml,indent=0]
+// ----
+// include::example$/ex1/src/main/resources/ui/ex1/screen/data/city-browse.xml[tags=loader]
+// ----
+//
+// The cities view controller contains a public setter for the parameter and uses this parameter in the `BeforeShowEvent` handler.
+//
+// [source,java,indent=0]
+// ----
+// include::example$/ex1/src/main/java/ui/ex1/screen/data/CityBrowse.java[tags=controller]
+// ----
+//
+// The cities view can be opened from another view passing a country as follows:
+//
+// [source,java,indent=0]
+// ----
+// include::example$/ex1/src/main/java/ui/ex1/screen/data/ShowCities.java[tags=show]
+// ----
+
+[[custom-sorting]]
+== Специализированная сортировка
+
+Сортировка таблиц по атрибутам сущности в UI производится объектом типа `CollectionContainerSorter`, который устанавливается для xref:flow-ui:data/collection-container.adoc[CollectionContainer]. Стандартная реализация сортирует данные в памяти, если загруженный список умещается на одной странице, или посылает запрос с соответствующим "order by" в базу данных. Выражение "order by" формируется бином `JpqlSortExpressionProvider`.
+
+Некоторые атрибуты могут потребовать специальной реализации сортировки. Ниже рассматривается простой пример: предположим, в сущности `Department` есть атрибут `num` типа `String`, но на самом деле атрибут хранит только числовые значения. Поэтому необходимо иметь порядок сортировки для чисел: `1`, `2`, `3`, `10`, `11`. Стандартный механизм сортировки в данном случае выдаст порядок `1`, `10`, `11`, `2`, `3`.
+
+Сначала создайте наследника класса `CollectionContainerSorter` для сортировки в памяти:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[]
+----
+
+Создайте сортировщик в нужном экране:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=custom-sort]
+----
+
+Если же специализированная сортировка должна являться глобальной, то создайте собственную фабрику, которая будет инстанциировать сортировщик для всей системы:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSorterFactory.java[]
+----
+
+Кроме того, можно создать собственную реализацию `JpqlSortExpressionProvider` для сортировки на уровне базы данных:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionProvider.java[]
+----

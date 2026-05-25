@@ -1,0 +1,732 @@
+= 5. Работа с данными в пользовательском интерфейсе
+
+На данном этапе разработки в приложении есть управление шагами и отделами, а также управление пользователями с добавленным атрибутом `Onboarding status`. Теперь вам нужно связать пользователей с шагами онбординга и отделами.
+
+В этой главе вы сделаете следующее:
+
+* Добавите атрибуты `department` и `joiningDate` к сущности `User` и отобразите их в пользовательском интерфейсе.
+
+* Создадите сущность `UserStep`, которая связывает пользователя с шагом онбординга.
+
+* Добавите коллекцию сущностей `UserStep` к сущности `User` и отобразите ее на экране `User.detail`.
+
+* Реализуете генерацию и сохранение экземпляров сущности `UserStep` на экране `User.detail`.
+
+На приведенной ниже диаграмме показаны сущности и атрибуты, рассматриваемые в этой главе:
+
+image::data-in-ui/data-in-ui-diagram.svg[align="center"]
+
+[[ref-attr]]
+== Добавление ссылочного атрибута
+
+Вы уже выполняли аналогичную задачу, когда создавали xref:references.adoc#create-reference-attr[атрибут HR-менеджера] сущности `Department` в качестве ссылки на `User`. Теперь вам нужно создать ссылку в обратном направлении: у пользователя должна быть ссылка на отдел.
+
+image::data-in-ui/data-in-ui-diagram-2.svg[align="center"]
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+Дважды щелкните на сущности `User` в окне инструментов *Jmix* и выберите ее последний атрибут (чтобы добавить новый атрибут в конец).
+
+Нажмите *Add* (image:common/add.svg[]) на панели *Attributes*.
+
+В диалоговом окне *New Attribute* введите `department` в поле *Name*. Затем выберите:
+
+* *Attribute type*: `ASSOCIATION`
+* *Type*: `Department`
+* *Cardinality*: `Many to One`
+
+image::data-in-ui/add-attr-1.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Выберите новый атрибут `department` и нажмите на кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes* :
+
+image::data-in-ui/add-attr-2.png[align="center", width="490"]
+
+В появившемся диалоговом окне будут показаны экраны `User.detail` и `User.list`. Выберите оба экрана и нажмите на кнопку *OK*.
+
+Studio добавит атрибут `department` в компонент `dataGrid` экрана `User.list` и в компонент `formLayout` экрана `User.detail`.
+
+Вы также можете заметить следующий код, автоматически добавленный студией в `user-list-view.xml`:
+
+[source,xml]
+----
+<data>
+    <collection id="usersDc"
+                class="com.company.onboarding.entity.User">
+        <fetchPlan extends="_base">
+            <property name="department" fetchPlan="_base"/> <!-- added -->
+        </fetchPlan>
+----
+
+И в `user-detail-view.xml`:
+
+[source,xml]
+----
+<data>
+    <instance id="userDc"
+              class="com.company.onboarding.entity.User">
+        <fetchPlan extends="_base">
+            <property name="department" fetchPlan="_base"/> <!-- added -->
+        </fetchPlan>
+----
+
+С помощью этого кода указанный отдел будет загружен вместе с пользователем в одном запросе к базе данных.
+
+TIP: Экраны будут работать и без включения `department` в фетч-план благодаря загрузке связанных сущностей по требованию (_lazy loading_). Но в этом случае ссылки будут загружаться отдельными запросами к базе данных. Отложенная загрузка может повлиять на производительность экрана просмотра, потому что сначала экран загружает список пользователей первым запросом, а после этого выполняет отдельные запросы для загрузки отдела каждого пользователя в списке (проблема N+1 запросов).
+
+Давайте запустим приложение и посмотрим на новый атрибут в действии.
+
+Нажмите кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Studio сгенерирует Liquibase changelog для добавления столбца `DEPARTMENT_ID` в таблицу `USER_`, создания ограничения внешнего ключа и индекса. Подтвердите changelog.
+
+Студия исполнит файл changelog и запустит приложение.
+
+Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
+
+Раскройте меню *Application* и нажмите на подпункт *Users*. Вы увидите колонку `Department` на экране `User.list` и поле выбора `Department` на экране `User.detail`:
+
+image::data-in-ui/add-attr-3.png[align="center", width="869"]
+
+[[using-dropdown]]
+== Использование выпадающего списка для выбора ссылки
+
+По умолчанию Studio генерирует компонент `entityPicker` для выбора ссылок. Вы можете увидеть это на экране `User.detail`. Откройте `user-detail-view.xml` и найдите компонент `entityPicker` внутри компонента `formLayout`:
+
+[source,xml]
+----
+<layout ...>
+    <formLayout id="form" dataContainer="userDc">
+        ...
+        <entityPicker id="departmentField" property="department">
+            <actions>
+                <action id="entityLookup" type="entity_lookup"/>
+                <action id="entityClear" type="entity_clear"/>
+            </actions>
+        </entityPicker>
+    </formLayout>
+----
+
+Этот компонент позволяет вам выбрать связанную сущность на экране списка с фильтрацией, сортировкой и пейджингом. Но когда ожидаемое количество записей относительно невелико (скажем, менее 1000), удобнее выбирать ссылки из простого выпадающего списка.
+
+Давайте изменим экран `User.detail` и используем компонент `entityComboBox` для выбора отдела.
+
+Измените XML-элемент компонента на `entityComboBox` и удалите вложенный элемент `actions`:
+
+[source,xml]
+----
+<entityComboBox id="departmentField" property="department"/>
+----
+
+Переключитесь на запущенное приложение и снова откройте экран деталей пользователя.
+
+Вы увидите, что поле `Department` теперь является выпадающим списком, но он не открывается, даже если вы создали несколько отделов.
+
+image::data-in-ui/dropdown-2.png[align="center", width="430"]
+
+[[options-container]]
+=== Создание контейнера данных опций
+
+Давайте предоставим список доступных опций компоненту `entityComboBox`, отображающему ссылку на отдел. Список должен содержать все отделы, упорядоченные по названию.
+
+Нажмите на кнопку *Add Component* на панели действий, выберите раздел *Data components* и дважды щелкните на элементе `Collection`. В окне *Data Container Properties Editor* выберите `Department` в поле *Entity* и нажмите на кнопку *OK*:
+
+// image::data-in-ui/options-container-1.gif[align="center"]
+
+Новый элемент `collection` с именем `departmentsDc` будет создан под элементом `data` на панели структуры *Jmix UI* и в XML:
+
+[source,xml]
+----
+<data>
+    ...
+    <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
+        <fetchPlan extends="_base"/>
+        <loader id="departmentsDl" readOnly="true">
+            <query>
+                <![CDATA[select e from Department e]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+
+Этот элемент определяет _контейнер коллекции данных_ и _загрузчик_ для него. Контейнер данных будет содержать список сущностей `Department`, загруженных загрузчиком с указанным запросом.
+
+Вы можете отредактировать запрос прямо в XML или использовать конструктор JPQL. Чтобы открыть конструктор, щелкните по ссылке напротив атрибута `query`, находящейся на панели инспектора *Jmix UI*:
+
+image::data-in-ui/options-container-2.png[align="center",width="365"]
+
+В окне *JPQL Query Designer* перейдите на вкладку *ORDER* и добавьте атрибут `name` в список:
+
+image::data-in-ui/options-container-3.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Результирующий запрос в формате XML будет выглядеть следующим образом:
+
+[source,xml]
+----
+<data>
+    ...
+    <collection id="departmentsDc" class="com.company.onboarding.entity.Department">
+        <fetchPlan extends="_base"/>
+        <loader id="departmentsDl" readOnly="true">
+            <query>
+                <![CDATA[select e from Department e
+                order by e.name asc]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+
+Теперь вам нужно связать компонент `entityComboBox` с контейнером коллекции `departmentsDc`.
+
+Выберите `departmentField` на панели структуры *Jmix UI*, а затем выберите `departmentsDc` для атрибута `itemsContainer` в панели инспектора:
+
+image::data-in-ui/options-container-4.png[align="center",width="364"]
+
+Переключитесь на запущенное приложение и снова откройте экран редактирования пользователя.
+
+Вы увидите, что в раскрывающемся списке `Department` теперь есть список опций:
+
+image::data-in-ui/dropdown-3.png[align="center", width="438"]
+
+TIP: Компонент `entityComboBox` позволяет пользователю фильтровать опции, вводя текст в поле. Но имейте в виду, что фильтрация выполняется в памяти сервера, и все опции загружаются из базы данных сразу.
+
+[[user-step-entity]]
+== Создание сущности UserStep
+
+В этом разделе вы создадите сущность `UserStep`, которая представляет собой шаг онбординга для конкретного пользователя:
+
+image::data-in-ui/data-in-ui-diagram-3.svg[align="center"]
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *JPA Entity* и создайте сущность `UserStep` с чертой *Versioned*, как вы делали xref:references.adoc#create-entity[раньше].
+
+Добавьте следующие атрибуты к новой сущности:
+
+|===
+|Name |Attribute type |Type |Cardinality  |Mandatory
+
+|user
+|ASSOCIATION
+|User
+|Many to One
+|true
+
+|step
+|ASSOCIATION
+|Step
+|Many to One
+|true
+
+|dueDate
+|DATATYPE
+|LocalDate
+|-
+|true
+
+|completedDate
+|DATATYPE
+|LocalDate
+|-
+|false
+
+|sortValue
+|DATATYPE
+|Integer
+|-
+|true
+
+|===
+
+Конечное состояние дизайнера сущностей должно выглядеть следующим образом:
+
+image::data-in-ui/create-user-step-1.png[align="center"]
+
+[[composition-attr]]
+== Добавление атрибута-композиции
+
+Рассмотрим взаимосвязь между сущностями `User` и `UserStep`. Экземпляры `UserStep` существуют только в контексте конкретного экземпляра сущности `User` (принадлежат ему). Экземпляр `UserStep` не может сменить своего владельца - это не имеет никакого смысла. Кроме того, ссылок на `UserStep` из других объектов модели данных нет, они полностью инкапсулированы в контексте `User`.
+
+В Jmix такая взаимосвязь называется _композицией_: пользователь (`User`), среди прочих атрибутов, включает в себя набор пользовательских шагов (`UserStep`).
+
+TIP: Композиция в Jmix реализует шаблон проектирования Aggregate подхода Domain-Driven Design.
+
+Часто бывает удобно создать атрибут, содержащий коллекцию элементов композиции в сущности-владельце.
+
+Давайте создадим атрибут `steps` в сущности `User`:
+
+image::data-in-ui/data-in-ui-diagram-4.svg[align="center"]
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+Окройте дизайнер сущности `User` и нажмите кнопку *Add* (image:common/add.svg[]) на панели *Attributes*. В диалоговом окне *New Attribute* введите `steps` в поле *Name*. Затем выберите:
+
+* *Attribute type*: `COMPOSITION`
+* *Type*: `UserStep`
+* *Cardinality*: *One to Many*
+
+image::data-in-ui/composition-1.png[align="center"]
+
+Обратите внимание, что `user` выбирается автоматически в поле *Mapped by*. Это атрибут сущности `UserStep`, сопоставленный столбцу базы данных, который поддерживает связь между UserSteps и Users (внешний ключ).
+
+Нажмите на кнопку *OK*.
+
+Исходный код атрибута будет иметь аннотацию `@Composition`:
+
+[source,java]
+----
+@Composition
+@OneToMany(mappedBy = "user")
+private List<UserStep> steps;
+----
+
+Шаги пользователя должны отображаться на экране деталей пользователя, поэтому выберите новый атрибут `steps` и нажмите кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*. Выберите `User.detail` и нажмите на кнопку *OK*.
+
+Студия изменит `user-detail-view.xml` как показано ниже:
+
+[source,xml]
+----
+<data>
+    <instance id="userDc"
+              class="com.company.onboarding.entity.User">
+        <fetchPlan extends="_base">
+            <property name="department" fetchPlan="_base"/>
+            <property name="steps" fetchPlan="_base"/> <!--1-->
+        </fetchPlan>
+        <loader/>
+        <collection id="stepsDc" property="steps"/> <!--2-->
+    </instance>
+    ...
+<layout ...>
+    <formLayout id="form" dataContainer="userDc">
+        ...
+    </formLayout>
+    <hbox id="buttonsPanel" classNames="buttons-panel">
+        <button action="stepsDataGrid.createAction"/>
+        <button action="stepsDataGrid.editAction"/>
+        <button action="stepsDataGrid.removeAction"/>
+    </hbox>
+    <dataGrid id="stepsDataGrid" dataContainer="stepsDc" ...> <!--3-->
+        <actions>
+            <action id="createAction" type="list_create"/>
+            <action id="editAction" type="list_edit"/>
+            <action id="removeAction" type="list_remove"/>
+        </actions>
+        <columns>
+            <column property="version"/>
+            <column property="dueDate"/>
+            <column property="completedDate"/>
+            <column property="sortValue"/>
+        </columns>
+    </dataGrid>
+----
+<1> Атрибут `steps` фетч-плана гарантирует, что коллекция пользовательских шагов загружается жадно (_eager fetching_) вместе с пользователем (`User`).
+<2> Вложенный контейнер коллекции данных `stepsDc` позволяет привязывать визуальные компоненты к атрибуту-коллекции `steps`.
+<3> Компонент `dataGrid` отображает данные из связанного контейнера коллекции `stepsDc`.
+
+Давайте запустим приложение и посмотрим на эти изменения в действии.
+
+Нажмите на кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Studio сгенерирует Liquibase changelog для создания таблицы `USER_STEP`, ограничения внешнего ключа и индексов для ссылок на `USER_` и `STEP`. Подтвердите список изменений.
+
+Студия исполнит файл changelog и запустит приложение.
+
+Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
+
+Откройте экран деталей пользователя. Вы увидите таблицу *Steps*, отображающую сущности `UserStep`:
+
+image::data-in-ui/composition-2.png[align="center"]
+
+Если вы нажмете *Create* в таблице *Steps*, вы получите исключение, сообщающее: `View 'UserStep.detail' is not defined`. Это правда - вы не создавали экран деталей для сущности `UserStep`. Но на самом деле это и не нужно, потому что экземпляры `UserStep` должны быть сгенерированы из предопределенных экземпляров сущности `Step` для конкретного пользователя.
+
+[[generate-user-steps]]
+== Генерация пользовательских шагов
+
+В этом разделе вы реализуете генерацию и отображение экземпляров сущности `UserStep` для редактируемой сущности  `User`.
+
+[[joining-date-attr]]
+=== Добавление атрибута joiningDate
+
+Во-первых, давайте добавим атрибут `joiningDate` к сущности `User`:
+
+image::data-in-ui/data-in-ui-diagram-5.svg[align="center"]
+
+Он будет использоваться для вычисления атрибута `dueDate` сгенерированной сущности `UserStep` по следующей формуле: `UserStep.dueDate = User.joiningDate + Step.duration`.
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+Нажмите на кнопку *Add* (image:common/add.svg[]) на панели *Attributes* дизайнера сущности `User`. В диалоговом окне *New Attribute* введите `joiningDate` в поле *Name* и выберите `LocalDate` в поле *Type*:
+
+image::data-in-ui/joining-date-1.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Выберите ранее созданный атрибут `joiningDate` и нажмите кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*. Выберите оба экрана `User.detail` и `User.list` в появившемся диалоговом окне и нажмите *OK*.
+
+Нажмите на кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Studio сгенерирует Liquibase changelog для добавления столбца `JOINING_DATE` в таблицу `USER_`. Подтвердите changelog.
+
+Студия исполнит changelog и запустит приложение. Откройте `++http://localhost:8080++` в вашем веб-браузере, войдите в приложение и убедитесь, что новый атрибут отображается на экранах списка и деталей пользователя.
+
+[[custom-button]]
+=== Добавление пользовательской кнопки
+
+Теперь вам нужно удалить стандартные действия и кнопки для управления шагами пользователя и добавить кнопку для запуска пользовательской логики создания сущностей.
+
+Откройте `user-detail-view.xml` и удалите элемент `actions` из таблицы и все элементы `button` из `hbox`:
+
+[source,xml]
+----
+<hbox id="buttonsPanel" classNames="buttons-panel">
+</hbox>
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" width="100%" height="100%">
+    <columns>
+        <column property="version"/>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="sortValue"/>
+    </columns>
+</dataGrid>
+----
+
+Затем выберите `buttonsPanel` в панели структуры *Jmix UI* и нажмите на кнопку *Add Component* в контекстном меню узла. Выберите компонент `Button` в палитре и добавьте его в экран двойным кликом. Затем выберите созданный элемент `button` и в панели инспектора укажите свойству `id` значение `generateButton`, а свойству `text` - значение `Generate`. После этого перейдите на вкладку *Handlers* и создайте метод обработчика `ClickEvent`:
+
+// image::data-in-ui/button-1.gif[]
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и убедитесь, что вместо стандартных CRUD-кнопок отображается кнопка *Generate*:
+
+image:data-in-ui/button-2.png[align="center"]
+
+[[create-user-steps]]
+=== Создание и сохранение экземпляров UserStep
+
+Давайте реализуем логику генерации экземпляров `UserStep`.
+
+Добавьте следующие поля в контроллер `UserDetailView`:
+
+[source,java]
+----
+public class UserDetailView extends StandardDetailView<User> {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @ViewComponent
+    private DataContext dataContext;
+
+    @ViewComponent
+    private CollectionPropertyContainer<UserStep> stepsDc;
+----
+
+[TIP]
+====
+If you copy the fields above and paste them to the source code, IDE will highlight them as errors because you also need to add `import` statements for the classes. Place the cursor on each error and the IDE will suggest you an appropriate import. If it doesn't, close the editor tab, then open `UserDetailView.java` again.
+====
+
+[TIP]
+====
+Вы можете инжектировать компоненты экрана и бины Spring с помощью кнопки *Inject* на панели действий:
+
+// image::data-in-ui/inject-1.gif[]
+====
+
+Добавьте логику создания и сохранения объектов `UserStep` в метод обработки нажатия кнопки `generateButton`:
+
+[source,java]
+----
+@Subscribe("generateButton")
+public void onGenerateButtonClick(final ClickEvent<Button> event) {
+    User user = getEditedEntity(); // <1>
+
+    if (user.getJoiningDate() == null) { // <2>
+        notifications.create("Cannot generate steps for user without 'Joining date'")
+                .show();
+        return;
+    }
+
+    List<Step> steps = dataManager.load(Step.class)
+            .query("select s from Step s order by s.sortValue asc")
+            .list(); // <3>
+
+    for (Step step : steps) {
+        if (stepsDc.getItems().stream().noneMatch(userStep ->
+                userStep.getStep().equals(step))) { // <4>
+            UserStep userStep = dataContext.create(UserStep.class); // <5>
+            userStep.setUser(user);
+            userStep.setStep(step);
+            userStep.setDueDate(user.getJoiningDate().plusDays(step.getDuration()));
+            userStep.setSortValue(step.getSortValue());
+            stepsDc.getMutableItems().add(userStep); // <6>
+        }
+    }
+}
+----
+<1> Используйте метод `getEditedEntity()` базового класса `StandardDetailView`, чтобы получить редактируемого пользователя.
+<2> Если атрибут `joiningDate` не установлен, показать сообщение и завершить работу.
+<3> Загрузить список зарегистрированных шагов.
+<4> Пропустить `Step`, если он уже находится в контейнере коллекции `stepsDc`.
+<5> Создать новый экземпляр `UserStep`, используя метод `DataContext.create()`.
+<6> Добавить новый экземпляр `UserStep` в контейнер коллекции `stepsDc`, чтобы отобразить его в пользовательском интерфейсе.
+
+NOTE: Когда вы создаете экземпляр сущности с помощью объекта `DataContext`, данный экземпляр далее отслеживается в `DataContext` и автоматически сохраняется при сохранении экрана, то есть при нажатии кнопки *OK* на экране.
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и убедитесь, что при нажатии кнопки *Generate* создается несколько записей, соответствующих шагам онбординга.
+
+Если вы сохраните экран, нажав кнопку *OK*, все созданные экземпляры `UserStep` будут сохранены. Если вы нажмете кнопку *Cancel*, в базе данных ничего сохранено не будет. Это происходит потому, что в приведенном выше коде вы не сохраняете созданные экземпляры `UserStep` непосредственно в базу данных. Вместо этого вы добавляете их в `DataContext` экрана, создавая их с помощью `DataContext.create()`. Таким образом, новые экземпляры сохраняются только тогда, когда сохраняется весь `DataContext`.
+
+[[improve-data-grid]]
+== Улучшение таблицы UserSteps
+
+В нижеприведенных разделах вы доработаете пользовательский интерфейс для работы со сгенерированными UserSteps.
+
+[[order-nested-collection]]
+=== Упорядочивание вложенной коллекции
+
+Вы можете заметить, что когда вы открываете пользователя с ранее сгенерированными UserSteps, они не упорядочены в соответствии с атрибутом `sortValue`:
+
+image::data-in-ui/ordering-1.png[align="center"]
+
+В таблице отображается атрибут коллекции `steps` сущности `User`, поэтому вы можете ввести порядок на уровне модели данных.
+
+Откройте сущность `User`, выберите атрибут `steps` и введите `sortValue` в поле *Order by*:
+
+image::data-in-ui/ordering-2.png[align="center"]
+
+Если вы переключитесь на вкладку *Text*, вы сможете увидеть аннотацию `@OrderBy` у атрибута `steps`:
+
+[source,java]
+----
+@OrderBy("sortValue")
+@Composition
+@OneToMany(mappedBy = "user")
+private List<UserStep> steps;
+----
+
+Теперь, когда вы загружаете сущность `User`, его коллекция `steps` будет отсортирована по атрибуту `UserStep.sortValue`.
+
+Если ваше приложение запущено, перезапустите его.
+
+Откройте экран деталей пользователя. Теперь порядок UserSteps правильный:
+
+image::data-in-ui/ordering-3.png[align="center"]
+
+[[rearrange-data-grid-columns]]
+=== Перестановка колонок таблицы
+
+В настоящее время таблица UserSteps не очень информативна. Давайте удалим колонку `Sort value` и добавим колонку, показывающую название шага.
+
+Удалить колонку просто: выберите ее на панели структуры *Jmix UI* и нажмите *Delete* или удалите элемент непосредственно из XML.
+
+Чтобы добавить колонку, выберите элемент `columns` на панели структуры *Jmix UI* и нажмите *Add* -> *Column* на панели инспектора *Jmix UI*. Появится диалоговое окно *Add Column*:
+
+image::data-in-ui/columns-2.png[align="center"]
+
+Выберите `step` -> `name` и нажмите на кнопку *OK*. Новая колонка будет добавлен в конец списка колонок:
+
+[source,xml]
+----
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" ...>
+    <columns>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="step.name"/>
+    </columns>
+----
+Кроме того, вложенный атрибут будет автоматически добавлен в фетч-план:
+
+[source,xml]
+----
+<instance id="userDc"
+          class="com.company.onboarding.entity.User">
+    <fetchPlan extends="_base">
+        <property fetchPlan="_base" name="department"/>
+        <property fetchPlan="_base" name="steps">
+            <property name="step" fetchPlan="_base"/>
+        </property>
+    </fetchPlan>
+    <loader/>
+    <collection id="stepsDc" property="steps"/>
+</instance>
+----
+
+Теперь коллекция UserSteps будет жадно загружена из базы данных вместе со связанным экземпляром `Step`.
+
+Вместо `step.name` вы могли бы использовать просто `step`. В этом случае в колонке будет отображаться xref:references.adoc#instance-name[имя экземпляра] сущности. Для сущности `Step` имя экземпляра получается из атрибута `name`, поэтому результат будет таким же.
+
+TIP: Вы также можете добавить колонку `step` без изменения фетч-плана, и пользовательский интерфейс все равно будет работать из-за отложенной загрузки ссылок. Но тогда экземпляры сущности `Step` будут загружаться отдельными запросами для каждого экземпляра  `UserStep` в коллекции (проблема N+1 запросов).
+
+Передвиньте колонку `step.name` в начало, перетаскивая элемент на панели структуры *Jmix UI* или редактируя XML напрямую:
+
+[source,xml]
+----
+<dataGrid id="stepsDataGrid" dataContainer="stepsDc" width="100%" height="100%">
+    <columns>
+        <column property="step.name"/>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+    </columns>
+</dataGrid>
+----
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и убедитесь, что в таблице *Steps* теперь отображается название шага:
+
+image::data-in-ui/columns-6.png[align="center"]
+
+[[component-column]]
+=== Добавление колонки с компонентом
+
+В этом разделе вы реализуете возможность отмечать выполненный пользователем шаг, устанавливая флажок в строке таблицы. Флажок будет отображаться в дополнительной левой колонке таблицы.
+
+Добавьте новую колонку в `stepsDataGrid`:
+
+[source,xml]
+----
+<dataGrid id="stepsDataGrid" ...>
+    <columns>
+        <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+Эта колонка не связана ни с каким атрибутом сущности, поэтому для нее указан атрибут `key` вместо `property`.
+
+Выберите колонку `completed` в иерархии, переключитесь на вкладку *Handlers* инспектора и создайте обработчик `renderer`:
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return null;
+}
+----
+
+Инжектируйте объект `UiComponents` в класс контроллера:
+
+[source,java]
+----
+@Autowired
+private UiComponents uiComponents;
+----
+
+TIP: Вы можете использовать кнопку *Inject* на верхней панели действий дизайнера, чтобы инжектировать зависимости в контроллеры экранов и бины Spring.
+
+Реализуйте метод `stepsDataGridCompletedRenderer`:
+
+[source,java]
+----
+@Supply(to = "stepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> stepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> { // <1>
+        Checkbox checkbox = uiComponents.create(Checkbox.class); // <2>
+        checkbox.setValue(userStep.getCompletedDate() != null);
+        checkbox.addValueChangeListener(e -> { // <3>
+            if (userStep.getCompletedDate() == null) {
+                userStep.setCompletedDate(LocalDate.now());
+            } else {
+                userStep.setCompletedDate(null);
+            }
+        });
+        return checkbox; // <4>
+    });
+}
+----
+<1> Метод возвращает объект `Renderer`, создающий UI-компонент, который должен быть отображен в ячейках колонки. Рендерер принимает экземпляр сущности для данной строки.
+<2> Экземпляр компонента `CheckBox` создается с помощью фабрики компонентов `UiComponents`.
+<3> Когда вы нажимаете на флажок, его значение изменяется, и флажок вызывает свой слушатель `ValueChangeEvent`. Слушатель устанавливает атрибут `completedDate` у сущности `UserStep`.
+<4> Рендерер возвращает визуальный компонент, который будет отображаться в ячейках колонки.
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей  пользователя и установите флажки для некоторых строк. Колонка *Completed date* изменится соответствующим образом:
+
+image::data-in-ui/generated-column-5.png[align="center"]
+
+Изменения в экземплярах `UserStep` будут сохранены в базе данных, когда вы нажмете *OK* на экране. За это отвечает объект экрана `DataContext`: он отслеживает изменения во всех сущностях и сохраняет в базе данных измененные экземпляры.
+
+[[reacting-changes]]
+=== Реагирование на изменения
+
+Когда пользователь создает шаги, отмечает завершенный шаг или удаляет шаг, поле `Onboarding status` должно соответствующим образом измениться.
+
+Давайте реализуем реакцию на изменения коллекции пользовательских шагов.
+
+Откройте контроллер `UserDetailView` и нажмите *Generate Handler* в верхней панели действий. Сверните все элементы, затем выберите элементы `ItemPropertyChangeEvent` и `CollectionChangeEvent` в `Data containers handlers` -> `stepsDc`:
+
+image::data-in-ui/container-listener-1.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Studio сгенерирует два заглушки метода: `onStepsDcItemPropertyChange()` и `onStepsDcCollectionChange()`. Реализуйте их, как показано ниже:
+
+[source,java]
+----
+@Subscribe(id = "stepsDc", target = Target.DATA_CONTAINER)
+public void onStepsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<UserStep> event) {
+    updateOnboardingStatus(); // <1>
+}
+
+@Subscribe(id = "stepsDc", target = Target.DATA_CONTAINER)
+public void onStepsDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<UserStep> event) {
+    updateOnboardingStatus(); // <2>
+}
+
+private void updateOnboardingStatus() {
+    User user = getEditedEntity(); // <3>
+
+    long completedCount = user.getSteps() == null ? 0 :
+            user.getSteps().stream()
+                    .filter(us -> us.getCompletedDate() != null)
+                    .count();
+    if (completedCount == 0) {
+        user.setOnboardingStatus(OnboardingStatus.NOT_STARTED); // <4>
+    } else if (completedCount == user.getSteps().size()) {
+        user.setOnboardingStatus(OnboardingStatus.COMPLETED);
+    } else {
+        user.setOnboardingStatus(OnboardingStatus.IN_PROGRESS);
+    }
+}
+----
+<1> Обработчик `ItemPropertyChangeEvent` вызывается при изменении атрибута сущности.
+<2> Обработчик `CollectionChangeEvent` вызывается, когда элементы добавляются в контейнер или удаляются из него.
+<3> Получить отредактированный в данный момент экземпляр `User`.
+<4> Обновить атрибут `onboardingStatus`. Благодаря привязке данных измененное значение будет немедленно показано UI компонентом.
+
+Нажмите *Ctrl/Cmd+S* и переключитесь на запущенное приложение. Обновите экран деталей пользователя и внесите некоторые изменения в таблицу UserSteps. Посмотрите на значение поля `Onboarding status`.
+
+[[summary]]
+== Резюме
+
+В этом разделе вы реализовали две функции:
+
+. Возможность указать отдел для пользователя.
+
+. Генерация и управление шагами онбординга для пользователя.
+
+Вы узнали, что:
+
+* Ссылочные атрибуты должны быть добавлены в xref:data-access:fetching.adoc#fetch-plan[фетч-план] экрана, чтобы избежать проблемы N+1 запросов.
+
+* Компонент xref:flow-ui:vc/components/entityComboBox.adoc[] можно использовать для выбора связанной сущности из выпадающего списка. Для этого компонента требуется xref:flow-ui:data/collection-container.adoc[контейнер коллекции], содержащий элементы списка (опции). Он должен должен быть установлен в `itemsContainer` компонента.
+
+* Взаимосвязь между сущностями `User` и `UserStep` является примером _композиции_, когда экземпляры связанной сущности (`UserStep`) могут существовать только как часть ее владельца (`User`). Такая ссылка помечается аннотацией xref:data-model:entities.adoc#composition[@Composition].
+
+* Коллекцию связанных сущностей можно упорядочить, используя аннотацию `@OrderBy` в ссылочном атрибуте.
+
+* Обработчик событий `ClickEvent` компонента xref:flow-ui:vc/components/button.adoc[] используется для обработки нажатий кнопок. Его можно сгенерировать на вкладке *Handlers* панели инспектора *Jmix UI*.
+
+* Метод `getEditedEntity()` экрана деталей сущности возвращает редактируемый экземпляр сущности.
+
+* Интерфейс xref:flow-ui:notifications.adoc[Notifications] используется для отображения всплывающих уведомлений.
+
+* Интерфейс xref:data-access:data-manager.adoc[DataManager] можно использовать для загрузки данных из базы данных.
+
+* Вложенная коллекция связанных сущностей загружается в xref:flow-ui:data/property-containers.adoc[CollectionPropertyContainer]. Его методы `getItems()` и `getMutableItems()` можно использовать для перебора и добавления/удаления элементов в коллекцию.
+
+* xref:flow-ui:data/data-context.adoc[DataContext] отслеживает изменения в сущностях и сохраняет измененные экземпляры в базе данных, когда пользователь нажимает *OK* на экране.
+
+* xref:flow-ui:vc/components/dataGrid.adoc[Таблица] UI может иметь колонки, которые отображают произвольные визуальные компоненты.
+
+* xref:flow-ui:data/instance-container.adoc#events[ItemPropertyChangeEvent] и xref:flow-ui:data/collection-container.adoc#events[CollectionChangeEvent] можно использовать для реагирования на изменения в объектах, расположенных в контейнерах данных.

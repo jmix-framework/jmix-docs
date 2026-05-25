@@ -1,0 +1,178 @@
+= 1. Привязка карты к данным
+
+В этой главе вы создадите:
+
+* Перечисление `LocationType`.
+* Сущность `Location` с атрибутом типа `GeoPoint`.
+* CRUD-экраны с картой на экране `Location.detail`.
+
+[[entity-and-views-creation]]
+== Создание сущности Location и экранов
+
+Для начала мы создадим перечисление `LocationType`, состоящее из двух значений: `Office` и `Coworking`. Подробные инструкции по созданию перечислений можно найти в разделе xref:tutorial:enumerations.adoc[Использование перечислений] Руководства.
+
+image::enumeration-location-type.png[align="center", width="591"]
+
+Затем создайте сущность `Location`. Подробные инструкции по созданию сущностей можно найти в разделе xref:tutorial:simple-crud.adoc[Простой CRUD] Руководства.
+
+Установите флажок *Traits → Versioned* в диалоговом окне *New JPA Entity*.
+
+image::new-location-entity-dialog.png[align="center", width="493"]
+
+Сущность `Location` имеет следующие атрибуты:
+
+* `city` типа `String`. Установите флажок *Mandatory*.
+* `address` типа `String`. Установите флажок *Mandatory*.
+* `type` типа перечисления `LocationType`.
+* `building` типа `GeoPoint`. Установите флажок *Mandatory*:
++
+image::geo-point-attribute.png[align="center", width="862"]
+
+Определите атрибут `address` для xref:studio:entity-designer.adoc#creating-instance-name[генерации имени экземпляра].
+
+Создайте CRUD-экраны для сущности `Location`. Подробные шаги по генерации экранов деталей и списка сущности можно найти в разделе xref:tutorial:simple-crud.adoc#create-views[Создание CRUD-экранов] Руководства.
+
+Следуйте предлагаемым значениям на каждом шаге мастера создания экранов.
+
+Studio автоматически сгенерирует два экрана: `Location.list` и `Location.detail`, и откроет их соответствующий исходный код.
+
+[[adding-map]]
+== Добавление карты на экран
+
+Найдите `location-detail-view.xml` в окне Jmix и дважды щелкните по нему. Появится конструктор экранов:
+
+image::location-detail-view.png[align="center", width="1318"]
+
+Вы заметите, что для отображения атрибута `building` используется компонент `textField`.
+
+Если вы хотите отобразить карту на экране, вам следует добавить UI-компонент `geoMap` в XML-дескриптор.
+
+Поместите курсор после элемента `formLayout`.
+
+Затем нажмите *Add Component* на панели действий, найдите элемент `GeoMap` и дважды щелкните по нему.
+
+image::adding-map.png[align="center", width="1136"]
+
+Новый элемент `geoMap` будет добавлен под элементом `formLayout` как на панели структуры *Jmix UI*, так и в XML. Настройте атрибуты `id`, `height` и `width`, как показано ниже.
+
+[source,xml,indent=0]
+----
+<maps:geoMap id="map" height="100%" width="100%"/>
+----
+
+[[adding-tile-layer]]
+=== Добавление тайлового слоя с OsmSource
+
+Мы собираемся использовать растровый слой в качестве базового фонового слоя карты. Для этого мы будем использовать `OsmSource` - предопределенный источник для отображения xref:layers-sources.adoc#tile-layer[тайлов] https://wiki.openstreetmap.org[OpenStreetMap^].
+
+Выберите `map` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *Layers -> TileLayer*.
+
+image::add-tile-layer.png[align="center", width="331"]
+
+Выберите `maps:tile` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, а затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *OsmSource*.
+
+image::add-osmsource.png[align="center", width="898"]
+
+Теперь давайте запустим приложение, чтобы увидеть новую функцию в действии.
+
+Нажмите кнопку *Debug* (image:start-debugger.svg[]) на главной панели инструментов.
+
+Перед запуском приложения Studio сравнивает модель данных проекта со схемой базы данных. Когда вы создали новую сущность, Studio автоматически сгенерировала changelog Liquibase для отражения соответствующих изменений в базе данных (таких как создание таблицы `LOCATION`):
+
+image::changelog-location.png[align="center", width="1036"]
+
+Нажмите *Save and run*.
+
+Studio выполнит changelog в вашей базе данных, после чего соберет и запустит приложение:
+
+image::run-app.png[align="center", width="1101"]
+
+После запуска приложения перейдите по адресу ++http://localhost:8080++ в вашем веб-браузере и войдите в приложение с учетными данными `admin/admin`.
+
+Выберите пункт `Locations` в меню `Application`. Вы увидите экран `Location.list`. Нажмите *Create*. Откроется экран `Location.detail`:
+
+image::location-detail1.png[align="center", width="1134"]
+
+[[setting-map-view]]
+=== Настройка отображения карты
+
+По умолчанию компонент `geoMap` отображает карту мира с начальным географическим центром в `(0,0)`.
+
+Мы используем отображение карты (map view) для настройки местоположения, отображаемого на карте.
+
+Выберите `map` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, а затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *MapView*.
+
+image::add-map-view.png[align="center", width="372"]
+
+Укажите атрибут `centerY`:
+
+[source,xml,indent=0]
+----
+<maps:mapView centerY="51.0"/>
+----
+
+Выберите `maps:mapView` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, а затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *Extent* и настройте атрибуты `minX`, `minY`, `maxX` и `maxY`, как указано ниже.
+
+[source,xml,indent=0]
+----
+<maps:extent minX="-15.0"
+             minY="30.0"
+             maxX="40.0"
+             maxY="60.0"/>
+----
+
+Экстент (extent) ограничивает область просмотра, то есть ничего за пределами этого экстента не будет видно на карте.
+
+Запустите приложение, чтобы увидеть новую функцию в действии.
+
+[[adding-data-layer]]
+=== Добавление векторного слоя с DataVectorSource
+
+Для работы с геообъектами мы добавим векторный слой.
+
+Перейдите к `maps:layers` на панели структуры *Jmix UI* или в XML-дескрипторе экрана и нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *VectorLayer*. Укажите атрибут `id` следующим образом: `id="vectorLayer"`.
+
+Мы будем использовать `DataVectorSource`, который поддерживает привязку данных к контейнерам данных Jmix.
+
+Выберите `vectorLayer` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, а затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *DataVectorSource*. Настройте для него атрибут `dataContainer`:
+
+[source,xml,indent=0]
+----
+<maps:vector id="vectorLayer">
+    <maps:dataVectorSource id="dataVectorSource"
+                           dataContainer="locationDc"
+                           property="building"/>
+</maps:vector>
+----
+
+Давайте посмотрим: полное описание нашей карты выглядит следующим образом:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex1/src/main/resources/com/company/onboarding/view/location/location-detail-view.xml[tags=geoMap]
+----
+
+[[saving-coordinates]]
+== Сохранение координат в атрибут Building
+
+Когда менеджер по персоналу создает местоположение, он щелкает на точке на карте, которая затем сохраняется в сущности `Location` как `Point` с координатами.
+
+Давайте добавим `ClickEvent` для нашей карты.
+
+Выберите `map` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, перейдите на вкладку *Handlers* и создайте метод-обработчик события `MapClickEvent`:
+
+image::add-click-event.png[align="center", width="1044"]
+
+Добавьте логику получения и сохранения выбранных пользователем координат в метод-обработчик клика по карте:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/location/LocationDetailView.java[tags=view;geometryFactory;MapClickEvent]
+----
+<1> Для получения `GeometryFactory` используйте `GeometryUtils` - специализированный служебный класс с функциями, связанными с библиотекой JTS.
+<2> Преобразуйте координаты, полученные из `event`, в объект `Point`, используя метод `GeometryFactory`.
+<3> Используйте метод `getEditedEntity()` базового класса `StandardDetailView` для получения редактируемой сущности `Location`.
+
+Запустите приложение. Выберите пункт `Locations` в меню `Application`, чтобы перейти к экрану `Location.list`. Нажмите *Create*, чтобы открыть экран `Location.detail`. Заполните поля *City*, *Address* и *Type* соответствующей информацией. Щелкните на карте в указанном месте адреса. Значение для поля *Building* будет автоматически заполнено на основе координат выбранной точки на карте. Сохраните местоположение, нажав *ОК*.
+
+image::location-detail2.png[align="center", width="1134"]

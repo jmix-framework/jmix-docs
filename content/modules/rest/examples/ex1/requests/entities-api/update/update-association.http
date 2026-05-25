@@ -1,0 +1,87 @@
+## Execute 'authenticate.http' first to get have a valid access token for the API
+
+# Create a product with many tags
+
+POST {{baseRestUrl}}
+         /entities
+         /rstex11_Product?responseFetchPlan=product-with-tags
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695"
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+
+> {%
+    client.test("Response Code is 201", function() {
+      client.assert(
+          response.status === 201,
+          "Response status is not 201 - Created"
+      );
+    });
+
+    client.test("new Entity is returned", function() {
+      client.assert(
+          response.body["id"],
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+
+
+    client.global.set("productId", response.body["id"])
+  %}
+
+###
+
+# remove one of the product tags and create another one
+
+PUT {{baseRestUrl}}
+         /entities
+         /rstex11_Product
+         /{{productId}}
+         ?responseFetchPlan=product-with-tags
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "d6ab132e-a0bd-a624-c6ad-cc544e83c584"
+    },
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695"
+    }
+  ]
+}
+
+> {%
+    client.test("Response Code is 200", function() {
+      client.assert(
+          response.status === 200,
+          "Response status is not 200 - OK"
+      );
+    });
+
+    client.test("updated Entity is returned", function() {
+      client.assert(
+          response.body["id"] === client.global.get("productId"),
+          "ID Attribute of an Entity is not returned"
+      );
+    });
+
+    client.test("Product only contains one Tag", function() {
+      client.assert(
+          response.body["tags"].length == 2,
+          "Product does not contains two Tags"
+      );
+    });
+  %}

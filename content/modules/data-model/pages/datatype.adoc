@@ -1,0 +1,224 @@
+= Интерфейс Datatype
+:page-aliases: data-model:data-types.adoc
+
+Каждый атрибут сущности, не являющийся ссылкой, связан с реализацией интерфейса `Datatype`. Этот интерфейс определяет методы конвертации значений атрибутов в строки и из строк (форматирование и парсинг) при отображении сущностей в xref:flow-ui:index.adoc[пользовательском интерфейсе] и сериализации в xref:rest:index.adoc[].
+
+Фреймворк предоставляет набор реализаций `Datatype`, соответствующих стандартным типам данных xref:data-model:entities.adoc#attributes[атрибутов сущностей].
+
+NOTE: В данном руководстве термин _datatype_, написанный строчными буквами, используется для обозначения реализаций интерфейса `Datatype`.
+
+[[localized-format-strings]]
+== Локализованные строки форматов
+
+Многие стандартные datatype используют набор строк форматов, определяемых в xref:localization:message-bundles.adoc[пакете сообщений]. Это дает возможность форматирования и парсинга, зависящих от текущего языка пользователя. Набор строк форматов по умолчанию, определяемый фреймворком, выглядит следующим образом:
+
+[source,properties]
+----
+# Date/time formats
+dateFormat = dd/MM/yyyy
+dateTimeFormat = dd/MM/yyyy HH:mm
+offsetDateTimeFormat = dd/MM/yyyy HH:mm Z
+timeFormat = HH:mm
+offsetTimeFormat = HH:mm Z
+
+# Number formats
+integerFormat = #,##0
+doubleFormat = #,##0.###
+decimalFormat = #,##0.##
+
+# Number separators
+numberDecimalSeparator = .
+numberGroupingSeparator = ,
+
+# Booleans
+trueString = True
+falseString = False
+----
+
+Чтобы использовать собственные строки формата, добавьте соответствующие сообщения в пакет сообщений вашего приложения. Например, чтобы использовать формат даты Соединенных Штатов с английской локалью, добавьте следующие строки в файл `messages_en.properties`:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/data-model-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=format-strings]
+----
+
+Кроме того, вы можете определить отдельную локаль `en_US` и задать строки формата данных в файле `messages_en_us.properties`.
+
+TIP: Вы можете настроить строки форматов данных с помощью Studio: откройте вкладку *Locales* в окне *Project Properties* и поставьте флажок *Show data format strings*.
+
+[[custom-format]]
+== Специализированные форматирование и парсинг
+
+Вы можете настроить форматирование и парсинг значений для определенных атрибутов сущности, создав свой собственный datatype и назначив его этим атрибутам.
+
+В качестве примера представим, что в вашем приложении есть атрибуты сущностей, хранящие годы в виде целых чисел. Пользователи должны иметь возможность просматривать и редактировать годы, причем если пользователь вводит только две цифры, приложение должно преобразовать их в год между 2000 и 2100. В противном случае все введенное число считается годом.
+
+Во-первых, создайте класс реализации `Datatype` и аннотируйте его `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/YearDatatype.java[tags=datatype]
+----
+
+<1> Уникальный идентификатор datatype.
+<2> Класс Java, обрабатываемый данным datatype.
+<3> Форматирование без учета локали текущего пользователя. Этот метод вызывается для преобразования на системном уровне.
+<4> Форматирование с учетом локали текущего пользователя. Этот метод вызывается в UI.
+<5> Парсинг без учета локали текущего пользователя. Этот метод вызывается для преобразования на системном уровне.
+<6> Парсинг с учетом локали текущего пользователя. Этот метод вызывается в UI.
+
+После создания реализации `Datatype` вы можете указать ее для атрибута сущности, используя аннотацию xref:entities.adoc#property-datatype[@PropertyDatatype]:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Model.java[tags=datatype]
+----
+
+[NOTE]
+====
+Реализации `Datatype` являются бинами Spring (потому что `@DatatypeDef` сам аннотирован `@Component`), но другие бины, например xref:localization:message-bundles.adoc#using-messages-in-java[Messages], нельзя напрямую инжектировать в классы datatype используя `@Autowired`, так как экземпляры datatype инициализируются в самом начале процесса запуска приложения и такая инжекция может вызвать циклическую зависимость.
+
+Вместо этого, инжектируйте `ApplicationContext` и используйте его методы `getBean()` для получения требуемых бинов.
+====
+
+[[datatypeformatter]]
+== DatatypeFormatter
+
+`DatatypeFormatter` это служебный бин для программного форматирования и парсинга значений в зависимости от datatype. Он автоматически применяет <<localized-format-strings, локализованные строки форматов>> для текущей локали пользователя.
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/app/DataFormatterService.java[tags=datatypeformatter]
+----
+
+[[custom-type]]
+== Поддержка произвольных классов Java
+
+Вы можете использовать произвольный класс Java в качестве типа атрибутов сущности.
+
+Предположим, что вы создали класс Java, представляющий географическую координату:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/GeoPoint.java[tags=datatype]
+----
+
+Теперь вы хотите использовать этот класс в качестве типа атрибута сущности JPA.
+
+Во-первых, создайте конвертер JPA для этого класса:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/GeoPointConverter.java[tags=datatype]
+----
+
+<1> С `autoApply = true` вам не нужно указывать конвертер для каждого атрибута. Конвертер будет применен ко всем атрибутам соответствующего типа.
+
+Затем создайте класс реализации `Datatype` для `GeoPoint` и аннотируйте его `@DatatypeDef`:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/GeoPointDatatype.java[tags=datatype]
+----
+
+<1> Уникальный идентификатор datatype.
+<2> Класс Java, обрабатываемый данным datatype.
+<3> `defaultForClass = true` означает, что datatype будет автоматически применен ко всем атрибутам сущности типа `GeoPoint`.
+<4> Аннотация `@Ddl` указывает, что Studio должна генерировать для атрибутов сущности в базе данных колонку типа `varchar(255)`. Подробнее см. <<ddl-annotation,ниже>>.
+<5> Форматирование без учета локали текущего пользователя. Этот метод вызывается для преобразования на системном уровне.
+<6> Форматирование с учетом локали текущего пользователя. Этот метод вызывается в UI.
+<7> Парсинг без учета локали текущего пользователя. Этот метод вызывается для преобразования на системном уровне.
+<8> Парсинг с учетом локали текущего пользователя. Этот метод вызывается в UI.
+
+После этого, когда вы определите атрибут сущности типа `GeoPoint`, фреймворк будет использовать созданные вами конвертер JPA и datatype:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Address.java[tags=datatype]
+----
+
+[[ddl-annotation]]
+=== Аннотация @Ddl
+
+Аннотация `@Ddl` на классе datatype позволяет указать, какой SQL-тип должен использоваться для атрибутов сущности. Studio учитывает эту аннотацию при генерации xref:db-migration.adoc[скриптов миграции базы данных].
+
+SQL-тип указывается в атрибуте `value` аннотации, например:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/FooDatatype.java[tags=ddl]
+----
+
+Если необходимо указать разные SQL-типы для разных СУБД, добавьте несколько аннотаций `@Ddl` с атрибутами `dbms`. В следующем примере столбец базы данных будет иметь тип `text` в PostgreSQL, тип `varchar2(255)` в Oracle и тип `varchar(255)` во всех остальных СУБД:
+
+[source,java,indent=0]
+----
+include::example$/data-model-ex1/src/main/java/com/company/demo/datatype/BarDatatype.java[tags=ddl]
+----
+
+Studio распознает следующие значения в атрибуте `dbms`:
+
+- `hsql`
+- `postgres`
+- `mysql`
+- `mssql`
+- `mssql-2005`
+- `mssql-2008`
+- `mssql-2012`
+- `oracle`
+
+// todo flowui
+// [[conversion-error]]
+// == Сообщения об ошибках преобразования
+//
+// Когда datatype используется компонентом UI для разбора строкового ввода, это может привести к исключениям парсинга. Компонент UI обрабатывает исключение и отображает xref:ui:vcl/components/text-field.adoc#data-type-conversion[удобное для пользователя сообщение]. Эти сообщения находятся в пакете сообщений фреймворка с ключами `databinding.conversion.error.<datatype-id>`. Например:
+//
+// [source,properties]
+// ----
+// databinding.conversion.error.boolean=Must be Boolean
+// ----
+//
+// Полный список сообщений см. в разделе https://github.com/jmix-framework/jmix/blob/master/jmix-ui/ui/src/main/resources/io/jmix/ui/messages.properties[messages.properties^] ветки, соответствующей версии Jmix, используемой в вашем проекте.
+//
+// Если сообщение для datatype не существует, используется следующее общее сообщение:
+//
+// [source,properties]
+// ----
+// databinding.conversion.error.defaultMessage=Wrong format
+// ----
+//
+// Вы можете переопределить сообщения об ошибках в своем проекте, просто предоставив сообщения с теми же ключами. Кроме того, необходимо предоставить сообщения об ошибках для настроенных вами datatype, например:
+//
+// [source,properties,indent=0]
+// ----
+// include::example$/ex1/src/main/resources/datamodel/ex1/messages.properties[tags=conversion-error]
+// ----
+//
+// [[using-datatype]]
+// == Использование datatype напрямую
+//
+// Большую часть времени реализации `Datatype` используются внутри фреймворка для форматирования и парсинга атрибутов сущностей. Но иногда может появиться необходимость использовать datatype непосредственно в коде.
+//
+// Представим, что у вас есть компонент `TextField`, не привязанный ни к какому атрибуту сущности:
+//
+// [source,xml,indent=0]
+// ----
+// include::example$/ex1/src/main/resources/datamodel/ex1/screen/order/order-browse.xml[tags=datatype]
+// ----
+//
+// Теперь если в этом компоненте нужно ввести десятичные значения, вы можете назначить ему datatype в контроллере экрана, получив datatype из компонента `DatatypeRegistry`:
+//
+// [source,java,indent=0]
+// ----
+// include::example$/data-model-ex1/src/main/java/com/company/demo/screen/order/OrderBrowse.java[tags=datatype]
+// ----
+//
+// TIP: В действительности назначить datatype текстовому полю легче в XML, см. его атрибут xref:ui:vcl/components/text-field.adoc#data-type[datatype].
+//
+// Если вам нужно получить datatype атрибута сущности, это можно сделать с помощью xref:metadata.adoc[метаданных]. Ниже приведен синтетический пример парсинга десятичного значения с использованием datatype, соответствующего свойству сущности:
+//
+// [source,java,indent=0]
+// ----
+// include::example$/data-model-ex1/src/main/java/com/company/demo/bean/CustomerService.java[tags=get-datatype]
+// ----

@@ -1,0 +1,145 @@
+= Загрузчики данных
+
+Загрузчики предназначены для загрузки данных в xref:flow-ui:data/data-containers.adoc[контейнеры данных].
+
+Интерфейсы загрузчиков немного отличаются в зависимости от типа контейнера, с которым они работают:
+
+* `InstanceLoader` загружает единственный экземпляр сущности в контейнер `InstanceContainer` по идентификатору сущности или с помощью JPQL-запроса.
+* `CollectionLoader` загружает коллекцию сущностей в `CollectionContainer` с помощью JPQL-запроса. Для этого загрузчика можно настроить пейджинг, сортировку и другие дополнительные параметры.
+* `KeyValueCollectionLoader` загружает коллекцию экземпляров `KeyValueEntity` в контейнер `KeyValueCollectionContainer`. Кроме параметров, доступных для `CollectionLoader`, вы также можете указать имя хранилища данных.
+
+В XML-дескрипторах экрана загрузчики объявляются с помощью элемента `<loader>`, и тип загрузчика будет определяться типом контейнера, в который он вложен.
+
+Использование загрузчиков необязательно, так как вы можете загружать данные с помощью `DataManager` или собственного сервиса и самостоятельно добавлять их в контейнеры, однако загрузчики облегчают этот процесс для экранов, описываемых декларативно.
+
+Обычно загрузчик коллекций получает запрос JPQL из XML-дескриптора экрана, создает объект `LoadContext` и вызывает `DataManager` для загрузки сущностей. В итоге типичный XML-дескриптор выглядит подобным образом:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=collection-container]
+----
+
+В экране деталей сущности XML-элемент `loader` обычно пуст, так как для загрузки единственного экземпляра сущности требуется ее идентификатор, который устанавливается программно классом `StandardDetailView`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-detail-view.xml[tags=instance-container]
+----
+
+Если загрузчик не имеет атрибута `readOnly="true"` в XML или если xref:flow-ui:data/data-context.adoc[DataContext] установлен для загрузчика программно, все загруженные сущности будут автоматически помещены в data context.
+
+[[data-context-events]]
+== События и обработчики
+
+В данном разделе описываются события жизненного цикла загрузчиков данных, на которые можно подписаться в контроллерах экранов.
+
+include::events-handlers-generation-data-tip.adoc[]
+
+[[load-delegate]]
+=== loadDelegate
+
+Загрузчики могут делегировать фактическую загрузку методу контроллера экрана, в котором можно вызвать какой-либо сервис вместо используемого по умолчанию `DataManager`. Например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=delegate]
+----
+<1> Метод `departmentsDlLoadDelegate()` используется загрузчиком `departmentsDl` для получения списка экземпляров сущности `Department`.
+<2> Метод принимает `LoadContext`, который будет создан загрузчиком на основе его параметров: запрос, условия (при наличии) и т.д.
+<3> Загрузка осуществляется методом `DepartmentService.loadDepartments()`, который принимает условия фильтрации, сортировку и пейджинг, установленные загрузчику визуальными компонентами экрана.
+
+Помимо вызова собственных сервисов, в делегате можно выполнить пост-обработку загруженных сущностей.
+
+Если загрузка данных выполняется с помощью делегата и загруженные данные отображаются в `dataGrid` с компонентом постраничной загрузки (пагинации), то может потребоваться определить также и пользовательскую логику для подсчёта общего количества строк. См. обработчик xref:vc/components/simplePagination.adoc#totalCountDelegate[totalCountDelegate] компонента `simplePagination`.
+
+[[load-from-repository-delegate]]
+=== loadFromRepositoryDelegate
+
+Если вы предпочитаете xref:data-access:data-repositories.adoc[репозитории данных] для доступа к базе данных, рассмотрите возможность использования `loadFromRepositoryDelegate` вместо `loadDelegate`, который описан <<load-delegate,выше>>.
+
+Он принимает аргументы, подходящие для прямого вызова репозитория данных:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView3.java[tags=delegate]
+----
+
+[[pre-load-event]]
+=== PreLoadEvent
+
+Это событие отправляется перед загрузкой сущностей.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=pre-load]
+----
+
+Загрузку можно предотвратить, используя метод события `preventLoad()`.
+
+[[post-load-event]]
+=== PostLoadEvent
+
+Это событие отправляется после того, как сущности успешно загружены, помещены в `DataContext` и установлены в контейнер данных.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView.java[tags=post-load]
+----
+
+[[query-conditions]]
+== Условия запросов
+
+Иногда необходимо изменить запрос загрузчика данных во время выполнения программы для того, чтобы отфильтровать загружаемые данные на уровне БД. Простейший способ фильтрации в зависимости от параметров, вводимых пользователем – это подключить к загрузчику визуальные компоненты xref:flow-ui:vc/components/propertyFilter.adoc[] или xref:flow-ui:vc/components/genericFilter.adoc[].
+
+Вместо использования специальных компонентов-фильтров, или в дополнение к ним, для запроса в загрузчике можно задать набор условий. Условие представляет собой набор фрагментов запросов с параметрами. Эти фрагменты будут добавлены в результирующий запрос, только если все параметры, используемые во фрагментах, заданы для запроса (не null).
+
+TIP: Онлайн-пример https://demo.jmix.ru/ui-samples/sample/custom-filter[Фильтр с использованием декларативных условий^], демонстрирует условия запросов в действии.
+
+Условия обрабатываются на уровне хранилищ данных, поэтому они могут содержать фрагменты различных языков запросов, поддерживаемых хранилищами. Фреймворк "из коробки" предоставляет возможность описывать условия на языке JPQL.
+
+Рассмотрим создание условий для фильтрации сущности `Department` по ее атрибутам `name` и `hrManager`.
+
+Условия запроса для загрузчика могут быть заданы либо декларативно в XML-элементе `<condition>`, либо программно методом `setCondition()`. Ниже приведен пример описания условий в XML:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=condition-data]
+----
+<1> Добавление namespace для JPQL-условий.
+<2> Добавление элемента `condition` внутри `query`.
+<3> Если необходимо задать более одного условия, добавляется элемент `and` или `or`.
+<4> Задание JPQL-условие с опциональным элементом `join` и обязательным `where`.
+
+Предположим, что в экране имеется два UI-компонента для ввода параметров условий: текстовое поле `nameFilterField` и выпадающий список `hrManagerFilterField`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view-2.xml[tags=field]
+----
+
+Для того чтобы обновить данные, когда пользователь изменяет значения в этих компонентах, добавим следующие подписки на события в контроллере экрана:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=condition]
+----
+
+Как было упомянуто выше, условие включается в запрос только когда его параметры установлены. Поэтому результирующий запрос, выполняемый БД, будет зависеть от того, что введено в UI-компонентах:
+
+.Только для nameFilterField установлено значение
+[source,jpql,indent=0]
+----
+select e from Department e where e.name like :name
+----
+
+.Только для hrManagerFilterField установлено значение
+[source,jpql,indent=0]
+----
+select e from Department e where e.hrManager = :hrManager
+----
+
+.И для nameFilterField, и для hrManagerFilterField установлены значения
+[source,jpql,indent=0]
+----
+select e from Department e where (e.name like :name) and (e.hrManager = :hrManager)
+----

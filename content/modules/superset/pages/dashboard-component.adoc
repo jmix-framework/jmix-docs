@@ -1,0 +1,118 @@
+= Компонент SupersetDashboard
+
+Компонент `SupersetDashboard` предназначен для встраивания в экраны приложения дэшбордов, настроенных в Apache Superset.
+
+[[usage]]
+== Использование
+
+Компонент `SupersetDashboard` доступен в палитре *Add Component* xref:studio:view-designer.adoc[дизайнера экранов] Studio сразу после установки дополнения в ваш проект.
+
+Для компонента необходимо настроить атрибуты, такие как `id`, `height`, `width`, и указать полученный из Apache Superset <<embeddedId,embeddedId>>, например:
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
+----
+
+Кроме того, компонент можно инжектировать в контроллер экрана и взаимодействовать с ним программно:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
+----
+
+== Атрибуты
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<chartControlsVisible,chartControlsVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+<<embeddedId,embeddedId>> -
+<<filtersExpanded,filtersExpanded>> -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+<<titleVisible,titleVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[chartControlsVisible]]
+=== chartControlsVisible
+Устанавливает видимость панели инструментов диаграмм.
+
+image::chart-controls-example.png[]
+
+[[embeddedId]]
+=== embeddedId
+ID встроенного дэшборда. Вы можете получить этот ID из настроек дэшборда в Superset. См. пример настройки встроенного дэшборда в разделе xref:dashboard.adoc#create-dashboard[Создание дэшборда] руководства xref:getting-started.adoc[Начало работы].
+
+NOTE: Для встраивания дэшбордов не забудьте включить флаг `EMBEDDED_SUPERSET` в настройках Superset. См. xref:configuration.adoc#enable-embedding-dashboards[Встраиваемые дэшборды].
+
+ID встроенного дэшборда необходим для получения гостевого токена (_guest token_) и загрузки дэшборда. После изменения ID встроенного дэшборда компонент перезагружает дэшборд. Без `embeddedId` компонент будет отображать изображение-заглушку.
+
+[[filtersExpanded]]
+=== filtersExpanded
+
+Устанавливает раскрытие панели фильтров.
+
+[[titleVisible]]
+=== titleVisible
+Устанавливает видимость панели заголовка.
+
+image::title-visible-example.png[align="center"]
+
+[[datasetConstraints]]
+== Ограничения наборов данных
+
+Дэшборд в Superset может содержать несколько диаграмм, отображающих данные из различных наборов данных. Компонент `SupersetDashboard` обеспечивает возможность задавать ограничения для этих наборов данных. Ограничения могут быть определены статически в элементе XML компонента или вычислены динамически при работе приложения.
+
+Для предоставления ограничения вам нужно указать ID набора данных и написать условие на native SQL, которое будет добавлено в выражение *WHERE* запроса набора данных.
+
+TIP: В интерфейсе Superset не очевидно, где найти ID набора данных. Вы можете получить его из параметра `datasource_id` в URL, отображаемом в адресной строке при открытии набора данных из списка наборов данных.
+
+[[staticDatasetConstraints]]
+=== Статичные ограничения
+
+Рассмотрим использование статичных ограничений набора данных в дэшборде `Employees' salaries`, созданном в разделе xref:getting-started.adoc[Начало работы]. Он использует набор данных, загружающий сотрудников, отделы и зарплаты. Предположим, что нужно ограничить нижнюю границу зарплаты, например, до `80 000`.
+
+Ограничения определяются в элементах `datasetConstraint` вложенных в элемент `dashboard` компонента. Они могут быть добавлены с помощью действия *Add* в Студии или вручную в XML.
+
+Требуемое определение ограничения будет выглядеть следующим образом:
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
+----
+
+Здесь `salary` — столбец набора данных.
+
+[[datasetConstraintsProvider]]
+=== Провайдер ограничений
+
+Ограничения набора данных могут быть рассчитаны динамически в работающем приложении и переданы в Superset при открытии дэшборда в приложении Jmix. Это позволяет фильтровать данные дэшборда в зависимости от прав доступа текущего пользователя или любых других критериев.
+
+Ограничение набора данных определяется классом `DatasetConstraint`. Вы можете предоставить список ограничений компоненту `SupersetDashboard` следующими способами:
+
+* Создать обработчик `datasetConstraintsProvider` в экране и вернуть список ограничений из него.
+
+* Создать Spring-бин, реализующий интерфейс `DatasetConstraintsProvider`, и передать его компоненту с помощью метода `setDatasetConstraintsProvider()`.
+
+Рассмотрим следующее требование: менеджер отдела может видеть информацию о зарплатах только в своем отделе. Ограничение набора данных может учитывать роль уровня строк, назначенную текущему пользователю.
+
+В примере ниже используется первый подход с обработчиком `datasetConstraintsProvider` в экране, но логика вынесена в обычный Spring-бин:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[]
+----
+
+Бин используется в обработчике `datasetConstraintsProvider` экрана, который может быть сгенерирован из панели инспектора Jmix:
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
+----

@@ -1,0 +1,182 @@
+= loginForm
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/custom-login" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Форма для ввода учетных данных аутентификации.
+
+* XML-элемент: `loginForm`
+
+* Java-класс: `JmixLoginForm`
+
+== Основы
+
+Базовая форма входа `loginForm` включает поля имени пользователя и пароля, а также кнопку, которую пользователь нажимает для попытки входа в систему. Форма может также включать необязательные элементы, такие как выпадающий список выбора языка, флажок "Запомнить меня" и кнопку "Забыли пароль".
+
+image::visual-components/components/login-form.png[align="center", width="320"]
+
+[[labels-messages]]
+=== Надписи и сообщения
+
+Добавьте внутренний элемент `form`, чтобы указать заголовок формы, надписи полей ввода и текст кнопок.
+
+TIP: Значения в форме могут быть текстовыми строками или ключами в xref:localization:message-bundles.adoc[пакете сообщений].
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
+----
+
+Приведенный выше пример также добавляет необязательный элемент `errorMessage` для отображения сообщения при неудачной попытке входа в систему и элемент `additionalInformation` для предоставления релевантной информации о процессе входа в систему.
+
+=== Необязательные элементы
+
+Отображайте или скрывайте необязательные элементы, такие как выпадающий список выбора языка, флажок "Запомнить меня" и кнопку "Забыли пароль", используя соответствующие атрибуты:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
+----
+
+[[remember-me]]
+=== Запоминание пользователя
+
+Флажок *Remember me* ("Запомнить меня") позволяет пользователю сохранять состояние своего входа в систему в течение длительного периода времени, превышающего время жизни HTTP-сессии. Это состояние сохраняется даже после перезапуска сервера.
+
+Когда пользователь устанавливает флажок *Remember me* при входе в систему, система сохраняет постоянный токен в cookie браузера. При последующих посещениях пользователь автоматически аутентифицируется без повторного ввода учетных данных.
+
+Для обработки состояния `Remember me` в логике входа в систему используйте событие <<RememberMeChangedEvent,RememberMeChangedEvent>>.
+
+Смотрите https://docs.spring.io/spring-security/reference/servlet/authentication/rememberme.html[документацию Spring Security Remember-Me^] для получения дополнительной информации.
+
+[[authentication]]
+== Аутентификация
+
+Стандартный экран входа в систему будет включать в себя необходимую логику для аутентификации пользователя в приложении:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=login-form;on-login-handler]
+----
+<1> Инжектируйте `loginForm`, чтобы получить доступ к нему по идентификатору в классе контроллера.
+<2> Применяет выбранный язык для приложения.
+<3> Проверяет, следует ли запоминать пользователя между сессиями на основе значения флажка "Запомнить меня".
+
+== Обработка исключений
+
+Чтобы помочь пользователям выявлять проблемы со входом в систему, расширьте логику по умолчанию, чтобы включить информативные сообщения для каждого типа исключений:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=exception-handling]
+----
+
+<1> Отображает сообщение об ошибке при неудачной попытке входа в систему на основе исключения, в частности, `LockedException`, которое указывает на то, что учетная запись временно заблокирована.
+<2> Записывает предупреждающее сообщение, указывающее на то, что попытка входа в систему для конкретного пользователя не удалась.
+
+[[locale]]
+== Локаль
+
+Форма входа может включать выпадающий список, позволяющий пользователю выбрать предпочтительную локаль (язык). Чтобы сделать этот параметр доступным, вам необходимо xref:localization:message-bundles.adoc#setting-locales[настроить локаль] в вашем приложении. Как только будет настроена дополнительная локаль, она появится в списке.
+
+image::visual-components/components/login-form-locales.png[align="center", width="480"]
+
+Всякий раз, когда пользователь выбирает новую локаль из списка, генерируется событие <<LocaleChangedEvent,LocaleChangedEvent>>. Создав обработчик для этого события, вы можете гарантировать, что сообщения формы входа будут обновляться немедленно, без необходимости перезагрузки страницы. Вот как это делается в стандартном экране входа:
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=on-locale-changed]
+----
+
+== Стилизация экрана входа в систему
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/custom-login" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Вы можете использовать CSS-стили для улучшения внешнего вида и компоновки экрана входа в систему в вашем приложении. Один из способов улучшить экран - добавить фоновое изображение. Это изображение визуально подтвердит пользователю, что он входит в правильное приложение.
+
+== Атрибуты
+
+xref:vc/common-attributes.adoc#id[id] -
+xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#css[css] -
+xref:vc/common-attributes.adoc#enabled[enabled] -
+<<forgotPasswordButtonVisible,forgotPasswordButtonVisible>> -
+<<localesVisible,localesVisible>> -
+<<rememberMeVisible,rememberMeVisible>> -
+xref:vc/common-attributes.adoc#visible[visible]
+
+[[forgotPasswordButtonVisible]]
+=== forgotPasswordButtonVisible
+
+Устанавливает видимость кнопки **Forgot password** ("Забыли пароль").
+
+[[localesVisible]]
+=== localesVisible
+
+Устанавливает видимость выпадающего списка выбора языка.
+
+[[rememberMeVisible]]
+=== rememberMeVisible
+
+Устанавливает видимость флажка *Remember me* ("Запомнить меня"). Если значение `true`, пользователи могут выбрать опцию оставаться в системе между сеансами браузера.
+
+Значение по умолчанию — `false`.
+
+== Обработчики
+
+xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
+<<ForgotPasswordEvent,ForgotPasswordEvent>> -
+<<LocaleChangedEvent,LocaleChangedEvent>> -
+<<LoginEvent,LoginEvent>> -
+<<RememberMeChangedEvent,RememberMeChangedEvent>> -
+<<localeItemLabelGenerator, localeItemLabelGenerator>>
+
+include::../handler-generation-tip.adoc[]
+
+[[ForgotPasswordEvent]]
+=== ForgotPasswordEvent
+
+Событие `ForgotPasswordEvent` отправляется при нажатии кнопки "Забыли пароль". Добавьте обработчик для этого события, чтобы предоставить пользователям инструкции по восстановлению пароля.
+
+[[LocaleChangedEvent]]
+=== LocaleChangedEvent
+
+Событие `LocaleChangedEvent` отправляется при выборе другой локали (языка). Обработчик для этого события может быть использован для обновления надписей и сообщений в форме в соответствии с выбранной локалью.
+
+[[LoginEvent]]
+=== LoginEvent
+
+Событие `LoginEvent` отправляется, когда пользователь пытается войти в систему.
+
+[[RememberMeChangedEvent]]
+=== RememberMeChangedEvent
+
+Событие `RememberMeChangedEvent` отправляется при изменении состояния флажка "Запомнить меня".
+
+[[localeItemLabelGenerator]]
+=== localeItemLabelGenerator
+
+Настраивает имена локалей (языков) в списке. Например, вместо использования полного названия языка для каждой локали можно использовать трехбуквенное сокращение в верхнем регистре.
+
+[source,java,indent=0]
+----
+include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=localeItemLabelGenerator]
+----
+
+== Элементы
+
+<<labels-messages, additionalInformation>> - <<labels-messages, form>> - <<labels-messages, errorMessage>>
+
+== Смотрите также
+
+Смотрите {vaadin-docs}/components/login[документацию Vaadin^] для получения дополнительной информации.

@@ -1,0 +1,176 @@
+= 3. Отображение объектов на карте
+
+Давайте вернемся к сущности `Location` и добавим в нее следующие атрибуты:
+
+. `buildingEntrance` типа `GeoPoint`. Этот атрибут хранит координаты входа в здание.
+. `pathToBuilding` типа `GeoPolyline`. Этот атрибут хранит путь к зданию.
+. `buildingArea` типа `GeoPolygon`. Этот атрибут используется для отображения здания на карте с помощью геометрической фигуры.
+
+image::new-geo-location-attr.png[align="center", width="903"]
+
+Добавьте эти атрибуты в экран `Location.detail`.
+
+Для упрощения нашего руководства мы будем использовать текстовые поля для новых полей. Вы можете добавить обработчики событий карты для извлечения координат, как мы это делали в xref:maps:data-binding-map.adoc#saving-coordinates[Сохранение координат в атрибут Building]. Для этого используйте методы, предоставляемые `GeometryUtils`.
+
+Ниже приведены примеры заполнения полей:
+
+* *Building*:
++
+`POINT (13.347796079315284 52.55344847222085)`
+* *Building entrance*:
++
+`POINT (13.347860653822895 52.553536712270784)`
+* *Path to building*:
++
+----
+LINESTRING (13.346886063248354 52.553529790121985,
+13.347394863347068 52.5532539371346, 13.347837668453902 52.55355180648286,
+13.347860653822895 52.553536712270784)
+----
+* *Building area*:
++
+----
+POLYGON ((13.347878609736783 52.553551482547135,
+13.34795260252847 52.55350646966119,
+13.347713548893793 52.55334632728869,
+13.347640979040412 52.553390474703775,
+13.347878609736783 52.553551482547135))
+----
+
+[[add-vector-layer]]
+== Добавление векторных слоев
+
+Векторный слой используется для работы с геометриями. На карту можно добавить несколько векторных слоев.
+
+Чтобы отображать полигоны, полилинии и точки, вам нужно добавить векторные слои на карту.
+
+Откройте `location-lookup-view.xml` и создайте отдельный векторный слой и источник векторных данных для каждого гео-специфичного атрибута xref:maps:geo-objects.adoc[геообъекта]. Укажите атрибуты `dataContainer` и `property` для источников векторных данных:
+
+[source,xml,indent=0]
+----
+            <maps:geoMap id="map" ...>
+                ...
+                <maps:layers>
+                    <maps:tile>
+                        <maps:osmSource/>
+                    </maps:tile>
+                    <maps:vector id="dataVectorLayer">
+                        <maps:dataVectorSource id="buildingSource"
+                                               dataContainer="locationsDc"
+                                               property="building"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerArea">
+                        <maps:dataVectorSource id="areaSource"
+                                               dataContainer="locationsDc"
+                                               property="buildingArea"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerPath">
+                        <maps:dataVectorSource id="pathSource"
+                                               dataContainer="locationsDc"
+                                               property="pathToBuilding"/>
+                    </maps:vector>
+                    <maps:vector id="vectorLayerEntrance">
+                        <maps:dataVectorSource id="entranceSource"
+                                               dataContainer="locationsDc"
+                                               property="buildingEntrance"/>
+                    </maps:vector>
+                </maps:layers>
+            </maps:geoMap>
+----
+
+[[add-point]]
+== Добавление точки на карту
+
+Перейдите к контроллеру экрана `LocationLookupView` и добавьте новый метод:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=entranceSource;initBuildingEntranceSource]
+----
+<1> Настраивает `styleProvider` для отображения `Point` как точечного объекта с пользовательским стилем точки.
+
+// Now, let's handle the changes in the Locations collection.
+//
+// Click *Generate Handler* in the top actions panel. Collapse all items, then select `CollectionChangeEvent` items in `Data containers handlers → locationsDc`:
+//
+// image::collection-changed-event.png[align="center", width="896"]
+//
+// Click *OK*.
+//
+// Studio will automatically generate the method stub: `onLocationsDcCollectionChange()`. Implement it as follows:
+//
+// [source,java,indent=0]
+// ----
+//     @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+//     public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+//         VectorLayer vectorLayer = map.getLayer("vectorLayer");
+//         VectorSource source = vectorLayer.getSource(); // <1>
+//
+//         source.removeAllFeatures(); // <2>
+//
+//         for (Location location : event.getSource().getItems()) {
+//             if (location.getBuildingEntrance() != null) {
+//                 source.addFeature(createBuildingEntranceFeature(location)); // <3>
+//             }
+//         }
+//     }
+// ----
+// <1> Gets the vector source to work with features (Polygon, LineString, Point).
+// <2> Removes all features from the source.
+// <3> Adds a point feature to the source.
+
+[[add-polyline]]
+== Добавление полилинии на карту
+
+Добавьте метод `initPathToBuildingSource()` в контроллер экрана `LocationLookupView`:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=pathSource;initPathToBuildingSource]
+----
+<1> Настраивает `styleProvider` для отображения `LineString` как объекта-полилинии с настроенным стилем линии.
+
+// Invoke `createPathToBuildingFeature()` from the existing `onLocationsDcCollectionChange` handler:
+//
+// [source,java,indent=0]
+// ----
+//     @Subscribe(id = "locationsDc", target = Target.DATA_CONTAINER)
+//     public void onLocationsDcCollectionChange(final CollectionContainer.CollectionChangeEvent<Location> event) {
+//
+//         ...
+//
+//         for (Location location : event.getSource().getItems()) {
+//             if (location.getBuildingEntrance() != null) {
+//                 source.addFeature(createBuildingEntranceFeature(location));
+//             }
+//             if (location.getPathToBuilding() != null) {
+//                 source.addFeature(createPathToBuildingFeature(location)); // <1>
+//             }
+//         }
+//     }
+// ----
+// <1> Adds a polyline feature to the source.
+
+[[add-polygon]]
+== Добавление полигона на карту
+
+Добавьте метод `initBuildingAreaSource()` в контроллер экрана `LocationLookupView`:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=areaSource;initBuildingAreaSource]
+----
+<1> Настраивает `styleProvider` для отображения `Polygon` как объекта-полигона с настроенным стилем полигона. Цвет заливки и цвет границы полигона задаются в переменных и зависят от типа местоположения.
+
+Вызовите созданные методы из `onInit()`:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex1/src/main/java/com/company/onboarding/view/locationlookup/LocationLookupView.java[tags=onInit;inits]
+----
+
+Давайте запустим приложение, чтобы увидеть новую функцию в действии. Теперь при выборе местоположения карта будет увеличивать масштаб и центрироваться по координатам местоположения.
+
+Вход в здание отображается как черная точка на карте. Путь к зданию изображен пунктирной линией, а полигон показывает границу здания.
+
+image::map-with-features.png[align="center", width="1090"]

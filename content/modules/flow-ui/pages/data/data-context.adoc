@@ -1,0 +1,119 @@
+= DataContext
+
+Интерфейс `DataContext` позволяет отслеживать изменения в сущностях, загружаемых на уровень UI. Отслеживаемые сущности помечаются как "грязные" при любом изменении значений их атрибутов, и `DataContext` сохраняет грязные экземпляры при вызове его метода `save()`.
+
+Внутри `DataContext` сущность с некоторым идентификатором будет представлена единственным объектом, вне зависимости от того, где и сколько раз она использована в графах сущностей, находящихся в данном контексте.
+
+Чтобы сущность отслеживалась, ее необходимо поместить в `DataContext` с помощью метода `merge()`. Если контекст не содержит экземпляра сущности с таким же идентификатором, то контекст создает новый экземпляр и копирует в него состояние переданного. Если контекст уже содержит экземпляр сущности с таким же идентификатором, он копирует в имеющийся экземпляр состояние переданного и возвращает имеющийся экземпляр. Данный механизм позволяет всегда иметь в контексте не более одного экземпляра сущности с конкретным идентификатором.
+
+При помещении сущности в контекст методом `merge()` весь граф объектов с корнем в данной сущности также помещается в контекст. То есть все связанные сущности, включая коллекции, становятся отслеживаемыми.
+
+NOTE: Главный принцип использования метода `merge()` заключается в том, чтобы продолжать работать с возвращенным из метода экземпляром, забывая про переданный. В большинстве случаев возвращенный экземпляр будет другим. Единственное исключение – если в `merge()` передан экземпляр объекта, ранее возвращенный другим вызовом `merge()` или `find()` этого же контекста.
+
+Пример помещения сущности в `DataContext`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=data-context]
+----
+
+Для некоторго экрана существует только один экземпляр `DataContext`. Он создается автоматически, если в XML-дескрипторе экрана есть элемент `<data>`.
+
+xref:data/data-loaders.adoc[Загрузчики данных], определенные в XML, автоматически помещают загруженные сущности в `DataContext`, если у них нет атрибута `readOnly="true"`. По умолчанию загрузчики данных в xref:views/view-classes.adoc#standard-list-view[экранах списков сущностей], создаваемых Studio, включают этот атрибут. Поэтому, если вам нужно отслеживать изменения и сохранять измененные сущности в экранах списков, удалите атрибут `readOnly="true"` у соответствующих загрузчиков.
+
+CAUTION: Если связанная сущность не включена в xref:data-access:fetching.adoc#fetch-plan[фетч-план] экрана, а вместо этого загружается xref:data-access:fetching.adoc#lazy-loading[лениво], она не помещается в `DataContext` экрана и поэтому ее изменения не отслеживаются. Убедитесь что все сущности, редактируемые в экране загружаются жадно путем включения их в фетч-план.
+
+[[obtaining-data-context]]
+== Получение DataContext
+
+. `DataContext` экрана можно получить в его контроллере используя инжектирование:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=data-context-inject]
+----
++
+. Если имеется ссылка на некоторый экран, то получить его `DataContext` можно с помощью класса `ViewControllerUtils`:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=sample-method]
+----
+
+[[parent-data-context]]
+== Родительский DataContext
+
+Сущности `DataContext` могут образовывать отношения предок-потомок. Если у экземпляра `DataContext` есть родительский контекст, он будет сохранять измененные сущности в своего предка вместо того, чтобы сразу отправлять их в хранилище данных. Эта особенность позволяет xref:concepts:features.adoc#editing-aggregates[редактировать агрегаты], когда дочерние сущности должны сохраняться только вместе с родительской. Если атрибут сущности снабжен аннотацией xref:data-model:entities.adoc#composition[@Composition], фреймворк автоматически установит родительский контекст для экрана деталей этого атрибута, чтобы измененная сущность атрибута сохранялась в контекст сущности-владельца.
+
+Подобное поведение можно легко настроить вручную для любой сущности или экрана.
+
+Если вы программно открываете экран деталей сущности, который должен сохранять изменения в data context текущего экрана, используйте метод `withParentDataContext()`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=department-edit]
+----
+
+Дополнительные примеры явного использования `DataContext` приведены в руководстве xref:data-modeling-composition-guide:index.adoc[].
+
+[[data-context-events]]
+== События и обработчики
+
+В этом разделе описываются события жизненного цикла `DataContext`, на которые можно подписаться в контроллерах экрана.
+
+include::events-handlers-generation-data-tip.adoc[]
+
+[[save-delegate]]
+=== SaveDelegate
+
+По умолчанию `DataContext` сохраняет измененные и удаленные объекты с помощью метода xref:data-access:data-manager.adoc#save[DataManager.save(SaveContext)]. Обработчик `saveDelegate` позволяет настраивать логику сохранения данных, что особенно полезно при работе с xref:data-model:entities.adoc#dto[DTO сущностями]. Например, вы можете сохранить измененные объекты с помощью специального сервиса:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=save-delegate]
+----
+
+Обработчик `saveDelegate` должен возвращать `Set` сохраненных экземпляров. Если это невозможно, верните исходные экземпляры из `saveContext.getEntitiesToSave()` или просто пустой `Set`. Не возвращайте удаленные экземпляры. Возвращенные экземпляры будут помещены обратно в `DataContext`, и экран продолжит работу с обновленным состоянием.
+
+См. раздел xref:data/entities-in-ui.adoc[] для дополнительной информации о сохранении сущностей с использованием кастомных сервисов.
+
+[[change-event]]
+=== ChangeEvent
+
+Это событие отправляется, когда `DataContext` обнаруживает изменения в отслеживаемой сущности, в контекст помещается новый экземпляр, или при удалении сущности.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=change-event]
+----
+
+[[pre-save-event]]
+=== PreSaveEvent
+
+Это событие отправляется перед сохранением изменений.
+
+В слушателе этого события можно добавлять произвольные экземпляры сущностей в сохраняемые коллекции, возвращаемые методами `getModifiedInstances()` и `getRemovedInstances()`, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=pre-save-event]
+----
+
+Вы также можете предотвратить сохранение, используя метод события `preventCommit()`, например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=prevent-save]
+----
+
+[[post-save-event]]
+=== PostSaveEvent
+
+Это событие отправляется после сохранения изменений.
+
+Из слушателя этого события можно получить коллекцию сохраненных сущностей, возвращенных из `DataManager` или собственного <<save-delegate,save delegate>>. Эти сущности уже помещены в `DataContext`. Например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=post-save-event]
+----

@@ -1,0 +1,111 @@
+= Quartz
+
+Данное дополнение позволяет управлять задачами https://www.quartz-scheduler.org/[Quartz^] через пользовательский интерфейс:
+
+* Создавать новые задачи Quartz из существующей реализации интерфейса `org.quartz.Job`.
+* Приостанавливать и возобновлять выполнение задач.
+* Запускать немедленное выполнение неактивных задач.
+* Редактировать триггеры и параметры задач.
+* Удалять задачи.
+
+Пользовательский интерфейс управления Quartz доступен через пункт главного меню *Quartz -> Quartz jobs*.
+
+Дополнение также предоставляет Liquibase changelogs для автоматического создания схемы базы данных, необходимой для Quartz.
+
+[[installation]]
+== Установка
+
+Для автоматической установки через Jmix Marketplace следуйте инструкциям в разделе xref:ROOT:add-ons.adoc#installation[Дополнения].
+
+Для ручной установки добавьте следующие зависимости в ваш `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::example$quartz-ex1/build.gradle[tags=dependencies]
+----
+
+[NOTE]
+====
+Если URL вашей основной базы данных задан как переменная, заменяющая весь URL (например, `main.datasource.url = $\{DB_URL\}`),
+вам может потребоваться явно задать соответствующий класс драйвера через свойство приложения `spring.quartz.properties.org.quartz.jobStore.driverDelegateClass`.
+
+Значение зависит от вашей базы данных:
+
+* *PostgreSQL*: `org.quartz.impl.jdbcjobstore.PostgreSQLDelegate`
+* *Oracle*: `org.quartz.impl.jdbcjobstore.oracle.OracleDelegate`
+* *MS SQL*: `org.quartz.impl.jdbcjobstore.MSSQLDelegate`
+* Другая база данных: пропустите этот шаг - будет использовано значение по умолчанию.
+
+Если переменная в свойстве `main.datasource.url` не включает префикс базы данных (например, `main.datasource.url = jdbc:postgresql://$\{DB_HOST\}/$\{DB_NAME\}`)
+или переменных вообще нет - класс драйвера будет разрешен автоматически, и этот шаг можно пропустить.
+====
+
+include::ROOT:single-menu-note.adoc[]
+
+[[usage]]
+== Использование
+
+Чтобы создать и запланировать задачи для выполнения, сделайте следующее:
+
+. Создайте класс, реализующий интерфейс `org.quartz.Job`. Его метод `execute()` будет вызываться планировщиком. Например:
++
+[source,java,indent=0]
+----
+include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/SampleJob.java[]
+----
++
+В классе задачи вы можете инжектировать Spring-бины с помощью `@Autowired`.
+
+. Запустите приложение, откройте экран *Quartz -> Quartz jobs* и нажмите *Create*.
++
+--
+** Введите произвольное уникальное имя в поле *Name* и выберите ваш класс задачи в поле *Class*.
++
+Поле *Group* является необязательным, но может использоваться для группировки задач в пользовательском интерфейсе.
+
+** Создайте хотя бы один триггер для задачи на вкладке *Triggers*. Вы можете выбрать тип расписания *Cron expression* или *Simple*. В первом случае введите http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html[выражение Cron^], например `0/5 * * ? * * *` (каждые 5 секунд). Во втором случае введите интервал повторения в миллисекундах.
+--
++
+После сохранения триггера и задачи она немедленно планируется для выполнения в соответствии с настройками триггера.
++
+Чтобы отредактировать настройки задачи, сначала приостановите ее, выбрав и нажав *Pause*. После сохранения изменений вы можете возобновить планирование, нажав *Resume*.
++
+Вы также можете выполнить любую зарегистрированную задачу немедленно, нажав *Execute now*, даже если у задачи нет триггеров. Это полезно для тестирования.
+
+[[authentication]]
+=== Аутентификация в задачах
+
+Код, выполняемый планировщиком, не аутентифицирован, то есть не ассоциирован с каким-либо пользователем.
+
+Если вы вызываете операции, требующие аутентификации, например, работу с данными через `DataManager`, используйте xref:security:authentication.adoc#system[SystemAuthenticator] или аннотацию @Authenticated:
+
+[source,java,indent=0]
+----
+include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/SampleAuthenticatedJob.java[tags=auth-job]
+----
+
+TIP: Вы также можете использовать `UnconstrainedDataManager` для работы с данными в неаутентифицированном контексте.
+
+[[job-parameters]]
+=== Параметры задачи
+
+Экран *Job editor* позволяет задать параметры для экземпляра задачи на вкладке *Job data parameters*. Вы можете использовать параметры в классе задачи следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/SampleParameterizedJob.java[tags=job-params]
+----
+
+[[track-job-execution]]
+=== Отслеживание выполнения задач
+
+Если вы хотите отслеживать выполнение задач, создайте бин, реализующий интерфейс `JobListener` или расширяющий `JobListenerSupport` следующим образом:
+
+[source,java,indent=0]
+----
+include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/JobExecutionListener.java[]
+----
+<1> Вызывается Spring после создания экземпляра бина.
+<2> Вызывается планировщиком Quartz после выполнения задачи.
+
+В методе `jobWasExecuted()` вы можете сохранить информацию о выполненной задаче в журнале или в базе данных.

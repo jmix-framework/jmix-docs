@@ -1,0 +1,274 @@
+= Пакеты сообщений
+
+Наиболее частой задачей локализации является обеспечение сообщений, соответствующих текущему языку пользователя. Для этого сообщения должны быть извлечены из кода и помещены в специальные файлы свойств, по одному файлу на каждый язык. Коллекция таких файлов называется _пакетом сообщений_.
+
+Помимо сообщений, пакет сообщений также может содержать xref:data-model:datatype.adoc#localized-format-strings[локализованные строки форматов].
+
+Пакет сообщений проекта по умолчанию представляет собой набор файлов `messages_<language>.properties`, расположенных в базовом пакете в папке `src/main/resources`.
+
+CAUTION: Файлы пакетов сообщений должны иметь кодировку UTF-8.
+
+[[setting-locales]]
+== Настройка локалей
+
+При создании нового проекта в Studio вы можете настроить список поддерживаемых языков в поле *Locales* мастера проекта. Это поле позволяет выбрать языки и их коды.
+
+Studio записывает список кодов языков в свойство приложения xref:ROOT:app-properties.adoc#jmix.core.available-locales[jmix.core.available-locales], а названия языков - в соответствующие файлы `messages_<language>.properties` с ключом `localeDisplayName.<language>`. Позже вы можете отредактировать эти свойства вручную или использовать вкладку *Locales* окна *Project Properties* в Studio.
+
+Например, если для приложения определено два языка: `English (en)` and `Русский (ru)`, в проекте будет следующая структура файлов (при условии, что базовым пакетом является `com.company.demo`):
+
+[source, text]
+----
+src/main/resources/
+    com/company/demo/
+        messages_en.properties
+        messages_ru.properties
+    application.properties
+----
+
+И файлы будут иметь следующее содержимое:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=localeDisplayName]
+----
+
+.messages_ru.properties
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_ru.properties[tags=localeDisplayName]
+----
+
+.application.properties
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/application.properties[tags=availableLocales]
+----
+
+[[creating-messages]]
+== Создание сообщений
+
+[[group-and-key]]
+=== Группа и ключ
+
+Обычно приложение содержит один пакет сообщений. Поскольку количество сообщений даже в простом приложении может быть довольно большим, рекомендуется создавать ключи свойств из двух частей: группы и ключа сообщения, разделенных косой чертой (`/`). Это позволяет группировать связанные сообщения и избегать конфликтов имен. В следующем примере `com.company.demo.view.main` - это группа, а `applicationTitle.text` - это ключ сообщения:
+
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=structure]
+----
+
+Также можно определить сообщение без группы, например:
+
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=structure-2]
+----
+
+[[localizing-data-model]]
+=== Локализация модели данных
+
+Jmix вводит некоторые правила локализации элементов модели данных, таких как имена сущностей и атрибутов, значения перечисления. Это позволяет фреймворку находить локализованные имена при отображении сущностей и перечислений в компонентах UI.
+
+Имя сущности локализуется в формате `<package>/<class>`, имя атрибута - в формате `<package>/<class>.<attribute>`. Например:
+
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=entity]
+----
+
+Имя перечисления локализуется в формате `<package>/<class>`, значение перечисления - в формате `<package>/<class>.<value>`. Например:
+
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=enum]
+----
+
+TIP: Локализованные имена элементов модели данных можно легко создавать в визуальных дизайнерах Studio. Нажмите кнопку 🌐 (глобус) рядом с именем элемента и введите локализованные значения для доступных языков в диалоговом окне *Localized Message*.
+
+[[additional-bundles]]
+=== Дополнительные пакеты
+
+Для того, чтобы придерживаться разумного размера файлов свойств в масштабном приложении с большим количеством сообщений, можно определить дополнительные пакеты:
+
+. Создайте набор файлов свойств с произвольным именем в любом каталоге раздела `src/main/resources`. В приведенном ниже примере файлы `additional_messages` созданы в том же базовом пакете приложения, что и основной пакет сообщений:
++
+[source]
+----
+src/main/resources/com/company/demo/
+    additional_messages_en.properties
+    additional_messages_ru.properties
+    messages_en.properties
+    messages_ru.properties
+----
+
+. Запишите локализованные сообщения в дополнительные файлы так же, как и в основном пакете.
+
+. Добавьте аннотацию `@MessageSourceBasenames` к классу приложения и укажите в ней путь и имя дополнительного пакета:
++
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/main/java/com/company/demo/DemoApplication.java[tags=additional-bundle]
+----
+
+CAUTION: Сообщения из всех пакетов приложения загружаются в единый список, поэтому ключи свойств должны быть уникальными среди всех пакетов.
+
+[[using-messages]]
+== Использование сообщений
+
+[[using-messages-in-java]]
+=== В коде Java
+
+[[messages-interface]]
+==== Интерфейс Messages
+
+Чтобы получать локализованные сообщения из пакета сообщений, используйте бин `Messages`. Наиболее распространенным вариантом использования является вызов его метода `getMessage()` и предоставление группы сообщений и ключа. Метод вернет сообщение для текущего пользовательского языка или заданного ключа, если сообщение не найдено.
+
+В следующем примере определим сообщение в пакете сообщений и получим его, используя различные методы бина `Messages`:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=using-messages]
+----
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/test/java/com/company/demo/MessagesTest.java[tags=import-messages;class-declaration;autowired-messages;using-messages-1]
+----
+
+Все три метода возвращают одно и то же значение: `Something has happened`.
+
+<1> Ключ свойства задан целиком.
+<2> Группа и ключ сообщения заданы отдельно.
+<3> Если первым аргументом является `Class`, метод использует пакет класса как группу.
+
+Существует также перегруженный метод `getMessage()`, принимающий `Enum`. Используйте его для извлечения локализованного значения перечисления, например:
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/test/java/com/company/demo/MessagesTest.java[tags=using-messages-enum]
+----
+
+[[message-tools]]
+==== MessageTools
+
+Бин `MessageTools` предоставляет служебные методы для получения локализованных имен элементов модели данных в Java-коде. Это полезно, когда вам нужны те же надписи сущностей и атрибутов, которые Jmix отображает в UI-компонентах.
+
+Метод `getEntityCaption()` возвращает локализованное имя сущности. Метод `getPropertyCaption()` возвращает локализованное имя атрибута сущности:
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/test/java/com/company/demo/MessagesTest.java[tags=import-meta-class;import-metadata;import-message-tools;class-declaration;autowired-metadata;autowired-message-tools;message-tools]
+----
+
+Эти методы используют ключи локализации модели данных, описанные в разделе <<localizing-data-model,Локализация модели данных>>. В приведенном выше примере `getEntityCaption()` читает ключ `com.company.demo.entity/User`, а `getPropertyCaption()` читает ключ `com.company.demo.entity/User.username`.
+
+[[message-bundle-interface]]
+==== Интерфейс MessageBundle
+
+Интерфейс `MessageBundle` доступен в контроллерах экрана. Он предоставляет методы для получения локализованных сообщений одной группы, связанных с контроллером экрана. Он отличается от бина <<messages-interface,Messages>> тем, что может неявно получать группу сообщений от контроллера экрана, поэтому нет необходимости передавать ключ группы или имя класса.
+
+Чтобы использовать `MessageBundle`, инжектируйте его в контроллер:
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/main/java/com/company/demo/view/user/UserListView.java[tags=inject-message-bundle]
+----
+
+Теперь его можно использовать, чтобы получить сообщение по ключу:
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/main/java/com/company/demo/view/user/UserListView.java[tags=message-bundle]
+----
+
+Группа сообщения выводится из пакета контроллера экрана, как при использовании `Messages.getMessage(getClass(), "someMessage")`.
+
+Произвольную группу можно либо определить с помощью XML-атрибута `messagesGroup`, описанного ниже, либо задать ее в контроллере с помощью метода `setMessageGroup()`:
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/main/java/com/company/demo/view/user/UserListView.java[tags=message-bundle-set-group]
+----
+
+Метод `formatMessage()` интерфейса `MessageBundle` извлекает локализованное сообщение по ключу, а затем использует его для форматирования входных параметров. Формат определяется в соответствии с правилами метода `String.format()`. Например:
+
+.messages_en.properties
+[source,properties,indent=0]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=format-message]
+----
+
+[source,java,indent=0]
+----
+include::example$/localization_ex1/src/main/java/com/company/demo/view/user/UserListView.java[tags=format-message]
+----
+
+[[using-messages-in-ui]]
+=== В XML-дескрипторах экранов
+
+Дескрипторы экрана и файлы конфигурации меню UI распознают префикс `msg://` в сообщениях и загружают их из пакета сообщений.
+
+Рассмотрим различные варианты использования `msg://` с примерами.
+
+. Группа сообщения выводится из пакета экрана.
++
+--
+Например, если сообщение определено с группой `com.company.demo.view.user`:
+
+.messages_en.properties
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=screen]
+----
+
+Его можно получить в дескрипторе экрана, расположенном в пакете `com.company.demo.view.user`, просто указав ключ сообщения без группы:
+
+.com/company/demo/view/user/user-list-view.xml
+[source,xml,indent=0]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/view/user/user-list-view.xml[tags=message-1]
+----
+--
+
+. Получение сообщения с произвольной группой.
++
+--
+Сообщение из предыдущего примера можно получить на любом экране, указав группу и ключ после префикса `msg://`, например:
+
+.com/company/demo/view/main/main-view.xml
+[source,xml,indent=0]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/view/main/main-view.xml[tags=message]
+----
+
+Также можно установить произвольную группу на уровне экрана с помощью атрибута `messagesGroup`, чтобы все сообщения извлекались по умолчанию с этой группой:
+
+.com/company/demo/view/sample/sample-view.xml
+[source,xml,indent=0]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/view/sample/sample-view.xml[tags=messages-group]
+----
+--
+
+. Получение сообщения без группы.
++
+--
+Чтобы получить сообщение без группы, следует поставить тройную косую черту в префиксе `msg:///`, за которым следует ключ сообщения.
+
+Например, если сообщение определено так:
+
+[source,properties]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/messages_en.properties[tags=structure-2]
+----
+
+То его можно получить в любом дескрипторе экрана следующим образом:
+
+[source,xml,indent=0]
+----
+include::example$/localization_ex1/src/main/resources/com/company/demo/view/user/user-list-view.xml[tags=message-2]
+----
+--

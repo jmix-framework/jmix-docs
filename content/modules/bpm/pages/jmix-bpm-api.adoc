@@ -1,0 +1,153 @@
+= Flowable API
+
+Jmix BPM использует Flowable API, что обеспечивает легкое взаимодействие приложения Spring Boot с процессным движком.
+
+[[flowable-api]]
+== Flowable API
+
+https://www.flowable.com/open-source/docs/bpmn/ch04-API[Flowable API^] позволяет программно запускать экземпляры процессов, завершать задачи и выполнять различные запросы, например, получать список задач для пользователя или активные экземпляры определения процесса.
+
+image::jmix-bpm-api/api-services.png[,600]
+
+NOTE: В проектах Jmix BPM не используются `FormService` и `IdentityService` Flowable. Дополнение предоставляет BpmTaskService, расширяющую TaskService Flowable. См. пример использования <<using-bpm-task-service,ниже>>.
+
+Доступ к сервисам Flowable можно получить одним из двух способов:
+
+* Используя `ProcessEngines`:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=services]
+----
++
+* Инжектируя сервисы в бины, поскольку они зарегистрированы как Spring-бины:
++
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=bean;runtime-service]
+----
+
+[[flowable-dmn-api]]
+== Flowable DMN API
+
+См. https://www.flowable.com/open-source/docs/dmn/ch03-API
+
+[[examples]]
+== Примеры
+
+[[starting-process-programmatically]]
+=== Программный запуск процесса
+
+В приведенном ниже примере процесс запускается программно из обычного редактора сущностей с помощью `RuntimeService`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=runtime-service;commit]
+----
+<1> Метод размещает редактируемую сущность в переменной процесса `customer`.
+<2> Имя клиента помещается в переменную процесса с типом String.
+<3> Вызов `RuntimeService` для запуска нового экземляра процесса, где:
+** `new-customer` – ключ процесса
+** `params` – аргументы процесса (экземляр сущности и имя клиента)
+
+
+[[getting-list-of-user-tasks]]
+=== Получение списка пользовательских задач
+
+Рассмотрим пример получения списка активных задач, назначенных аутентифицированному пользователю:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=task-service;current-authentication;get-tasks]
+----
+<1> Метод формирует запрос для получения задач.
+<2> Запрос фильтруется, чтобы включать задачи относящиеся к определению процесс с ключом `approval`.
+<3> Запрос фильтруется, чтобы включать задачи, назначенные текущему пользователю.
+
+[[getting-list-of-process-instances]]
+=== Получение списка экземпляров процесса
+
+В примере ниже показано получение списка экземпляров процесса с ключом `approval`, относящегося к указанной сущности `Order`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=runtime-service;get-instances]
+----
+<1> Метод формирует запрос для получения экземпляров процесса.
+<2> Запрос фильтруется, чтобы включать только экземпляры процессов, относящиеся к определению процесса с ключом `approval`.
+<3> Запрос фильтруется, чтобы включать экземпляры процессов с укзанной переменной `orderId`.
+
+[[using-bpm-task-service]]
+=== Использование BpmTaskService
+
+`BpmTaskService` расширяет `TaskService` и добавляет метод для выполнения задач с исходом
+
+[source,java,indent=0]
+----
+void completeTaskWithOutcome(String taskId, String outcomeId, Map<String, Object> processVariables);
+----
+
+Вы можете внедрить сервис в свой бин Spring:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=inject-service]
+----
+
+Либо использовать класс `ProcessEngines`:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=get-service]
+----
+
+=== Взаимодействие с определениями процессов
+
+Flowable предоставляет богатый API для взаимодействия с определениями процессов:
+
+. *Развертывание*: Определения процессов обычно разворачиваются как часть единицы развертывания, которая может включать несколько определений и связанные ресурсы.
++
+[source,java]
+----
+Deployment deployment = repositoryService.createDeployment()
+                        .addClasspathResource("my-process.bpmn20.xml")
+                        .deploy();
+----
+
+. *Запросы*: RepositoryService позволяет выполнять запросы к определениям процессов на основе различных критериев:
++
+[source,java]
+----
+ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
+                                     .processDefinitionId("myProcessDefinitionId")
+                                     .singleResult();
+----
+
+. *Приостановка и Активация*: Определения процессов могут быть приостановлены или активированы, что контролирует, могут ли новые экземпляры процессов быть запущены на основе данного определения:
++
+[source,java]
+----
+repositoryService.suspendProcessDefinitionById("myProcessDefinitionId");
+----
+
+. *Генерация диаграмм*: Flowable может генерировать диаграммы процессов для развернутых определений процессов:
++
+[source,java]
+.filename.java
+----
+InputStream diagramStream = repositoryService.getProcessDiagram(processDefinition.getId());
+----
+
+[[business-key]]
+=== Установка и обновление бизнес-ключа
+
+//todo - BK in starting process
+
+Бизнес-ключ может быть обновлен программно через API:
+
+[source,java]
+----
+runtimeService.updateBusinessKey("processInstanceId", "businessKey");
+----
+
+

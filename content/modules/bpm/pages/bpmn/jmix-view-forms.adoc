@@ -1,0 +1,308 @@
+= Jmix View
+
+Любой экран Jmix может служить процессной формой. Это позволяет создавать более сложные взаимодействия с пользователем по сравнению с xref:bpm:input-dialog.adoc[].
+
+[[creating-jmix-view-process-form]]
+== Создание процессной формы
+
+Процессная форма Jmix — это обычный экран приложения, который включает аннотации для передачи деталей, относящихся к процессу.
+
+=== Преобразование существующего экрана
+
+Чтобы преобразовать обычный экран в процессную форму:
+
+* Добавьте аннотацию <<processform,@ProcessForm>> в контроллер класса. Объявите результаты, параметры и выходные переменные по мере необходимости.
+* Инжектируйте и свяжите переменные процесса с помощью аннотации <<processvariable,@ProcessVariable>>.
+* Обработайте нажатия кнопок для завершения задачи при помощи <<process-form-context,ProcessFormContext>>.
+
+TIP: Избегайте преобразования экранов, которые уже используются. Лучше создать новый экран, который будет служить процессной формой.
+
+=== Использование Jmix Studio
+
+Чтобы создать процессную форму с помощью Jmix Studio:
+
+. Нажмите *New -> View*, чтобы открыть xref:studio:view-wizard.adoc[].
+. Выберите шаблон *BPM Process form*.
++
+image:jmix-view-forms/view-wizard-bpm-process-form.png[,776]
++
+. Настройте шаблон формы и элемент, для которого он предназначен:
++
+* Выберите *Form template* из двух вариантов:
+** *Process Form with Process Variables*: эта форма отобразит компоненты для набора выбранных вами переменных.
+** *Process Form for Entity Instance*: эта форма отобразит компоненты для атрибутов конкретного экземпляра сущности вместе с любыми добавленными переменными процесса.
+* Выберите *Form type*:
+** *User task form*: эта форма предназначена для пользовательских задач.
+** *Start form*: эта форма предназначена для элементов стартового события.
++
+image:jmix-view-forms/jmix-view-wizard-1.png[,776]
++
+. В случае *Process form for entity instance*, укажите класс сущности, имя переменной и настройте фетч план.
+. Укажите переменные процесса.
+. В случае *User task form* укажите результаты формы. Значения по умолчанию — `submit` и `reject`. Измените их или добавьте новые.
+. Добавьте локализуемые сообщения.
+. Нажмите *Create*.
+
+Форма появится среди других экранов в вашем приложении.
+
+[[set-up-element]]
+== Настройка элемента с процессной формой
+
+После создания процессной формы вы можете настроить элемент для её использования. Следуйте шагам:
+
+. Откройте xref:menu-views/modeler-web.adoc[].
+. Выберите соответствующий элемент (Пользовательская задача или Стартовое событие).
+
++
+[cols="a,a", frame=none, grid=none]
+|===
+| image::jmix-view-forms/user-task.png[,120]
+| image:jmix-view-forms/form-section.png[,456]
+|===
++
+. Установите *Form type* в `Jmix view`.
+. Установите *Open mode*:
+** *Dialog*: чтобы отображать форму в диалоге.
+** *Navigate*: чтобы отображать форму как экран с собственным URL.
+. Укажите *View id*. Список опций будет включать все экраны приложения, аннотированные `@ProcessForm`. Модельер распознает процессную форму и заполнит оставшиеся настройки на основе её аннотаций.
+. При наличии <<process-form-with-parameters,параметров формы>>, настройте их с соответствующим источником значений.
+
+Процессная форма теперь настроена для использования в выбранном элементе.
+
+[[processform]]
+== @ProcessForm
+
+Добавление `@ProcessForm` в класс контроллера экрана преобразует экран в процессную форму и делает её доступной для выбора в xref:menu-views/modeler-web.adoc[]. Эта аннотация может включать следующие атрибуты:
+
+* Чтобы ограничить использование формы для определённых процессов, укажите ключи процессов в атрибуте `allowedProcessKeys`:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=allowed-process]
+----
++
+* Чтобы объявить результаты формы, используйте `outcomes`:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalTaskForm.java[tags=outcomes]
+----
++
+* Чтобы указать выходные переменные, используйте атрибут `outputVariables`:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OutputVariablesForm.java[tags=output-variables]
+----
++
+* Чтобы установить переменную процесса только при завершении задачи с конкретным результатом, комбинируйте атрибуты `outcomes` и `outputVariables` следующим образом:
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OutcomeOutputVariablesForm.java[tags=output-variables]
+----
++
+<1> Переменная `nextActor` устанавливается, когда задача завершается с результатом `approve`.
+<2> Переменная `rejectionReason` устанавливается, когда задача завершается с результатом  `reject`.
+<3> Переменная `comment` устанавливается во всех случаях.
++
+* Чтобы объявить <<process-form-with-parameters, параметры форму>> используйте атрибут `params`. Затем установите `@ProcessFormParam` на полях класса, чтобы связать их с этими параметрами.
++
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=params;params-annotation]
+----
++
+NOTE: Для `@ProcessFormParam`  может быть указан атрибут `name`. Если имя не указано явно, используется имя по умолчанию, основанное на названии поля.
+
+[[processvariable]]
+== @ProcessVariable
+
+Установите `@ProcessVariable` на поля класса или визульный компонент, чтобы установить значение переменной процесса при открытии процессной формы.
+
+NOTE: Переменная становится доступной в xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]. Она недоступна в xref:flow-ui:views/view-events.adoc#init-event[InitEvent].
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=variables]
+----
+
+Если `name` не указано явно, имя переменной процесса по умолчанию берётся из названия поля.
+
+[[loading-dynamic-attributes]]
+=== Загрузка динамических атрибутов
+
+Значения для xref:dyn-attr:index.adoc[] по умолчанию не загружаются и не отображаются в процессных формах. Если переменная процесса — это сущность с динамическими атрибутами, вы можете загрузить и отобразить эти атрибуты, добавив `@ProcessVariableParam` в `params` и установив ключ `ProcessVariableConstants.LOAD_DYN_ATTR_PARAM` в `true`. Например:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/documentprocessform/DocumentProcessForm.java[tags=process-variable-param-example]
+----
+
+При этом форма процесса автоматически включает визуальные компоненты для каждого динамического атрибута — создавать их вручную не требуется.
+
+[[process-form-context]]
+== ProcessFormContext
+
+Объект `ProcessFormContext` содержит информацию об определении процесса, который запускается, или о пользовательской задаче, которую необходимо завершить. Используйте `ProcessFormContext`, когда процессная форма открывается из xref:bpm:menu-views/start-process-view.adoc[] или xref:menu-views/my-tasks.adoc[]. Чтобы программно открыть процессную форму с инжектированным `ProcessFormContext` используйте бин <<opening-forms-programmatically,ProcessFormViews>>.
+
+[[start-form-example]]
+Рассмотрите пример запуска процесса:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm1.java[tags=start-process]
+----
+
+<1> Создание экземпляра `ProcessStarting`.
+<2> Добавление бизнес-ключа для экземпляра процесса. [[business-key]]
+<3> Добавление переменной процесса.
+<4> Запуск процесса.
+<5> Закрытие текущего окна.
+
+[[task-form-example]]
+Рассмотрите следующий пример завершения пользовательской задачи:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/TaskProcessForm.java[tags=complete-task1;complete-task2]
+----
+
+<1> Создание экземпляра `TaskCompletion`.
+<2> Выбор исхода для задачи.
+<3> Указывает, что значения полей класса, аннотированных `@ProcessVariable`, должны быть собраны и сохранены в качестве переменных процесса.
+<4> Завершение задачи.
+<5> Закрытие текущего окна.
+
+[[examples]]
+== Примеры
+
+[[start-process-form]]
+=== Процессная Форма Запуска
+
+Рассмотрим пример процессной формы, которая используется в качестве стартовой. Она содержит два поля:
+
+* Поле для ввода номера заказа.
+* Поле с элементом `entityPicker` для выбора менеджера. Менеджер может быть следующим актором процесса.
+
+XML дескриптор:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/order-approval-start-form.xml[tags=start-example]
+----
+
+Контроллер экрана:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalStartForm.java[tags=start-example]
+----
+
+<1> Аннотация `@ProcessForm` указывает, что этот экран является процессной формой и будет доступен в моделере.
+<2> Аннотация `@ProcessVariable` указывает, что компонент `orderNumber` соответствует процессной переменной `orderNumber`. Поскольку форма является стартовой, переменная еще не задана, но аннотация будет использоваться при запуске процесса.
+<3> Аннотация `@ProcessVariable` указывает, что компонент `managerEntityPicker` соответствует процессной переменной `manager`. Имя процессной переменной `manager` указано явно, так как оно отличается от имени компонента.
+<4> `ProcessFormContext` это объект для запуска процесса.
+<5> При запуске процесса можно передать бизнес-ключ для экземпляра. В данном случае используется `orderNumber`.
+<6> Метод `saveInjectedProcessVariables()` указывает, что значения полей, аннотированных `@ProcessVariable`, должны быть сохранены в качестве переменных процесса при запуске процесса.
+
+Вместо использования метода `saveInjectedProcessVariables()` можно задать переменные процесса явно:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/StartProcessForm2.java[tags=start-example]
+----
+
+[[task-process-form]]
+=== Процессная форма задачи
+
+Рассмотрим пример процессной формы задачи с двумя полями:
+
+* Первое поле соответствует существующей переменной процесса – `orderNumber`.
+* Второе поле будет использоваться для новой переменной процесса - `comment`.
+
+Кнопки *Approve* и *Reject* завершают пользовательскую задачу с соответствующим исходом.
+
+XML-дескриптор экрана:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/order-approval-task-form.xml[tags=task-example]
+----
+
+Контроллер экрана:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/OrderApprovalTaskForm.java[tags=task-example]
+----
+
+<1> Форма определяет два возможных исхода.
+<2> Переменная `orderNumber` уже установлена при запуске процесса. Благодаря аннотации `@ProcessVariable` значение переменной процесса `orderNumber` будет отображено в текстовом поле `orderNumber` при появлении формы.
+<3> Переменная `comment` еще не установлена, но аннотация `@ProcessVariable` будет учтена при завершении задачи в слушателе нажатия кнопки.
+<4> Значения всех полей с аннотацией @ProcessVariable будут сохранены как переменные процесса по завершении задачи.
+<5> Вместо того, что бы использовать метод `saveInjectedProcessVariables()`, вы можете определить переменные процесса напрямую.
+
+[[opening-forms-programmatically]]
+=== Opening Forms Programmatically
+
+Используйте сервис  `ProcessFormViews`, чтобы открывать формы запуска процессов и формы задач, определённые в модельере.
+
+В приведённом ниже примере кнопка в списковом представлении открывает форму запуска процесса.
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/order/OrderListView.java[tags=start-form]
+----
+<1> Получите определение процесса по ключу.
+<2> Отобразите форму запуска процесса с предоставленным определением.
+
+Чтобы открыть форму задачи, используйте метод  `openTaskProcessForm()`:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/test/TestScreen.java[tags=task-form]
+----
+
+[[process-form-with-parameters]]
+=== Процессная форма с параметрами
+
+Процессные формы могут принимать внешние параметры для настройки своего поведения или внешнего вида, например, изменения заголовков компонентов. В отличие от переменных процесса, эти параметры формы имеют более узкую область применения и доступны только в конкретной форме (если только вы не сохраняете их значение в переменной процесса).
+
+TIP: Параметры формы объявляются с помощью аннотации <<processform,@ProcessForm>> и её атрибута `params`. Они связаны с полем класса с помощью аннотации `@ProcessFormParam`.
+
+Чтобы проиллюстрировать, рассмотрим сценарий, когда вам нужна форма для выбора следующего актёра процесса. Эта форма должна включать компонент `EntityPicker` для выбора пользователя, который затем будет сохранен в переменной процесса. Также эту форму можно будет повторно использовать на различных этапах процесса, поэтому было бы удобно параметризировать заголовок для выбора сущности.
+
+В общей сложности определим два параметра:
+
+* `nextActor` – для сохранения пользователя выбранного через `EntityPicker` для дальнейшего использования в процессе.
+* `entityPickerCaption` – для настройки заголовка компонента `EntityPicker` в зависимости от этапа процесса.
+
+XML-дескриптор экрана:
+
+[source,xml,indent=0]
+----
+include::example$/bpm-ex1/src/main/resources/com/company/bpmex1/view/forms/actor-selection-form.xml[tags=actor-form]
+----
+
+Контроллер экрана:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=actor-form1;actor-form2]
+----
+
+[TIP]
+====
+Чтобы получить полный список параметров формы процесса, используйте объект  `ProcessFormContext`:
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/forms/ActorSelectionForm.java[tags=param-list]
+----
+====
+
+
+
+
+
+

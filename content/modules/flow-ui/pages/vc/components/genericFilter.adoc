@@ -1,0 +1,496 @@
+= genericFilter
+:page-aliases: vcl/components/filter.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/generic-filter-multiple-conditions" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Компонент `genericFilter` - это универсальный инструмент для динамической фильтрации данных.
+
+Компонент позволяет <<quick-filter-example,быстро фильтровать данные>> с помощью набора временных условий, а также создавать <<configuration,конфигурации>> для повторного использования.
+
+* XML-элемент: `genericFilter`
+
+* Java-класс: `GenericFilter`
+
+== Основы
+
+Компонент `genericFilter` добавляется по умолчанию в некоторые стандартные экраны, такие как xref:flow-ui:views/view-classes.adoc#standard-list-view[экран списка] сущности. Типичный фильтр показан ниже:
+
+image::flow-ui:visual-components/components/generic-filter-anatomy.png[align="center", width="768"]
+
+. [[refresh-button]] Кнопка *Refresh* с выпадающим меню.
+. [[operator-selector]] Селектор оператора сравнения.
+. [[filter-settings-button]] Кнопка *Filter Settings*.
+. [[refresh-drop-down-menu]] Список сохраненных фильтров и конфигураций.
+. [[condition-field]] Поле значения условия.
+. [[add-condition-link]] Ссылка *Add search condition*.
+
+Для работы компонент `genericFilter` должен быть подключен к загрузчику данных автономного `CollectionContainer` или `KeyValueCollectionContainer`. Он генерирует объект `Condition`, который устанавливается в загрузчик и впоследствии обрабатывается xref:data-model:data-stores.adoc[хранилищем данных]. Для xref:data-model:entities.adoc#jpa[сущности JPA] хранилище данных преобразует полученный запрос JPQL, так что фильтрация выполняется на уровне базы данных, и затем только результат загружается из базы данных в память приложения.
+
+В следующем примере демонстрируется базовый `genericFilter` и некоторые связанные компоненты:
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=data;customerDc;layout;generic-filter;customersTable]
+----
+
+<1> Контейнер данных содержит коллекцию экземпляров сущности `Customer`.
+<2> Компонент загрузчика объявляет JPQL-запрос для загрузки всех экземпляров `Customer`.
+<3> Компонент `genericFilter` связан с загрузчиком через его атрибут `dataLoader`.
+<4> xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] отображает данные из контейнера данных. Список записей будет изменяться по мере фильтрации.
+
+[[quick-filter-example]]
+== Пример быстрого фильтра
+
+По умолчанию компонент находится в режиме быстрого фильтра. Это означает, что пользователь может добавить временный набор условий, который остается в силе только на время текущей сессии страницы. После закрытия страницы условия исчезнут.
+
+Предположим, у нас есть сущность `Customer`, и мы хотим:
+
+* Создать быстрый фильтр с несколькими условиями в экране списка клиентов.
+* Сохранить этот фильтр для использования в будущем.
+
+=== Создание быстрого фильтра
+
+* Нажмите <<add-condition-link,*Add search condition*>>.
+* Выберите <<condition-types,свойства>>, по которым нужно фильтровать. Например: *Age* и *Hobby*.
+* Выберите xref:flow-ui:vc/components/propertyFilter.adoc#operation[оператор] и введите значение для каждого свойства.
+
+image::flow-ui:visual-components/components/generic-filter-quick.png[align="center", width="860"]
+
+=== Сохранение конфигурации
+
+* Нажмите image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"]-> *Save with values*.
+* Введите название конфигурации и нажмите *OK*, чтобы сохранить:
++
+image::flow-ui:visual-components/components/generic-filter-save.png[align="center", width="562"]
+
+Теперь эту конфигурацию можно выбрать в выпадающем меню.
+
+image::flow-ui:visual-components/components/generic-filter-refresh.png[align="center", width="390"]
+
+Чтобы сбросить все примененные в данный момент условия, выберите пункт меню *<Reset filter>* вверху.
+
+[[adding-conditions]]
+== Добавление условий
+
+Нажмите ссылку *Add search condition* [<<add-condition-link, 6>>], чтобы открыть диалоговое окно *Add condition*:
+
+image::flow-ui:visual-components/components/generic-filter-add-condition-dialog.png[align="center", width="402"]
+
+[[condition-types]]
+Возможные типы условий следующие:
+
+* *Properties* - атрибуты этой и связанных сущностей, которые можно использовать в качестве свойств фильтра. Они отображаются в соответствии с правилами, указанными в элементе <<properties-element,properties>>, и могут включать как постоянные, так и xref:dyn-attr:index.adoc[динамические атрибуты].
++
+* *Predefined conditions* - условия, заданные разработчиком во время разработки в элементе <<conditions-element,conditions>>.
++
+* *Configurations* - существующие конфигурации фильтра. Они могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<run-time-configuration,выполнения>>.
+
+После добавления условие появляется на панели условий. Если условие больше не нужно, его можно удалить, нажав на значок image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] рядом с ним.
+
+[[creating-conditions]]
+== Создание условий
+
+Если подходящего условия еще нет, можно перейти к его созданию из того же диалогового окна. Действия выпадающего списка кнопки *Create* соответствуют xref:vc/components/genericFilter-components.adoc#filter-compponent-registration[зарегистрированным] компонентам фильтра.
+
+image::flow-ui:visual-components/components/generic-filter-create-button.png[align="center", width="402"]
+
+По умолчанию доступны три таких компонента: xref:vc/components/genericFilter-components.adoc#property-filter[propertyFilter], xref:vc/components/genericFilter-components.adoc#jpql-filter[jpqlFilter] и xref:vc/components/genericFilter-components.adoc#group-filter[groupFilter].
+
+При нажатии на действие открывается соответствующий редактор условий:
+
+* Редактор <<property-conditions,условий свойства>>
+* Редактор <<jpql-conditions,условий JPQL>>
+* Редактор <<group-conditions,условий группы>>
+
+TIP: Расширенный xref:search:search-in-ui.adoc#fts-condition-in-filter-component[полнотекстовый поиск] доступен как часть дополнения xref:search:index.adoc[Search].
+
+[[property-conditions]]
+=== Условия свойства
+
+Редактор условий *Property condition* позволяет пользователям установить атрибут сущности в качестве параметра фильтра и выполнять фильтрацию по нему. Используйте *Add search condition* -> *+ Create* -> *Create Property condition*, чтобы открыть редактор.
+
+image::flow-ui:visual-components/components/generic-filter-property-condition-editor.png[align="center", width="514"]
+
+Редактор имеет следующие элементы управления и поля:
+
+* *Property* - принимает атрибут сущности.
+
+* *Operation* - устанавливает оператор сравнения. Список отображает только те операторы, которые совместимы с текущим свойством.
+
+* *Parameter name* - устанавливает имя соответствующего параметра запроса. Используйте это имя для установки зависимостей между условиями одной и той же конфигурации. Если не задано, имя параметра генерируется случайным образом.
+* *Label* - задает пользовательскую надпись для этого условия, которая отображается на панели и в редакторах.
+* *Default value* - задает значение по умолчанию.
+* *Operation editable* - разрешает выбор типа операции сравнения.
+* *Operation text visible* - определяет, отображается ли название операции.
+* *Visible* - определяет, отображается ли это условие на панели условий.
+
+[[jpql-conditions]]
+=== Условия JPQL
+
+Редактор условий *JPQL condition* позволяет пользователям создавать условия на основе выражений JPQL. Используйте *Add search condition* -> *+ Create* -> *Create JPQL condition*, чтобы открыть редактор.
+
+image::flow-ui:visual-components/components/generic-filter-jpql-condition-editor.png[align="center", width="674"]
+
+Ниже представлены описания полей:
+
+* *Parameter type* - принимает класс Java, представляющий желаемый тип параметра. Вы также можете выбрать опцию `No parameter`, чтобы создать условие без параметра.
++
+image::flow-ui:visual-components/components/generic-filter-jpql-condition-editor-no-parameter.png[align="center", width="674"]
++
+Условие без параметра действует подобно тегу - оно отфильтровывает данные на основе предопределенного, постоянного критерия.
++
+* *Label* - устанавливает надпись для этого условия, которая отображается на панели и в редакторах.
+* *Parameter name* - устанавливает имя соответствующего параметра запроса. Используйте это имя для установки зависимостей между условиями одной и той же конфигурации. Если не задано, то имя параметра генерируется случайным образом.
+* *Default value* - устанавливает значение по умолчанию для этого условия. Это поле будет представлено компонентом, совместимым с текущим значением в поле *Parameter type*.
+//todo: improve IN expression description upon completing jmix ticket #1442
+* *Has IN expression* - определяет, может ли условие обработать коллекцию и поместить ее внутрь предложения `IN`.
+* *Visible* - определяет, отображается ли это условие на панели фильтра.
+* *Join* - указывает необязательное предложение `join`, которое будет включено в предложение `from` загрузчика данных. Это можно использовать для создания условий на основе атрибута связанной коллекции.
++
+При написании этого предложения:
+
+** Начинайте с ключевых слов `join` или `left join`.
+** Используйте плейсхолдер `\{E}` вместо псевдонима сущности.
++
+Например:
++
+----
+join {E}.city c
+----
+* *Where* - указывает предложение `where`, которое будет добавлено к запросу `select` загрузчика данных.
++
+При написании этого предложения:
++
+** Используйте плейсхолдер `\{E}` вместо псевдонима сущности.
+** Установите `?` в качестве значения параметра, чтобы указать, что оно должно быть передано пользователем. В условии может быть только один такой параметр. Кроме того, может быть любое количество параметров xref:data-access:jpql-extensions.adoc#session-and-user-attributes[атрибутов сессии и пользователя].
++
+Например:
++
+----
+{E}.code = ? and {E}.area = :session_area
+----
+
+[[group-conditions]]
+=== Условия группы
+
+Редактор условий *Group condition* позволяет пользователям объединять условия в логическую группу. Используйте *Add search condition* -> *+ Create* -> *Create Property condition*, чтобы открыть редактор.
+
+image::flow-ui:visual-components/components/generic-filter-group-condition-editor.png[align="center", width="1025"]
+
+Этот редактор имеет две области - одну для настройки основных свойств группы, а другую для добавления и отображения условий, входящих в группу в данный момент. Описание полей в каждой области приведено ниже.
+
+==== Условие группы
+
+* *Operation* - логический оператор, используемый для объединения условий в группе. Группа имеет два логических оператора: *AND* или *OR*.
+* *Label* - задает надпись для этого условия, которая отображается на панели условий и в редакторах. Если не задано, вместо этого отображается имя операции (*AND* или *OR*).
+* *Operation text visible* - определяет, отображается ли название операции.
+* *Visible* - определяет, отображается ли эта группа на панели фильтра.
+
+==== Условия
+
+Условия группы отображаются в виде дерева. Используйте следующие действия для управления ими.
+
+* *Add* - открывает диалоговое окно *Add condition*, позволяющее выбрать необходимые условия.
+* *Edit* - открывает соответствующий редактор для условия, выбранного в дереве.
+* *Remove* - удаляет все условия, которые в данный момент выбраны в дереве.
+* image:flow-ui:visual-components/components/generic-filter-move-up.png[align="center", width="42"]/image:flow-ui:visual-components/components/generic-filter-move-down.png[align="center", width="42"] - кнопки для изменения порядка отображения условий группы.
+
+[[configuration]]
+== Конфигурация
+
+Конфигурация - это набор условий, сохраненный для последующего использования. Он может включать условия любого типа, а также другие конфигурации.
+
+Конфигурации могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<run-time-configuration,выполнения>>.
+
+[[design-time-configuration]]
+=== Конфигурация времени разработки
+
+Конфигурация времени разработки - это набор <<elements,вложенных элементов>> `genericFilter` в XML-дескрипторе экрана.
+
+Следующий пример объявляет `genericFilter` с двумя конфигурациями времени разработки:
+
+[source, xml, indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=design-time-configurations]
+----
+
+<1> Убедитесь, что каждая конфигурация указывает атрибут `id`, и его значение является уникальным в пределах этого `genericFilter`. Если атрибут `name` не указан, `id` рассматривается как ключ в xref:localization:message-bundles.adoc[пакете сообщений].
+<2> Конфигурацию по умолчанию можно установить с помощью атрибута `default`.
+
+TIP: Чтобы добавить конфигурацию времени разработки в Jmix Studio, выберите компонент `genericFilter` в дескрипторе экрана или на панели структуры *Jmix UI*, затем используйте пункт меню xref:studio:view-designer.adoc#component-inspector-add-button[Add] -> *Configurations* -> *Design-time configuration* на панели *Component Inspector*.
+
+Конфигурация времени разработки не позволяет пользователям выполнять какие-либо настройки во время выполнения и не может быть удалена пользователем. Однако пользователи могут создать идентичную конфигурацию времени выполнения на основе конфигурации времени разработки и изменить ее параметры. Это можно сделать с помощью действия меню image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Copy*.
+
+Во время работы приложения конфигурации времени разработки отображаются в выпадающем меню [<<refresh-drop-down-menu, 4>>] среди других конфигураций.
+
+image::flow-ui:visual-components/components/generic-filter-design-time-items.png[align="center", width="440"]
+
+[[run-time-configuration]]
+=== Конфигурация времени выполнения
+
+Конфигурации могут быть созданы во время выполнения в редакторе конфигураций *Configuration*. Чтобы открыть редактор, используйте пункт меню image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit*.
+
+NOTE: Для создания, редактирования или удаления конфигурации времени выполнения пользователю необходимо предоставить разрешение безопасности `ui.genericfilter.modifyConfiguration`.
+
+image::flow-ui:visual-components/components/generic-filter-run-time-configuration.png[align="center", width="1026"]
+
+Чтобы создать конфигурацию времени выполнения:
+
+* Укажите название конфигурации. Это название отображается в выпадающем меню [<<refresh-drop-down-menu, 4>>] и в редакторах конфигураций.
+[[avaialable-for-all-users]]
+* Установите флажок *Available for all users*, чтобы разрешить любому пользователю использовать эту конфигурацию. Этот флажок доступен только пользователям, которым предоставлено разрешение `ui.filter.modifyGlobalConfiguration`.
+* Установите флажок *Default for all users*, чтобы автоматически применять эту конфигурацию при открытии экрана пользователями. Этот флажок становится активным, если выбран флажок *Available for all users*.
+* Настройте операцию группы и добавьте условия в группу. Описание полей смотрите в разделе <<group-conditions,Условия группы>>.
+
+== Разрешения
+
+Для расширенного управления фильтрами требуются следующие разрешения:
+
+* Чтобы создавать/редактировать/удалять конфигурации `genericFilter`, пользователю должно быть предоставлено разрешение безопасности `ui.genericfilter.modifyConfiguration`.
+* Чтобы создавать/редактировать/удалять глобальные конфигурации (<<avaialable-for-all-users,доступные для всех пользователей>>), пользователям должно быть предоставлено разрешение безопасности `ui.genericfilter.modifyGlobalConfiguration`.
+* Чтобы создавать/изменять <<jpql-conditions,условия JPQL>> во время выполнения, пользователям должно быть предоставлено разрешение безопасности `ui.genericfilter.modifyJpqlCondition`.
+
+== Свойства приложения
+
+Следующие свойства приложения влияют на поведение фильтра:
+
+* xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply]
+* xref:ui-properties.adoc#jmix.ui.component.filter-configuration-unique-names-enabled[jmix.ui.component.filter-configuration-unique-names-enabled]
+* xref:ui-properties.adoc#jmix.ui.component.filter-properties-hierarchy-depth[jmix.ui.component.filter-properties-hierarchy-depth]
+* xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
+* xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
+
+== Создание фильтра программно
+
+В этом разделе приведен пример конфигурации `genericFilter`, созданной программно.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+----
+
+<1> Создает `genericFilter`, используя фабрику `uiComponents`.
+<2> Добавляет конфигурацию времени разработки. Метод принимает два параметра: `id` конфигурации и название конфигурации.
+<3> Создает экземпляр `PropertyFilter` и устанавливает его свойства.
+<4> Генерирует компонент для этого фильтра на основе `metaClass`, `property` и `operation`.
+<5> Добавляет фильтр в конфигурацию. `LogicalFilterComponent` является корневым элементом конфигурации.
+<6> Помещает `genericFilter` в экран внутри компоновщика `vbox`. Этот компоновщик объявлен в дескрипторе экрана и внедрен в контроллер.
+<7> Устанавливает текущую конфигурацию.
+
+== Атрибуты
+
+xref:vc/common-attributes.adoc#id[id] -
+xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<applyShortcut, applyShortcut>> -
+<<autoApply, autoApply>> -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#css[css] -
+<<dataLoader, dataLoader>> -
+xref:vc/common-attributes.adoc#enabled[enabled] -
+xref:vc/common-attributes.adoc#height[height] -
+xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:vc/common-attributes.adoc#minWidth[minWidth] -
+<<opened, opened>> -
+<<propertyHierarchyDepth, propertyHierarchyDepth>> -
+<<summaryText, summaryText>> -
+xref:vc/common-attributes.adoc#themeNames[themeNames] -
+xref:vc/common-attributes.adoc#visible[visible] -
+xref:vc/common-attributes.adoc#width[width]
+
+[[applyShortcut]]
+=== applyShortcut
+
+Определяет xref:keyboard-shortcuts.adoc[комбинацию клавиш], которую можно использовать для применения условия фильтрации. Эта комбинация клавиш актуальна только в том случае, если условия фильтрации не настроены для <<autoApply,автоматического применения>>.
+
+Значение по умолчанию определяется свойством xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut].
+
+[[autoApply]]
+=== autoApply
+
+Определяет, применяется ли фильтр автоматически.
+
+* Если установлено значение `true`, фильтр применяется немедленно после обновления условия фильтрации или в любой момент, когда он теряет фокус.
+* Если установлено значение `false`, фильтр будет применен только после нажатия кнопки [<<refresh-button, 1>>] или использования <<applyShortcut, applyShortcut>>. Обратите внимание, что установка значения `false` обновляет текст кнопки на *Apply*.
+
+Значение по умолчанию определяется свойством xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply].
+
+[[dataLoader]]
+=== dataLoader
+
+Устанавливает xref:flow-ui:data-components.adoc[загрузчик данных], который будет загружать данные на основе условия фильтрации.
+
+[[opened]]
+=== opened
+
+Определяет, открыта ли панель условий.
+
+[[propertyHierarchyDepth]]
+=== propertyHierarchyDepth
+
+Устанавливает количество уровней вложенности, на которых применяется фильтр. Можно указать любое разумное, ненулевое количество уровней. По умолчанию - `2`.
+
+image::visual-components/components/generic-filter-hierarchy-depth.png[align="center" width="405"]
+
+* `propertyHierarchyDepth = "1"` – фильтрует только непосредственные свойства сущности.
+* `propertyHierarchyDepth = "2"` – фильтрует свойства сущности, а также свойства всех дочерних сущностей.
+* `propertyHierarchyDepth = "3"` – фильтрует непосредственные свойства сущности и до третьего уровня вложенности свойств.
+
+Это значение можно указать глобально для всех компонентов фильтра, установив свойство xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-properties-hierarchy-depth].
+
+[[summaryText]]
+=== summaryText
+
+Определяет краткое описание, которое будет отображаться над панелью управления фильтром. Значение по умолчанию - `Filter`.
+
+== Обработчики
+
+xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+<<ConfigurationChangeEvent, ConfigurationChangeEvent>> -
+<<ConfigurationRefreshEvent, ConfigurationRefreshEvent>> -
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
+<<OpenedChangeEvent, OpenedChangeEvent>> -
+<<propertyFiltersPredicate, propertyFiltersPredicate>>
+
+[[ConfigurationChangeEvent]]
+=== ConfigurationChangeEvent
+
+`ConfigurationChangeEvent` отправляется при каждом переключении одной конфигурации фильтра на другую. Это включает в себя переключение на конфигурацию, когда никакая конфигурация не установлена, или сброс конфигурации.
+
+[[ConfigurationRefreshEvent]]
+=== ConfigurationRefreshEvent
+
+`ConfigurationRefreshEvent` отправляется каждый раз, когда редактируется конфигурация фильтра.
+
+[[OpenedChangeEvent]]
+=== OpenedChangeEvent
+
+`OpenedChangeEvent` отправляется каждый раз, когда изменяется атрибут <<opened, opened>> компонента.
+
+[[propertyFiltersPredicate]]
+=== propertyFiltersPredicate
+
+Этот предикат позволяет программно включать или исключать атрибуты, доступные для выбора пользователем.
+
+Например, чтобы исключить `hobby` из выбора пользователя, используйте следующий код:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFiltersPredicate]
+----
+
+[[elements]]
+== Элементы
+
+<<actions-element, actions>> -
+<<conditions-element, conditions>> -
+<<configurations-element, configurations>> -
+<<properties-element, properties>> -
+<<responsive-steps, responsiveSteps>> -
+xref:vc/components/tooltip.adoc[tooltip]
+
+[[actions-element]]
+=== actions
+
+Определяет список действий для управления фильтром. Фреймворк предоставляет следующие действия по умолчанию, доступные в меню настроек image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] *Filter Settings*:
+
+* *Save* - сохраняет изменения в текущей конфигурации. Реализовано с помощью `FilterSaveAction` (`type="genericFilter_save"` в XML).
+* *Save with values* - сохраняет изменения в текущей конфигурации вместе со значениями в полях условий [<<condition-field, 5>>] в качестве значений по умолчанию.
+* *Save as* - сохраняет текущую конфигурацию под другим именем. Реализовано с помощью `FilterSaveAsAction` (`type="genericFilter_saveAs"` в XML).
+* *Edit* - открывает редактор для текущей <<run-time-configuration,конфигурации времени выполнения>>. Отключено для <<design-time-configuration,конфигураций времени разработки>>. Реализовано с помощью `FilterEditAction` (`type="genericFilter_edit"` в XML).
+* *Remove* - удаляет текущую конфигурацию <<run-time-configuration,времени выполнения>>. Отключено для конфигураций <<design-time-configuration,времени разработки>>. Реализовано с помощью `FilterRemoveAction` (`type="genericFilter_remove"` в XML).
+* *Copy* - создает копию <<run-time-configuration,времени выполнения>> для текущей конфигурации. Реализовано с помощью `FilterCopyAction` (`type="genericFilter_copy"` в XML).
+* *Clear values* - очищает значения в полях условий [<<condition-field, 5>>]. Реализовано с помощью `FilterClearValuesAction` (`type="genericFilter_clearValues"` в XML).
+* *Add* - добавляет условие в текущую конфигурацию. Реализовано с помощью `FilterAddConditionAction` (`type="genericFilter_addCondition"` в XML).
+* *Reset* - сбрасывает. Реализовано с помощью `FilterResetAction` (`type="genericFilter_reset"` в XML).
+
+Разработчики могут переопределить список действий в меню настроек image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"]:
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-actions]
+----
+
+В приведенном выше примере создается фильтр с двумя действиями меню:
+
+image::flow-ui:visual-components/components/generic-filter-settings-menu-actions.png[align="center", width="242"]
+
+[[conditions-element]]
+=== conditions
+
+Содержит объявление <<condition-types,предопределенных условий>>.
+
+Смотрите следующий пример для иллюстрации:
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-condition]
+----
+
+[[configurations-element]]
+=== configurations
+
+Содержит объявление конфигураций <<design-time-configuration,времени разработки>>.
+
+[[properties-element]]
+=== properties
+
+Определяет, какие атрибуты сущности можно добавлять в условие. Этот элемент имеет следующие атрибуты:
+
+* `include` - указывает регулярное выражение. Атрибуты сущности, соответствующие этому выражению, включаются.
+* `exclude` - указывает регулярное выражение. Атрибуты сущности, соответствующие этому выражению, исключаются.
+* `excludeProperties` - указывает список имен свойств или путей к свойствам, разделенных запятыми, которые следует исключить. Например: `customer.name`.
+* `excludeRecursively` - определяет, должен ли атрибут в `excludeProperties` быть рекурсивно исключен для всего графа объектов. То есть, если значение `true`, любые дочерние атрибуты исключенного атрибута также исключаются.
+
+Смотрите следующий пример для иллюстрации:
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-properties]
+----
+
+[TIP]
+====
+Вы можете включать и исключать свойства коллекции (`@OneToMany`, `@ManyToMany`).
+====
+
+[NOTE]
+====
+Вы можете включать и исключать xref:dyn-attr:index.adoc[динамические атрибуты] в качестве условия фильтрации. Это не требует фасета xref:dyn-attr:dynattr-view.adoc#using-dynamicattributes-facet[dynamicAttributes] в этом экране.
+
+Укажите код атрибута с префиксом "+":
+
+[source, xml,indent=0]
+----
+include::dyn-attr:example$dyn-attr-ex1/src/main/resources/com/company/demo/view/car/car-list-view.xml[tags=exclude-dynamic-attribute]
+----
+
+Обратите внимание, что если такой атрибут является сущностью, а не простым значением, вы не можете использовать атрибуты этой сущности как часть условия фильтрации.
+====
+
+Следующие атрибуты сущности игнорируются:
+
+* Недоступные из-за разрешений безопасности
+* Неперсистентные атрибуты
+* Атрибуты, аннотированные `@SystemLevel`
+* Атрибуты типа `byte[]`
+
+[[responsive-steps]]
+=== responsiveSteps
+
+Определяет количество столбцов для отображения условий поиска в зависимости от доступного места. По умолчанию условия поиска располагаются в два столбца и перестраиваются в один столбец, когда ширина макета становится меньше.
+
+Следующий фильтр переопределяет поведение по умолчанию, чтобы настроить макет на один, два или три столбца с надписями, расположенными сверху:
+
+image::flow-ui:visual-components/components/generic-filter-responsive-steps.png[align="center", width="850"]
+
+[source, xml,indent=0]
+----
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=layout;responsive-steps]
+----

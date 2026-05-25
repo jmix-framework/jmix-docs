@@ -1,0 +1,140 @@
+= 4. Использование перечислений
+
+В предыдущих главах вы реализовали управление отделами и шагами онбординга. Ваше приложение по умолчанию также имеет управление пользователями, которое взято из шаблона проекта.
+
+В этой главе вы добавите атрибут `onboardingStatus` в сущность `User` и отобразите его в пользовательском интерфейсе. Этот атрибут может иметь одно из трех значений: `Not started`, `In progress`, `Completed`.
+
+[[create-enum]]
+== Создание перечисления
+
+Перечисление - это набор констант, который определяется во время разработки и не изменяется пользователями во время выполнения.
+
+Давайте создадим перечисление для использования в атрибуте `onboardingStatus`.
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *Enumeration*:
+
+image::enumerations/enum-1.png[align="center",width=331]
+
+В окне *New Jmix Enumeration* введите `OnboardingStatus` в поле *Class* и выберите `Integer` в переключателях *Id type*:
+
+image::enumerations/enum-2.png[align="center",width=503]
+
+Нажмите на кнопку *OK*.
+
+Студия покажет дизайнер перечисления:
+
+image::enumerations/enum-3.png[align="center"]
+
+Добавьте необходимые константы (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`), нажав на кнопку *Add Value* (image:common/add.svg[]) на панели инструментов таблицы *Values*:
+
+image::enumerations/enum-4.png[align="center"]
+
+*Value* - это значение Java enum, *Id* - соответствующее значение, хранящееся в базе данных. Например, вместо значения `IN_PROGRESS` или его порядковой позиции (`1`) база данных будет содержать число `20`.
+
+TIP: Мы рекомендуем использовать строковые идентификаторы перечисления, за исключением случаев, когда константы перечисления должны быть отсортированы в определенном порядке. Перечисление `OnboardingStatus` является хорошим примером необходимости сортировки: вы захотите отобразить константы именно в этом порядке.
+
+Вы можете увидеть исходный код перечисления, если перейдете на вкладку *Text*:
+
+image::enumerations/enum-5.png[align="center", width="588"]
+
+[[add-attr]]
+== Добавление атрибута к сущности и пользовательскому интерфейсу
+
+Давайте добавим атрибут `onboardingStatus` к сущности `User`:
+
+Дважды щелкните на сущность `User` в окне инструментов *Jmix* и выберите его последний атрибут (чтобы добавить новый атрибут в конец):
+
+image::enumerations/attribute-1.png[align="center"]
+
+Нажмите *Add* (image:common/add.svg[]) на панели *Attributes*. В диалоговом окне *New Attribute* введите `onboardingStatus` в поле *Name*, выберите `ENUM` в раскрывающемся списке *Attribute type* и `OnboardingStatus` в раскрывающемся списке *Type*:
+
+image::enumerations/attribute-2.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Выберите атрибут `onboardingStatus` и нажмите на кнопку *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes*:
+
+image::enumerations/attribute-3.png[align="center", width="491"]
+
+В появившемся диалоговом окне будут показаны все экраны, на которых отображается сущность `User`. Выберите оба экрана `User.detail` и `User.list`:
+
+image::enumerations/attribute-4.png[align="center", width="589"]
+
+Нажмите на кнопку *OK*.
+
+Studio добавит атрибут `onboardingStatus` в компонент `dataGrid` экрана `User.list` и в компонент `formLayout` экрана `User.detail`.
+
+[[run-app]]
+== Запуск приложения
+
+Нажмите кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Перед запуском приложения Studio сгенерирует Liquibase changelog:
+
+image::enumerations/run-app-1.png[align="center"]
+
+Как вы можете видеть, changelog содержит команду для добавления столбца `ONBOARDING_STATUS` в таблицу `USER_`. Столбец имеет тип `INT`, который соответствует типу `Integer` идентификатора перечисления.
+
+Нажмите на кнопку *Save and run*.
+
+Студия выполнит changelog, затем соберет и запустит приложение.
+
+Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
+
+Раскройте меню *Application* и нажмите на подпункт *Users*. Вы увидите столбец `Onboarding status` на экране `User.list`.
+
+Нажмите на кнопку *Create*. Компонент UI для выбора статуса показан в нижней части формы:
+
+image::enumerations/run-app-4.png[align="center", width="896"]
+
+[[init-value]]
+== Установка начального значения для атрибута
+
+Для вновь созданного пользователя атрибут `onboardingStatus` должен быть автоматически установлен в значение `Not started`. В этом разделе вы узнаете, как настроить экран `User.detail` для инициализации этого атрибута.
+
+Откройте класс `UserDetailView.java` и найдите его метод `onInitEntity()`:
+
+image::enumerations/init-attr-1.png[align="center", width="915"]
+
+Этот метод представляет собой обработчик событий, вызываемый фреймворком при открытии экрана деталей для нового экземпляра сущности. Объект `event`, переданный методу, содержит новую сущность.
+
+Добавьте следующие строки в конец тела метода:
+
+[source,java]
+----
+@Subscribe
+public void onInitEntity(InitEntityEvent<User> event) {
+    // ...
+
+    User user = event.getEntity();
+    user.setOnboardingStatus(OnboardingStatus.NOT_STARTED);
+}
+----
+
+Если вы переключитесь на запущенное приложение, закроете экран деталей и снова нажмете *Create*, вы увидите, что `Onboarding status` инициализируется автоматически:
+
+image::enumerations/init-attr-2.png[align="center", width="872"]
+
+[TIP]
+====
+Чтобы сгенерировать обработчик событий с нуля, нажмите *Generate Handler* на панели действий в верхней части редактора кода и выберите `InitEntityEvent` в разделе *Controller handlers*:
+
+image::enumerations/init-attr-3.png[align="center",width="947"]
+====
+
+[[summary]]
+== Резюме
+
+В этом разделе вы добавили атрибут `Onboarding status` в сущность `User`. Этот атрибут представляет собой перечисление с тремя возможными значениями: `Not started`, `In progress`, `Completed`.
+
+Вы узнали, что:
+
+* xref:data-model:enumerations.adoc[Перечисления] представляют собой наборы констант, которые определяются во время разработки.
+
+* В Jmix константа перечисления имеет значение и идентификатор. Идентификатор хранится в базе данных вместо константы или ее порядкового значения.
+
+* Вновь созданный атрибут сущности можно легко добавить к существующим экранам с помощью кнопки *Add to Views* (image:common/add-attribute-to-screens.svg[]) на панели *Attributes* дизайнера сущностей.
+
+* Обработчик `InitEntityEvent` можно использовать для инициализации атрибутов нового экземпляра сущности на экране деталей. Заглушка обработчика может быть сгенерирована Studio, если вы нажмете *Generate Handler* на панели действий редактора кода.

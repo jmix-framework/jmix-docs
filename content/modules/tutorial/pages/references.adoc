@@ -1,0 +1,329 @@
+= 3. Ссылки и уникальные атрибуты
+
+Следующая часть вашего приложения для онбординга - это управление отделами.
+
+Новый сотрудник принадлежит к Отделу (`Department`). Каждый отдел имеет уникальное название и ссылку на HR-менеджера.
+
+В этой главе вы создадите:
+
+* Сущность `Department` со ссылкой на `User`.
+* Таблицу базы данных с внешним ключом и уникальным ограничением.
+* CRUD-экраны, включающие UI-компонент для выбора связанной сущности.
+
+[[create-entity]]
+== Создание сущности Department
+
+Сущность `Department` имеет уникальный атрибут `name` и атрибут `hrManager`, который является ссылкой на сущность `User`:
+
+image::references/references-diagram.svg[align="center"]
+
+Если ваше приложение запущено, остановите его с помощью кнопки *Stop* (image:common/suspend.svg[]) на главной панели инструментов.
+
+В окне инструментов *Jmix* нажмите *New* (image:common/add.svg[]) -> *JPA Entity*, как вы делали в xref:simple-crud.adoc#create-entity[предыдущей главе]. В диалоговом окне *New JPA Entity* введите `Department` в поле *Class* и установите флажок *Traits* -> *Versioned*:
+
+image::references/create-entity-1.png[align="center",width=492]
+
+Нажмите на кнопку *OK*.
+
+Студия создаст класс сущности и откроет дизайнер сущностей:
+
+image::references/create-entity-2.png[align="center"]
+
+[[create-unique-attr]]
+=== Создание уникального атрибута
+
+Давайте добавим атрибут `name` к сущности.
+
+Нажмите *Add* (image:common/add.svg[]) на панели *Attributes*. В диалоговом окне *New Attribute* введите `name` в поле *Name* и установите флажок *Mandatory*:
+
+image::references/create-entity-3.png[align="center"]
+
+Теперь давайте определим уникальное ограничение для столбца `NAME` в базе данных. Это гарантирует, что не будет отделов с одинаковым названием.
+
+Перейдите на вкладку *Indexes* в нижнем части дизайнера и нажмите *New Index* (image:common/add.svg[]) на панели инструментов *Database Indexes*. Studio добавит строку в список индексов:
+
+image::references/create-entity-4.png[align="center"]
+
+Выберите `NAME` в списке *Available attributes* и щелкните image:common/arrow-right.svg[] на панели инструментов, чтобы переместить атрибут в список *Selected attributes*.
+
+Установите флажки *Unique* и *Constraint* в строке индекса и измените имя на `IDX_DEPARTMENT_UNQ_NAME`:
+
+image::references/create-entity-5.png[align="center"]
+
+Если вы переключитесь на вкладку *Text* в дизайнере сущностей, вы увидите уникальное ограничение, добавленное к аннотации `@Table`:
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEPARTMENT", uniqueConstraints = {
+        @UniqueConstraint(name = "IDX_DEPARTMENT_UNQ_NAME", columnNames = {"NAME"})
+})
+@Entity
+public class Department {
+    // ...
+----
+
+Используя эту аннотацию, Studio добавит уникальное ограничение для таблицы базы данных в файлы Liquibase changelog.
+
+[[create-reference-attr]]
+=== Создание ссылочного атрибута
+
+Теперь создайте ссылку на HR-менеджера отдела.
+
+Нажмите *Add* (image:common/add.svg[]) на панели *Attributes*. В диалоговом окне *New Attribute* введите `hrManager` в поле *Name*. Затем выберите:
+
+* *Attribute type*: `ASSOCIATION`
+* *Type*: `User`
+* *Cardinality*: `Many to One`
+
+image::references/create-entity-6.png[align="center"]
+
+Нажмите на кнопку *OK*.
+
+Вы можете найти новый атрибут и на вкладке *Text*:
+
+[source,java,indent=0]
+----
+@JoinColumn(name = "HR_MANAGER_ID")
+@ManyToOne(fetch = FetchType.LAZY)
+private User hrManager;
+----
+
+Кроме того, аннотация `@Table` в заголовке класса теперь определяет индекс для столбца внешнего ключа:
+
+[source,java,indent=0]
+----
+@JmixEntity
+@Table(name = "DEPARTMENT", indexes = {
+        @Index(name = "IDX_DEPARTMENT_HR_MANAGER", columnList = "HR_MANAGER_ID")
+    },
+    // ...
+----
+
+Вы также можете увидеть это на вкладке *Indexes*.
+
+[[create-screens]]
+== Создание CRUD-экранов
+
+Давайте создадим CRUD-экраны для сущности `Department`.
+
+Нажмите *Views* -> *Create view* на панели действий в верхней части дизайнера сущностей:
+
+image::references/create-screens-1.png[align="center", width="487"]
+
+На первом шаге мастера создания экрана выберите шаблон `Entity list and detail views`:
+
+image::common/screen-wizard-1.png[align="center"]
+
+Нажмите *Next*.
+
+Примите предложенные значения на первых двух шагах мастера.
+
+На шаге *Entity list view fetch plan* добавьте атрибут `hrManager` в фетч-план:
+
+image::references/create-screens-2.png[align="center"]
+
+Теперь вы можете быть уверены, что ссылочная сущность `User` будет загружена вместе с сущностью `Department` и отображена на экране списка.
+
+CAUTION: Если какой-либо атрибут не выбран в фетч-плане, Studio не создает для него визуальный компонент в генерируемых экранах.
+
+Нажмите кнопку *Next*.
+
+На следующем шаге *Entity detail view plan* этот атрибут будет выбран автоматически:
+
+image::references/create-screens-3.png[align="center"]
+
+Нажмите кнопку *Next*.
+
+Оставьте значения по умолчанию на шаге *Localizable messages* и нажмите *Create*.
+
+Studio сгенерирует два экрана: `Department.list` и `Department.detail` и откроет их исходный код. Закройте пока все вкладки редактора - позже в этой главе вы внесете некоторые изменения в созданные экраны.
+
+[[run-app]]
+== Запуск приложения
+
+Нажмите на кнопку *Debug* (image:common/start-debugger.svg[]) на главной панели инструментов.
+
+Перед запуском приложения Studio сгенерирует Liquibase changelog:
+
+image::references/run-app-1.png[align="center"]
+
+Как вы можете видеть, changelog содержит команды для создания таблицы `DEPARTMENT`, уникальное ограничение для столбца `NAME` и внешнего ключа, а также индекс для столбца `HR_MANAGER_ID`.
+
+Нажмите на кнопку *Save and run*.
+
+Студия выполнит changelog, затем соберет и запустит приложение.
+
+Откройте `++http://localhost:8080++` в вашем веб-браузере и войдите в приложение с учетными данными администратора (`admin` / `admin`).
+
+Раскройте меню *Application* и нажмите на подпункт *Departments*. Вы увидите экран `Department.list`:
+
+image::references/run-app-2.png[align="center"]
+
+Нажмите на кнопку *Create*. Откроется экран `Department.detail`:
+
+image::references/run-app-3.png[align="center"]
+
+Вы можете выбрать HR-менеджера для отдела, нажав на кнопку с многоточием в поле выбора. Экран списка пользователей откроется в диалоговом окне. Выберите строку в таблице пользователей и прокрутите экран вниз чтобы увидеть кнопку *Select*:
+
+image::references/run-app-4.png[align="center"]
+
+Выберите пользователя и нажмите на кнопку *Select*. Пользователь отобразится в поле выбора:
+
+image::references/run-app-5.png[align="center"]
+
+Нажмите на кнопку *OK*. Указанный пользователь также будет отображаться в таблице:
+
+image::references/run-app-6.png[align="center"]
+
+[[instance-name]]
+=== Имя экземпляра
+
+Вы можете задаться вопросом, почему в поле выбора и таблице отображается строка `[admin]` для выбранного пользователя?
+
+В Jmix есть понятие _имени экземпляра_ (_instance name_): понятный пользователю текст, представляющий экземпляр сущности. Он может быть определен для любой сущности с помощью аннотации `@InstanceName` для поля или метода.
+
+Сущность `User`, созданная шаблоном проекта, имеет следующий метод, определяющий имя экземпляра:
+
+[source,java,indent=0]
+----
+public class User implements JmixUserDetails, HasTimeZone {
+    // ...
+
+    @InstanceName
+    @DependsOnProperties({"firstName", "lastName", "username"})
+    public String getDisplayName() {
+        return String.format("%s %s [%s]", (firstName != null ? firstName : ""),
+                (lastName != null ? lastName : ""), username).trim();
+    }
+----
+
+Таким образом, когда поля `firstName` и `lastName` пусты, имя экземпляра пользователя - это `username` в квадратных скобках, как это видно в приложении на данный момент.
+
+Дизайнер сущностей Studio автоматически генерирует аннотацию `@InstanceName`, если он встречает атрибут с соответствующим именем: `name`, `description` и так далее. Например, ваша сущность `Department` имеет `@InstanceName` в своем атрибуте `name`:
+
+[source,java,indent=0]
+----
+public class Department {
+    // ...
+
+    @InstanceName
+    @Column(name = "NAME", nullable = false)
+    @NotNull
+    private String name;
+----
+
+Таким образом, название отдела будет отображаться в пользовательском интерфейсе, если вы используете отдел в качестве ссылки в другой сущности. Вы увидите это позже в самоучителе.
+
+Дизайнер сущностей также поможет вам определить имя экземпляра вручную. Вы можете выбрать в качестве имени экземпляра какой-либо атрибут или сгенерировать метод, используя поле *Instance name* и кнопку рядом с ним:
+
+image::references/instance-name-1.png[align="center", width="475"]
+
+[[customize-ui]]
+== Простая кастомизация UI
+
+Давайте произведем некоторые изменения в пользовательском интефейсе приложения, чтобы ближе познакомится с возможностями Jmix.
+
+[[change-attr-caption]]
+=== Изменение заголовка атрибута
+
+Возможно, вы заметили, что сгенерированный заголовок для атрибута `hrManager` не совсем корректен: он читается как `Hr manager`. Давайте изменим его на `HR Manager`.
+
+Выберите атрибут `hrManager` в дизайнере сущностей и нажмите на кнопку глобуса (image:common/globe.svg[]) рядом с именем атрибута:
+
+image::references/change-caption-1.png[align="center"]
+
+Появится диалоговое окно *Localized Message*:
+
+image::references/change-caption-2.png[align="center", width="616"]
+
+Измените текст и нажмите кнопку *OK*.
+
+Вы можете просмотреть и отредактировать все сообщения вашего проекта, если дважды щелкните элемент *User Interface* -> *Message Bundle* в окне инструментов Jmix. Сообщение, которое вы только что изменили, выделено ниже:
+
+image::references/change-caption-3.png[align="center",width="914"]
+
+Переключитесь на приложение, запущенное в вашем веб-браузере. Обновите веб-страницу. Вы увидите новый заголовок для атрибута `hrManager`.
+
+[TIP]
+====
+Благодаря технологии Studio Hot deploy вам не нужно перезапускать приложение при внесении изменений в пользовательский интерфейс.
+
+Просто сохраните изменения в IDE (нажав комбинацию клавиш `Ctrl/Cmd+S`), выждите пару секунд и обновите веб-страницу.
+====
+
+[[sorting-in-datagrid]]
+=== Сортировка в DataGrid
+
+По умолчанию пользователи могут сортировать таблицу по одному столбцу. Давайте включим сортировку по нескольким столбцам.
+
+Найдите `department-list-view.xml` в окне инструментов *Jmix* и дважды щелкните по нему. Появится дизайнер экрана:
+
+image::references/customize-ui-1.png[align="center"]
+
+Studio позволяет предварительно просмотреть макет экрана прямо в IDE. Нажмите кнопку *Start Preview*:
+
+image::references/customize-ui-2.png[align="center"]
+
+Studio соберет фронтенд, и через несколько секунд вы увидите панель предварительного просмотра рядом с исходным кодом. В зависимости от разрешения вашего дисплея вам может быть удобно одновременно отображать только редактор XML или панель предварительного просмотра. Используйте кнопки в верхней части панели редактора для переключения режима:
+
+image::references/customize-ui-3.png[align="center"]
+
+Найдите `departmentsDataGrid` в панели структуры *Jmix UI*. Компонент будет выбран в панель предварительного просмотра, в редакторе XML и в панели инспектора *Jmix UI* в правом нижнем углу:
+
+image::references/customize-ui-4.png[align="center"]
+
+Включите флажок для свойства `multiSort`:
+
+image::references/customize-ui-5.png[align="center",width="348"]
+
+Studio добавит атрибут `multiSort="true"` XML-элементу `dataGrid`.
+
+TIP: Это работает и в противоположном направлении. Вы можете редактировать XML напрямую и просматривать результаты на панелях дизайнера и предварительного просмотра.
+
+Переключитесь на запущенное приложение и обновите страницу с экраном списка отделов. Протестируйте сортировку, нажимая на заголовки колонок Name и HR Manager.
+
+[[change-unique-constraint-message]]
+=== Изменение уникального сообщения о нарушении ограничений
+
+Если вы попытаетесь создать другой отдел с тем же именем, вы увидите сообщение об ошибке нарушения уникального ограничения:
+
+image::references/customize-ui-8.png[align="center"]
+
+Сообщение по умолчанию не очень дружественное к пользователю, но вы можете легко изменить его.
+
+Дважды щелкните элемент *User Interface* -> *Message Bundle* в окне инструментов *Jmix* и добавьте следующую строку:
+
+[source,properties]
+----
+databaseUniqueConstraintViolation.IDX_DEPARTMENT_UNQ_NAME=A department with the same name already exists
+----
+
+Ключ сообщения должен начинаться с `databaseUniqueConstraintViolation.` и заканчиваться именем уникального ограничения базы данных. Вы можете заметить, что файл уже содержит аналогичное сообщение для уникального ограничения атрибута `username` сущности `User`.
+
+Переключитесь на приложение и протестируйте свои изменения. Теперь в тексте ошибки отображено ваше сообщение:
+
+image::references/customize-ui-9.png[align="center"]
+
+[[summary]]
+== Резюме
+
+В этом разделе вы реализовали вторую функцию: управление отделами.
+
+Вы узнали, что:
+
+* Studio помогает создавать ссылочные атрибуты и генерирует xref:data-model:db-migration.adoc[Liquibase changelog] с внешним ключом и индексом.
+
+* Чтобы показать ссылочный атрибут на экране списка или деталей, он должен быть включен в xref:data-access:fetching.adoc#fetch-plan[фетч-план] экрана.
+
+* xref:data-model:entities.adoc#instance-name[Имя экземпляра] используется для отображения ссылки в пользовательском интерфейсе.
+
+* Компонент выбора сущности (xref:flow-ui:vc/components/entityPicker.adoc[]) используется по умолчанию для выбора связанной сущности в сгенерированном экране редактирования.
+
+* xref:data-model:entities.adoc#uniqueness[Уникальность атрибутов сущностей] поддерживается на уровне базы данных путем определения ограничений.
+
+* Сообщение о xref:flow-ui:exception-handlers.adoc#unique-constraint-violation-handler[нарушении ограничений уникальности] может быть легко кастомизировано.
+
+* Заголовки и сообщения, сгенерированные Studio, хранятся в xref:localization:message-bundles.adoc[пакете сообщений] приложения.
+
+* Механизм Studio xref:studio:hot-deploy.adoc[hot deploys] изменяет экраны и сообщения в запущенном приложение, что избавляет от перезапуска приложения при разработке пользовательского интерфейса. Hot deploy не работает для классов сущностей.

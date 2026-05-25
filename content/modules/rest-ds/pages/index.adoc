@@ -1,0 +1,477 @@
+= REST DataStore
+
+Задача REST DataStore — предоставить простой способ интеграции приложений Jmix. В результате такой интеграции появляется возможность получать доступ к внешним сущностям из удалённого приложения Jmix через интерфейс xref:data-access:data-manager.adoc[DataManager] таким же образом, как к локальным сущностям JPA. Внешние сущности могут отображаться в пользовательском интерфейсе, обновляться и сохраняться обратно в удалённое приложение с использованием стандартной CRUD-функциональности, предоставляемой Jmix, без написания дополнительного кода.
+
+Данный раздел предоставляет справочную информацию о дополнении REST DataStore. Для получения информации о том, как использовать его в различных сценариях, обратитесь к следующим руководствам:
+
+* xref:integrated-apps-guide:index.adoc[]
+* xref:separate-tiers-guide:index.adoc[]
+* xref:restds-oidc-guide:index.adoc[]
+
+В данном документе используются следующие термины:
+
+* _Сервисное приложение_ — приложение Jmix, предоставляющее данные через xref:rest:index.adoc[универсальный REST API].
+* _Клиентское приложение_ — приложение Jmix, получающее данные от Сервисного приложения с использованием REST DataStore.
+
+Сервисное и клиентское приложения могут использовать разные версии Jmix.
+
+[[installation]]
+== Установка
+
+Для автоматической установки через Jmix Marketplace следуйте инструкциям в разделе xref:ROOT:add-ons.adoc#installation[Дополнения].
+
+Для ручной установки добавьте следующие зависимости в ваш `build.gradle`:
+
+[source,groovy,indent=0]
+----
+include::example$/rest-ds-client/build.gradle[tags=dependencies]
+----
+
+[[configuration]]
+== Конфигурация
+
+[[basic-configuration]]
+=== Базовая конфигурация
+
+Базовая конфигурация включает следующие шаги.
+
+В проекте сервисного приложения:
+
+* Добавьте дополнения xref:rest:index.adoc[REST API] и xref:authorization-server:index.adoc[Authorization Server].
+
+* Настройте выдачу токенов с типом гранта xref:authorization-server:obtaining-tokens.adoc#client-credentials-grant[Client Credentials].
+
+В проекте клиентского приложения:
+
+* Добавьте дополнение REST DataStore, как описано <<installation,выше>>.
+
+* Добавьте дополнительное хранилище данных с дескриптором `restds_RestDataStoreDescriptor`, например:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=store]
+----
+
+* Укажите свойства подключения к сервису для данного хранилища данных по его имени, например:
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=connection]
+----
+
+[[authentication-with-password-grant]]
+=== Аутентификация с помощью Password Grant
+
+Если вы хотите выполнять аутентификацию реальных пользователей в сервисном приложении, как продемонстрировано в руководстве xref:separate-tiers-guide:index.adoc[], настройте xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[Password Grant] в сервисном приложении и добавьте следующие свойства в клиентское приложение:
+
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=authenticator]
+----
+
+[[external-authentication]]
+=== Внешняя аутентификация
+
+Если вы хотите использовать внешний провайдер аутентификации (например, Keycloak) вместо Jmix Authorization Server, удалите дополнение Authorization Server из проекта и добавьте дополнение xref:oidc:index.adoc[].
+
+Определите следующие свойства приложения:
+
+[source,properties]
+----
+include::restds-oidc-guide:example$integrated-apps/client-app/src/main/resources/application.properties[tags=restds-auth]
+----
+
+* Свойство `[datastore-name].authenticator` определяет имя бина, который реализует интерфейс `RestAuthenticator` и используется для аутентификации запросов к REST API.
++
+Бин `restds_RestOAuth2ClientAuthenticator` использует OAuth2-токен текущего пользователя.
+
+* Свойство `[datastore-name].oauth2-client-registration` определяет ID регистрации клиента OAuth2 в Spring Security, который используется в свойствах `spring.security.oauth2.client.registration.[ID]` для подключения к OIDC-провайдеру.
++
+Например, если вы подключаетесь к Keycloak с помощью этого свойства:
++
+[source,properties]
+----
+spring.security.oauth2.client.registration.keycloak.client-id=integrated-apps-client
+----
++
+Тогда значение свойства `[datastore-name].oauth2-client-registration` должно быть `keycloak`.
+
+Полный пример см. в руководстве xref:restds-oidc-guide:index.adoc[].
+
+[[ui-user-settings]]
+=== UI-настройки пользователей
+
+Чтобы сохранять UI-настройки пользователей и конфигурации фильтров через REST-хранилище данных, выполните следующие действия:
+
+* В `build.gradle`:
+** добавьте зависимость `io.jmix.flowui:jmix-flowui-restds-starter`
+** удалите зависимость `io.jmix.flowui:jmix-flowui-data-starter`
+* В `application.properties` укажите имя REST-хранилища данных в свойстве `jmix.restds.ui-config-store`, например:
++
+[source,properties]
+----
+jmix.restds.ui-config-store=serviceapp
+----
+
+См. также xref:separate-tiers-guide:index.adoc#frontend-application[Frontend Application Configuration] в руководстве Separating Application Tiers.
+
+[[rest-paths]]
+=== REST API Paths
+
+Если эндпойнты REST API имеют нестандартные xref:rest:app-properties.adoc#paths[пути], вы можете настроить доступ к ним, используя свойства приложения, показанные ниже. Свойства начинаются с имени хранилища данных (`serviceapp` в данном примере):
+
+[source,properties]
+----
+serviceapp.basePath=/rest
+serviceapp.entitiesPath=/entities
+serviceapp.userInfoPath=/userInfo
+serviceapp.permissionsPath=/permissions
+serviceapp.capabilitiesPath=/capabilities
+----
+
+[[data-model]]
+== Модель данных
+
+Клиентское приложение должно содержать DTO-сущности, эквивалентные сущностям сервисного приложения. Для автоматического сопоставления атрибуты этих сущностей должны совпадать по имени и типу.
+
+Набор атрибутов может различаться. Например, сервисная сущность может иметь больше атрибутов, чем клиентская. Атрибуты, отсутствующие в одной из сущностей, будут иметь значение null после передачи данных.
+
+Клиентская DTO-сущность должна иметь аннотацию `@Store`, указывающую на дополнительное хранилище данных.
+
+Пример определения сущности `Region` в сервисном и клиентском приложениях представлен ниже.
+
+[source,java,indent=0]
+.Сущность Region в сервисном приложении
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/entity/Region.java[tags=jpa-entity]
+----
+
+[source,java,indent=0]
+.Сущность Region в клиентском приложении
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Region.java[tags=restds-entity]
+----
+
+Если имя клиентской сущности отличается от сервисного, используйте аннотацию `@RestDataStoreEntity` для явного указания имени сущности в сервисе. Например:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/RegionDto.java[tags=restds-entity]
+----
+
+Для вложенных атрибутов на стороне клиента используйте аннотацию `@JmixEmbedded` вместо `@Embedded` из JPA.
+
+Для атрибутов композиции с типом один-ко-многим на стороне клиента определите атрибут `inverse` в аннотации `@Composition`.
+
+Пример:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Customer.java[tags=restds-entity]
+----
+
+[[fetch-plans]]
+== Фетч-планы
+
+Когда вы загружаете внешнюю сущность в клиентском приложении, вы можете указать xref:data-access:fetching.adoc[фетч-план] для загрузки ссылок.
+
+Если сервисное приложение построено с использованием Jmix до версии 2.5, его универсальный REST API поддерживает только xref:rest:entities-api/load-entities.adoc#named-fetch-plans[именованные фетч-планы], определенные в репозитории фетч-планов. Таким образом, REST DataStore будет запрашивать данные у сервиса, предоставляя имя фетч-плана. Следовательно, как сервисные, так и клиентские приложения должны определять все фетч-планы в своих репозиториях фетч-планов с соответствующими именами.
+
+Начиная с Jmix 2.5, универсальный REST поддерживает xref:rest:entities-api/load-entities.adoc#inline-fetch-plans[встроенные (inline) фетч-планы], если эта функция не отключена свойством xref:rest:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled]. Таким образом, вы можете определять фетч-планы в XML экрана и Java-коде вашего клиента так же, как и при работе с базами данных.
+
+REST DataStore полагается на xref:rest:capabilities-api.adoc[] REST сервисного приложения, чтобы определить, включены ли встроенные фетч-планы. Если проверка подтверждает их доступность, REST DataStore передает встроенные фетч-планы, в противном случае передаются только имена фетч-планов.
+
+[[loaded-state]]
+== Загруженное состояние
+
+Если фетч-план не включает какой-либо атрибут, этот атрибут не загружается. В отличие от атрибутов сущностей JPA, атрибуты REST-сущностей, которые не были загружены, имеют значение null и не вызывают исключений при доступе к ним.
+
+При обновлении сущности REST DataStore сохраняет только загруженные атрибуты. Если атрибут не был загружен из сервиса, но впоследствии изменён с null на какое-либо значение, он считается загруженным, и новое значение будет сохранено.
+
+Метод `EntityStates.isLoaded(entity, property)` корректно возвращает информацию о том, загружен ли определённый атрибут REST-сущности.
+
+[[filtering-loaded-data]]
+== Фильтрация загружаемых данных
+
+Данный подраздел описывает параметры фильтрации, поддерживаемые при загрузке внешних сущностей с помощью `DataManager`. Все эти опции приводят к вызову xref:rest:entities-api/load-entities.adoc#load-list-search-filter[эндпойнта поиска] REST API сервисного приложения, поэтому по сети передаются только найденные сущности.
+
+[[filter-by-conditions]]
+=== По условиям
+
+Пример:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-condition]
+----
+
+[[filter-by-query]]
+=== По запросу
+
+Запрос представляет собой выражение на JSON, поддерживаемое универсальным REST API в xref:rest:entities-api/load-entities.adoc#load-list-search-filter[эндпойнте поиска]:
+
+[source]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-query]
+----
+
+[[filter-by-identifiers]]
+=== По идентификаторам
+
+Пример:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-ids]
+----
+
+[[using-query-in-view-xml]]
+=== Использование запроса в XML экранов
+
+JSON-запрос может быть указан в XML-дескрипторах экранов для контейнеров данных и элементов `itemsQuery`:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/customer/customer-detail-view.xml[tags=items-query]
+----
+
+Чтобы указать параметр вместо фиксированного значения в JSON-условиях запроса, используйте ключ `parameterName` вместо `value`, как показано выше. REST DataStore заменит это свойство на `"value": <parameter-value>` в результирующем запросе.
+
+Также можно использовать фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[], но только с ручной конфигурацией. В следующем примере контейнеры данных `regionsDc` и `customersDc` связаны, используя JSON-запрос и `dataLoadCoordinator`, для предоставления в режиме мастер-деталь списка регионов и клиентов для выбранного региона:
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/region/region-list-view.xml[tags=query]
+----
+
+[[entity-events]]
+== События сущностей
+
+REST DataStore отправляет xref:data-access:entity-events.adoc#saving-loading-events[события EntitySavingEvent и EntityLoadingEvent] так же, как `JpaDataStore`. Однако оно не отправляет xref:data-access:entity-events.adoc#entity-changed-event[событие EntityChangedEvent], так как не может предоставить информацию об изменённых с момента загрузки атрибутах. Вместо события `EntityChangedEvent` REST DataStore отправляет два специфических события:
+
+* `RestEntitySavedEvent` — отправляется после успешного сохранения сущности в сервисе. Оно содержит сохранённый экземпляр сущности в состоянии перед отправкой в сервис.
+* `RestEntityRemovedEvent` — отправляется после удаления сущности из сервиса. Оно содержит удалённую сущность в состоянии перед отправкой в сервис.
+
+[[security]]
+== Безопасность
+
+REST DataStore применяет xref:security:resource-roles.adoc#entity-policy[политику операций над сущностями], определённую ресурсными ролями, и xref:security:row-level-roles.adoc#predicate-policy[политику предикатов], определённую ролями уровня строк.
+
+Аутентификация в REST DataStore может выполняться с использованием Client Credentials Grant или Password Grant, предоставляемых дополнением Authorization Server. Последний вариант требует настройки дополнительных свойств `<ds-name>.authenticator` и `jmix.restds.authentication-provider-store`, как описано в разделе <<configuration>>.
+
+[[file-storage]]
+== Хранилище файлов
+
+Сущности сервисного приложения могут содержать ссылки `FileRef` на файлы в своих хранилищах файлов. REST DataStore дополнение предоставляет `RestFileStorage` реализацию интерфейса `FileStorage`, который является прокси, позволяющим работать с файлами, расположенными в хранилищах файлов сервисного приложения.
+
+`RestFileStorage` использует общий REST xref:rest:files-api.adoc[] для передачи файлов между клиентом и сервисным приложением.
+
+Чтобы использовать `RestFileStorage` в вашем клиентском приложении, определите следующий бин в главном классе приложения или в любом другом классе Spring configuration:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/RestDsClientApplication.java[tags=fileStorage]
+----
+
+Здесь `serviceapp` - это имя REST DataStore, как определено в `application.properties`, `fs` - это имя соответствующего хранилища файлов сервисного приложения.
+
+Имя REST хранилища файлов в клиентском приложении формируется путем объединения этих параметров с дефисом между ними. Таким образом, в приведенном выше примере это будет `serviceapp-fs`. Если у вас есть несколько хранилищ файлов в клиентском приложении (скажем, локальный `fs` и удаленный `serviceapp-fs`), см. xref:files:file-storage.adoc#multiple-fs[Использование нескольких хранилищ файлов] для получения дополнительной информации.
+
+Пример работы с `RestFileStorage` приведён в руководстве xref:separate-tiers-guide:index.adoc[].
+
+[[invoking-services]]
+== Вызов сервисов
+
+Если сервисное приложение xref:rest:business-logic.adoc#exposing-a-service[предоставляет Java-сервис] через REST API, клиентские приложения могут его использовать.
+
+[[remote-service-interfaces]]
+=== Интерфейсы @RemoteService
+
+Самый простой способ вызвать сервис — создать интерфейс, который отражает методы сервиса, и пометить его аннотацией `@RemoteService`. Для интерфейсов с этой аннотацией дополнение REST DataStore генерирует клиентские прокси-объекты. Эти объекты автоматически сериализуют параметры, вызывают удалённые REST-сервисы и десериализуют результаты.
+
+В следующем примере показана реализация сервисного бина:
+
+[source,java,indent=0]
+.CustomerService.java в сервисном приложении
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/service/CustomerService.java[tags=service]
+----
+
+Метод сервиса доступен через эндпойнт `/rest/services/customers/getCustomersByName`.
+
+Чтобы вызвать этот сервис из клиентского приложения, создайте следующий интерфейс:
+
+[source,java,indent=0]
+.CustomerService.java в клиентском приложении
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/service/CustomerService.java[tags=service]
+----
+
+Дополнение REST DataStore автоматически создаст бин для этого интерфейса, так что вы сможете инжектировать его в экран или бин и использовать как обычный Spring-бин. Например:
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/view/customer/CustomerDetailView.java[tags=service]
+----
+
+Другой пример вызова метода бизнес-сервиса можно найти в руководстве xref:integrated-apps-guide:index.adoc[].
+
+[IMPORTANT]
+====
+Методы интерфейсов `@RemoteService` могут иметь параметры и возвращать результаты следующих типов:
+
+* Простые типы: примитивы (`int`, `double` и т.д.), обёртки (`Integer`, `Double` и т.д.), `String`.
+* xref:data-model:entities.adoc[Сущность]
+* xref:data-model:enumerations.adoc[Перечисление]
+* Тип, для которого существует соответствующий xref:data-model:datatype.adoc[Datatype]. Сюда входят типы, поддерживаемые в xref:data-model:entities.adoc#attributes[атрибутах сущностей], а также пользовательские типы данных.
+* Произвольный POJO или Java-record с полями всех вышеперечисленных типов.
+* `java.util.List`, параметризованный любым из вышеперечисленных типов.
+====
+
+[[using-rest-client]]
+=== Использование RestClient
+
+Вы также можете вызывать любые эндпойнты сервисного приложения с помощью Spring `RestClient`, предварительно настроенного параметрами подключения и аутентификации соответствующего REST-хранилища данных:
+
+1. Получите экземпляр `RestClient` из бина `RestDataStoreUtils` с помощью метода `getRestClient(String dataStoreName)`.
+
+2. Используйте API `RestClient` для вызова эндпойнта с соответствующими параметрами.
+
+[[sharing-code]]
+== Выделение общего кода приложений
+
+Вы можете совместно использовать классы сущностей и интерфейсы сервисов в приложениях, интегрированных с помощью REST DataStore. Это приводит к более тесной связи между приложениями, но сокращает дублирование кода и усилия на разработку.
+
+При таком подходе общий код помещается в отдельное дополнение (add-on), которое используется как клиентским, так и серверным приложениями. Общий код может включать JPA-сущности, интерфейсы бизнес-сервисов, роли безопасности, а также любые общие утилитные классы.
+
+Ниже мы опишем необходимые шаги для совместного использования сущностей, интерфейсов сервисов и ролей, используя в качестве примера приложения Products и Orders. Приложение Products предоставляет свои сущности `Product` и `ProductCategory` и сервис `InventoryService` через REST API. Приложение Orders использует эти сущности и вызывает сервис через REST DataStore.
+
+[[shared-add-on]]
+=== Общее дополнение
+
+Общее дополнение было создано с помощью стандартного шаблона `Add-On (Java)` в мастере *New Project* студии. Оно включает модули `shared` и `shared-starter`:
+
+[source]
+----
+shared-addon
+├── shared
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── company
+│   │   │   │           └── shared
+│   │   │   │               ├── entity
+│   │   │   │               │   ├── Product.java
+│   │   │   │               │   └── ProductCategory.java
+│   │   │   │               ├── security
+│   │   │   │               │   └── ProductsRole.java
+│   │   │   │               ├── service
+│   │   │   │               │   └── InventoryService.java
+│   │   │   │               └── SharedConfiguration.java
+│   │   │   └── resources
+│   │   │       └── com
+│   │   │           └── company
+│   │   │               └── shared
+│   │   │                   ├── liquibase
+│   │   │                   │   ├── changelog
+│   │   │                   │   │   └── 010-init-products.xml
+│   │   │                   │   └── changelog.xml
+│   │   │                   ├── messages.properties
+│   │   │                   └── module.properties
+│   │   └── test
+│   │       └── ...
+│   └── shared.gradle
+├── shared-starter
+│   ├── src
+│   │   └── ...
+│   └── shared-starter.gradle
+├── build.gradle
+└── settings.gradle
+----
+
+Скрипт сборки основного модуля `shared` определяет только минимальный набор зависимостей Jmix:
+
+[source,groovy]
+.shared-addon/shared/shared.gradle
+----
+include::example$rest-ds-shared/shared-addon/shared/shared.gradle[tags=dependencies]
+----
+
+Дополнение включает следующий общий код:
+
+* JPA-сущности `Product` и `ProductCategory`.
+* Ресурсная роль  `ProductsRole` определяет политики, разрешающие доступ к сущностям и их атрибутам.
+* `InventoryService` — интерфейс, определяющий некоторый бизнес-метод.
+* `010-init-products.xml` — Liquibase changelog, создающий схему базы данных для сущностей `Product` и `ProductCategory`.
+
+[[sharing-code-service-application]]
+=== Сервисное приложение
+
+Сервисное приложение Products включает общее дополнение стандартным образом без какой-либо специфической конфигурации.
+
+Скрипт сборки приложения Products определяет зависимость от стартера общего дополнения:
+
+[source,groovy]
+.products/build.gradle
+----
+include::example$rest-ds-shared/products/build.gradle[tags=dependencies]
+----
+
+Приложение предоставляет реализацию интерфейса `InventoryService`:
+
+[source,java]
+.products/src/main/java/com/company/products/service/InventoryServiceImpl.java
+----
+include::example$rest-ds-shared/products/src/main/java/com/company/products/service/InventoryServiceImpl.java[tags=service]
+----
+
+[[sharing-code-client-application]]
+=== Клиентское приложение
+
+Клиентское приложение Orders также включает общее дополнение:
+
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=dependencies]
+----
+
+Дополнительно, клиентское приложение корректирует конфигурацию сущностей и удаленных сервисов для правильной работы с общим кодом.
+
+. Скрипт сборки исключает пакет общих сущностей из JPA-маппинга в свойстве `jmix.entitiesEnhancing.nonJpaPackages`:
++
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=non-jpa-entities]
+----
++
+Другой вариант — исключить отдельные классы в свойстве `jmix.entitiesEnhancing.nonJpaClasses`.
+
+. Бин `SharedEntitiesConfigurer` устанавливает REST DataStore `products` в качестве хранилища данных для сущностей общего дополнения:
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java[]
+----
+
+. Бин `SharedServicesConfigurer` добавляет фильтр сканирования для поиска интерфейсов сервисов общего дополнения для создания клиентских прокси. Он также определяет имя хранилища для интерфейсов сервисов:
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedServicesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedServicesConfigurer.java[]
+----
+
+[[limitations]]
+== Ограничения
+
+REST DataStore имеет следующие ограничения по сравнению с хранилищем данных JPA:
+
+* Не поддерживает ленивую загрузку ссылок. Ссылки, которые не были загружены по фетч-плану, остаются null при доступе.
+
+* Отсутствует событие `EntityChangeEvent` с `AttributeChanges`.
+
+* Методы `DataManager.loadValues()` и `loadValue()` не реализованы и выбрасывают `UnsupportedOperationException`.

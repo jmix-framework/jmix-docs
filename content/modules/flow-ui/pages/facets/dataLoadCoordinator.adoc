@@ -1,0 +1,153 @@
+= dataLoadCoordinator
+:page-aliases: facets/data-load-coordinator.adoc
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/data-load-coordinator" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Фасет `dataLoadCoordinator` предназначен для запуска загрузчиков данных и для декларативной привязки загрузчиков данных к контейнерам данных, визуальным компонентам и событиям жизненного цикла экрана.
+
+[[basics]]
+== Основное использование
+
+Чтобы запустить все загрузчики данных на событии `BeforeShowEvent` экрана, просто добавьте `dataLoadCoordinator` с атрибутом `auto="true"` в XML-дескриптор экрана:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-list-view.xml[tags=dataLoadCoordinator]
+----
+
+[[working-modes]]
+== Режимы работы
+
+`dataLoadCoordinator` можно настроить для работы в автоматическом, ручном или полуавтоматическом режиме.
+
+[[automatic-mode]]
+=== Автоматический режим
+
+В автоматическом режиме (`auto="true"`), `dataLoadCoordinator` *запускает каждый загрузчик, для которого может предоставить значения параметров* на событии xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent] экрана. Фасет может автоматически сопоставлять параметры в запросе загрузчика со значениями, полученными из контейнеров или визуальных компонентов. Чтобы указать источник, добавьте соответствующий префикс к имени параметра: используйте `container_`  для значений, получаемых из контейнера, и `component_` для значений, получаемых из визуального компонента. Например, параметр `container_citiesDc` получает своё значение из контейнера `citiesDc`.
+
+TIP: Префиксы по умолчанию можно изменить с помощью атрибутов `<<componentPrefix,componentPrefix>>` и `<<containerPrefix,containerPrefix>>`
+
+Если запрос содержит произвольный параметр без префикса — например, `select e from User e where e.city = :city` — фасет не сможет его сопоставить, и загрузчик не будет запущен автоматически. В этом случае необходимо самостоятельно установить значение параметра и вызвать `userDl.load()`. Добавление произвольных параметров внутри xref:data/data-loaders.adoc#query-conditions[дополнительного условия] не препятствует выполнению основного запроса загрузчика.
+
+Пример использования:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/automaticmode/automatic-mode-view.xml[tags=automatic-mode]
+----
+
+<1> *Контейнер данных* – содержит сущность `City`. Его значение будет использовано в параметре `:container_citiesDc`.
+<2> *Запрос для сущности `City`* – не содержит параметров и будет выполнен на событии xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent].
+<3> *Дополнительное условие* – добавляется к основному запросу, когда пользователь вводит значение в `nameField`.
+<4> *Запрос для сущности `Customer`* – перезагружает строки `Customer` каждый раз, когда меняется выбранное значение в контейнере `citiesDc`.
+<5> *Фасет в автоматическом режиме* – автоматически координирует выполнение загрузчиков, обеспечивая правильный порядок выполнения запросов.
+<6> *Поле ввода* – текстовый компонент `nameField`, значение которого привязано к параметру `:component_nameField`.
+
+[[manual-mode]]
+=== Ручной режим
+
+В ручном режиме (`auto = false`) фасет больше не выполняет автоматических действий. Для осуществления загрузки необходимо будет указать событие экрана при наступлении которого фасет будет запускать загрузчик (например, `InitEvent`), и задать источник каждого параметра запроса — будь то визуальный компонент или контейнер данных. Эти параметры можно задать с помощью вложенных элементов <<refresh, <refresh>>>.
+
+Пример использования:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/manualmode/manual-mode-view.xml[tags=manual-mode]
+----
+
+<1> *Контейнер данных* – содержит сущность `City`. Его значение будет использовано в параметре `:city`.
+<2> *Запрос для сущности `City`* – не содержит параметров и будет выполнен на событии  xref:flow-ui:views/view-events.adoc#init-event[InitEvent] согласно ручной конфигурации.
+<3> *Дополнительное условие* – добавляется к основному запросу, когда пользователь вводит значение в `nameField`.
+<4> *Запрос для сущности `Customer`* – перезагружает строки `Customer` каждый раз, когда меняется выбранное значение в контейнере `citiesDc`.
+<5> *Фасет в ручном режиме* – загрузка контролируется правилами, определёнными в элементах `<refresh>`.
+<6> *Элемент <refresh>* – вызывает загрузчик `citiesDl` на событии `InitEvent`, либо когда содержимое компонента `nameField` передано в параметр `name`.
+<7> *Элемент <refresh>* – вызывает `customersDl`, при изменении выбранного экземпляра в `citiesDc`, передавая этот город как параметр `city`.
+<8> *Поле ввода* – текстовый компонент `nameField` чье значение привязано к параметру `city` через элемент `<refresh>`.
+
+[[semi-automatic-mode]]
+=== Полуавтоматический режим
+
+Фасет можно установить в полуавтоматический режим. В этом режиме координатор автоматически запускает загрузчики (с `auto = "true"`), *но* также учитывает любые добавленные вами ручные правила.
+
+Пример использования:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/facets/dataloadcoordinator/semiautomaticmode/semiautomatic-mode-view.xml[tags=semiautomatic-mode]
+----
+
+<1> *Фасет в полуавтоматическом режиме* – фасет будет автоматически запускать загрузчики, если для них не определены иные правила.
+<2> *Элемент <refresh>* – переопределяет автоматическое поведение, указывая, что загрузчик `citiesDl` должен запускаться в момент генерации события xref:flow-ui:views/view-events.adoc#ready-event[ReadyEvent].
+
+[[attributes]]
+== Атрибуты
+
+include::facet-tip.adoc[]
+
+[[auto]]
+* `auto` - определяет рабочий режим `DataLoadCoordinator`.
+Значение по умолчанию - `false`.
+
+[[componentPrefix]]
+* `componentPrefix` - определяет префикс для параметров, которые относятся к xref:vc/components.adoc[визуальным компонентам], из которых `DataLoadCoordinator` будет брать значения параметров в автоматическом режиме. Значение по умолчанию - `component_`.
+
+[[containerPrefix]]
+* `containerPrefix` - определяет префикс для параметров, которые относятся к xref:data/data-containers.adoc[контейнерам данных], из которых `DataLoadCoordinator` будет брать значения параметров в автоматическом режиме. Значение по умолчанию - `container_`.
+
+[[refresh]]
+== Элемент refresh
+
+Элемент `refresh` позволяет определить условия, при которых должен быть запущен загрузчик данных.
+
+[[loader]]
+Единственный атрибут этого элемента - `loader`, который определяет `id` загрузчика.
+
+Элемент `refresh` может иметь следующие вложенные элементы, определяющие условия срабатывания загрузчика:
+
+[[onComponentValueChanged]]
+. `onComponentValueChanged` - запуск загрузчика при изменении значение визуального компонента. Он имеет следующие атрибуты:
++
+--
+[[component]]
+* `component` - указывает `id` визуального компонента.
+
+[[likeClause]]
+* `likeClause` - если вы используете выражение `like` в xref:data/data-loaders.adoc#query-conditions[условии запроса], вы можете определить один из трех возможных режимов поиска:
+** `NONE` - значение по умолчанию.
+** `CASE_SENSITIVE` - поиск с учетом регистра символов.
+** `CASE_INSENSITIVE` - поиск без учета регистра символов.
+
+[[component-param]]
+* `param` - указывает имя параметра запроса.
+--
+[[onContainerItemChanged]]
+. `onContainerItemChanged` - запуск загрузчика, когда меняется текущий элемент в контейнере данных. Он имеет следующие атрибуты:
++
+--
+[[container]]
+* `container` - указывает `id` контейнера данных.
+
+[[container-param]]
+* `param` - указывает имя параметра запроса.
+[[onViewEvent]]
+. `onViewEvent` - запуска загрузчика на событии жизненного цикла экрана. Он имеет следующий атрибут:
++
+--
+[[onViewEvent-type]]
+* `type` - определяет тип события экрана. Возможные значения:
+** `Init` - для запуска на событии `InitEvent`.
+** `BeforeShow` - для запуска на событии `BeforeShowEvent`.
+** `Ready` - для запуска на событии `ReadyEvent`.
+
+[[see-also]]
+== См. также
+
+Следующие онлайн-примеры демонстрируют `dataLoadCoordinator` в действии:
+
+* https://demo.jmix.ru/ui-samples/sample/data-load-coordinator[DataLoadCoordinator^]
+* https://demo.jmix.ru/ui-samples/sample/cascading-dropdowns[Каскадные выпадающие списки^]
+* https://demo.jmix.ru/ui-samples/sample/custom-filter[Фильтр с использованием декларативных условий^]

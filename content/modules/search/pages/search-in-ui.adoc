@@ -1,0 +1,110 @@
+= Использование поиска в UI
+
+[[visual-components]]
+== Визуальные компоненты
+
+Дополнение Search предоставляет два UI-компонента: xref:search-field-component.adoc[SearchField] и xref:full-text-filter-component.adoc[FullTextFilter].
+
+[[search-strategies]]
+=== Стратегии поиска
+
+Стратегия поиска определяет, как обрабатывается поисковый термин. По сути, она конфигурирует поисковый запрос с определенным запросом.
+
+Компоненты xref:search-field-component.adoc[SearchField] и xref:full-text-filter-component.adoc[FullTextFilter] поддерживают следующие встроенные стратегии поиска:
+
+* `startsWith`
++
+NOTE: Эта стратегия *доступна только* когда xref:index-definitions.adoc#extended-search[@ExtendedSearch] включен хотя бы для одного определения индекса.
++
+Выполняет поиск на основе префикса, используя предварительно индексированные подполя Edge N-Gram:
+
+** Генерирует все префиксы от xref:search-properties.adoc#jmix.search.minPrefixLength[jmix.search.min-prefix-length] (по умолчанию: `3`) до xref:search-properties.adoc#jmix.search.maxPrefixLength[jmix.search.max-prefix-length] (по умолчанию: `8`).
+** Обеспечивает значительно более высокую производительность по сравнению с запросами по шаблону (wildcard).
+** Когда введенный термин превышает максимальную длину префикса, выполняется резервный запрос по шаблону, если xref:search-properties.adoc#jmix.search.wildcardPrefixQueryEnabled[jmix.search.wildcard-prefix-query-enabled] = `true` (значение по умолчанию).
++
+NOTE: Для терминов короче, чем jmix.search.min-prefix-length, поиск всегда возвращает пустой результат.
+
+* `phrase`
++
+Выполняет поиск точной фразы:
+
+** Документы должны содержать все поисковые термины в *точном порядке* в рамках одного поля.
+** Эквивалентно традиционному фразовому запросу в поисковых системах.
+** Идеально подходит для поиска по именам, названиям или точным формулировкам.
+
+* `anyTermAnyField`
++
+Выполняет дизъюнктивное сопоставление терминов по всем полям:
+
+** Возвращаются документы, соответствующие *любому* из введенных терминов в *любом* индексированном поле.
+** Термины комбинируются с логикой ИЛИ.
+** Стратегия по умолчанию для обратной совместимости.
+
++
+Эта стратегия установлена по умолчанию.
+
+CAUTION: `allTermsAnyField` и `allTermsSingleField` объявлены устаревшими и скрыты из пользовательского интерфейса, но при необходимости могут быть повторно реализованы.
+
+Вы можете установить нужную стратегию, используя атрибут `searchStrategy`, например:
+
+[source,xml,indent=0]
+----
+include::example$/search-ex1/src/main/resources/com/company/demo/view/search/filter-view.xml[tags=strategy]
+----
+
+Чтобы переопределить стратегию по умолчанию, добавьте следующее свойство в ваш файл `application.properties`:
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=default-strategy]
+----
+
+[[custom-search-strategies]]
+==== Пользовательские стратегии поиска
+
+Дополнительно вы можете создать пользовательскую стратегию поиска. Для этой цели вам нужно создать новый Spring-бин, реализующий один из специфичных для платформы интерфейсов:
+
+* `OpenSearchSearchStrategy` - если вы используете OpenSearch.
+* `ElasticsearchSearchStrategy` - если вы используете Elasticsearch.
+
+Затем вам нужно реализовать 2 метода:
+
+* `String getName()` - должен возвращать уникальное имя стратегии.
+
+* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - настройте ваш поисковый запрос, используя предоставленный builder, в соответствии с вашими требованиями.
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
+----
+
+После этого вы можете назначить вашу пользовательскую стратегию компоненту xref:search-field-component.adoc[SearchField] или xref:full-text-filter-component.adoc[FullTextFilter], используя имя стратегии.
+
+[[fts-condition-in-filter-component]]
+== Условие полнотекстового поиска в компоненте GenericFilter
+
+Когда дополнение Search добавлено в проект, в диалоговом окне *Add condition* компонента xref:flow-ui:vc/components/genericFilter.adoc[GenericFilter] появляется новое условие:
+
+image:search:add_condition.png[align="center",width="1151"]
+
+В диалоговом окне *Full-text filter condition editor* вы можете определить надпись для полнотекстового фильтра и выбрать стратегию поиска. Если стратегия поиска не выбрана, то используется стратегия по умолчанию.
+
+image:search:condition_editor.png[align="center",width="642"]
+
+Впоследствии записи в компоненте списка, связанном с фильтром, будут фильтроваться на основе результата полнотекстового поиска.
+
+[[using-search-api-in-views]]
+== Использование Search API в экранах
+
+Вы можете использовать Search API в контроллерах экранов. Рассмотрим пример:
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/view/search/UsingApiView.java[tags=inject;click-event]
+----
+<1> API вызывается из экрана при нажатии на кнопку.
+<2> Определение поисковой строки обязательно: здесь запрос будет искать по всем полям, помеченным для индексации, которые содержат строку `"silver"`.
+<3> Добавляет условия для запроса: во-первых, максимальное количество записей в результирующем наборе. Значение по умолчанию - `10`.
+<4> Далее, список сущностей, в которых осуществляется поиск. По умолчанию включены все индексированные сущности.
+<5> Сервис `EntitySearcher` используется для начала поиска.
+<6> `SearchResultProcessor` используется для извлечения сущностей из результата поиска.

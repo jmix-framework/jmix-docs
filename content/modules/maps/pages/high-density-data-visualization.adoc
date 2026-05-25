@@ -1,0 +1,256 @@
+= Визуализация данных высокой плотности
+
+Данные высокой плотности (High-density data) - это тип набора данных, который имеет большое количество точек данных в определенной пространственной или временной области.
+
+Большие и плотные наборы данных могут быть сложны для эффективной визуализации. Существует несколько методов, которые можно использовать для визуализации данных высокой плотности более содержательным образом. Рассмотрим эти методы в следующих разделах.
+
+[[clustering]]
+== Кластеризация
+
+Кластеризация - это метод группировки xref:maps:features-geometries.adoc[объектов] в слое на основе их близости друг к другу. Обычно размер каждого кластера пропорционален количеству объектов, содержащихся в нем. Это может быть полезно для отображения областей, где многие точки расположены близко друг к другу.
+
+image::clustering-main.png[align="center", width="779"]
+
+Кластеризация настраивается на источнике кластеров (cluster source), связанном с xref:maps:layers-sources.adoc#vector-layer[векторным слоем]. Источник кластеров должен включать либо вложенный xref:maps:layers-sources.adoc#data-vector-source[DataVectorSource], либо xref:maps:layers-sources.adoc#vector-source[VectorSource].
+
+Например, для кластеризации объектов из контейнера данных в XML выполните следующие шаги:
+
+. Включите векторный слой в компонент xref:maps:map-component.adoc[geoMap].
+. Добавьте `ClusterSource` в этот слой.
+. Настройте `DataVectorSource` для кластера следующим образом:
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-basics]
+----
+
+Ниже мы опишем ключевые аспекты кластеризации.
+
+[[cluster-source]]
+=== ClusterSource
+
+`ClusterSource` - это источник, который обеспечивает кластеризацию объектов на карте. Он требует дополнительный источник для поставки объектов, которым может быть либо:
+
+* `DataVectorSource`
+* `VectorSource`
+
+Для кластеризации объектов без привязки к данным используйте `VectorSource`:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=cluster-vectorSource]
+----
+
+[[cluster-attributes]]
+=== Атрибуты кластера
+
+Кластер имеет следующие атрибуты:
+
+* `attributions` - параметр, определяющий текстовую информацию об авторстве и источниках данных (credits).
+* `disableAtZoom` устанавливает уровень масштабирования, при котором кластеризация отключается.
+* `distance` указывает расстояние в пикселях, на котором объекты группируются в кластер.
+* `minDistance` обозначает минимальное расстояние в пикселях между кластерами (для получения более подробной информации обратитесь к https://openlayers.org/en/latest/apidoc/module-ol_source_Cluster-Cluster.html[документации OSM^]).
+* `showSinglePointAsCluster` отображает одиночную точку как кластер размера 1.
+* `weightProperty` - если указан, каждая точка в слое будет иметь целочисленное значение веса на основе свойства `weight` xref:maps:geo-objects.adoc[геообъекта]. Это значение помогает рассчитать совокупное значение кластера (по умолчанию используется количество точек).
+* `wrapX` определяет, должна ли карта бесшовно повторяться по горизонтали.
+
+[[weight-property]]
+=== Свойство веса
+
+По умолчанию кластер вычисляет количество точек внутри себя, которое затем отображается на маркере кластера. `weightProperty` позволяет нам указать свойство, которое кластер должен использовать для расчета.
+
+Например, проект включает JPA-сущность:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;weight]
+----
+<1> Атрибут `building` содержит координаты, размещающие здание на карте.
+<2> Атрибут `weight` содержит числовое значение, которое предоставляет информацию о здании.
+
+В XML-дескрипторе мы настраиваем конфигурацию для кластера:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=data;layout;weightProperty]
+----
+
+[[cluster-styling]]
+=== Стилизация значка кластера
+
+Значки кластеров можно настраивать с помощью Java API. Существует два метода стилизации:
+
+. Введение нового стиля, который перекрывает стиль по умолчанию.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=cluster;init;new-style]
+----
++
+image::cluster-new-style.png[align="center", width="100"]
+
+. Удаление стиля по умолчанию и добавление полностью нового стиля.
++
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterS;init;remove-add]
+----
++
+image::cluster-remove-add-style.png[align="center", width="100"]
+
+Чтобы изменить стиль текста, используйте метод `setPointTextStyle()`:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=clusterSource;init;text-style]
+----
+
+image::cluster-text-style.png[align="center", width="100"]
+
+[[feature-property]]
+=== Установка свойства для объекта
+
+Объекты (Features) имеют возможность определять свойства, которые будут связаны с этими объектами.
+
+Если кластер указывает свойство веса, он попытается получить его из свойств объектов.
+
+Рассмотрим следующий пример:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/cluster/cluster-view.xml[tags=point-feature]
+----
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/cluster/ClusterView.java[tags=source;init;addAllFeatures;generatePoints]
+----
+
+[[heatmap]]
+== Тепловая карта
+
+Тепловая карта (Heatmap) отображает точечные xref:maps:features-geometries.adoc[объекты] как растровую поверхность, выделяя области с более высокой концентрацией точек вдоль непрерывного цветового градиента.
+
+Теплые цвета (такие как красный или оранжевый) указывают на области с более высокими значениями, в то время как холодные цвета (синий или зеленый) указывают на более низкие значения.
+
+image::heatmap-main.png[align="center", width="623"]
+
+Тепловые карты настраиваются на слое `HeatmapLayer`. Этот слой отображает данные в виде тепловых точек. `HeatmapLayer` работает с `HeatmapDataVectorSource` и xref:maps:layers-sources.adoc#vector-source[VectorSource].
+
+* `HeatmapDataVectorSource` используется для привязки к xref:flow-ui:data/data-containers.adoc[контейнерам данных] (сущностям или DTO). Атрибут `property` должен ссылаться на свойство сущности, имеющее тип `Point`.
+
+* `VectorSource` следует использовать, когда нет необходимости в привязке к контейнерам данных.
+
+Например, чтобы добавить тепловую карту, связанную с контейнером данных, выполните следующие шаги:
+
+. Включите слой тепловой карты в компонент xref:maps:map-component.adoc[geoMap]: выберите элемент `geoMap` на панели структуры *Jmix UI* или в XML-дескрипторе экрана, затем нажмите кнопку *Add* на панели инспектора. В выпадающем списке выберите *Layers → HeatmapLayer*.
++
+image::add-heatmap-layer.png[align="center", width="351"]
+. Добавьте `HeatmapDataVectorSource` в этот слой. Настройте этот источник следующим образом:
++
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;default]
+----
+<1> Определите свойство из сущности `Location`, имеющее тип `Point`.
+
+Ниже мы опишем ключевые аспекты тепловых карт.
+
+[[heatmap-attributes]]
+=== Атрибуты тепловой карты
+
+Тепловая карта имеет следующие атрибуты:
+
+* Атрибут <<heatmap-weight-property,weightProperty>> указывает свойство сущности, из которого следует извлекать вес (интенсивность), или свойство из `Feature`.
++
+NOTE: Если свойство не указано, будет использовано максимальное доступное значение веса.
+
+* `maxWeight` - указывает максимальное значение интенсивности в диапазоне от `0.0` до `1.0.`
+* `blur` задает размер размытия точки в пикселях.
+* `radius` задает радиус точки в пикселях.
+* `gradient` - цветовой градиент точки, который должен состоять из CSS-цветов, разделенных запятыми.
+
+Дополнительно включены базовые свойства слоя: `className`, `maxZoom`, `minZoom`, `opacity`, `visible`, `zIndex`
+
+Взгляните на пример:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=different-attributes]
+----
+
+[[heatmap-weight-property]]
+=== Свойство веса
+
+Свойство веса (`weightProperty`) - это свойство, определяющее интенсивность или вес точки, отображаемой на тепловой карте. Оно должно быть указано либо в `Feature`, либо в сущности. Значения этого свойства должны находиться в диапазоне от `0.0` до `1.0` и иметь тип `Double`.
+
+Если значение `weightProperty` не задано явно, обычно используется значение по умолчанию `1` для представления максимального уровня интенсивности для точек тепловой карты.
+
+Ознакомьтесь с <<heatmap-without-data-binding,этим>> и <<heatmap-linked-to-data,этим>> примерами, использующими свойство `weightProperty`.
+
+[[heatmap-examples]]
+=== Примеры
+
+[[heatmap-without-data-binding]]
+==== Тепловая карта без привязки к данным
+
+`VectorSource` используется, когда нет необходимости в привязке к контейнерам данных.
+
+В примере ниже карта создается и первоначально настраивается с помощью XML.
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=without-data-binding]
+----
+<1> Установите свойство, которое будет связано с `Feature`.
+<2> Укажите `id` для векторного источника, что позволит инжектировать его в контроллер.
+
+После этого дополнительные свойства задаются программно в Java-контроллере:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=vectorSource;init;without-data-binding]
+----
+<1> Инжектируйте `vectorSource` в класс контроллера.
+<2> Передайте значение `weight` в метод, которое мы ранее указали для элемента `heatmap` в XML-дескрипторе.
+
+[[heatmap-linked-to-data]]
+==== Тепловая карта, связанная с данными
+
+Например, проект включает JPA-сущность:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/entity/Location.java[tags=Location;intensity]
+----
+<1> Атрибут `building` содержит координаты, размещающие здание на карте.
+<2> Атрибут `intensity` содержит числовое значение, которое предоставляет некоторую дополнительную информацию.
+
+В XML-дескрипторе мы настраиваем конфигурацию для тепловой карты:
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=data;layout;binding]
+----
+<1> Укажите в атрибуте `weightProperty` значение свойства сущности, содержащего значение интенсивности точки.
+
+[[heatmap-weightProvider]]
+==== Тепловая карта с WeightProvider
+
+`HeatmapDataVectorSource` имеет специальный метод для случаев, когда у сущности/DTO нет <<heatmap-weight-property,свойства веса>> или его необходимо вычислить каким-либо другим способом. В этих случаях не обязательно указывать `weightProperty`, так как вместо него будет использоваться провайдер.
+
+В примере ниже карта создается и первоначально настраивается с помощью XML.
+
+[source,xml,indent=0]
+----
+include::example$/maps-ex2/src/main/resources/com/company/mapssample/view/heatmap/heatmap-view.xml[tags=WeightProvider]
+----
+
+После этого мы настроим провайдер веса для `heatmapDataVectorSource` в Java-контроллере:
+
+[source,java,indent=0]
+----
+include::example$/maps-ex2/src/main/java/com/company/mapssample/view/heatmap/HeatmapView.java[tags=heatmapDataVectorSource;init;setWeightProvider]
+----
+<1> Обратите внимание: `heatmapDataVectorSource` параметризован.
+<2> Провайдер вызывается для каждого элемента и должен возвращать вычисленное значение веса.

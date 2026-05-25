@@ -1,0 +1,429 @@
+= Бизнес-логика
+
+При взаимодействии с REST API часто требуется наличие бизнес-логики на уровне приложения, которая представляла бы собой точку вызова для API. Ее можно использовать для оркестрации, валидации и других задач, выполняющихся когда клиент API взаимодействует с системой. xref:rest:entities-api.adoc[Entities API] не допускает использования дополнительной бизнес-логики оркестрации при взаимодействии с API. Вместо этого клиент взаимодействует напрямую с xref:data-access:index.adoc[уровнем доступа к данным] Jmix.
+
+В Jmix есть два способа предоставления бизнес-логики клиенту API:
+
+* <<services-api>>
+* <<custom-controller>>
+
+В следующем разделе мы рассмотрим оба варианта и разницу между этими подходами.
+
+[[services-api]]
+== Services API
+
+Данный API позволяет предоставлять произвольный бин Spring в качестве конечной точки HTTP. В этом случае Jmix позаботится о таких взаимодействиях HTTP, как предоставление кодов ответов HTTP, обработка ошибок и т. д.
+
+Ниже представлен общий вид взаимодействий между клиентом API и приложением Jmix при использовании Services API:
+
+image::business-logic-diagram.svg[align="center"]
+
+[[exposing-a-service]]
+=== Предоставление сервиса
+
+Чтобы использовать Spring-бин как часть Jmix Services API, он должен соответствовать одному из следующих условий:
+
+* *Подход на основе аннотаций*: Spring-бин должен быть создан с использованием специальных аннотаций.
+* *XML-подход*: Spring-бин должен быть зарегистрирован в файле конфигурации `rest-services.xml`.
+
+Давайте подробнее рассмотрим эти два метода.
+
+[[using-annotations]]
+==== С использованием аннотаций
+
+Создайте класс сервиса и добавьте ему аннотацию `@RestService`.
+
+[source,java]
+----
+import io.jmix.rest.annotation.RestMethod;
+import io.jmix.rest.annotation.RestService;
+
+import java.math.BigDecimal;
+
+@RestService("sample_OrderService") //<1>
+public class OrderService {
+
+    @RestMethod // <2>
+    public BigDecimal calculateTotalAmount(int orderId) {
+        // ...
+    }
+}
+----
+<1> Аннотация `@RestService` используется для обозначения класса сервиса, который должен быть доступен через REST API.
+<2> Аннотация `@RestMethod` используется для настройки сопоставления между методом сервиса и конкретной конечной точкой REST. Вы можете передать параметр `httpMethods`, который принимает список возможных HTTP-методов для вызова сервисов через Generic REST API. По умолчанию он включает `GET` и `POST`.
+
+[[using-rest-services]]
+==== С использованием rest-services.xml
+
+Рассмотрим первый критерий на следующем примере:
+
+[source,java]
+.CalculationServiceBean.java
+----
+import org.springframework.stereotype.Service;
+
+@Component("sample_OrderService") //<1>
+public class OrderService {
+
+    public BigDecimal calculateTotalAmount(int orderId) {
+        // ...
+    }
+}
+----
+<1> `OrderServiceBean` зарегистрирован как `@Component` с именем `sample_OrderService`.
+
+NOTE: Если имя сервиса не указано в аннотации явно, предполагается, что оно равно простому имени класса с первой буквой в нижнем регистре. В приведенном выше примере это было бы `orderService`.
+
+Для выполнения второго критерия нужно упомянуть все методы сервиса как конечные точки API. Это делается через файл конфигурации XML, обычно называемый `rest-services.xml`. Вам нужно создать такой файл в `src/main/resources` вашего приложения. В нем перечислены все методы сервиса с информацией о параметрах, которые вы хотите предоставить.
+
+[source,xml]
+.rest-services.xml
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns="http://jmix.io/schema/rest/services">
+    <service name="sample_OrderService"> // <1>
+        <method name="calculateTotalAmount"> // <2>
+            <param name="orderId"/> // <3>
+        </method>
+    </service>
+</services>
+----
+<1> Регистрация сервиса по имени его бина Spring.
+<2> Здесь должен быть упомянут каждый метод, который нужно предоставить.
+<3> Параметр должен быть описан своим именем и, что необязательно, своим типом.
+
+После создания файла и определения сервисов последним шагом является регистрация конфигурации `rest-services.xml` в `application.properties` вашго приложения Jmix:
+
+[source,properties]
+.application.properties
+----
+jmix.rest.services-config = rest-services.xml
+----
+
+NOTE: Значение `serviceConfig` является ссылкой на файл в пути к классу. В нашем случае файл находится непосредственно в корне пути к классу в разделе `src/main/resources`. Если поместить файл в, например, пакет `src/resources/com/example/rest-services.xml`, то значение будет таким: `com/example/rest-services.xml`.
+
+[[using-the-services-api]]
+=== Использование Services API
+
+Как только вы предоставили сервис через Services API, вы сможете вызывать ее из клиента API с помощью HTTP GET или HTTP POST.
+
+[[invoke-a-service-via-get]]
+==== Вызов сервиса через GET
+
+В случае использования HTTP GET необходимо предоставить значения параметров метода в качестве параметров запроса URL:
+
+[source, http request]
+.Calculate Total Order Amount via HTTP GET
+----
+GET http://localhost:8080/rest
+            /services
+            /sample_OrderService
+            /calculateTotalAmount?orderId=123
+Authorization: Bearer {{access_token}}
+----
+
+[source, json]
+.Response: 200 - OK
+----
+450.0
+----
+
+NOTE: При использовании GET для вызова службы через Services API токен доступа OAuth по-прежнему должен быть предоставлен заголовком авторизации HTTP. Невозможно добавить токен доступа в качестве параметра запроса URL.
+
+Метод сервиса может вернуть результат простого типа данных, сущность, коллекцию сущностей или сериализуемый POJO. В нашем случае метод сервиса возвращает `int`, поэтому тело ответа содержит только число.
+
+[[invoke-a-service-via-post]]
+==== Вызов сервиса через POST
+
+В качестве альтернативы сервис можно также вызвать через HTTP POST. Это особенно полезно, когда метод сервиса имеет один из следующих типов параметров:
+
+* Сущности
+* Коллекции сущностей
+* Сериализуемые POJO
+
+Предположим, мы добавили новый метод в OrderService, созданный в предыдущей части:
+
+[source,java]
+.OrderServiceBean.java
+----
+@Component("sales_OrderService")
+public class OrderService {
+
+    public OrderValidationResult validateOrder(Order order, Date validationDate){
+        OrderValidationResult result = new OrderValidationResult();
+        result.setSuccess(false);
+        result.setErrorMessage("Validation of order " + order.getNumber() + " failed. validationDate parameter is: " + validationDate);
+        return result;
+    }
+}
+----
+
+Метод обладает следующей структурой для POJO `OrderValidationResult` в качестве результирующего объекта:
+
+[source,java]
+.OrderValidationResult.java
+----
+import java.io.Serializable;
+
+public class OrderValidationResult implements Serializable {
+
+    private boolean success;
+
+    private String errorMessage;
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+}
+----
+
+Новый метод имеет сущность Order в списке аргументов и возвращает POJO. Перед вызовом REST API новый метод также должен быть зарегистрирован в файле `rest-services.xml`. После предоставления метода вы можете вызвать API:
+
+[source, http request]
+.Invoke Order Validation via HTTP POST
+----
+POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
+
+{
+  "order" : {
+    "number": "00050",
+    "date" : "2016-01-01"
+  },
+  "validationDate": "2016-10-01"
+}
+----
+
+Метод REST API возвращает сериализованный POJO `OrderValidationResult`:
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "success": false,
+  "errorMessage": "Validation of order 00050 failed. validationDate parameter is: 2016-10-01"
+}
+----
+
+[[service-parameters]]
+==== Формат параметров
+
+Значения параметров должны передаваться в формате, определенном для соответствующего xref:data-model:datatype.adoc[datatype].
+
+* Если тип параметра – `java.util.Date`, то значение обрабатывает `DateTimeDatatype`. Эта реализация datatype использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE_TIME[ISO_DATE_TIME^], в котором части даты и времени разделены `T`, например 2011-12-03T10:15:30.
+* Параметры типа `java.sql.Date` обрабатывает `DateDatatype`, который использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE[ISO_DATE^], например `2011-12-03`.
+* Параметры типа `java.sql.Time` обрабатывает `TimeDatatype`, который использует формат https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_TIME[ISO_TIME^], например `10:15:30`.
+
+[[using-dto-parameters]]
+==== Использование DTO в качестве параметров запроса
+
+При использовании структурированного объекта в качестве параметра метода тело JSON-запроса должно включать имя параметра в качестве ключа верхнего уровня.
+
+Например:
+
+[source,java]
+----
+public Owner registerOwner(OwnerRegistration registration) {
+    return dataManager.create(Owner.class);
+}
+----
+
+При следующем определении DTO:
+
+[source,java]
+----
+public record OwnerRegistration(String firstName, String lastName) {}
+----
+
+Запрос должен иметь следующую структуру:
+
+[source,json]
+----
+{
+  "registration": {
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+}
+----
+
+
+[[recommended-dto-usage]]
+[NOTE]
+====
+Вместо POJO рекомендуется использовать xref:data-model:entities.adoc#dto[DTO-сущности]. Это предоставляет такие преимущества, как правильная генерация схемы OpenAPI и поддержка Bean Validation для валидации параметров запроса.
+====
+
+[[custom-controller]]
+== Пользовательские контроллеры
+
+Второй способ представления бизнес-логики в виде API — использование настраиваемых контроллеров HTTP. Основное отличие состоит в том, что в этом случае также можно самостоятельно влиять на HTTP-взаимодействия (такие как коды состояния, безопасность и т.д.). Jmix использует механизмы Spring MVC по умолчанию для создания конечных точек HTTP.
+
+Варианты использования пользовательских контроллеров могут быть следующими:
+
+* Явное определение кодов состояния HTTP;
+* Использование другого типа содержимого запроса и ответа, чем JSON;
+* Установка пользовательских заголовков ответов (например, для кэширования);
+* Создание собственных сообщений об ошибках исключений.
+
+В таких ситуациях обычный Services API может оказаться недостаточно гибким. Поэтому Jmix позволяет интегрировать контроллеры Spring MVC в собственном коде в приложение Jmix.
+
+[[creating-custom-controllers]]
+=== Создание пользовательских контроллеров
+
+Для создания контроллера требуется только создать в приложении Jmix бин Spring, аннотированный как контроллер Spring MVC. Сам Jmix не предъявляет никаких дополнительных требований к Spring MVC. Рассмотрим пример:
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@RestController // <1>
+@RequestMapping("/orders")  // <2>
+public class OrderController {
+    // ...
+}
+----
+<1> Пользовательский контроллер помечен как `@RestController` чтобы указать Spring, что этот бин содержит операции HTTP.
+<2> Сопоставление запроса определяет базовый путь для этого контроллера.
+
+Теперь, когда контроллер Spring зарегистрирован, мы можем создать метод, предоставляющий с его помощью конкретную конечную точку HTTP:
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @GetMapping("/calculateTotalAmount") // <1>
+    public ResponseEntity<OrderTotalAmount> calculateTotalAmount(
+            @RequestParam int orderId  // <2>
+    ) {
+
+        BigDecimal totalAmount = orderService.calculateTotalAmount(orderId);
+
+        return ResponseEntity // <3>
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000")
+                .body(new OrderTotalAmount(totalAmount, orderId));
+
+    }
+}
+----
+<1> Метод `calculateTotalAmount` аннотирован `@GetMapping`, указывающей, что он доступен через HTTP GET в подпути `/calculateTotalAmount`.
+<2> Параметр `orderId` извлекается через параметры запроса URL.
+<3> Класс Spring `ResponseEntity` можно использовать для указания ответа JSON вместе с различными аспектами HTTP.
+
+Более подробную информацию о различных аспектах создания контроллеров Spring MVC можно найти в руководстве Spring: https://spring.io/guides/gs/rest-service/[Building a RESTful Web Service], а также в https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc[справочной документации] по Spring MVC.
+
+Имея этот контроллер, Jmix может обслуживать данную конечную точку HTTP. Пример взаимодействия с контроллером:
+
+[source, http request]
+.Invoke Custom Orders Controller
+----
+GET http://localhost:8080/orders/calculateTotalAmount?orderId=123
+----
+
+Ответ содержит результат вычисления, представленный в виде JSON, а также определенные заголовки HTTP:
+
+[source, http request]
+.Response: 200 - OK
+----
+HTTP/1.1 200
+Cache-Control: max-age=31536000
+Content-Type: application/json
+
+{
+  "orderId": 123,
+  "totalAmount": 450.0
+}
+----
+
+[[securing-custom-controllers]]
+=== Защита пользовательских контроллеров
+
+Чтобы защитить пользовательский контроллер с помощью того же механизма OAuth2, который используют другие части Jmix REST API, зарегистрируйте шаблон URL-адреса контроллера в свойстве приложения xref:authorization-server:protecting-resources.adoc#protecting-rest-api-endpoints[jmix.resource-server.authenticated-url-patterns]:
+
+[source,properties]
+.application.properties
+----
+jmix.resource-server.authenticated-url-patterns = /rest/**,/orders/**
+----
+
+Здесь `/orders/**` указывает Jmix, что все операции, начинающиеся с `/orders/` также должны использовать механизм OAuth2.
+
+NOTE: Значение может содержать список https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/util/AntPathMatcher.html[шаблонов URL-адресов в стиле Apache Ant], разделенных запятыми.
+
+Теперь попытка вызвать Order Controller без действительного токена OAuth2 приводит к результату `HTTP 401 - Unauthorized`:
+
+[source, http request]
+.Response: 401 - Unauthorized
+----
+HTTP/1.1 401
+WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_description="Full authentication is required to access this resource"
+
+{
+"error": "unauthorized",
+"error_description": "Full authentication is required to access this resource"
+}
+----
+
+Аутентифицированные операции опираются на управление доступом к данным, обеспечиваемое подсистемой xref:security:index.adoc[безопасности] Jmix. Если ваш контроллер использует xref:data-access:data-manager.adoc[DataManager] для загрузки или сохранения данных, он будет проверять права аутентифицированного пользователя на xref:security:resource-roles.adoc#entity-policy[операции с сущностями]. В следующем примере будет выдано исключение "Отказано в доступе", если у пользователя нет прав на чтение сущности `Order`:
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @GetMapping("/all")
+    public List<Order> loadAll() {
+        return dataManager.load(Order.class).all().list();
+    }
+----
+
+Если вы также хотите ограничить доступ к атрибутам сущностей, используйте бин `EntitySerialization` для сериализации сущностей, возвращаемых из операции. В следующем примере только атрибуты, разрешенные xref:security:resource-roles.adoc#entity-attribute-policy[политикой атрибутов сущности], будут возвращены в формате JSON клиенту:
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+    @Autowired
+    private EntitySerialization entitySerialization;
+
+    @GetMapping("/all")
+    public String loadAll() {
+        List<Order> orders = dataManager.load(Order.class).all().list();
+        return entitySerialization.toJson(
+                orders,
+                null,
+                EntitySerializationOption.DO_NOT_SERIALIZE_DENIED_PROPERTY
+        );
+    }
+----

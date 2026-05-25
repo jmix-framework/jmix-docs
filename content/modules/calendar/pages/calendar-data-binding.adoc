@@ -1,0 +1,147 @@
+= 1. Привязка календаря к данным
+
+В этом разделе вы создадите:
+
+* Сущность JPA `Meeting`.
+* Компонент `FullCalendar` с поставщиком данных.
+
+[[meeting-event]]
+== Событие встречи
+
+Сущность `Meeting` будет представлять событие в компоненте `FullCalendar`. Для корректного отображения требуются определенные свойства:
+
+* `name` - название события.
+* `startDate` - дата и время начала события. Компонент не будет отображать события без `startDate`.
+* `endDate` - дата окончания события. Если `endDate` не указано, компонент применит продолжительность по умолчанию на основе свойства `allDay`. В этом руководстве свойство `allDay` не используется; следовательно, события рассматриваются как события, не охватывающие весь день.
+
+[[create-meeting-entity]]
+=== Создание сущности Meeting
+
+Подробные инструкции по созданию сущностей JPA смотрите в разделе  xref:tutorial:simple-crud.adoc[Простой CRUD] самоучителя.
+
+Сущность `Meeting` имеет следующие атрибуты:
+
+* `name` типа `String` type. Установите флажок *Mandatory*.
+* `startDate` типа `LocalDateTime`. Установите флажок *Mandatory*.
+* `endDate` типа `LocalDateTime`.
+* `user` - тип атрибута `Association`, сущность `User` в качестве типа Java и кардинальность many-to-one (многие-к-одному). Установите флажок *Mandatory*.
+
+Сущность `Meeting` не требует стандартных экранов списка и деталей, поскольку она будет генерироваться программно и отображаться в компоненте `FullCalendar`.
+
+[[generate-meeting]]
+=== Генерация Meeting
+
+После того как пользователь завершит все этапы онбординга, приложение сгенерирует событие встречи для обсуждения выполненных задач. Это событие будет отображаться в экране *Мой календарь* пользователя.
+
+Наилучший момент для проверки того, завершил ли пользователь все этапы, - это событие xref:flow-ui:data/data-context.adoc#pre-save-event[PreSaveEvent] контекста данных (xref:flow-ui:data/data-context.adoc[DataContext]). Слушатель этого события проверяет наличие незавершенных этапов адаптации. Если незавершенных этапов нет, создается новое событие встречи.
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-pre-save-event]
+----
+
+Далее мы реализуем метод `generateOnboardingResultsMeeting()`. Этот метод создает экземпляр события `Meeting`, запланированного на следующий рабочий день.
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-generate-meeting]
+----
+<1> Создает и добавляет новый экземпляр `Meeting` в `DataContext`, автоматически сохраняя сущность.
+<2> Вычисляет следующий рабочий день; если сегодня пятница, встреча планируется на понедельник.
+<3> Устанавливает дату и время начала встречи на 9:30 утра следующего рабочего дня.
+
+[[add-components]]
+== Добавление компонентов в MyCalendar
+
+Сначала создайте новый пустой экран с именем *MyCalendar*.
+
+image::creating-my-calendar-view.png[align="center",width="776"]
+
+Studio сгенерирует и отобразит пустой экран в дизайнере.
+
+[[load-data]]
+=== Загрузка данных
+
+Перед добавлением компонента `FullCalendar` создайте xref:flow-ui:data/collection-container.adoc[контейнер коллекций] для сущности `Meeting`.
+
+В панели действий нажмите кнопку *Add Component*, перейдите в раздел *Data components* и дважды щелкните *Collection container*. В появившемся диалоговом окне выберите `Meeting` в поле *Entity* и нажмите *OK*.
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar2]
+----
+
+Текущая конфигурация загрузчика данных извлекает все события от всех пользователей. Однако пользователи должны видеть только свои собственные события. Для реализации этой фильтрации необходимо изменить запрос JPQL - либо с помощью редактора, либо вручную - добавив условие, которое ограничивает результаты текущим пользователем, который вошел в систему:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/mycalendar/my-calendar.xml[tags=onboarding-add-fullcalendar3]
+----
+
+Мы получаем данные о текущем авторизованном пользователе из бина `CurrentAuthentication` и передаем эту информацию загрузчику данных в обработчике события xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent]:
+
+* Подпишитесь на событие `BeforeShowEvent`.
+* Инжектируйте загрузчик `meetingsDl`.
+* Инжектируйте бин `CurrentAuthentication`.
+
+Теперь мы можем установить параметр для загрузчика, чтобы он извлекал события для текущего пользователя:
+
+[source, java, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/java/com/company/onboarding/view/mycalendar/MyCalendar.java[tags=onboarding-add-fullcalendar4]
+----
+
+[[add-fullcalendar]]
+=== Добавление компонента FullCalendar
+
+В панели действий нажмите *Add Component*, найдите элемент `FullCalendar` и дважды щелкните по нему.
+
+После этого будет создан новый элемент `calendar`. Настройте атрибуты `id`, `height` и `width`, как показано ниже.
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar1]
+----
+
+[[add-data-provider]]
+=== Добавление поставщика данных
+
+Поставщик данных является источником событий, отображаемых в `FullCalendar`. Существуют различные типы поставщиков данных, но мы будем использовать поставщик данных на основе xref:flow-ui:data/data-containers.adoc[контейнера данных].
+
+Чтобы добавить *ContainerDataProvider* в компонент `FullCalendar`:
+
+. Выберите компонент `calendar` в панели структуры *Jmix UI* или в XML-дескрипторе экрана.
+. Нажмите кнопку  *Add* на панели инспектора.
+. В выпадающем меню выберите *Data Providers* → *ContainerDataProvider*.
+
+image::add-container-data-provider.png[align="center",width="416"]
+
+В появившемся диалоговом окне выберите `meetingsDc`.
+
+Элемент `containerDataProvider` позволяет настроить сопоставление свойств сущности. Сущность `Meeting` содержит следующие свойства:
+
+* `name`
+* `startDate`
+* `endDate`
+
+Поэтому следует указать следующие атрибуты:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampletwo/sample-two.xml[tags=onboarding-add-fullcalendar3]
+----
+
+Давайте посмотрим: полное описание нашего календаря выглядит следующим образом:
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/samplethree/sample-three.xml[tags=onboarding-add-fullcalendar4]
+----
+
+Запустите приложение и войдите в систему как пользователь `admin`. У пользователя `admin` нет шагов онбординга, поэтому необходимо их сгенерировать:
+
+* Перейдите в экран `User.list`, выбрав *Users* в меню приложения.
+* Выберите пользователя `admin` в *DataGrid* и нажмите кнопку *Edit*. Затем заполните поле *Joining Date*, сгенерируйте шаги онбординга и сохраните изменения.
+* Перейдите в экран `MyCalendar`, выбрав *My Calendar* в меню приложения.
+
+image::getting-started-data-binding-result.png[align="center",width="1358"]

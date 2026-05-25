@@ -1,0 +1,48 @@
+= Начало работы с LDAP
+
+Давайте рассмотрим сценарий, когда мы будем использовать LDAP-аутентификацию и управлять пользователями в приложении.
+
+Сначала добавьте дополнение LDAP в ваш проект в соответствии с разделом xref:ldap:index.adoc#installation[установки].
+
+[[configuring-main-properties]]
+== Настройка основных свойств
+
+Теперь добавьте основные свойства LDAP. Мы будем использовать тестовый LDAP-сервер - `\ldap://ldap.forumsys.com:389/`, на котором есть несколько https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/[тестовых пользователей^].
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=properties]
+----
+
+xref:ldap:properties.adoc#jmix.ldap.default-roles[jmix.ldap.default-roles] содержит список ролей, которые будут назначены каждому пользователю, аутентифицированному через LDAP. Это необходимо, поскольку пользователь без каких-либо ролей не сможет войти в приложение.
+
+Установите свойство `jmix.ldap.default-roles` в значение `ui-minimal`.
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=default-roles]
+----
+
+Подробнее о значении каждого свойства вы можете узнать в разделе xref:ldap:properties.adoc[Свойства LDAP].
+
+[[configuring-synchronization]]
+== Настройка синхронизации
+
+Теперь нам нужно описать способ синхронизации пользователей.
+
+Мы реализуем сценарий по умолчанию, когда дополнение аутентифицирует пользователей из приложения через LDAP. Если пользователь успешно аутентифицирован в LDAP, но у него нет `UserDetails` в приложении, он будет автоматически синхронизирован, и `UserDetails` будет создан в соответствии с соответствующей записью LDAP.
+
+Объявим бин, реализующий интерфейс `LdapUserDetailsSynchronizationStrategy`. Дополнение поставляется с базовой абстрактной реализацией: `AbstractLdapUserDetailsSynchronizationStrategy`, поэтому в простом случае стратегию можно объявить, просто указав конкретный класс `User` и реализовав простое отображение:
+
+[source,java,indent=0]
+----
+include::example$/ex1/src/main/java/ldap/ex1/app/CustomUserSynchronizationStrategy.java[tags=strategy]
+----
+
+Обратите внимание, что `AbstractLdapUserDetailsSynchronizationStrategy` также сохраняет назначения ролей, полученные в процессе сопоставления ролей. После каждого выполнения синхронизации назначения ролей перезаписываются новыми. Это делается для того, чтобы не сохранять устаревшие назначения ролей.
+
+Итак, установим свойство xref:ldap:properties.adoc#jmix.ldap.synchronize-role-assignments[jmix.ldap.synchronize-role-assignments] в `false`, чтобы управлять ролями пользователей вручную в приложении.
+
+После объявления стратегии синхронизации пользователи будут синхронизироваться при каждом входе в систему. Если вы хотите отключить синхронизацию пользователей при входе, установите свойство xref:ldap:properties.adoc#jmix.ldap.synchronize-user-on-login[jmix.ldap.synchronize-user-on-login] в `false`.
+
+Если вы хотите полностью управлять пользователями в LDAP и не поддерживать их в приложении, смотрите раздел xref:ldap:in-memory-user-management.adoc[Управление пользователями в памяти].

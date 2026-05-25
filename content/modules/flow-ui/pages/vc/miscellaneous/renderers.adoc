@@ -1,0 +1,179 @@
+= Рендереры
+
+В этом разделе описывается, как настроить отображение элементов UI, таких как xref:flow-ui:vc/components/comboBox.adoc[comboBox], xref:flow-ui:vc/components/dataGrid.adoc[dataGrid], xref:flow-ui:vc/components/checkboxGroup.adoc[checkboxGroup], xref:flow-ui:vc/components/select.adoc[select] и других, с помощью пользовательских рендереров в Jmix. Пользовательские рендереры позволяют разработчикам управлять визуальным представлением данных внутри этих компонентов, адаптируя интерфейс под специфические требования приложения. Это особенно полезно для:
+
+* *Улучшенного визуального представления*: Они позволяют включать визуальные элементы помимо простого текста, такие как иконки, изображения, индикаторы выполнения и другие, чтобы сделать данные более понятными и привлекательными. Это может улучшить общий пользовательский опыт и ясность интерфейса.
++
+image::visual-components/components/radio-button-group-renderer.png[align="center",width="189"]
+
+* *Условное отображение*: Рендереры могут реализовывать логику, изменяющую визуальное представление в зависимости от значения данных или другой контекстной информации. Например, рендерер может отображать зеленую галочку для успешных записей и красный крестик для неудачных.
++
+image::visual-components/renderer-2.png[align="center",width="184"]
+* *Сложные макеты*: В случаях, требующих более сложных визуальных макетов, чем предлагает стандартное отображение, пользовательские рендереры обеспечивают гибкость в организации и отображении данных нестандартными способами. Это может включать в себя комбинирование нескольких элементов UI в одной ячейке компонента или создание полностью пользовательских макетов.
++
+image::visual-components/renderer-3.png[align="center",width="711"]
+
+По сути, рендереры в Jmix предоставляют разработчикам возможность выйти за рамки базовых возможностей отображения стандартных компонентов UI, создавая более адаптированный и удобный интерфейс, эффективно передающий данные конечному пользователю.
+
+TIP: Если вам нужно просто отформатировать данные (например, изменить способ отображения даты или числа), используйте xref:flow-ui:vc/miscellaneous/formatter.adoc[форматтер].
+
+[[predefined-renderer]]
+== Предопределенные XML-рендереры
+
+Jmix предоставляет предопределённые XML-рендереры для колонок xref:flow-ui:vc/components/dataGrid.adoc[DataGrid] и xref:flow-ui:vc/components/treeDataGrid.adoc[TreeDataGrid], упрощающие общее форматирование и отображение табличных данных:
+
+* xref:vc/components/dataGrid.adoc#number-renderer[numberRenderer]
+* xref:vc/components/dataGrid.adoc#local-date-renderer[localDateRenderer]
+* xref:vc/components/dataGrid.adoc#local-date-time-renderer[localDateTimeRenderer]
+
+Они принимают строку `format`. Например:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
+----
+
+[TIP]
+====
+Чтобы добавить рендерер в Jmix Studio, выберите элемент `column` в XML-дескрипторе экрана или на панели структуры *Jmix UI* и нажмите кнопку xref:studio:screen-designer.adoc#component-inspector[Add-><Some>Renderer] на панели инспектора *Jmix UI*.
+====
+
+[[component-renderer]]
+== Компонентный рендерер
+
+Компонентные рендереры предоставляют механизм отображения данных внутри компонентов пользовательского интерфейса с использованием других UI-компонентов.
+
+Компонентный рендерер принимает данные на вход и генерирует UI-компонент (например, xref:vc/components/checkbox.adoc[checkBox] или xref:vc/html-components/image.adoc[image]) для представления этих данных. Затем этот сгенерированный компонент используется родительским компонентом UI (например, колонкой `dataGrid`) для отображения данных. Этот подход особенно полезен, когда необходимо визуально представить данные с помощью чего-то большего, чем простое форматирование текста.
+
+CAUTION: Несмотря на простоту реализации, компонентные рендереры могут негативно влиять на производительность, особенно при работе с большими наборами данных, поскольку они создают отдельный компонент UI для каждого элемента данных.
+
+Для создания рендерера используйте метод `setRenderer()` или аннотацию `@Supply`.
+
+TIP: Для генерации метода-обработчика `renderer` в *Jmix Studio*, выберите компонент или колонку таблицы, перейдите на вкладку *Handlers* панели инспектора *Jmix UI* и дважды щелкните соответствующую строку. Также можно использовать действие *Generate Handler*, доступное на верхней панели класса экрана, и через меню *Code → Generate* (*Alt+Insert* / *Cmd+N*).
+
+В качестве примера рассмотрим добавление рендерера для отображения булевого значения с помощью `checkBox` в `dataGrid`.
+
+Выберите колонку `active`, переключитесь на вкладку *Handlers* в инспекторе *Jmix UI* и дважды щелкните по методу-обработчику `renderer`:
+
+image::visual-components/renderer-1.png[align="center",width="862"]
+
+Реализуйте метод `dataGridCheckboxActiveRenderer`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=renderer]
+----
+<1> Экземпляр компонента `JmixCheckbox` создается с помощью фабрики `UiComponents`.
+<2> Устанавливает `checkbox` в режим "только для чтения", предотвращая изменение его состояния пользователями напрямую.
+<3> Рендерер возвращает вновь созданный `checkbox` для отображения в ячейках колонки.
+<4> Лямбда-выражение, настраивающее значение `checkbox`. Это consumer, который принимает два параметра: компонент `checkbox` и экземпляр `User`. Он устанавливает значение флажка на основе атрибута `active` сущности `User`.
+
+image::visual-components/renderer-4.png[align="center",width="662"]
+
+Примеры пользовательских рендереров для различных UI-компонентов приведены в соответствующих разделах документации Jmix:
+
+** xref:flow-ui:vc/components/checkboxGroup.adoc#custom-item-presentation[checkboxGroup]
+** xref:flow-ui:vc/components/comboBox.adoc#rendering-items[comboBox]
+** xref:flow-ui:vc/components/dataGrid.adoc#component-renderer[dataGrid]
+** xref:flow-ui:vc/components/entityComboBox.adoc#renderer[entityComboBox]
+** xref:flow-ui:vc/components/listBox.adoc#renderer[listBox]
+** xref:flow-ui:vc/components/multiSelectComboBox.adoc#renderer[multiSelectComboBox]
+** xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc#basic-features[multiSelectComboBoxPicker]
+** xref:flow-ui:vc/components/multiSelectListBox.adoc[multiSelectListBox]
+** xref:flow-ui:vc/components/radioButtonGroup.adoc#rendering-items[radioButtonGroup]
+** xref:flow-ui:vc/components/select.adoc#rendering-items[select]
+** xref:flow-ui:vc/components/treeDataGrid.adoc#renderer[treeDataGrid]
+** xref:flow-ui:vc/components/virtualList.adoc#Renderer[virtualList]
+
+[[lit-renderer]]
+== LitRenderer
+
+`LitRenderer` выполняет рендеринг контента с использованием HTML и синтаксиса привязки данных Lit; он более легковесный, чем компонентные рендереры.
+
+`LitRenderer` позволяет определять HTML-шаблон и связывать свойства сущности с переменными шаблона.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=lit-renderer]
+----
+
+image::visual-components/renderer-5.png[align="center",width="592"]
+
+CAUTION: `LitRenderer` выполняет рендеринг эффективно и идеально подходит для высокопроизводительных приложений, требующих частых обновлений. Его легковесность делает его подходящим для приложений со множеством компонентов или динамическим контентом.
+
+`LitRenderer` можно использовать в следующих компонентах пользовательского интерфейса:
+
+* xref:flow-ui:vc/components/dataGrid.adoc#column[dataGrid.column]
+* xref:flow-ui:vc/components/comboBox.adoc#rendering-items[comboBox]
+* xref:flow-ui:vc/components/entityComboBox.adoc#renderer[entityComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBox.adoc#renderer[multiSelectComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc#basic-features[multiSelectComboBoxPicker]
+* xref:flow-ui:vc/components/treeDataGrid.adoc#renderer[treeDataGrid.column]
+* xref:flow-ui:vc/components/virtualList.adoc#Renderer[virtualList]
+
+[[fragment-renderer]]
+== Рендерер фрагментов
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.ru/ui-samples/sample/fragment-renderer" class="live-demo-btn" target="_blank">ДЕМО</a>
+</div>
+++++
+
+Рендереры для xref:vc/components/virtualList.adoc[virtualList], xref:vc/components/dataGrid.adoc[dataGrid] и других компонентов могут быть определены с помощью xref:flow-ui:fragments/fragments.adoc[фрагментов]. Специальный XML-элемент `fragmentRenderer` используется для декларативного описания рендерера.
+
+Как и обычные фрагменты, `fragmentRenderer` определяется с помощью дескриптора и контроллера Java.
+
+. *Создайте XML-дескриптор FragmentRenderer*
++
+Дескриптор может содержать необязательный xref:flow-ui:data/instance-container.adoc[instanceContainer] для сущности, которая будет использоваться рендерером.
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/virtuallist/user-fragment.xml[tag=fragment]
+----
++
+NOTE: Если `instanceContainer` не определен, вы можете использовать метод `FragmentRenderer.getItem()` для обработки рендеринга.
+
+. *Создайте FragmentRenderer Java-контроллер*
++
+Класс рендерера фрагмента должен расширять базовый класс `FragmentRenderer` с параметрами типа, указывающими корневой компонент и отображаемую сущность, например:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/virtuallist/UserFragment.java[tags=fragment]
+----
+<1> Аннотация `@FragmentDescriptor` задает строковое значение - путь к XML-файлу, используемому для инициализации фрагмента.
+<2> Аннотация `@RendererItemContainer` используется для указания контейнера данных, принимающего отображаемую сущность.
+
+. *Используйте FragmentRenderer в экране*
++
+Выберите компонент, в котором вы хотите отобразить элементы, и добавьте элемент  `fragmentRenderer`. Этот элемент требует атрибут `class`, указывающий полное имя класса (FQN), расширяющего абстрактный класс `io.jmix.flowui.fragmentrenderer.FragmentRenderer`.
++
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/virtuallist/virtual-list-view.xml[tag=fragmentRenderer]
+----
++
+[TIP]
+====
+Чтобы добавить `fragmentRenderer` в Jmix Studio, выберите UI-компонент в XML-дескрипторе экрана или на панели структуры *Jmix UI* и нажмите кнопку xref:studio:screen-designer.adoc#component-inspector[Add->FragmentRenderer] на панели инспектора *Jmix UI*.
+====
++
+Элемент `fragmentRenderer` также поддерживает xref:fragments/using-fragments.adoc#passing-parameters-to-fragments[загрузку свойств], так же как и элемент `fragment`.
+
+image::visual-components/renderer-6.png[align="center",width="877"]
+
+Вы можете использовать `fragmentRenderer` в следующих UI-компонентах:
+
+* xref:flow-ui:vc/components/checkboxGroup.adoc[checkboxGroup]
+* xref:flow-ui:vc/components/dataGrid.adoc#column[dataGrid.Column]
+* xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox]
+* xref:flow-ui:vc/components/listBox.adoc[listBox]
+* xref:flow-ui:vc/components/multiSelectComboBox.adoc[multiSelectComboBox]
+* xref:flow-ui:vc/components/multiSelectComboBoxPicker.adoc[multiSelectComboBoxPicker]
+* xref:flow-ui:vc/components/multiSelectListBox.adoc[multiSelectListBox]
+* xref:flow-ui:vc/components/radioButtonGroup.adoc[radioButtonGroup]
+* xref:flow-ui:vc/components/select.adoc[select]
+* xref:flow-ui:vc/components/treeDataGrid.adoc#column[treeDataGrid.Column]
+* xref:flow-ui:vc/components/virtualList.adoc[virtualList]
