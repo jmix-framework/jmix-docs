@@ -1,0 +1,214 @@
+= 使用 DMN 1.3
+
+BPMN 和 DMN（Decision Model and Notation - 决策模型和表示法）是为协同工作设计的。在对复杂决策进行建模时，BPMN 图可能会变得过于复杂。此时，最好用 DMN 对决策过程建模，然后再把控制权交还给 BPMN。
+
+流程中可以通过添加一个 xref:bpmn/bpmn-business-rule-task.adoc[] 元素调用一个 DMN 表。输入值根据表中指定的业务规则定义。输出值也是按照特定的格式。
+
+image::dmn/bpmn-dmn-together.png[,900]
+
+NOTE: DMN 与 BPMN 类似，也是一种图形表示法，有自己的图表。但是，在实践中，软件供应商不会实现完整的表示法，一般只实现表示业务规则的 DMN 表。因此，*Jmix BPM* 仅支持 DMN 表。
+
+[[dmn-engine]]
+== DMN 引擎
+
+Jmix BPM 使用 Flowable DMN 引擎。支持多种决策模型，并提供灵活的输出处理能力。引擎可以通过 xref:jmix-bpm-api.adoc#flowable-dmn-api[DMN API] 以编程方式访问。此外，还可以通过 xref:jmix-bpm-rest-api.adoc[DMN REST API] 为外部系统提供访问。
+
+[[dmn-defitition]]
+== DMN 定义
+
+DMN 1.1 架构的根元素是 `<definitions>` 元素。在此元素中，可以定义多个 `<decision>` 元素。
+
+TIP: 为了便于阅读和维护，建议每个文件中只包含一个 `<decision>` 元素。
+
+`<decision>` 元素只能有一个 `<decisionTable>` 子元素。
+[source,xml]
+----
+<definitions xmlns="http://www.omg.org/spec/DMN/20151101"
+  namespace="http://www.flowable.org/dmn"
+  name="DetermineDiscount">
+
+  <decision id="DET_DISC_1" name="DetermineDiscount">
+
+    <decisionTable id="determineDiscountTable1" hitPolicy="FIRST">
+      ..
+    </decisionTable>
+
+  </decision>
+
+</definitions>
+----
+
+[[dmn-tools]]
+== DMN 工具
+
+*Jmix BPM* 扩展组件提供了用于创建和部署决策表的工具，决策表可以在 web 应用中使用：
+
+* xref:bpm:menu-views/decision-tables.adoc[] 视图
+* xref:bpm:menu-views/decision-table-modeler.adoc[] 视图
+
+[[modeling-decision-tables]]
+=== 决策表建模
+
+从应用程序主菜单打开 *Decision table modeler* 界面。
+
+image::dmn/modeler-window.png[,1000]
+
+按以下步骤配置表格：
+
+* 输入表的 `id` 和 `name`
+* 定义 _输入（inputs）_ 和 _输出（outputs）_
+* 对于输出，设置 _预定义值（pre-defined values）_（如果需要）
+* 创建 _业务规则（business rules）_
+* 设置 _命中策略（hit policy）_（如果有多个规则）
+
+完成配置后，表格可以进行部署或保存草稿。
+
+[[defining-inputs-outputs]]
+==== 定义输入和输出
+
+流程变量作为 _inputs_ 和 _outputs_ 使用。需要注意，这些值的名称需要与变量的名称一致。支持以下输入和输出值类型：
+
+* String
+* Number
+* Boolean
+* Date
+
+一个新的决策表具有一个输入和一个输出。可以设置其名称、流程变量名称和类型。点击其名称打开配置：
+
+image::dmn/input-label.png[,600]
+
+例如，配置一个输入：
+
+image::dmn/input-definition.png[,600]
+
+输出的配置方式类似。此外，输出可能有额外的属性 -- _预定义输出值（Predefined output values）_。在某些 <<hit-policy,命中策略>> 中会用到。
+
+image::dmn/output-with-predefined.png[,600]
+
+通常，决策表可以有多个输入和输出。如需创建其他输入或输出，点击表头的加号按钮：
+
+image::dmn/add-input.png[,900]
+
+[[creating-business-rules]]
+
+==== 创建业务规则
+
+*业务规则（business rule）* 是基于输入参数的一个或多个逻辑条件，条件通过 `AND` 连接。
+
+image::dmn/business-rule-full.png[,900]
+
+例如，color == "red" AND size > 10。
+
+NOTE: 某些条件也可以为空。此时，字段需填入短横（`-`）。
+
+[[hit-policy]]
+=== 命中策略
+
+*命中策略（Hit policy）* 描述了决策表中多条规则的使用方法。如果规则有重叠，即给定的一组输入值能匹配多条规则，则由命中策略决定结果。不同的命中策略会导致不同的结果，并造成对决策表后续的不同走向。
+
+选择策略时，点击表格左上角的符号。该符号对应所选策略的首字母：Unique、Any、Priority、First、Collect、Output Order, Rule Order（具体解释见后文）。
+
+image::dmn/set-hit-policy.png[,600]
+
+可以从下拉列表中选择所需策略。默认值为 `Unique`。
+
+image::dmn/hit-policy-list.png[,550]
+
+命中策略可分为两大类：单一结果策略和多结果策略。
+
+==== 单一结果策略
+
+*FIRST（单一命中）*:: 根据规则的顺序从上到下返回第一个结果，之后可以停止规则计算。最后一条规则通常是处理器。
+
+*UNIQUE（唯一命中）*:: 规则不能重叠，只能匹配一个规则。这是默认的策略选项。
+
+*ANY（任意命中）*:: 规则可能存在重叠，如果发生重叠，要求所有匹配的规则都返回同样的结果。如果匹配的多条规则导致了不同的结果，则应该是有错误，输出结果为空并标记为失败。
+
+*PRIORITY（优先命中）*:: 规则可能存在重叠并返回不同的结果，但这里仅使用优先级最高的那条规则。优先级会在列表中指定，最重要的结果优先。注意，优先级不应与规则的顺序相关。
+
+==== 多结果策略
+
+对于多重选择策略，DMN 引擎以 JSON 格式返回结果，因此不能被隐式转换为字符串类型。
+
+*OUTPUT ORDER（输出顺序命中）*:: 按优先级降序返回所有命中的规则结果。结果将返回至与决策表同名的流程变量中。
+
+*RULE ORDER（规则顺序命中）*:: 按所有命中规则的决策表顺序返回结果。
+
+*COLLECT（集合命中）*:: 返回所有命中结果，顺序不定。可以添加一个运算符（`+`、`<`、`>`、`#`），用于对输出进行简单运算，然后输出单一结果。
+
+* *`+`（总和）*：决策表的结果为所有输出的和。
+
+* *`<`（最小值）*：决策表的结果为所有输出的最小值。
+
+* *`>`（最大值）*：决策表的结果为所有输出的最大值。
+
+* *`#`（计数）*：决策表的结果为所有输出的计数。
+
+[[example]]
+== 示例
+
+以下是用 Jmix BPM 创建的决策表示例：
+
+image::dmn/discount-example.png[]
+
+XML 表示：
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+
+<definitions xmlns="http://www.omg.org/spec/DMN/20151101" namespace="http://www.flowable.org/dmn" name="Evaluate discount">
+  <decision id="evaluate-discount" name="Evaluate discount">
+    <decisionTable hitPolicy="UNIQUE">
+      <input label="Level">
+        <inputExpression id="input_U9lbk" typeRef="string">
+          <text><![CDATA[level]]></text>
+        </inputExpression>
+      </input>
+      <input label="Amount">
+        <inputExpression id="input_dNTA2" typeRef="number">
+          <text><![CDATA[amount]]></text>
+        </inputExpression>
+      </input>
+      <output id="output_BV1J5" label="Discount" name="discount" typeRef="number">
+        <outputValues>
+          <text>"10.0","20.0","25.0"</text>
+        </outputValues>
+      </output>
+      <rule>
+        <inputEntry id="inputEntry_fBLZR">
+          <text><![CDATA[=="SILVER"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_JtjHs">
+          <text><![CDATA[<1000]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_k78f9">
+          <text><![CDATA[5.0]]></text>
+        </outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="inputEntry_ZAVMx">
+          <text><![CDATA[=="SILVER"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_VXpLk">
+          <text><![CDATA[>=1000]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_1LiOw">
+          <text><![CDATA[10.0]]></text>
+        </outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="inputEntry_Emrus">
+          <text><![CDATA[=="GOLD"]]></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_qc4Kw">
+          <text><![CDATA[-]]></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_kvA1d">
+          <text><![CDATA[15.0]]></text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
+----

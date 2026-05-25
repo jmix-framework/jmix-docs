@@ -1,0 +1,121 @@
+= 覆盖默认图标
+
+Jmix 提供了一个中心化的机制来覆盖整个应用程序中使用的图标。根据修改的范围，可以通过以下几种方式进行：
+
+* 仅替换特定的图标。
+* 替换应用程序使用的整个图标字体。
+
+[[how-default-icons-work]]
+== 默认图标的工作原理
+
+默认图标定义在 `JmixFontIcon` 枚举中，该枚举集成了所有 Vaadin 图标、Lumo 图标（不在 Vaadin 中）以及 Jmix 特有的图标。每个图标在 `jmix-font-icons.css` 中都使用一个 CSS 变量和两个 CSS 类进行声明。
+
+例如：
+
+.jmix-font-icons.css
+----
+html {
+    --jmix-font-icon-user: "user";
+}
+
+.jmix-font-icon {
+    font-family: var(--jmix-font-icon-font-family);
+}
+
+.jmix-font-icon-user:before {
+    content: var(--jmix-font-icon-user);
+}
+----
+
+还有三个图标声明了额外的 CSS 类，修改了 `font-family` 的值：
+
+.jmix-font-icons.css
+----
+.jmix-font-icon.jmix-font-icon-lumo {
+    font-family: lumo-icons;
+}
+----
+
+当用 `Icons` bean 创建图标时，会尝试创建 `FontIcon` 组件，使用合适的 CSS 类名。如果给定的图标名称包含用 `:` 隔开的两个部分（例如 `vaadin:user`），则会创建一个新的 `Icon` 组件，使用第一部分作为集合名称，第二部分作为图标名称。
+
+[[remapping-icon]]
+== 重映射图标
+
+通过重新定义 CSS 变量可以把一个图标重新映射为另一个。例如，在 xref:flow-ui:themes/themes.adoc#application-theme[应用程序主题] 的自定义样式文件中添加下面的内容：
+
+[source,css]
+----
+html {
+    --jmix-font-icon-edit-action: var(--jmix-font-icon-edit);
+}
+----
+
+`edit-action` 图标会被重新映射为 `edit` 图标。
+
+[TIP]
+====
+使用浏览器的开发者工具查看图标元素可以确定图标的 CSS 变量名：
+
+image:icons/inspect-icon.png[width=437]
+====
+
+[[remapping-to-icon-from-different-font]]
+== 重映射不同图标字体的图标
+
+系统还支持重映射不同图标字体的图标。在 xref:flow-ui:themes/themes.adoc#application-theme[应用程序主题] 的自定义样式文件中添加下面的内容：
+
+[source,css]
+----
+.jmix-font-icon-refresh {
+    font-family: "lumo-icons";
+}
+
+.jmix-font-icon-refresh:before {
+    content: var(--lumo-icons-reload);
+}
+----
+
+会修改 `refresh` 图标使用的字体，并映射至 `lumo-icons` 字体中的 `reload` 图标。
+
+[[using-different-icon-font]]
+== 使用不同的图标字体
+
+可以在应用程序中使用完全不同的字体。这通常需要以下步骤：
+
+. 添加一个图标字体。
+. 覆盖 `--jmix-font-icon-font-family` 的设置，使用新字体。
+. 将图标变量映射到新字体中的字符代码。
+
+例如，假设按照 xref:icons/custom-icons.adoc#icon-fonts[说明] 添加了 *Material* 图标字体，则可以在的 xref:flow-ui:themes/themes.adoc#application-theme[应用程序主题] 自定义样式文件中覆盖图标：
+
+[source,css]
+----
+html {
+    --jmix-font-icon-font-family: "Material Icons Outlined";
+    --jmix-font-icon-plus: "\e8b6";
+    --jmix-font-icon-home: "\e88a";
+    ...
+    --jmix-font-icon-menu: "\e5d2";
+}
+----
+
+[TIP]
+.定位变量和字符代码
+====
+默认 Jmix 图标的 CSS 变量声明在 `jmix-font-icons.css` 中。关于该文件的结构，请参见 <<how-default-icons-work, 上面的章节>>。字符代码由相应的图标字体提供。
+====
+
+[[overriding-icons-bean]]
+== 覆盖 `Icons` bean
+
+可以对 `Icons` bean 进行覆盖以提供自定义的图标映射。当需要的图标集不是以字体形式提供，或者想使用 SVG 图标时，可以覆盖这个 bean。
+
+例如，假设按照 xref:icons/custom-icons.adoc#svg-sprite[此说明] 添加了一个 SVG sprite，则可以创建一个映射，以便在默认图标集中使用这些 SVG 图标：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/icons/AppIcons.java[tags=app-icons]
+----
+
+<1> 图标名称（`STAR`、`HEART`、`CIRCLE`）对应 `JmixFontIcons` 枚举中的值。这三个图标被替换为自定义的 SVG。
+<2> 所有其他图标继续使用默认图标集。

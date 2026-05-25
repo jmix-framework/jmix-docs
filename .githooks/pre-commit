@@ -1,0 +1,60 @@
+#!/bin/sh
+# Pre-commit hook: enforce image budget for docs.
+# Enable per-clone with: git config core.hooksPath .githooks
+
+# Limits (bytes)
+PNG_MAX=512000      # 500 KB
+JPG_MAX=512000      # 500 KB
+SVG_MAX=102400      # 100 KB
+
+fail=0
+report() {
+    if [ "$fail" -eq 0 ]; then
+        echo ""
+        echo "Image budget violations detected:"
+        echo ""
+    fi
+    fail=1
+    echo "  $1"
+}
+
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -iE '\.(png|jpg|jpeg|gif|svg|webp)$' || true)
+[ -z "$staged" ] && exit 0
+
+while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    [ -f "$f" ] || continue
+    size=$(wc -c < "$f" | tr -d ' ')
+    ext=$(echo "$f" | awk -F. '{print tolower($NF)}')
+
+    case "$ext" in
+        gif)
+            report "$f -- GIFs are not allowed. Host animated demos externally (e.g. YouTube) and link from .adoc."
+            ;;
+        png|webp)
+            if [ "$size" -gt "$PNG_MAX" ]; then
+                report "$f -- ${size} bytes (limit ${PNG_MAX}). Run: pngquant --quality=65-85 --strip --force --ext .png '$f'"
+            fi
+            ;;
+        jpg|jpeg)
+            if [ "$size" -gt "$JPG_MAX" ]; then
+                report "$f -- ${size} bytes (limit ${JPG_MAX}). Re-export at lower quality or smaller dimensions."
+            fi
+            ;;
+        svg)
+            if [ "$size" -gt "$SVG_MAX" ]; then
+                report "$f -- ${size} bytes (limit ${SVG_MAX}). Inspect for embedded base64 raster data; run through SVGO."
+            fi
+            ;;
+    esac
+done <<EOF
+$staged
+EOF
+
+if [ "$fail" -ne 0 ]; then
+    echo ""
+    echo "Fix the files above or unstage them, then retry. To bypass in emergencies: git commit --no-verify"
+    exit 1
+fi
+
+exit 0

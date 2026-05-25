@@ -1,0 +1,431 @@
+= 业务逻辑
+
+与 REST API 交互时，通常需要有一个应用程序级的业务逻辑层为 API 提供调用点。该层可以用于逻辑调度、验证或其他 API 与系统交互时需要执行的任务。与 xref:rest:entities-api.adoc[实体 API] 交互时，不支持加入额外的业务逻辑调度，而是直接与 Jmix 的 xref:data-access:index.adoc[数据访问层] 交互。
+
+为了将业务逻辑开放给 API 客户端，Jmix 提供了两种方式：
+
+1. <<services-api>>
+2. <<custom-controller>>
+
+接下来，我们分别介绍这两种方法，以及它们有什么不同。
+
+[[services-api]]
+== 服务 API
+
+第一种开放业务逻辑 API 的方法是：服务 API。
+
+服务 API 可以将任意 Spring bean 作为 HTTP 接口开放。Jmix 负责 HTTP 交互，例如，提供 HTTP 响应编码、进行错误处理等。
+
+在下面的流程图中，可以看到使用服务 API 时，API 客户端和 Jmix 应用程序之间的交互过程：
+
+image::business-logic-diagram.svg[align="center"]
+
+[[exposing-a-service]]
+=== 服务 API 开放
+
+如需将一个 Spring bean 作为 Jmix 服务 API 的一部分，需要满足下列条件之一：
+
+* *基于注解的方式*：Spring bean 中必须使用 `@RestService` 注解创建。
+* *基于 XML 配置的方式*：Spring bean 需要在 `rest-services.xml` 配置文件中注册
+
+Let's examine these two methods in more detail.
+
+[[using-annotations]]
+==== 使用注解
+
+创建 Spring bean，且使用 `@RestService` 注解。
+
+[source,java]
+----
+import io.jmix.rest.annotation.RestMethod;
+import io.jmix.rest.annotation.RestService;
+
+import java.math.BigDecimal;
+
+@RestService("sample_OrderService") //<1>
+public class OrderService {
+
+    @RestMethod // <2>
+    public BigDecimal calculateTotalAmount(int orderId) {
+        // ...
+    }
+}
+----
+<1> `@RestService` 注解用于标记服务类，表示可以通过 REST API 访问。
+<2> `@RestMethod` 注解用于配置服务方法和特定的 REST 端点。可以使用 `httpMethods` 参数指定通过通用 REST API 可以使用的 HTTP 方法。默认支持 `GET` 和 `POST`。
+
+[[using-rest-services]]
+==== 使用 rest-services.xml
+
+先看第一个条件，示例：
+
+[source,java]
+.CalculationServiceBean.java
+----
+import org.springframework.stereotype.Service;
+
+@Component("sample_OrderService") //<1>
+public class OrderService {
+
+    public BigDecimal calculateTotalAmount(int orderId) {
+        // ...
+    }
+}
+----
+<1> `OrderServiceBean` 使用 `sample_OrderService` 名称注册为 Spring `@Component`。
+
+NOTE: 如果未在注解中显式指定服务名称，则服务名为第一个字母小写的类名称。例如，上面示例中，服务名是 `orderService`。
+
+第二部分是需要将服务网的方法作为 API 接口描述。这通过 XML 配置文件完成，一般命名为 `rest-services.xml`。需要在 Jmix 项目的 `src/main/resources` 目录手动创建。文件中列举所有需要开放的服务方法，并提供方法的参数信息。
+
+[source,xml]
+.rest-services.xml
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns="http://jmix.io/schema/rest/services">
+    <service name="sample_OrderService"> // <1>
+        <method name="calculateTotalAmount"> // <2>
+            <param name="orderId"/> // <3>
+        </method>
+    </service>
+</services>
+----
+<1> 用服务的 Spring 组件名注册
+<2> 每个需要开放的方法都在这里描述
+<3> 方法参数需要提供名称和类型（类型可选）
+
+服务类完成且该配置文件也创建好后，最后一步是在 Jmix 项目的 `application.properties` 文件中注册 `rest-services.xml`：
+
+[source,properties]
+.application.properties
+----
+jmix.rest.services-config = rest-services.xml
+----
+
+NOTE: `services-config` 的值是 classpath 中文件的引用。我们的例子中，文件位于 classpath 的根目录 `src/main/resources`。如果你的文件放置于 `src/resources/com/example/rest-services.xml`，则配置值为：`com/example/rest-services.xml`。
+
+[[using-the-services-api]]
+=== 使用服务 API
+
+我们通过服务 API 开放服务方法之后，可以用 API 客户端进行调用。可以用 HTTP `GET` 或 `POST`。
+
+[[invoke-a-service-via-get]]
+==== 用 GET 调用服务
+
+使用 HTTP GET 时，方法参数通过 URL 查询参数提供：
+
+[source, http request]
+.通过 HTTP GET 计算订单总费用
+----
+GET http://localhost:8080/rest
+            /services
+            /sample_OrderService
+            /calculateTotalAmount?orderId=123
+Authorization: Bearer {{access_token}}
+----
+
+[source, json]
+.Response: 200 - OK
+----
+450.0
+----
+
+NOTE: 当使用 GET 方法调用通过服务 API 调用服务时，仍需要在 HTTP 的 Authorization 请求头提供 OAuth 访问 token。不支持使用 URL 查询参数提供访问 token。
+
+一个服务方法可以返回一个简单类型数据、实体、实体集合或者可序列化的 POJO。上面的例子中，服务方法返回一个 `int`，因此响应体中仅包含一个数字。
+
+[[invoke-a-service-via-post]]
+==== 用 POST 调用服务
+
+或者，可以通过 HTTP POST 调用服务。当服务方法有下列类型的参数时，推荐使用 POST 方法：
+
+* 实体
+* 实体集合
+* 可序列化的 POJO
+
+假设我们为 OrderService 添加了一个新的方法：
+
+[source,java]
+.OrderServiceBean.java
+----
+@Component("sales_OrderService")
+public class OrderService {
+
+    public OrderValidationResult validateOrder(Order order, Date validationDate){
+        OrderValidationResult result = new OrderValidationResult();
+        result.setSuccess(false);
+        result.setErrorMessage("Validation of order " + order.getNumber() + " failed. validationDate parameter is: " + validationDate);
+        return result;
+    }
+}
+----
+
+使用如下结构的 `OrderValidationResult` POJO 作为结果对象：
+
+[source,java]
+.OrderValidationResult.java
+----
+import java.io.Serializable;
+
+public class OrderValidationResult implements Serializable {
+
+    private boolean success;
+
+    private String errorMessage;
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+}
+----
+
+新方法接收 Order 实体作为参数，并返回一个 POJO。在调用 REST API 之前，新方法也需要在 `rest-services.xml` 中注册。完成接口开放之后，可以执行 API 调用：
+
+[source, http request]
+.通过 HTTP POST 调用 Order Validation 方法
+----
+POST http://localhost:8080/rest/services/sales_OrderService/validateOrder
+
+{
+  "order" : {
+    "number": "00050",
+    "date" : "2016-01-01"
+  },
+  "validationDate": "2016-10-01"
+}
+----
+
+REST API 方法返回一个序列化的 `OrderValidationResult` POJO：
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "success": false,
+  "errorMessage": "Validation of order 00050 failed. validationDate parameter is: 2016-10-01"
+}
+----
+
+[[service-parameters]]
+==== 服务参数格式
+
+参数值格式必须符合对应 xref:data-model:datatype.adoc[数据类型] 的要求。
+
+* 如果参数类型是 `java.util.Date`，值的格式由 `DateTimeDatatype` 处理。此数据类型的实现使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE_TIME[ISO_DATE_TIME^] 格式进行解析，其中日期和时间部分以 `T` 分隔，例如，`2011-12-03T10:15:30`。
+* 对于 `java.sql.Date` 参数类型，值的格式 `DateDatatype` 处理。使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_DATE[ISO_DATE^] 格式，例如，`2011-12-03`。
+* 对于 `java.sql.Time` 参数类型，值的格式 `TimeDatatype` 处理。使用 https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html#ISO_TIME[ISO_TIME^] 格式，例如，`10:15:30`。
+
+[[using-dto-parameters]]
+==== 使用 DTOs 作为请求参数
+
+当使用结构化请求对象作为方法参数时，JSON 的请求体必须将参数名设置为顶级的键值。
+
+例如在下面的方法中：
+
+[source,java]
+----
+public Owner registerOwner(OwnerRegistration registration) {
+    return dataManager.create(Owner.class);
+}
+----
+
+使用了这个 DTO 定义：
+
+[source,java]
+----
+public record OwnerRegistration(String firstName, String lastName) {}
+----
+
+那么请求的 JSON 必须按照以下格式构建：
+
+[source,json]
+----
+{
+  "registration": {
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+}
+----
+
+
+[[recommended-dto-usage]]
+[NOTE]
+====
+除了使用 POJO 作为参数对象外，我们建议使用 xref:data-model:entities.adoc#dto[DTO 实体]。这种方式提供了多个优势，例如能正确生成 OpenAPI 架构，以及在请求参数验证时更好地支持 bean 验证。
+====
+
+[[custom-controller]]
+== 自定义控制器
+
+开放业务逻辑 API 的第二个方法是使用自定义 HTTP 控制器。主要的不同点是，在这种情况下，可以自己干预 HTTP 的交互（比如状态码、安全等）。Jmix 使用 Spring MVC 的默认机制创建 HTTP 接口。
+
+自定义控制器的使用场景可以是：
+
+* 需要显式定义 HTTP 状态码
+* 使用除 JSON 外的其他请求和响应类型
+* 设置自定义的响应头（例如，支持缓存）
+* 为异常创建自定义的错误消息
+
+这些场景中，通用服务 API 可能不够灵活，难以满足要求。因此，Jmix 支持原生集成 Spring MVC 控制器。
+
+[[creating-custom-controllers]]
+=== 创建自定义控制器
+
+如需创建自定义控制器，只需要在 Jmix 应用程序中创建 Spring MVC 控制器的 bean 即可。Jmix 本身没有其他的额外要求。看一个控制器示例：
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@RestController // <1>
+@RequestMapping("/orders")  // <2>
+public class OrderController {
+    // ...
+}
+----
+<1> 自定义控制器带 `@RestController` 注解
+<2> RequestMapping 定义此控制器的基础路径
+
+现在 Spring 控制器注册好了，我们可以创建一个方法，用于开放特定的 HTTP 接口：
+
+[source,java]
+.OrderController.java
+----
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @GetMapping("/calculateTotalAmount") // <1>
+    public ResponseEntity<OrderTotalAmount> calculateTotalAmount(
+            @RequestParam int orderId  // <2>
+    ) {
+
+        BigDecimal totalAmount = orderService.calculateTotalAmount(orderId);
+
+        return ResponseEntity // <3>
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000")
+                .body(new OrderTotalAmount(totalAmount, orderId));
+
+    }
+}
+----
+<1> `calculateTotalAmount` 方法使用了 `@GetMapping` 注解，表示可以通过 `/calculateTotalAmount` 子路径使用 HTTP GET 访问。
+<2> 参数 `orderId` 需要从 URL 查询参数获取。
+<3> 我们可以使用 Spring 的 `ResponseEntity` 类封装 JSON 响应体，并使用 HTTP 的其他特性。
+
+关于如何创建 Spring MVC 控制器的更多内容可以参阅 Spring 的指南： https://spring.io/guides/gs/rest-service/[构建 RESTful Web 服务]，以及 Spring MVC 的 https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc[参考文档]。
+
+有了上面的控制器后，Jmix 可以提供此 HTTP 服务了。我们看看如何与控制器交互：
+
+[source, http request]
+.调用自定义 Orders 控制器
+----
+GET http://localhost:8080/orders/calculateTotalAmount?orderId=123
+----
+
+响应包含计算结果的 JSON 对象以及定义的 HTTP 响应头：
+
+[source, http request]
+.Response: 200 - OK
+----
+HTTP/1.1 200
+Cache-Control: max-age=31536000
+Content-Type: application/json
+
+{
+  "orderId": 123,
+  "totalAmount": 450.0
+}
+----
+
+[[securing-custom-controllers]]
+=== 保护自定义控制器
+
+如需为自定义控制器提供与 Jmix REST API 一样的 OAuth2 保护机制，在 xref:authorization-server:protecting-resources.adoc#protecting-rest-api-endpoints[jmix.resource-server.authenticated-url-patterns] 应用程序属性中注册控制器的 URL pattern：
+
+[source,properties]
+.application.properties
+----
+jmix.resource-server.authenticated-url-patterns = /rest/**,/orders/**
+----
+
+这里的 `/orders/**` 通配符表示任何以 `/orders/` 开头的接口都使用 OAuth2 保护机制。
+
+NOTE: 此配置的值支持以逗号分隔的 https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/util/AntPathMatcher.html[Apache Ant style URL patterns] 列表。
+
+如果现在尝试不使用有效的 OAuth2 token 调用 Order 控制器的方法，结果会是 `HTTP 401 - Unauthorized`：
+
+[source, http request]
+.Response: 401 - Unauthorized
+----
+HTTP/1.1 401
+WWW-Authenticate: Bearer realm="oauth2-resource", error="unauthorized", error_description="Full authentication is required to access this resource"
+
+{
+"error": "unauthorized",
+"error_description": "Full authentication is required to access this resource"
+}
+----
+
+认证后的接口可以使用 Jmix xref:security:index.adoc[安全] 子系统提供的数据访问控制。如果你的控制器使用 xref:data-access:data-manager.adoc[DataManager] 读写数据，会自动检查认证用户的 xref:security:resource-roles.adoc#entity-policy[实体操作] 权限。下面示例中，如果用户没有对 `Order` 实体的读权限，会抛出 "Access denied（拒绝访问）" 异常：
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+
+    @GetMapping("/all")
+    public List<Order> loadAll() {
+        return dataManager.load(Order.class).all().list();
+    }
+----
+
+如需限制为实体属性的访问，需要使用 `EntitySerialization` bean 将接口返回的实体进行序列化。下面示例中，返回客户端的 JSON 中只带有经过 xref:security:resource-roles.adoc#entity-attribute-policy[实体属性策略] 许可的实体属性。
+
+[source,java,indent=0]
+----
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    @Autowired
+    private DataManager dataManager;
+    @Autowired
+    private EntitySerialization entitySerialization;
+
+    @GetMapping("/all")
+    public String loadAll() {
+        List<Order> orders = dataManager.load(Order.class).all().list();
+        return entitySerialization.toJson(
+                orders,
+                null,
+                EntitySerializationOption.DO_NOT_SERIALIZE_DENIED_PROPERTY
+        );
+    }
+----

@@ -1,0 +1,174 @@
+= 加载数据
+
+本章节中，我们将介绍从数据库加载实体的过程中，数据是如何以及何时被提取到内存的。
+
+数据模型实体经常会有对其他实体的 xref:data-model:entities.adoc#references[引用]，例如，`Order` 通过 `Order.customer` 关联 `Customer` 实体。在 Jmix 的 Java 代码中可以使用引用属性的 getters 访问关联实体，如 `order.getCustomer().getName()`，而在数据感知的 UI 组件中，则用“.”，如 `order.customer.name`。
+
+通常来说，加载关联实体有两中策略：
+
+* _Eager loading（预加载）_ 关联实体与主实体一起从数据库加载。
+* _Lazy loading（懒加载）_ 仅当访问引用属性时，才从数据库透明地加载关联实体。
+
+[[lazy-loading]]
+== 懒加载
+
+当使用 xref:data-manager.adoc[DataManager] 加载 JPA 实体时，Jmix 支持实体中引用属性和 and xref:data-model:entities.adoc#element-collections[元素集合] 的懒加载。也就是说，如果使用了 `DataManager` 或 UI 的 xref:flow-ui:data/data-loaders.adoc[数据加载器] 来加载实体，则可以直接访问其引用属性获得关联实体，Jmix 会按需加载。这个过程是递归的，因此可以通过访问引用属性遍历整个对象关系图。
+
+示例：
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderService.java[tags=lazy-loading]
+----
+<1> 加载 `Customer` 实体。
+<2> 加载 `OrderLine` 实体集合。
+<3> 加载 `Product` 实体。
+
+懒加载非常方便，但是通常无法提供最佳性能。对于处理实体集合尤其如此。如上面的 `getProductNames()` 方法：首先加载了 order lines 的集合，然后对于每个 order line，再次访问数据库加载关联的 product。这样就是 N+1 次查询，N 是集合中 order line 的数量。
+
+另一个 N+1 问题的例子是在浏览界面加载一个实体。例如，加载一组 order，然后对于每个 order 展示其关联的 customer，那么需要定义一个 UI 表格的列展示 `Order.customer` 属性。此时懒加载会首先执行一次查询加载所有的 order，然后 N 次查询加载每个 order 的 customer，N 是 order 表格页的行数。
+
+如果你遇到了懒加载的性能瓶颈，请使用下一节介绍的 <<fetch-plan, fetch plans>> 进行预加载。
+
+[[fetch-plan]]
+== Fetch Plans
+
+一个 _fetch plan_ 定义在一次特定的操作中，需要从数据库预加载什么样的对象关系图。Fetch plan 可以用在 xref:data-manager.adoc[DataManager]、UI xref:flow-ui:data-components.adoc[数据组件] 中以提高性能，或者用在 xref:rest:index.adoc[REST API] 中定义返回数据的格式，而无需创建单独的一组 DTO。
+
+TIP: Fetch plan 与关联实体或元素集合的懒加载完全兼容。也就是说，可以使用 fetch plan 加载实体关系图的其中一部分，当访问到某些未加载的引用时，再进行延迟加载。
+
+[[fetch-plan-example]]
+=== Fetch Plan 使用示例
+
+我们考虑一些围绕 `Order` 实体及其相关实体的示例，这些实体包括以下数据模型：
+
+image::fetching-diagram-1.svg[align="center"]
+
+. 假设我们要在一个浏览界面展示 order 列表，UI 表格中必须包含以下列：`number`、`date`、`amount` 和 `customer.name`。那么，下面这个对象图应该是最佳加载方案了：
++
+--
+image::fetching-diagram-2.svg[align="center"]
+
+为了预加载这个对象图，可以在界面中定义这样的 fetch plan：
+
+[source,xml,indent=0]
+----
+include::example$/data-access-ex1/src/main/resources/com/company/demo/view/order/order-list-view.xml[tags=fetch-plan]
+----
+
+结果是，框架会执行一条单一的 SQL 查询语句，语句中对 order 和 customer 表进行关联查询，将相关的 customer 实体与 order 实体一起预加载。这样排除了对 customer 实体进行懒加载的 N+1 问题。
+
+还有，由于 fetch plan 中定义都是单独的本地属性，SQL 结果集也只包含这些属性而省略了 `customer.email` 字段。该字段不从数据库读取也不会消耗实例占用的服务器内存。性能上这样做当然是更好的选择，但是要小心处理此类 <<partial-entities,部分加载>> 的实体实例。
+
+[NOTE]
+====
+当用 Studio 为一个实体创建界面时，界面创建向导默认会为主实体和选中的关联实体提供 `_base` fetch plan，因此 fetch plan 的定义会看上去有一点不同：
+
+[source,xml,indent=0]
+----
+include::example$/data-access-ex1/src/main/resources/com/company/demo/view/order/order-list-view-1.xml[tags=fetch-plan]
+----
+
+`_base` 是一个内置的 fetch plan（参阅后面 <<built-in-fetch-plans,章节>> 了解详情 ），会加载实体的所有本地属性。
+====
+--
+
+. 现在考虑在编辑界面编辑 order 实体的情形。用户可以通过界面编辑 order 属性、选择 customer、以及创建和编辑 order line，并为之选择 product，最后重新计算 order 总价。这样的话，我们需要几乎所有的实体，只是有些关联实体的某些属性可以省略：
++
+--
+image::fetching-diagram-3.svg[align="center"]
+
+如果用 Studio 界面向导并选择带默认 `_base` fetch plan 的关联实体，则会为界面创建下面的 fetch plan：
+
+[source,xml,indent=0]
+----
+include::example$/data-access-ex1/src/main/resources/com/company/demo/view/order/order-detail-view.xml[tags=fetch-plan]
+----
+
+TIP: 虽然可以为实体选择单独的本地属性而不使用 `_base` fetch plan，但是在编辑界面我们不建议这么做。参阅下面关于实体部分加载的相关内容。
+--
+
+[[partial-entities]]
+=== 部分实体
+
+如果使用了不包含实体某些本地属性的 fetch plan，则实体只能部分加载：fetch plan 中不加载的属性在实体实例中为空。此时如果通过 getter/setter 或者 UI 组件访问这样的属性，框架会抛出异常：
+
+[source,text]
+----
+java.lang.IllegalStateException: Cannot get unfetched attribute [foo] from
+    detached object com.company.entity.Bar-7f9e689a-fe04-8b5f-35db-5fa51a9a9d71 [detached].
+----
+
+因此，我们推荐谨慎使用部分加载的 fetch plan，除非不加载全部属性真的能带来不小的性能提升。例如，你的实体很“宽”（具有几十或几百个属性），需要加载大量的实体及其关联实体，这种情况可以用部分 fetch plan 大大减少不需要的数据加载。
+
+如果只是加载一个主实体或者很小的一组实体，那么请使用 <<lazy-loading,懒加载>> 或基于 `_base` 的 fetch plan 以避免 N+1 问题，而不要使用部分实体。因为一方面，这种情况下使用部分实体 fetch plan 得到的性能提升十分有限；另一方面，如果不小心访问了未加载的属性，还容易遇到问题。
+
+NOTE: 不论用什么 fetch plan，都会加载实体 id 和 xref:data-model:entities.adoc#versioned-trait[版本] 属性。
+
+[[built-in-fetch-plans]]
+=== 内置 Fetch Plans
+
+Jmix 为每个实体提供了三个内置的 fetch plan：
+
+* `_local` - 包含所有本地属性（直接属性，非实体引用属性）。
+* `_instance_name` - 包含所有构成 xref:data-model:entities.adoc#instance-name[实例名称] 的属性。可以是本地属性或引用属性。如果实体未指定实例名称，则该 fetch plan 为空。
+* `_base` - 包含所有 `_local` 和 `_instance_name` 内的属性，以及嵌入（embedded）的属性。
+
+TIP: 除非加载大量“宽”实体遇到性能问题，否则都应使用 `_base` fetch plan。这样能避免未加载属性引起的问题，参阅 <<partial-entities,部分实体>> 了解详情。
+
+[[creating-fetch-plans]]
+=== 创建 Fetch Plans
+
+可以用下面的方式自定义 fetch plans：
+
+. UI 界面描述中的 inline fetch plan。上面的 <<fetch-plan-example,示例>> 演示了这种方式。
+
+. Java 中通过编程的方式。
++
+--
+可以用 `FetchPlans` 工厂创建 fetch plan，并在 `DataManager` 操作中使用：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/bean/OrderServiceTest.java[tags=fetch-plans;fetch-plan-builder]
+----
+
+也可以在 `DataManager` 流式加载接口中使用 fetch plan builder：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/bean/OrderServiceTest.java[tags=fetch-plan-builder-dm]
+----
+
+--
+
+. 在共享 fetch plan 仓库创建。
++
+--
+在共享仓库中创建 fetch plan，然后在项目中通过名称使用，与 <<built-in-fetch-plans,内置>> 的 fetch plan 类似。
+
+首先，在项目的根包内的资源根目录创建 `fetch-plans.xml`，并定义 xref:ROOT:app-properties.adoc#jmix.core.fetch-plans-config[jmix.core.fetch-plans-config] 应用程序属性。Studio 中通过 Jmix 工具窗口的 *New -> Advanced -> Fetch Plan Configuration File* 创建该文件。
+
+创建好之后，Jmix 工具窗口的 *New -> Advanced* 菜单会包含一个 *Fetch Plan* 条目。这里可以通过 xref:studio:fetch-plan-designer.adoc[设计器] 定义 fetch plan。
+
+下面是定义在 `fetch-plans.xml` 中的 fetch plan。
+
+[source,xml,indent=0]
+----
+include::example$/data-access-ex1/src/main/resources/com/company/demo/fetch-plans.xml[tags=fetch-plan]
+----
+
+这个 fetch plan 可以在 `DataManager` 操作中通过名称使用：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/bean/OrderServiceTest.java[tags=fetch-plan]
+----
+
+另一个方法是从仓库获取 fetch plan 实例：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/bean/OrderServiceTest.java[tags=fetch-plan-repo;fetch-plan-repo-use]
+----
+
+--

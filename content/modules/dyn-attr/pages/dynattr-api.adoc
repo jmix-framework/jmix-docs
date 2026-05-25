@@ -1,0 +1,46 @@
+= 动态属性 API
+
+[[model]]
+== 模型
+
+动态属性实现了 `实体-属性-值` 模型。
+
+image::dynattr-diagram.svg[align="center"]
+
+* `Category` 指定对象的分类，以及每个分类对应的一组动态属性。每个分类需要与特定实体类型关联。
++
+例如，有一个 `Car` 类型的实体。我们可以创建两个分类：`Truck（卡车）` 和 `Passenger（乘用车）`。`Truck` 分类可以包含 `Load capacity（载货量）` 和 `Body type（车身类型）` 属性；`Passenger` 分类可以包含 `Number of seats（座位数）` 和 `Child seat（儿童座位）` 属性。
++
+* `CategoryAttribute` 定义某个分类中的动态属性。每个属性使用指定类型定义单一字段。必需的 `code` 字段包含属性的系统名称。`name` 字段包含可读的属性名称。
+
+* `CategoryAttributeValue` 表示特定实体实例中动态属性的值。动态属性值保存在专门的 `SYS_ATTR_VALUE` 表中。表中的记录通过 `ENTITY_ID` 列与一个实体实例关联。
+
+一个实体实例可以拥有该实体类型关联的所有分类中的属性。因此，如果为上面提到的 `Car` 实体创建两个分类，则可以为 `Car` 实例指定两个分类中的任何属性。
+
+如果需要将实体实例划分为某一特定分类，例如，车只能是卡车或乘用车之一，则实体必须实现 `Categorized` 接口。此时，实体只有特定分类的引用，且只能有该分类的动态属性。
+
+[[loading-and-saving]]
+== 读写动态属性
+
+动态属性值的读写通过 `DataManager` 处理。使用下列方法之一可以设置加载实体的动态属性：
+
+* `LoadContext` 的 `setHint(DynAttrQueryHints.LOAD_DYN_ATTR, true)` 方法。
+* 流式 API 的 `hint(DynAttrQueryHints.LOAD_DYN_ATTR, true)` 方法。
+
+TIP: 如果使用 xref:data-access:data-repositories.adoc[data repositories]，也可以在 repository 的方法上使用 `@QueryHints` 和 `@QueryHint` 注解设置同样的 hint。示例请参阅 xref:data-access:data-repositories.adoc#jmix-specific-parameters[Jmix 的特定参数]。
+
+默认情况下，不加载动态属性。但是，`DataManager` 会保存 `save()` 方法中收到实体包含的动态属性。
+
+动态属性值可以通过 `EntityValues` 的 `getValue()` / `setValue()` 方法进行读写。动态属性编码需要使用 `+` 前缀，示例：
+
+[source,java,indent=0]
+----
+include::example$/dyn-attr-ex1/src/main/java/com/company/demo/view/car/CarListView.java[tags=get-value]
+----
+
+实际编程时，我们几乎不在应用程序代码中直接访问动态属性值。任何动态属性都可以自动在 `DataGrid` 或 `FormLayout` 组件中展示，只要这些组件绑定的数据容器中实体带有动态属性。可以在配置动态属性时，指定界面和组件中动态属性的 xref:dyn-attr:dynattr-managing.adoc#visibility[可见性]。
+
+//TODO uncomment after fix
+////
+User permissions to access dynamic attributes can be set in the security role editor in the same way as for regular attributes. Dynamic attributes are displayed with the + prefix.
+//// 

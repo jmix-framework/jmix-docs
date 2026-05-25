@@ -1,0 +1,668 @@
+= 加载实体
+
+实体 API 支持以多种方式加载实体：
+
+* <<load-by-id,用 ID 加载实体>>，使用实体的唯一标识符（ID）加载单一实体。
+
+* <<load-list,加载实体列表>>，加载所有实体，并使用分页和排序。
+
+* <<load-list-search-filter,用过滤条件加载实体>>，使用请求中的过滤条件加载特定实体。
+
+* <<load-list-jpql,用 JPQL 加载实体>>，用预定义的 JPQL 命名查询语句加载实体。
+
+[[load-by-id]]
+== 用 ID 加载实体
+
+第一个加载实体的方法就是用实体的 ID 加载单一实体。对应的 *实体加载* 接口地址是：`/entities/:entityName/:entityId`。
+
+`:entityName` 路径参数定义实体名称，实体名称在定义实体时提供：
+
+[source,java]
+.Order.java
+----
+
+@JmixEntity
+@Table(name = "SAMPLE_ORDER")
+@Entity(name = "sample_Order") //<1>
+public class Order {
+    // ...
+}
+----
+<1> JPA `@Entity` 注解的 name 属性指定的 `sample_Order` 值可作为实体 API 中 `entityName` 参数的值。
+
+如果有此 ID 的实体实例，则 *实体加载* 接口返回此实例。否则返回 HTTP 状态码 `404 - Not Found`。
+
+
+[source, http request]
+.加载单一 Order 实体
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "sample_Order", //<1>
+  "_instanceName": "rest.sample.entity.Order-21021f78-edac-224b-e6f8-6e71e02a0f0d [detached]",
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13", //<2>
+  "amount": 49.99,
+  "createdDate": "2021-02-06T12:03:38.049",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-02-06T12:03:38.049",
+  "version": 1
+}
+----
+<1> 实体实例的部分元数据也在 JSON 中返回（`entityName`、`_instanceName` 和 `id`）。
+<2> JSON 对象中其他业务属性键值。
+
+[NOTE]
+====
+如果实体使用了组合 ID，则需要以 Base64 加密的 JSON 传入 REST 接口。
+
+例如，ID 类包含两个字段 `code1` 和 `code2`，则标识符的 JSON 会是 `{"code1": "val1","code2": "val2"}` 这种格式，带有加密 ID 的完整 URL 如下：
+
+[source, http request]
+----
+GET http://localhost:8080/rest
+            /entities
+            /MyEntity
+            /eyJjb2RlMSI6ICJ2YWwxIiwiY29kZTIiOiAidmFsMiJ9
+----
+====
+
+[TIP]
+====
+并非 `Order` 实体的全部属性都在 JSON 中加载，默认仅加载实体的本地和持久化属性。如需在响应中包含实体的引用属性，则需要使用 <<fetch-plans,Fetch Plans>>。
+
+如需在响应中包含 xref:dyn-attr:index.adoc[动态属性]，使用 `dynamicAttributes` 参数：
+
+[source, http request]
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?dynamicAttributes=true
+----
+====
+
+[[load-list]]
+== 加载实体列表
+
+使用 *加载实体列表* API 接口 `/entities/:entityName` 可以加载任何类型的实体列表。此 API 包含分页、排序和 fetch plan 参数。
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest/entities/sample_Customer
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler"
+  },
+  {
+    "id": "22efc597-69a9-aeef-4e4a-7afccd8e5767",
+    "name": "Randall Bishop"
+  },
+  {
+    "id": "bd1c8e90-3d35-cbe2-9efd-167202c758d2",
+    "name": "Shelby Robinson"
+  }
+]
+----
+
+NOTE: 响应中的每个实体都有 `_entityName` 属性，表示实体的名称；以及 `_instanceName` 属性，表示 xref:data-model:entities.adoc#instance-name[实例名称]。
+
+还可以用下列 URL 查询参数进一步控制 API 的行为：
+
+dynamicAttributes:: 是否加载实体的 xref:dyn-attr:index.adoc[动态属性] `（Boolean）`。
+fetchPlan:: 实体 xref:data-access:fetching.adoc[fetch plan] 的名称或 URL 加密的 JSON 对象 `（String）`。
+limit:: 限制 API 获取实例的个数 `（int）`。
+offset:: 查询第一个实体的偏移量 `（int）`。
+sort:: 用于排序的实体属性 `（String）`。
++
+* `+attribute` 或 `attribute` 用于正排序；
+* `-attribute` 用于倒排序。
+
+[[load-list-sorting]]
+=== 使用排序
+
+*加载实体列表* API 支持使用实体属性对查询结果进行排序。用 `sort` URL 参数指定实体属性排序。
+
+NOTE: 当未指定 `sort` 参数时，默认排序依赖数据库的实现。通常数据库会按照实体创建的时间戳进行排序，但是这个机制在不同场景也不是绝对有效。
+
+Jmix 使用特殊的语法定义排序。正排序通过属性名前可选的 `+` 号表示。默认是正排序。`-` 号表示按属性名倒排序。
+
+下面示例展示如何使用 `name` 属性对 Customer 进行正排序。
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            ?sort=name
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "d83c9d66-cb23-075a-8d3c-d4035d338705",
+    "name": "Klaudia Kleinert"
+  },
+  {
+    "id": "8985ba1e-1cc8-eb5c-f9e0-738aee9d2ef1",
+    "name": "Randall Bishop"
+  }
+]
+----
+
+实体实例也可以按多个属性排序。此时，多个属性间使用逗号分隔：
+
+
+[source, http request]
+.Request
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order?sort=+date,-amount
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
+    "date": "2021-02-02", // <1>
+    "amount": 283.55
+  },
+  {
+    "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
+    "date": "2021-03-01",
+    "amount": 249.99, // <2>
+    "lastModifiedBy": "admin"
+  },
+  {
+    "id": "1068c217-5868-faf4-16aa-23655e9492da",
+    "date": "2021-03-01",
+    "amount": 130.08
+  }
+]
+----
+<1> 按时间正排序。
+<2> 当 `date` 属性值相同时，按 `amount` 倒排序。
+
+
+[[load-list-pagination]]
+=== 使用分页
+
+*加载实体列表* API 支持对数据进行分页，以便适应服务端或客户端的数据处理能力。如果只需要加载部分实体列表，可以给请求提供 `offset` 和 `limit` 参数。
+
+[NOTE]
+====
+分页是默认开启的，即使客户端没有显式的加上分页请求。如果请求没有 `limit` 参数，API 返回前 `10,000` 个实体。
+
+默认值通过 xref:app-properties.adoc#jmix.rest.default-max-fetch-size[jmix.rest.default-max-fetch-size] 参数进行全局配置，或者通过 xref:app-properties.adoc#jmix.rest.entity-max-fetch-size[jmix.rest.entityMaxFetchSize] 参数在实体级别配置。
+====
+
+下面示例中展示如何加载包含两个 `Customer` 实体的第 3 页数据（第 5/6 个实体）：
+
+[source, http request]
+.Load Customer Request with Pagination
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            ?limit=2
+            &offset=4
+            &sort=createdDate
+----
+
+[source, json]
+.Response: HTTP 200 - OK
+----
+[
+  {
+    "id": "2d620164-1e80-0696-c3aa-45b7b5c81f2c",
+    "name": "Maria Mitchell"
+  },
+  {
+    "id": "3c7ec69d-9b85-c6e9-387b-42a5bccb79de",
+    "name": "Anthony Knutson"
+  }
+]
+----
+
+
+[[load-list-search-filter]]
+== 用过滤条件加载实体
+
+当使用 *实体搜索* 接口 `/entities/:entityName/search` 加载实体列表时，可以指定过滤条件。
+
+该接口支持使用 `GET` 和 `POST` 两种 HTTP 方法。两种方法中，过滤条件都需要作为请求的一部分提供。
+
+过滤条件通过 JSON 结构定义，可以包含一组过滤条件。一个条件可以包含下列属性：
+
+property:: 需要过滤的实体属性（例如 Order 实体的 `amount` 属性）。
++
+如果该属性是实体引用，则支持属性路径，例如，`customer.name`。
+
+operator:: 过滤器操作符。操作符描述如何对属性进行过滤。对不同的数据类型，有多个可使用的操作符：
++
+* 标准操作符：`=`、`<>`、`notEmpty`、`isNull`
+* 列表操作符：`in`、`notIn`
+
+以及，某些操作符只能用于特定数据类型：
+[cols="1,1"]
+|===
+|数据类型 | 特定操作符
+
+|String, UUID
+|`startsWith`、`endsWith`、`contains`、`doesNotContain`
+
+|Integer, Long, Double, BigDecimal, Date, DateTime, Time, LocalDate, LocalDateTime,  LocalTime, OffsetDateTime, OffsetTime
+|`=`、`<>`、`>`、`>=`、`<`、`&lt;=`
+
+|===
+
+value:: 需要搜索的值，对于 `notEmpty` 和 `isNull` 操作符，不需要提供值。
+
+条件可以用 `AND`、`OR` 进行组合，以便定义复杂的过滤条件。过滤条件的 JSON 结构示例：
+
+[source,json]
+.过滤条件 JSON 结构
+----
+{
+  "conditions": [
+    {
+      "group": "OR",
+      "conditions": [
+        {
+          "property": "stringField",
+          "operator": "=",
+          "value": "stringValue"
+        },
+        {
+          "property": "intField",
+          "operator": ">",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "property": "booleanField",
+      "operator": "=",
+      "value": true
+    }
+  ]
+}
+----
+
+这是此过滤条件的 JSON 展示：`\(((stringField = stringValue) OR (intField > 100)) AND (booleanField = true))`。
+
+当使用 HTTP `POST` 方法请求时，过滤条件作为请求体提供：
+
+[source,http request]
+.POST 过滤条件请求
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  }
+}
+----
+
+当使用 `GET` 方法时，JSON 过滤条件需要通过 URL 查询参数 `filter` 提供：
+
+[source, http request]
+.GET 过滤条件请求
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /search
+            ?filter={"conditions":[{"property":"customer.name","operator":"contains","value":"Shelby"}]}
+----
+
+[IMPORTANT]
+.URI 编码
+====
+HTTP URI 标准仅允许在 URI/URL 中使用 ASCII 编码的字符。因此，当使用 URL 查询参数过滤条件时，JSON 定义需要用 URL 编码。对于 `value` 提供的数据也是一样的要求。
+
+另外，还有一个对 URI 长度实际的限制也会导致使用复杂过滤条件的问题。所以，推荐使用 `POST` 方法对实体列表进行过滤，可避免受到这些限制的影响。
+====
+
+
+[[load-list-jpql]]
+== 用 JPQL 加载实体
+
+从应用程序加载实体的另一个方法就是使用预定义的 JPQL 查询语句。*实体查询* 接口 `/queries/:entityName/:queryName` 提供此功能。查询语句可以包含一组由客户端负责提供的参数。此外，接口也可以使用通用的分页、fetch plan 等参数。
+
+
+[TIP]
+.何时该用 JPQL 或 *实体搜索* ？
+====
+Jmix 提供了多种加载实体列表的方式。当过滤条件参数不方便表示实际所需的条件，或者条件参数需要预先定义而非调用时由客户端提供，请使用预定义 JPQL 查询。
+====
+
+[[jpql-query-config]]
+=== JPQL 查询配置
+
+如需使用 *实体查询* 接口，需要先定义可用的查询语句。查询语句通过 XML 配置文件定义，一般为 `rest-queries.xml`。需要在 Jmix 应用程序的 `src/main/resources` 目录创建此文件。文件内列出所有发布的查询语句及其使用的参数。
+
+[source,xml]
+.rest-queries.xml
+----
+<?xml version="1.0"?>
+<queries xmlns="http://jmix.io/schema/rest/queries">
+    <query name="ordersByDate" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.date = :orderDate]]></jpql>
+        <params>
+            <param name="orderDate" type="java.time.LocalDate"/>
+        </params>
+    </query>
+    <query name="ordersByCustomerName" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.customer.name = :customerName]]></jpql>
+        <params>
+            <param name="customerName" type="java.lang.String"/>
+        </params>
+    </query>
+</queries>
+----
+
+一个查询语句要有 `name` 属性和一个 `entity` 引用属性。要求 `name` 和 `entity` 的组合值必须唯一。此外，`fetchPlan` 属性指定加载实体的哪些属性。
+
+在 `jpql` 元素中配置查询语句。查询参数在 `params` 元素中定义名称和 Java 类型。JPQL 语句中可以用冒号加参数名的方式引用参数，例如，`:customerName`。
+
+在文件和查询语句都创建好之后，需要在 Jmix 的 `application.properties` 文件中注册 `rest-queries.xml` 配置：
+
+[source,properties]
+.application.properties
+----
+jmix.rest.queries-config = rest/sample/rest-queries.xml
+----
+
+*实体查询* 接口支持通过 `GET` 或 `POST` 请求调用。使用 `GET` 时，查询参数在 URL 中提供：
+
+[source, http request]
+.GET 查询 API 调用
+----
+GET http://localhost:8080/rest
+        /queries
+        /sample_Order
+        /ordersByDate
+        ?orderDate=2020-02-02
+----
+
+
+[IMPORTANT]
+.URI 编码
+====
+HTTP URI 标准仅允许在 URI/URL 中使用 ASCII 编码的字符。也就是说，参数值需要使用 URL 编码，由于这些参数值通常是由用户输入的，无法保证仅含有 ASCII 编码的字符。
+====
+
+使用 `POST` 时，查询参数在 JSON 请求体中提供，每个 key 表示一个参数：
+
+[source, http request]
+.POST 查询 API 调用
+----
+POST http://localhost:8080/rest/queries/sample_Order/ordersByCustomerName
+
+{
+  "customerName": "Shelby Robinson"
+}
+----
+
+=== 集合参数
+
+查询参数也支持集合类型。查询语句的定义中，参数的 Java 类型需要使用 `[]`：
+
+[source,xml]
+.rest-queries.xml
+----
+<?xml version="1.0"?>
+<queries xmlns="http://jmix.io/schema/rest/queries">
+    <query name="ordersByIds" entity="sample_Order" fetchPlan="order-with-details">
+        <jpql><![CDATA[select e from sample_Order e where e.id in :ids]]></jpql>
+        <params>
+            <param name="ids" type="java.util.UUID[]"/> // <1>
+        </params>
+    </query>
+</queries>
+----
+<1> `ids` 参数是 `UUID` 集合类型。
+
+在调用端传递该参数时，对应的 ID 需要用 JSON 数组提供：
+
+[source, http request]
+.Query API Collection Parameters Request
+----
+POST http://localhost:8080/rest/queries/sample_Order/ordersByIds
+
+{
+  "ids": [
+    "41aae331-b46b-85ee-b0bc-2de8cbf1ab86",
+    "21021f78-edac-224b-e6f8-6e71e02a0f0d"
+  ]
+}
+----
+
+
+[[empty-values-json]]
+== JSON 中返回空值
+
+默认情况下，Jmix 会从 JSON 返回体中删除空值（`null`），这样空值属性的 key 就不会在 JSON 中出现。
+
+可以用 URL 查询参数 `returnNulls` 控制该行为。如果设置为 `true`，Jmix 则会在 JSON 中添加空值属性的 key。
+
+下面示例中，使用 ID 加载了一个 customer，并请求了所有的空值属性：
+
+[source, http request]
+.加载带空值属性的 Customer
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            /1eab4973-25f9-70d9-5356-6990dd8f79e2
+            ?returnNulls=true
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "sample_Customer",
+  "_instanceName": "Sidney Chandler",
+  "id": "0826806e-6074-90fa-f241-564b5c94d018",
+  "createdDate": "2021-06-09T08:42:39.291",
+  "createdBy": "admin",
+  "lastModifiedDate": "2021-06-09T08:42:39.291",
+  "deletedDate": null,
+  "lastModifiedBy": null,
+  "name": "Sidney Chandler",
+  "type": null, // <1>
+  "version": 1,
+  "deletedBy": null
+}
+----
+<1> 响应中包含空值的 `type` 属性
+
+NOTE: `returnNulls` 可以用在所有的实体加载 API 中：按 ID 加载，加载列表，搜索实体和查询实体。
+
+[[fetch-plans]]
+=== 使用 Fetch Plan
+
+根据客户的用例、UI 或集成场景不同，需要加载的实体属性通常也会有所不同。因此，仅加载实体的直接属性通常是不够的。
+
+在无法通过单一请求加载引用实体时，只能通过额外的请求加载关联数据，从而引起 N+1 查询问题。特别是当通过 HTTP 进行交互时，相应的开销可能会非常大。
+
+为此，实体加载 API 支持了 xref:data-access:fetching.adoc[Fetch Plan]。使用 Fetch plan 可以配置一次从数据库需要加载的属性树，并传递给客户端，提高了性能并减少了开销。
+
+[[named-fetch-plans]]
+=== 命名 Fetch Plans
+
+命名 fetch plan 是指在应用程序共享存储库中注册的 fetch plan（参阅 xref:data-access:fetching.adoc#creating-fetch-plans[创建 fetch plan] 部分）。可以通过指定 fetch plan 的名称在 REST 查询中使用。
+
+下面的示例展示如何加载 Orders 实体及其相关的 customer、order lines 信息，甚至 order line 的 product 信息。
+
+首先，需要在 `fetch-plans.xml` 配置文件中注册 `order-with-details`：
+
+[source,xml]
+.fetch-plans.xml
+----
+<fetchPlans xmlns="http://jmix.io/schema/core/fetch-plans">
+    <fetchPlan class="rest.sample.entity.Order"
+               extends="_base"
+               name="order-with-details">
+        <property name="customer"/>
+        <property name="lines" fetchPlan="_base">
+            <property name="product" fetchPlan="_instance_name" />
+        </property>
+    </fetchPlan>
+</fetchPlans>
+----
+
+Fetch plan 配置好后，可以用 URL 参数 `fetchPlan` 指定 fetch plan 并发起一个 GET 请求。
+
+下面示例中 ID 为 `21021f78-edac-224b-e6f8-6e71e02a0f0d` 的 Order 通过 fetch plan `order-with-details` 进行加载，此时会加载额外的 `customer` 和 `lines` 数据：
+
+[source, http request]
+.加载 Order 的请求，带有 fetch plan
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=order-with-details
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "id": "21021f78-edac-224b-e6f8-6e71e02a0f0d",
+  "date": "2020-12-13",
+  "amount": 49.99,
+  "lines": [ //<1>
+    {
+      "id": "64e4fbb0-7fd6-818b-984e-a8769c4fbe88",
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ],
+  "version": 1,
+  "customer": {
+    "id": "0826806e-6074-90fa-f241-564b5c94d018",
+    "name": "Sidney Chandler",
+  }
+}
+----
+<1> Fetch plan `order-with-details` 保证了结果包含额外的属性 `lines` 和 `customer`。
+
+当使用 POST 请求加载数据时，例如在 <<load-list-search-filter,搜索>> 端点中，可以在请求体的 JSON 的
+`fetchPlan` 属性中指定 fetch plan 的名称：
+
+[source,http request]
+.使用命名 fetch plan 的搜索 POST 请求
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": "order-with-details"
+}
+----
+
+[[inline-fetch-plans]]
+=== 内联 Fetch Plans
+
+从 Jmix 2.5 开始，实体 API 支持内联 fetch plan。
+
+内联 fetch plan 是指将 fetch plan 作为 JSON 对象与 REST 请求一并发送，这个 JSON 对象包含 fetch plan 的结构。实体的本地属性直接用名称表示，引用属性则用嵌套的 JSON 对象表示，嵌套的 JSON 中包含嵌套实体的属性和嵌套的 fetch plan。使用顶层结构中的 `entity` 属性设置根实体名称。
+
+如果从另一个 Jmix 应用程序发送通用 REST 请求，则可以用 `FetchPlanSerialization` bean 将 fetch plan 转换为 JSON 字符串。
+
+内联 fetch plan 可以用在所有能接收 fetch plan 的端点。示例：
+
+[source,http request]
+.使用内联 fetch plan 的搜索 POST 请求
+----
+POST http://localhost:8080/rest/entities/sample_Order/search
+
+{
+  "filter": {
+    "conditions": [
+      {
+        "property": "customer.name",
+        "operator": "=",
+        "value": "Shelby Robinson"
+      }
+    ]
+  },
+  "fetchPlan": {
+    "entity": "sample_Order",
+    "properties": [
+      "id",
+      "number",
+      "date",
+      "amount",
+      {
+        "name": "customer",
+        "fetchPlan": {
+          "properties": [
+            "id",
+            "name",
+            "status"
+          ]
+        }
+      }
+    ]
+  }
+}
+----
+
+如果在 GET 请求中的 URL 参数中使用内联 fetch plan，则 JSON 必须进行 URL 加密。示例：
+
+[source, http request]
+.使用内联 fetch plan 加载 Order
+----
+GET http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /21021f78-edac-224b-e6f8-6e71e02a0f0d
+            ?fetchPlan=%7B%22entity%22%3A%22sample_Order%22%2C%22properties%22%3A%5B%22id%22%2C%22number%22%2C%22date%22%2C%22amount%22%2C%7B%22name%22%3A%22customer%22%2C%22fetchPlan%22%3A%7B%22properties%22%3A%5B%22id%22%2C%22name%22%2C%22status%22%5D%7D%7D%5D%7D
+----
+
+内联 fetch plan 可以通过 xref:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled] 应用程序属性禁用。

@@ -1,0 +1,76 @@
+= 版本控制
+
+[[webdav-document-versions]]
+== WebDAV 文档版本
+
+当启用文档版本时，可以使用 *WebDAV document versions* 视图管理文档的版本。
+
+有两种方式可以打开 *WebDAV document versions* 视图：
+
+. 通过 xref:webdav:ui-components.adoc#webdav-document-upload-field[WebdavDocumentUploadField] 组件，点击组件中显示的文档版本链接。
++
+image::link-for-open-versions.png[align="center", width="631"]
+
+. 通过 xref:webdav:webdav-documents.adoc[WebDAV 文档] 视图中的 *Manage versions* 按钮。
+
+*WebDAV document versions* 对话框打开时如下：
+
+image::web-dav-document-versions.png[align="center", width="1026"]
+
+其中可以进行下列操作：
+
+. *创建新版本*：点击 *Upload* 可以选择需要上传到系统的文件。上传的文件将根据最新的版本号进行编号，新版本的编号带有 * 符号，表示已上传但还没有与文档进行链接。保存更改后，版本号才更新。如果在不保存的情况下关闭对话框，则在 xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] 任务运行时，会删除所有标记 * 的版本。
+
+. *基于已有版本创建新版*: 选择一个文档版本，然后单击 *Copy to head* 按钮进行复制，并根据最新的文档版本号为其分配一个编号。新版本的编号带有 * 符号，表示已上传但还没有与文档进行链接。保存更改后，版本号才更新。如果在不保存的情况下关闭对话框，则在 xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] 任务运行时，会删除所有标记 * 的版本。
+
+. *编辑文档*: 选择一个文档版本，然后点击 *Open* 按钮打开文档进行编辑。每次在外部应用程序中保存文档时，都会在数据库同时保存文档的新版本。使用 *Refresh* 按钮可以刷新对话框中显示的文档版本列表。
++
+CAUTION: 点击 *Refresh* 会删除所有未保存的版本，请小心操作。
+
+. *查看文档（只读）*: 如需查看文档，点击文件名链接。
+
+. *下载单一版本或多版本文档的 ZIP 包*: *Download* 按钮提供了两个用于下载所选文档/版本的功能。第一个功能是可以将文档下载为单独的文件。而 *Download as ZIP* 则可以将所有选定的文档打包为 ZIP 并下载。压缩包内的文件会包含 `-v` 的后缀显示版本号，例如 `example-v3.docx`、`document-v1.docx`。
+
+[[conflict-resolution-policies]]
+== 解决冲突策略
+
+多个用户同时编辑同一文档时可能会发生冲突，我们有多种策略可用于解决这种冲突。
+
+例如，假设同时有两个用户在 *WebDAV document versions* 中打开同一文档并添加多个新版本。第一个用户完成工作后保存更改。随后，第二个用户也保存了更改。此时，数据库包含两个用户各自创建的版本。但是，每个用户只能在 *WebDAV document versions* 中看到自己的版本，并不知道有其他人也提交了新版本。
+
+在这种情况下，对文档进行排序和保存时有可能会出现问题。要解决此类冲突，可以使用下面描述的策略。
+
+默认情况下，使用 `RejectMergePolicy`（拒绝合并策略）。
+
+[[rebase-merge-policy]]
+=== RebaseMergePolicy
+
+`RebaseMergePolicy` 策略允许在数据库中已有的文档版本之后插入新的文档版本。新版本根据数据库中已有的最新文档版本号进行编号。
+
+[[cancel-my-merge-policy]]
+=== CancelMyMergePolicy
+
+如果在 *WebDAV document versions* 中操作时文档版本发生了变更，则将删除所有非持久化版本（标有 * 的版本）。
+
+[[cancel-their-merge-policy]]
+=== CancelTheirMergePolicy
+
+如果在 *WebDAV document versions* 中操作时文档版本发生了变更，则将保存所有标有 * 的版本，而不是其他人在 *WebDAV document versions* 中添加的版本。
+
+[[reject-merge-policy]]
+=== RejectMergePolicy
+
+如果发生冲突，则会显示警告，并丢弃所有新版本。
+
+[[overriding-conflict-resolution-policy]]
+=== 覆盖默认策略
+
+如需修改默认的冲突解决策略，可以在 Spring 配置类中声明一个 `DefaultMergePolicy` 类型的 bean。这个 bean 需要返回所需的策略，示例：
+
+[source,java,indent=0]
+----
+@Bean
+public DefaultMergePolicy defaultMergePolicy() {
+    return RebaseMergePolicy::new;
+}
+----

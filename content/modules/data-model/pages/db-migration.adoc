@@ -1,0 +1,117 @@
+= 数据库结构变更
+
+_Database schema migration_，数据库变更，是根据你的应用程序数据模型的变化更新数据库 schema 的过程。
+
+Jmix 使用 https://www.liquibase.org[Liquibase^] 作为数据库变更工具。
+
+[[workflow]]
+== 工作流程
+
+Jmix Studio 将 JPA xref:entities.adoc[实体] 的当前状态和相应 xref:data-stores.adoc[数据存储] 的数据库 schema 进行比较，然后以 Liquibase changelog 的格式创建变更脚本。当你使用 *Run/Debug Configuration* xref:jmix:studio:project.adoc#starting-application[启动应用程序] 时，会自动执行这个过程。changelog 保存在应用程序的源代码中，并构建到二进制制品中。
+
+TIP: 还可以通过修改 xref:studio:project.adoc#run-debug-configuration-settings[Run/Debug configuration] 设置禁用自动创建变更脚本的功能。
+
+当应用程序启动时，会使用 Liquibase 运行生成的 changelog 以更新连接的数据库。
+
+TIP: 你还可以随时使用 *Generate Liquibase Changelog* xref:jmix:studio:data-stores.adoc#data-store-actions[操作] 创建 changelog ，并在 Studio 的 Jmix tool 窗口中对数据存储执行 *Update* 操作。
+
+主程序所依赖的扩展组件也可以包含 Liquibase changelog 文件。组件的 changelog 会在主程序的 changelog 之前运行。
+
+[[changelogs]]
+== changelog 文件结构
+
+Studio 在应用程序项目的 `src/main/resources/<base_package>/liquibase` 目录下生成 changelog 文件。在此目录中，Studio 为主数据存储创建 `changelog` 目录，并为附加数据存储创建 `<store>-changelog` 目录。Changelog 文件创建在以与当前日期的年月命名的子目录下。文件名包括日期、当天的序列号和一个随机字符序列，以避免多个开发人员在同一个项目上工作时发生冲突。
+
+.src/main/resources/com/company/demo/
+[source,text]
+----
+├── liquibase/ <1>
+│   ├── changelog/ <2>
+│   │   ├── 010-init-user.xml <3>
+│   │   └── 2020/
+│   │       ├── 11/
+│   │       │   ├── 12-010-fe2b82e6.xml <4>
+│   │       │   └── 27-010-fe2b82e6.xml
+│   │       └── 12/
+│   │           └── 17-010-fe2b82e6.xml
+│   ├── changelog.xml <5>
+│   ├── locations-changelog/ <6>
+│   │   └── 2020/
+│   │       └── 11/
+│   │           ├── 25-010-fe2b82e6.xml
+│   │           └── 28-010-fe2b82e6.xml
+│   └── locations-changelog.xml <7>
+----
+
+<1> Liquibase changelog 文件结构的根目录。
+<2> 主数据存储的 changelog 目录。
+<3> 为新项目提供的 changelog 文件。为 `User` 实体创建一个表。
+<4> Studio 生成的 changelog 文件。
+<5> 主数据存储的 root changelog 文件。
+<6> `locations` 数据存储的 changelog 目录。
+<7> `locations` 数据存储的 root changelog 文件。
+
+对于每个数据存储，在 `src/main/resources/<base_package>/liquibase` 目录中都有一个 root changelog 文件。其中有一个指令用来包含在 `changelog` 子目录下所有的 changelog 文件。项目中必须带有 `<data-store-name>.liquibase.change-log` 配置，其值为 root changlog 的路径，示例：
+
+[source,text]
+----
+main.liquibase.change-log = com/company/demo/liquibase/changelog.xml
+----
+
+主数据存储的 root Liquibase changelog 中有 `include` 指令，用于包含项目中所有扩展组件的 changelog。因此，这样的 changelog 能兼容 https://github.com/liquibase/liquibase-gradle-plugin[Liquibase Gradle 插件^] 和 Liquibase CLI，并支持在没有 Studio 或者应用程序的环境中运行 Liquibase，例如，在 CI 服务器上。
+
+在添加或删除扩展组件时，Studio 能自动维护 changelog 中的引用关系。还有，当启动应用程序时，Studio 还会检查 root changelog 中的引用是否与项目使用的组件匹配。如果发现不匹配，Studio 会显示通知弹窗，建议添加或删除一些引用。这里可以忽略某些路径，之后的通知中就不会再次显示已经忽略的条目。
+
+可以手动编写 Liquibase changelog 文件并将它们放入上述结构中。Liquibase 按带有整个路径的字母顺序执行包含的 changelog ，因此，需要为自定义文件设置合适的文件名。
+
+WARNING: 切勿删除 root `changelog.xml` 文件，这是启动变更过程必需的文件。此外，除非你想以非标准方式实现安全性，否则不要删除 `changelog/010-init-user.xml`。
+
+TIP: 可以使用 Jmix Studio 中数据存储 xref:studio:data-stores.adoc#data-store-actions[右键菜单] 的 *Aggregate Liquibase Changelogs* 操作将多个最近生成的 changelog 合并为一个。
+
+[[configuration]]
+== 配置 Liquibase
+
+可以按照 {spring-boot-doc}/appendix/application-properties/index.html#appendix.application-properties.data-migration[Spring Boot 文档^]（参见 `spring.liquibase.*` 属性）中相同的方式在 `application.properties` 中为主数据存储设置 Liquibase 属性（参见 `spring.liquibase.*` 属性），但需要将 `spring.liquibase` 前缀替换为 `main.liquibase`，例如：
+
+[source,text]
+----
+main.liquibase.enabled = false
+----
+
+对于 xref:data-stores.adoc#additional[附加数据存储]，将应用程序属性中的 `main` 替换为此数据存储的名称。
+
+[NOTE]
+====
+`application.properties` 必须包含指定每个数据存储 root Liquibase changelog 的配置。示例：
+
+[source,text]
+----
+main.liquibase.change-log=com/company/demo/liquibase/changelog.xml
+
+second.liquibase.change-log=com/company/demo/liquibase/second-changelog.xml
+----
+====
+
+[[ignoring-existing-tables]]
+=== 忽略已存在的表格
+
+默认情况下，Jmix Studio 会将数据库中的所有表与数据模型进行比较，并生成数据库变更脚本，脚本中对无法找到对应实体类的数据库表还会生成 `DROP TABLE` 语句。如果你的数据库包含无法与实体对应的表，可以将表格前缀或完整名称添加到 `main.datasource.studio.liquibase.exclude-prefixes` 应用程序属性，这样可以忽略这些表，例如：
+
+[source, properties]
+----
+main.datasource.studio.liquibase.exclude-prefixes = abc_,foo,bar
+----
+
+[[ignoring-foreign-key-constraint]]
+=== 忽略外键约束
+
+Jmix Studio 在生成变更日志时，会遵循 JPA 的约束模式。如果需要一个没有数据库外键的引用列（例如，在使用已有的数据库结构时），可以在 owning-side 的 `@JoinColumn` 中设置 `ConstraintMode.NO_CONSTRAINT`：
+
+[source,java]
+----
+@JoinColumn(name = "AUTHOR_ID",
+        foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+private Author author;
+----
+
+使用 `ConstraintMode.NO_CONSTRAINT` 时，生成的 changelog 仍然包含该列及其索引，但是不会添加外键约束。

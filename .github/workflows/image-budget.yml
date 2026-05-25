@@ -1,0 +1,77 @@
+name: Image budget check
+
+on:
+  pull_request:
+    paths:
+      - 'content/modules/**/images/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check image sizes and types
+        run: |
+          set -e
+          PNG_MAX=512000   # 500 KB
+          JPG_MAX=512000
+          SVG_MAX=102400   # 100 KB
+
+          changed=$(git diff --name-only --diff-filter=ACM \
+            "origin/${{ github.base_ref }}...HEAD" \
+            | grep -iE '\.(png|jpg|jpeg|gif|svg|webp)$' || true)
+
+          if [ -z "$changed" ]; then
+            echo "No image changes; nothing to check."
+            exit 0
+          fi
+
+          echo "Changed image files:"
+          echo "$changed"
+          echo ""
+
+          fail=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$f" ] || continue
+            size=$(wc -c < "$f" | tr -d ' ')
+            ext=$(echo "$f" | awk -F. '{print tolower($NF)}')
+
+            case "$ext" in
+              gif)
+                echo "::error file=$f::GIFs are not allowed. Host animated demos externally and link from .adoc."
+                fail=1
+                ;;
+              png|webp)
+                if [ "$size" -gt "$PNG_MAX" ]; then
+                  echo "::error file=$f::$size bytes exceeds PNG limit of $PNG_MAX. Optimize with: pngquant --quality=65-85 --strip --force --ext .png '$f'"
+                  fail=1
+                fi
+                ;;
+              jpg|jpeg)
+                if [ "$size" -gt "$JPG_MAX" ]; then
+                  echo "::error file=$f::$size bytes exceeds JPG limit of $JPG_MAX. Re-export at lower quality."
+                  fail=1
+                fi
+                ;;
+              svg)
+                if [ "$size" -gt "$SVG_MAX" ]; then
+                  echo "::error file=$f::$size bytes exceeds SVG limit of $SVG_MAX. Inspect for embedded base64 raster data; run through SVGO."
+                  fail=1
+                fi
+                ;;
+            esac
+          done <<EOF
+          $changed
+          EOF
+
+          if [ "$fail" -ne 0 ]; then
+            echo ""
+            echo "Image budget check failed. See errors above and fix the offending files."
+            exit 1
+          fi
+          echo "All image changes within budget."

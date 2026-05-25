@@ -1,0 +1,443 @@
+= 动态属性
+
+== 概述
+
+Search 扩展组件支持对实体的 xref:dyn-attr:index.adoc[动态属性] 进行索引。
+
+动态属性是支持在不更改数据库结构的情况下扩展数据模型，并且动态属性的值可以与静态属性一起参与全文搜索。
+
+项目中必须存在 *Dynamic Attributes* 扩展组件。
+
+[[indexing-dynamic-attributes]]
+== 动态属性索引
+
+[[dyn-attr-annotation]]
+=== @DynamicAttributes 注解
+
+在 xref:search:index-definitions.adoc#interface[索引定义接口] 的方法上添加 `@DynamicAttributes` 注解。在创建索引时，会包含实体的全部动态属性：
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"firstName", "lastName"}) // <1>
+    @DynamicAttributes // <2>
+    void mapping();
+}
+----
+<1> 索引实体的静态属性
+<2> 索引实体的全部动态属性
+
+`@DynamicAttributes` 注解可重复使用，多个注解可以放在一个方法上，也可以放在不同方法上：
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"firstName", "lastName"})
+    void mapping();
+
+    @DynamicAttributes(excludeCategories = {"Internal"})
+    @DynamicAttributes(excludeAttributes = {"*secret*"}, analyzer = "english")
+    void dynamicMapping();
+}
+----
+
+[CAUTION]
+====
+当使用多个 `@DynamicAttributes` 注解时，请留意是否有冲突：如果某些属性同时满足多个注解中的条件，会导致冲突，应用程序会因此异常无法启动。参阅 <<multiple-groups-with-different-settings>> 了解冲突详情以及解决办法。
+====
+
+[[parameters]]
+=== 注解参数
+
+* `excludeCategories` — 要从索引中排除的动态属性类别名称数组。支持通配符 `+*+` 模式。
++
+类别名称是在 *Administration > Dynamic attributes* 中 xref:dyn-attr:dynattr-managing.adoc#create-category[创建类别] 时定义的 *Name* 字段的值。
++
+[source,java]
+----
+@DynamicAttributes(excludeCategories = {"Internal", "Archive"})
+void mapping();
+----
++
+[NOTE]
+====
+模式不能仅由 `+*+` 字符组成 —— 例如，`+*+` 或 `+**+` 会被拒绝。支持多个 `+*+` 字符与其他文本组合：`+*abc+`、`+abc*+`、`+a*b*c+`、`+a**b+`。
+====
+
+* `excludeAttributes` — 要从索引中排除的动态属性代码数组。支持通配符 `+*+` 模式。
++
+属性代码是在 *Administration -> Dynamic attributes* 中 xref:dyn-attr:dynattr-managing.adoc#create-attribute[创建动态属性] 时定义的 *System code* 字段的值。指定时**不带** `+` 前缀（该前缀仅在 Jmix 元模型内部使用）。
++
+[source,java]
+----
+@DynamicAttributes(excludeAttributes = {"*String*", "dynamicEnumAttr*", "dynamicAttribute"})
+void mapping();
+----
++
+[NOTE]
+====
+属性代码中禁止使用 `+.+` 和 `+++` 字符。模式不能仅由 `+*+` 字符组成 —— 例如，`+*+` 或 `+**+` 将被拒绝。允许多个 `+*+` 字符与其他文本组合：`+*String*+`、`+attr*Code*+`、`+a**b+`。
+====
+
+* `referenceAttributesIndexingMode` — 对于 `Entity` 类型（引用其他实体）的动态属性的索引模式。支持：
++
+[cols="1,3"]
+|===
+| 值 | 描述
+
+| `INSTANCE_NAME_ONLY`（默认）
+| 仅索引引用实体的实例名称。不会遍历或索引被引用实体的单个静态或动态属性。
+
+| `NONE`
+| 完全不索引引用类型的动态属性。
+|===
++
+[source,java]
+----
+@DynamicAttributes(referenceAttributesIndexingMode = ReferenceAttributesIndexingMode.NONE)
+void mapping();
+----
+
+* `analyzer` — 应用于动态属性字段的 Elasticsearch/OpenSearch 分析器名称。该分析器应用于所有支持的属性类型，因为所有这些类型都作为 `text` 字段进行索引：`STRING` 属性、`ENUMERATION` 属性以及 `ENTITY` 类型属性的实例名称（`_instance_name`）。
++
+分析器在索引和搜索期间对文本进行分词：将文本拆分为单词、小写的 token、移除停用词等。
++
+默认情况下，使用 `standard` 分析器。该分析器按 Unicode 单词边界拆分文本并将所有 token 转换为小写。适用于大多数西欧语言，但不处理词形变化 —— 例如，无法将单词还原为其词根形式。对于形态丰富的语言（如芬兰语），请使用特定于语言的分析器。
++
+[source,java]
+----
+@DynamicAttributes(analyzer = "finnish")
+void mapping();
+----
+
+[[combine-annotations]]
+=== 与其他注解一起使用
+
+`@DynamicAttributes` 可与 `@AutoMappedField` 同时使用：
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Order.class)
+public interface OrderIndexDefinition {
+
+    @AutoMappedField(includeProperties = {"number", "product", "customer.lastName"})
+    @DynamicAttributes(
+        excludeCategories = {"Internal"},
+        referenceAttributesIndexingMode = ReferenceAttributesIndexingMode.NONE,
+        analyzer = "english"
+    )
+    void mapping();
+}
+----
+
+[[programmatic-index-definition]]
+== 编程式索引定义
+
+当通过 `@ManualMappingDefinition` 使用 xref:search:index-definitions.adoc#programmatic-mapping[编程式映射] 时，动态属性使用 `DynamicAttributesGroupConfiguration` 配置。
+
+动态属性组针对实体动态属性的一个子集使用一组索引设置（分析器、引用处理模式、类别和属性排除）。每次调用 `addDynamicAttributesGroup()` 定义一个组。如果不同的属性需要使用不同的设置进行索引，可以声明多个组。
+
+[WARNING]
+====
+由于组是通过 *排除* 来定义的，同一个属性很容易出现在多个组中。如果发生这种情况，并且两个组具有相同的 `order` 值，则会在应用程序启动时抛出异常：
+
+ Conflicted mapping fields: '+attrCode' and '+attrCode'. Specify the different values of order for them.（映射字段冲突：'+attrCode' 和 '+attrCode'。请为它们指定不同的 order 值。）
+
+默认的 `order` 值取自字段映射策略：例如，`AutoMappingStrategy` 返回 `0`。即，使用相同策略且没有显式 `withOrder` 的两个组在重叠的属性上 *总是* 会发生冲突。
+
+如需解决冲突，请为冲突的组分配不同的 `order` 值。具有 *更高* 值的组获得该字段：
+
+[source,java]
+----
+.addDynamicAttributesGroup(
+        DynamicAttributesGroupConfiguration.builder()
+                .excludeProperties("private*")
+                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                .withOrder(0) // <1>
+                .build()
+)
+.addDynamicAttributesGroup(
+        DynamicAttributesGroupConfiguration.builder()
+                .addParameter("analyzer", "english")
+                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                .withOrder(1) // <2>
+                .build()
+)
+----
+<1> 低优先级的组
+<2> 高优先级的组获得两个组的共同属性。
+
+建议在设计分组时，考虑使用 `excludeProperties` 或 `excludeCategories` 将每个动态属性显式的放在某个组内。
+====
+
+[[minimal-configuration]]
+=== 最小配置
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @ManualMappingDefinition
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup( // <1>
+                        DynamicAttributesGroupConfiguration.builder()
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .build();
+    }
+}
+----
+<1> 添加动态属性组，无其他限制。
+
+[[indexing-reference-attributes-by-instance-name]]
+=== 用实例名称索引关联属性
+
+默认情况下，动态关联属性用 `INSTANCE_NAME_ONLY` 模式索引，即索引中仅包含关联实体的实例名称。
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @ManualMappingDefinition
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup(
+                        DynamicAttributesGroupConfiguration.builder()
+                                .withReferenceAttributesIndexingMode(   // <1>
+                                        ReferenceAttributesIndexingMode.INSTANCE_NAME_ONLY)
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .build();
+    }
+}
+----
+<1> 默认模式，可以省略。仅索引关联实体的 `_instance_name`，其余属性不索引。
+
+[[excluding-reference-attributes-from-the-index]]
+=== 索引中排除关联属性
+
+如果不需要索引关联属性，使用 `NONE`：
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @ManualMappingDefinition
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup(
+                        DynamicAttributesGroupConfiguration.builder()
+                                .withReferenceAttributesIndexingMode(   // <1>
+                                        ReferenceAttributesIndexingMode.NONE)
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .build();
+    }
+}
+----
+<1> 关联动态属性从索引中完全排除了。索引仅包含 `STRING` 和 `ENUMERATION` 类型的属性。
+
+[[multiple-groups-with-different-settings]]
+=== 多个分组使用不同配置
+
+可以添加多个动态属性分组，每个分组使用不同的规则。可用于当某些属性需要一个分析器，而其他属性需要不同的索引模式。
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @ManualMappingDefinition
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup(   // <1>
+                        DynamicAttributesGroupConfiguration.builder()
+                                .excludeProperties("private*")
+                                .withReferenceAttributesIndexingMode(
+                                        ReferenceAttributesIndexingMode.INSTANCE_NAME_ONLY)
+                                .addParameter("analyzer", "english")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup(   // <2>
+                        DynamicAttributesGroupConfiguration.builder()
+                                .excludeCategories("Internal")
+                                .withReferenceAttributesIndexingMode(
+                                        ReferenceAttributesIndexingMode.NONE)
+                                .addParameter("analyzer", "english")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .build();
+    }
+}
+----
+<1> 第一组：排除了 `private*` 的属性，关联属性使用实例名称做索引，使用了 `english` 分析器。
+<2> 第二组：排除了 `Internal` 分类，没有索引关联属性，使用了 `english` 分析器。
+
+[[combining-category-attribute-exclusions]]
+=== 组合类别和属性排除
+
+[source,java]
+----
+@JmixEntitySearchIndex(entity = Customer.class)
+public interface CustomerIndexDefinition {
+
+    @ManualMappingDefinition
+    default MappingDefinition mapping() {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addDynamicAttributesGroup(
+                        DynamicAttributesGroupConfiguration.builder()
+                                .excludeCategories("Internal", "Archive") // <1>
+                                .excludeProperties("*secret*", "attr4")   // <2>
+                                .withReferenceAttributesIndexingMode(
+                                        ReferenceAttributesIndexingMode.NONE)
+                                .addParameter("analyzer", "english")      // <3>
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .build();
+    }
+}
+----
+<1> 按名称排除分类。分类名称中可以使用 `.` 和 `+`。但是单独的 `*` 不支持。
+<2> 按通配符编码排除属性。禁止使用 `.` 和 `+`；单独的 `*` 不支持。
+<3> 分析器用于全部的 `text` 字段类型的动态属性：`STRING`、`ENUMERATION` 和 `ENTITY` 类型的 `_instance_name`。
+
+[NOTE]
+====
+所有在 <<limitations>> 章节中描述的局限性同样适用于编程式配置：支持的属性类型、关联索引规则、属性链限制以及复合键约束。
+====
+
+[[dynamicAttributesGroupConfiguration-builder-methods]]
+=== DynamicAttributesGroupConfiguration 构建器的方法
+
+[cols="2,3"]
+|===
+| 方法 | 描述
+
+| `excludeCategories(String... categories)`
+| 按名称排除动态属性类别。模式不能仅由 `+*+` 字符组成；允许多个 `+*+`` 与其他文本组合（`+*abc+`、`+abc*+`、`+a**b+`）。
+
+| `excludeProperties(String... properties)`
+| 按代码排除动态属性。禁止使用 `+.+` 和 `+++` 字符。模式不能仅由 `+*+` 字符组成；允许多个 `+*+` 与其他文本组合（`+*String*+`、`+attr*Code*+`、`+a**b+`）。
+
+| `withReferenceAttributesIndexingMode(ReferenceAttributesIndexingMode mode)`
+| 设置引用动态属性的索引模式：`INSTANCE_NAME_ONLY`（默认）或 `NONE`。使用 `INSTANCE_NAME_ONLY` 时，仅索引关联实体的实例名称。
+
+| `withFieldMappingStrategyClass(Class<? extends FieldMappingStrategy> cls)`
+| 设置字段映射策略类。
+
+| `withFieldMappingStrategy(FieldMappingStrategy strategy)`
+| 设置字段映射策略实例（优先级高于类）。
+
+| `addParameter(String key, Object value)`
+| 添加任意配置参数，例如 `"analyzer"`。
+
+| `withPropertyValueExtractor(PropertyValueExtractor extractor)`
+| 设置自定义属性值提取器。
+
+| `withOrder(int order)`
+| 设置组的优先级。用于解决同一属性落入多个组时的冲突：具有 *更高* 值的组优先。如果未显式设置，则该值取自字段映射策略（例如，`AutoMappingStrategy` 返回 `0`）。
+|===
+
+[[change-tracking]]
+== 跟踪修改
+
+Search 扩展组件会自动跟踪已索引实体的动态属性变更。当动态属性值发生变化时，该实体会被添加到索引队列中，并在下一次队列处理时重新索引。
+
+此行为无需额外配置 — 当索引定义中存在动态属性时，会自动启用。
+
+[NOTE]
+====
+如果被引用实体实例上的动态关联属性值发生变化，则拥有该引用的实体实例也会自动重新索引。
+====
+
+[[limitations]]
+== 限制
+
+[[supported-types]]
+=== 支持的动态属性类型
+
+仅以下动态属性类型会被索引：
+
+[cols="1,3"]
+|===
+| 类型 | 描述
+
+| `STRING`
+| 字符串属性。
+
+| `ENUMERATION`
+| 枚举属性。所有可用语言环境的本地化值都会被索引。
+
+| `ENTITY`
+| 引用属性（指向另一个实体的链接）。行为由 `referenceAttributesIndexingMode` 参数控制。
+|===
+
+其他类型的属性（`INTEGER`、`DOUBLE`、`DECIMAL`、`DATE`、`DATE_WITHOUT_TIME`、`BOOLEAN`）不会被索引，并且会被静默忽略。
+
+[[reference-attribute-indexing-limitations]]
+=== 引用属性索引限制
+
+以下限制适用于 `ENTITY` 类型的动态属性：
+
+* 在 `INSTANCE_NAME_ONLY` 模式下，仅索引被引用实体的**实例名称**。被引用实体的单个静态或动态属性不包含在索引中。
+* `INSTANCE_NAME_ONLY` 是引用属性被索引的唯一模式。不支持通过动态引用进行更深层属性的索引。
+* 通过动态属性引用的实体**不支持复合主键**。
+
+由于框架限制，仅有两种模式可用。Jmix 不支持针对动态属性的 FetchPlan：加载实体实例时，只有 `LOAD_DYN_ATTR` hint 可用，该提示会完整加载所有动态属性。动态属性被有意排除在 FetchPlan 之外，并通过此提示单独加载。由于在遍历动态关联属性时无法指定应加载关联实体字段，因此实例名称（对任何实体统一计算）是唯一实际可行的索引选项。
+
+[[attribute-chain-limitations]]
+=== 属性链限制
+
+* *通过静态引用的动态属性* — 通过静态引用属性链接到根实体的实体实例的动态属性（例如 `customer.+dynamicAttr`）不会被索引。仅索引根实体实例上的直接动态属性。
+* *通过动态引用的静态属性* — 由 `ENTITY` 类型动态属性引用的实体实例的静态属性不会被索引。仅支持实例名称。
+
+[[other-limitations]]
+=== 其他限制
+
+* 属性代码（`excludeAttributes`）中禁止使用 `.`（点）和 `+`（加号）字符。类别名称（`excludeCategories`）没有此类限制。
+* 模式不能仅由 `+*+` 字符组成 —— 例如，`+*+` 或 `+**+` 将被拒绝。允许多个 `+*+` 字符与其他文本组合：`+*abc+`、`+abc*+`、`+a*b*c+`、`+a**b+`。
+* 项目中必须存在 *Dynamic Attributes* 扩展组件（`jmix-dynattr`）。

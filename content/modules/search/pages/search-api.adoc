@@ -1,0 +1,104 @@
+= 搜索 API 和原理
+
+[[diagram]]
+== 搜索组件关系图
+
+image:search:search_architecture.png[Architecture Diagram, align="center"]
+
+搜索扩展组件包含下列子组件：
+
+* *Startup Index Synchronizer* - 在应用程序启动时自动验证并重建不相关或缺失的索引。启动后台进程，将索引相关的全部实体实例都加入队列。
+* *Entity Tracking Listener* - 跟踪索引实体的变更，并将变更实体加入队列。
+* *Quartz Scheduler* - 计划定期处理索引队列的任务。
+* *Indexing Queue Manager* - 将内容加入索引队列。处理之前队列中的内容并通过 Entity Indexer 执行对应的操作。
+* *Entity Indexer* - 使用索引数据执行操作：保存和删除实体实例。
+* *Index Manager* - 管理索引元数据：创建和删除索引，验证字段映射。
+* *Entity Searcher* - 在索引中执行搜索，并获取可在视图渲染的搜索结果。
+
+[[indexing-api]]
+== 索引 API
+
+如需直接将实体实例添加至索引或者从索引删除，而无需添加至索引队列中，请使用 `EntityIndexer` 中的方法：
+
+* `index(Object entityInstance)` - 将提供的实体实例添加至索引。
+* `indexCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例添加至索引。
+* `indexByEntityId(Id entityId)` - 使用提供的 ID 将实体实例添加至索引。
+* `indexCollectionByEntityIds(Collection<Id> entityIds)` - 使用提供的一组 ID 将多个实体实例添加至索引。
+* `delete(Object entityInstance)` - 将提供的实体实例从索引删除。
+* `deleteCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例从索引删除。
+* `deleteByEntityId(Id entityId)` - 使用提供的 ID 将实体实例从索引删除。
+* `deleteCollectionByEntityIds(Collection<Id> entityIds)` - 使用提供的一组 ID 将多个实体实例从索引删除。
+
+如需将实体实例加入队列，请使用 `IndexingQueueManager` 中的方法：
+
+* `emptyQueue()` - 从索引队列中删除所有内容。
+* `emptyQueue(String entityName)` - 从索引队列中删除所有与提供的实体相关的内容。
+* `enqueueIndex(Object entityInstance)` - 将提供的实体实例加入索引事件队列。
+* `enqueueIndexCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例加入索引事件队列。
+* `enqueueIndexByEntityId(Id entityId)` - 将实体 ID 加入索引事件队列。
+* `enqueueIndexCollectionByEntityIds(Collection<Id> entityIds)` - 将一组实体 ID 加入索引事件队列。
+* `enqueueIndexAll()` - 将所有配置了索引的实体实例加入索引事件队列。
+* `enqueueIndexAll(String entityName)` - 将提供的实体的所有实例加入索引事件队列。该实体应当完成了索引配置。
+* `enqueueDelete(Object entityInstance)` - 将提供的实体实例加入删除事件队列。
+* `enqueueDeleteCollection(Collection<Object> entityInstances)` - 将提供的一组实体实例加入删除事件队列。
+* `enqueueDeleteByEntityId(Id entityId)` - 将实体 ID 加入删除事件队列。
+* `enqueueDeleteCollectionByEntityIds(Collection<Id> entityIds)` - 将一组实体 ID 加入删除事件队列。
+* `processNextBatch()` - 从索引队列中获取下一组内容，并进行处理。
+* `processNextBatch(int batchSize)` - 从索引队列中获取下一组内容（数量为 `batchSize`），并进行处理。
+* `processEntireQueue()` - 从索引队列中获取所有内容，并进行处理。
+
+[[searching-api]]
+== 搜索 API
+
+如需在索引中搜索实体，请使用 `EntitySearcher` 中的方法：
+
+* `SearchResult search(SearchContext searchContext, String searchStrategy)` - 根据提供的 `SearchContext` 和搜索策略名称在索引中执行搜索。
+* `search(SearchContext searchContext)` - 与前一个方法类似，但是使用默认的 `SearchStrategy`。
+* `searchNextPage(SearchResult previousSearchResult)` - 根据前一页搜索请求的 `SearchResult` 执行下一页搜索。返回其 `SearchResult` 可用于后续调用。
+
+返回的 `SearchResult` 对象包含搜索结果数据：
+
+* `SearchContext` - 当前搜索的主要设置：
+
+** `searchText` - 需要搜索的关键词。
+** `size` - 返回文档的最大数量。
+** `offset` - 跳过文档的数量。
+** `entities` - 一组用于搜索的实体名称。如果未指定，则在所有索引实体中搜索。
+
+* `SearchStrategy` - 定义 `searchText` 的处理方式。
+
+另外，还可以使用 `SearchResult` 加载实体实例的集合。请使用 `SearchResultProcessor` 中的方法：
+
+* `Collection<Object> loadEntityInstances(SearchResult searchResult)`
+* `Collection<Object> loadEntityInstances(SearchResult searchResult, Map<String, FetchPlan> fetchPlans)`
+
+[[entity-indexing-mbean]]
+== EntityIndexing MBean
+
+搜索扩展组件提供了一个对象名为 `jmix.search:type=EntityIndexing` 的 MBean，具有下列操作：
+
+* `emptyIndexingQueue` - 从索引队列中删除所有内容。该操作有两个版本：
+** 带 `entityName` 参数 - 仅删除指定实体的全部实例。
+** 不带参数 - 删除全部实体实例。
+* `enqueueIndexAll` - 将索引实体的所有实例都加入队列。该操作有两个版本：
+** 带 `entityName` 参数 - 仅处理指定实体的实例。
+** 不带参数 - 处理全部索引实体。
+* `processEntireIndexingQueue` - 处理索引队列中的全部内容。
+* `processIndexingQueueNextBatch` - 处理索引队列中的下一组内容。
+* `recreateIndex` - 删除并重新创建所提供实体的相关索引。会丢失所有索引数据。
+* `recreateIndexes` - 删除并重新创建应用程序中定义的全部索引。会丢失所有索引数据。
+* `synchronizeIndexSchema` - 同步所提供实体的索引结构。根据索引结构管理策略的不同，有可能会删除索引的全部数据。
+* `synchronizeIndexSchemas` - 同步应用程序中定义的全部索引。根据索引结构管理策略的不同，有可能会删除索引的全部数据。
+* `validateIndex` - 验证所提供实体的相关索引结构，并展示验证状态。
+* `validateIndexes` - 验证应用程序中定义的全部索引结构，并展示全部索引的验证状态。
+
+[[security-and-pagination]]
+== 访问控制和分页
+
+数据访问控制通过搜索扩展组件中的两步实现：
+
+* 搜索开始前 - 检查 xref:security:resource-roles.adoc#entity-policy[实体策略]，并排除禁止访问实体的相关索引。
+
+* 搜索完成后 - 检查是否对找到的实体有任何 xref:security:row-level-roles.adoc#policies[行级策略] 配置。如果有的话，会使用安全策略重新加载找到的实例。
+
+`EntitySearcher` 会尝试使用搜索请求中找到的数据填充整个页面。如果某些数据由于安全限制被排除在结果之外，并且索引中还有其他满足条件的数据，`EntitySearcher` 会自动执行一次额外的搜索请求获取更多的数据。这个过程可能重复多次直到数据填满整个页面或者没有更多的数据。

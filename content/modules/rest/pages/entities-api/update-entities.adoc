@@ -1,0 +1,389 @@
+= 更新实体
+
+实体 API 支持通过 `/entities/:entityName/:entityId` 接口的 `PUT` 请求更新已有实体。
+
+[[update-entity]]
+== 更新单一实体
+
+当实体更新成功后，HTTP 返回状态码 `200 - OK`。默认情况下，会返回一个带有实体元数据的 JSON 对象，主要包含新建实体的 `id` 属性，以便将来使用。
+
+更新实体示例：
+
+[source, http request]
+.更新 Customer 请求
+----
+PUT http://localhost:8080/rest
+            /entities
+            /sample_Customer
+            /13f01f59-8e5f-4fd9-802b-66501d49ac99
+
+{
+  name: "Updated Name"
+}
+----
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "_entityName": "sample_Customer",
+  "_instanceName": "Updated Name",
+  "id": "13f01f59-8e5f-4fd9-802b-66501d49ac99"
+}
+----
+
+在实体验证和实体关联方面，更新实体的 API 与 xref:entities-api/create-entities.adoc[创建实体 API] 类似。主要区别是如何处理 `1:N` 关联和组合。实体更新接口还支持 <<partial-updates,实体部分更新>>，在请求 JSON 中可以只包含需要更新的属性。
+
+
+[[association-attributes]]
+== 关联属性
+
+如需更新 `1:1` 或 `N:1` 关联属性，只需要发送关联实体的新 ID 即可。对于 `1:N` 或 `M:N` 关系，需要发送实体变更关联的多个实体列表。
+
+CAUTION: 更新实体接口会用请求内的数据 _替换_ 掉已有的 `1:N` 或 `M:N` 关联集合。即，会删除请求中没有的实体引用。只是删除引用关系，不会删除引用实体本身。
+
+下面例子中，展示如何更新 `Product` 和 `ProductTag` 之间的 `M:N` 关系。假设在更新执行前 Product 数据如下：
+
+[source, json]
+.已有的 Product
+----
+{
+  "id": "e1d586b4-aefb-2ee7-3b91-b07357b178ea",
+  "price": 99.95,
+  "name": "Outback Power Remote Power System",
+  "version": 1,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695",
+      "name": "shiny"
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502",
+      "name": "great"
+    }
+  ]
+}
+----
+
+然后，我们希望这样修改 Product 的标签：
+
+* 删除 `great` 标签。
+* 添加 `amazing` 标签。
+* 保留 `shiny` 标签。
+
+[source, http request]
+.更新关联 Tag 请求
+----
+PUT http://localhost:8080/rest
+            /entities
+            /sample_Product
+            /e1d586b4-aefb-2ee7-3b91-b07357b178ea
+            ?responseFetchPlan=product-with-tags
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695" // <1>
+    },
+    {
+      "id": "d6ab132e-a0bd-a624-c6ad-cc544e83c584" // <2>
+    }
+  ]
+}
+----
+<1> 请求中带了 `shiny` 标签的 ID，这样此标签可以保留。
+<2> `amazing` 标签的 ID，添加新的标签。
+
+NOTE: 由于请求中没有标签 `great（c4c028f0-fec1-7512-83cd-c17537d1f502）` 的 ID，因此，该标签的关联关系将被删除。
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "id": "e1d586b4-aefb-2ee7-3b91-b07357b178ea",
+  "createdBy": "admin",
+  "price": 99.95,
+  "name": "Outback Power Remote Power System",
+  "version": 2,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695",
+      "name": "shiny" // <1>
+    },
+    {
+      "id": "d6ab132e-a0bd-a624-c6ad-cc544e83c584",
+      "name": "amazing" // <2>
+    }
+  ]
+}
+----
+<1> 保留了 `shiny` 的关联。
+<2> 新增了 `amazing` 的关联，但是 `great` 的关联已经删除了。
+
+[NOTE]
+.删除 `*:1` 实体关联
+====
+如需删除 `N:1` 或 `1:1` 关联关系，需要发送该属性值 `null`。由于有 <<partial-updates>> 功能，请求中缺失该属性不会导致删除关联关系，仅仅是被忽略而已。
+====
+
+[[composition-attributes]]
+== 组合属性
+
+如需更新组合关系属性，可以直接在更新父实体的请求中更新子实体，适用于 `1:1` 和 `1:N` 组合关系。
+
+CAUTION: 更新实体接口会用请求内的数据 _替换_ 已有的组合关系集合。即，会删除请求中没有的实体引用。而且，引用实体本身也会被删除。
+
+[CAUTION]
+====
+更新实体接口会用请求内的数据 _替换_ 已有的组合关系集合。并且会从数据存储中 _删除_ 请求中没有的子实体。
+
+此外，请确保为组合内的所有子实体传递相同的一组属性。某个实体有而其他实体没有的属性值会在后者中设置为 null。
+====
+
+下面示例中，展示如何更新 `Order` 和 `OrderLine` 的 `1:N` 组合关系。假设更新前的 Order 实体如下：
+
+[source, json]
+.已有 Order
+----
+{
+  "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": [
+    {
+      "id": "a1cd778b-fe49-4c74-05a0-6fb207dc11bd",  // <1>
+      "product": {
+        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
+        "name": "Solar-One HUP Flooded Battery 48V"
+      },
+      "quantity": 2.0,
+      "version": 1
+    },
+    {
+      "id": "55b925e5-9f3a-a725-9eb3-1240f9c1fe95",  // <2>
+      "product": {
+        "id": "1ed85c7a-89f1-c339-a738-16307ed6003a",
+        "name": "Cotek Battery Charger"
+      },
+      "quantity": 1.0,
+      "version": 1
+    }
+  ],
+  "version": 1,
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835",
+    "name": "Randall Bishop"
+  }
+}
+----
+<1> 第一个 order line 关联 `Solar-One HUP Flooded Battery 48V` product。
+<2> 第二个 order line 关联 `Cotek Battery Charger` product。
+
+然后，我们希望这样修改 order lines：
+
+* 有 `Solar-One HUP Flooded Battery 48V` 产品的 order Line 的 `quantity` 上调至 `3.0`。
+* 删除具有 `Cotek Battery Charger` 产品的 order line。
+* 添加具有 `Outback Power Remote Power System` 产品的 order line。
+
+[source, http request]
+.更新组合请求
+----
+PUT http://localhost:8080/rest
+            /entities
+            /sample_Order
+            /288a5d75-f06f-d150-9b70-efee1272b96c
+            ?responseFetchPlan=product-with-tags
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 249.99,
+  "lines": [
+    {
+      "id": "a1cd778b-fe49-4c74-05a0-6fb207dc11bd", // <1>
+      "product": {
+        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
+        "name": "Solar-One HUP Flooded Battery 48V"
+      },
+      "quantity": 3.0 // <2>
+    },
+    { // <3>
+      "product": {
+        "id": "f6884077-19c4-546f-33d4-a788399337f7",
+        "name": "Outback Power Remote Power System"
+      },
+      "quantity": 1.0
+    }
+  ]
+}
+----
+<1> 已有 order line 的 ID，用来更新此 order line
+<2> `Solar-One HUP Flooded Battery 48V` 产品的数量设置为 `3.0`
+<3> 添加新的 order line，有产品 `Outback Power Remote Power System`
+
+NOTE: 当更新子实体时，例如上面示例中的 order line，需要添加已有 order line 的 id，Jmix 才能识别是需要更新。否则，将作为新建子实体处理。
+
+更新请求的返回符合我们的要求：
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "id": "288a5d75-f06f-d150-9b70-efee1272b96c",
+  "date": "2021-03-01",
+  "amount": 249.99,
+  "lines": [
+    {
+      "id": "d0fdfaa8-7d65-5e25-49c2-d34fc41c0e55",
+      "product": {
+        "id": "1860904a-5444-9c3e-9dc1-1d7a26d9ac19",
+        "name": "Solar-One HUP Flooded Battery 48V"
+      },
+      "quantity": 3.0, // <1>
+      "version": 2 // <2>
+    },
+    {
+      "id": "96722466-5164-a48c-b7f6-8d4c1bd605dd",
+      "product": {
+        "id": "f6884077-19c4-546f-33d4-a788399337f7",
+        "name": "Outback Power Remote Power System" // <3>
+      },
+      "quantity": 1.0
+    }
+  ],
+  "version": 2,
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835",
+    "name": "Randall Bishop 3"
+  }
+}
+----
+<1> `quantity` 属性已经更新。
+<2> `version` 也增加了，表示数据有更新。
+<3> order 中增加了 `Outback Power Remote Power System` 的 order line。
+
+[[security-constraints-for-associations]]
+== 关联/组合的安全约束
+
+从上面的内容我们可以知道，实体更新接口会用请求中的数据 _替换_ 掉已有的关联/组合实体集合。并且会删除请求中没有的实体关联关系。还有，甚至还有可能会 _删除_ 实体本身。
+
+这样的话，我们看看在启用 Jmix 行级数据安全机制的情况下，会有什么问题：
+
+假设你加载 `Order` 实例及其内部的 `OrderLine` 实例集合。
+
+有一些安全约束，导致某些 `OrderLine` 实例被过滤掉，因此你无法加载这些关联的实体，也不知道它们的存在。假设 `line5` 没有被加载，但是却存在于数据库。如果此时，你更新了 Order 实体，并删除 order line 中的 `line2`，那么会有两种结果：
+
+* 如果安全约束从加载实体后没有变化，那么框架会恢复集合中过滤掉的 `line5`，只删除 `line2`，这个是正确的行为。
+* 如果约束变化了，此时你能看到 `line5`，那么框架就无法正确恢复集合中的元素，结果就是 `line2` 和 `line5` 都被删除。
+
+因此，想避免可能引起的数据丢失，需要在表示实体的 JSON 中发送一个特殊的系统属性。该属性称为 `__securityToken`，如果 `jmix.core.entitySerializationTokenRequired` 系统参数设置为 `true`，则返回结果 JSON 中会自动包含该属性。
+
+如果在加载实体的返回体中收到了 `__securityToken` 属性，可以将该属性值与更新实体请求一并发送。下面是包含安全 token 的请求 JSON：
+
+[source, json]
+.带有安全 token 的请求
+----
+{
+  "id": "fa430b56-ceb2-150f-6a85-12c691908bd1",
+  "lines": [
+    {
+      "id": "82e6e6d2-be97-c81c-c58d-5e2760ae095a",
+      "description": "Item 1"
+    },
+    {
+      "id": "988a8cb5-d61a-e493-c401-f717dd9a2d66",
+      "description": "Item 2"
+    }
+  ],
+  "__securityToken": "0NXc6bQh+vZuXE4Fsk4mJX4QnhS3lOBfxzUniltchpxPfi1rZ5htEmekfV60sbEuWUykbDoY+rCxdhzORaYQNQ==" // <1>
+}
+----
+<1> 安全 token 的值是之前使用实体加载 API 获取的。
+
+`__securityToken` 属性包含被过滤实体的加密 id，因此框架总是可以通过这些信息恢复实体集合，无需考虑安全约束的变化。
+
+[[partial-updates]]
+== 部分更新
+
+可以只发送需要修改的属性。此时实体的其他属性将保持不变。
+
+下面的示例中，可以只传入 `Order` 实体修改的 `date` 属性，尽管 Order 实体还包含其他属性，例如，`customer`、`amount`、`lines`。
+
+[source, http request]
+.Order 部分更新请求
+----
+PUT http://localhost:8080
+         /entities
+         /sample_Order
+         /5a8adc2f-f4ef-17a9-9f97-1e715b3ade3d
+
+{
+  "date": "2020-12-06"
+}
+----
+
+
+[source, json]
+.Response: 200 - OK
+----
+{
+  "id": "5a8adc2f-f4ef-17a9-9f97-1e715b3ade3d",
+  "date": "2020-12-06", //<1>
+  "amount": 130.08, //<2>
+  "version": 2 //<3>
+}
+----
+<1> `date` 属性更新为新的时间。
+<2> 实体的其他属性保持不变。
+<3> Order 的 `version` 属性增加了，表示实体已更新。
+
+
+[[bulk-update]]
+== 批量更新
+
+实体更新 API 还支持在一个请求中更新多个实体。只需在 JSON 请求体中包含每个实体的 JSON 对象即可。
+
+[source, http request]
+.批量更新请求
+----
+PUT http://localhost:8080/rest
+            /entities
+            /sample_Customer
+
+[
+  {
+    "name": "Randall Bishop 2"
+  },
+  {
+    "name": "Sarah Doogle 2"
+  }
+]
+----
+
+[source, json]
+.Response: 200 - OK
+----
+[
+  {
+    "_entityName": "sample_Customer",
+    "_instanceName": "Randall Bishop 2",
+    "id": "833a610b-bc2c-2f44-c67a-2cf8b25f3291"
+  },
+  {
+    "_entityName": "sample_Customer",
+    "_instanceName": "Sarah Doogle 2",
+    "id": "c8ab5ae2-7f8f-bc68-fb58-6cfcf7b1d235"
+  }
+]
+----
+
+如果违反了任何实体验证约束，则所有实体都不会更新并返回错误消息。参阅 xref:entities-api/create-entities.adoc#entity-validation[实体验证] 了解详情。
+
+
+////
+NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.
+////

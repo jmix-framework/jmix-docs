@@ -1,0 +1,482 @@
+= REST 数据存储
+
+REST 数据存储（DataStore）的设计目的是为 Jmix 应用程序的集成提供一种简单的方法。期望的结果是能通过 xref:data-access:data-manager.adoc[DataManager] 接口访问远程 Jmix 应用程序提供的外部实体，与操作本地 JPA 实体一样。在无需编写任何特定代码的前提下，将外部实体显示在本地 UI 中，并使用 Jmix 提供的标准 CRUD 功能更新并保存回远程应用程序。
+
+本文档提供有关 REST 数据存储扩展组件的说明。关于其使用场景和更多内容，请参阅以下指南：
+
+* xref:integrated-apps-guide:index.adoc[]
+* xref:separate-tiers-guide:index.adoc[]
+* xref:restds-oidc-guide:index.adoc[]
+
+在本文档中，我们将使用以下术语：
+
+* _服务端应用（Service Application）_ - 通过  xref:rest:index.adoc[通用 REST API] 对外提供数据的 Jmix 应用程序（提供者）。
+* _客户端应用（Client Application）_ - 通过 REST 数据存储使用服务端应用数据的 Jmix 应用程序（消费者）。
+
+服务端和客户端应用可以使用不同版本的 Jmix。
+
+[[installation]]
+== 安装
+
+请按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的介绍通过 Jmix 市场自动安装。
+
+手动安装时，在 `build.gradle` 中添加依赖：
+
+[source,groovy,indent=0]
+----
+include::example$/rest-ds-client/build.gradle[tags=dependencies]
+----
+
+[[configuration]]
+== 配置
+
+[[basic-configuration]]
+=== 基本配置
+
+基本的配置过程包含下列步骤。
+
+在服务端应用中：
+
+* 添加 xref:rest:index.adoc[REST API] 和 xref:authorization-server:index.adoc[授权服务] 扩展组件。
+
+* 为客户端配置 xref:authorization-server:obtaining-tokens.adoc#client-credentials-grant[客户端凭证] 授权。
+
+在客户端应用中：
+
+* 按照 <<installation,上面>> 的介绍安装 REST DataStore 扩展组件。
+
+* 添加一个附加数据存储，使用 `restds_RestDataStoreDescriptor` 做为描述符，示例：
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=store]
+----
+
+* 用数据存储的名称设置服务端的连接参数，示例：
++
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=connection]
+----
+
+[[authentication-with-password-grant]]
+=== 密码认证
+
+如果需要按照 xref:separate-tiers-guide:index.adoc[] 演示的内容使用真实的用户做服务端认证，那么需要在服务端先配置 xref:authorization-server:obtaining-tokens.adoc#resource-owner-password-credentials-grant[密码授权]，然后在客户端应用添加以下配置：
+
+[source,properties]
+----
+include::example$rest-ds-client/src/main/resources/application.properties[tags=authenticator]
+----
+
+* `[datastore-name].authenticator` 属性设置为一个实现了 `RestAuthenticator` 接口的 bean 名称，这个 bean 用来对 REST API 请求进行认证。
++
+在用户登录的时候，`restds_RestPasswordAuthenticator` bean 会从服务端应用获取访问和刷新 token，并将这些 token 保存在用户的会话中，然后在后续对服务端进行 REST API 请求时用来做认证。
+
+* `jmix.restds.authentication-provider-store` 属性是配置 Spring Security `AuthenticationProvider` 的一个必需属性（在用户认证的过程中，`AuthenticationProvider` 会用到 `restds_RestPasswordAuthenticator`）。属性值需要包含对应 REST 数据存储的名称。
+
+[[external-authentication]]
+=== 外部认证
+
+如果需要使用外部认证（例如 Keycloak）替换 Jmix 认证服务，那么需要从项目中删除认证服务扩展组件并添加 xref:oidc:index.adoc[] 组件。
+
+定义下列应用程序属性：
+[source,properties]
+----
+include::restds-oidc-guide:example$integrated-apps/client-app/src/main/resources/application.properties[tags=restds-auth]
+----
+
+* `[datastore-name].authenticator` 属性设置为一个实现了 `RestAuthenticator` 接口的 bean 名称，这个 bean 用来对 REST API 请求进行认证。
++
+`restds_RestOAuth2ClientAuthenticator` bean 使用当前用户的 OAuth2 token。
+
+* `[datastore-name].oauth2-client-registration` 属性定义 Spring Security OAuth2 客户端的注册 ID，这个 ID 在 `spring.security.oauth2.client.registration.[ID]` 属性中使用，以连接 OIDC 供应商。
++
+例如，如果用下面的属性连接至 Keycloak：
++
+[source,properties]
+----
+spring.security.oauth2.client.registration.keycloak.client-id=integrated-apps-client
+----
++
+那么，`[datastore-name].oauth2-client-registration` 属性需要设置为 `keycloak`。
+
+完整示例请参考 xref:restds-oidc-guide:index.adoc[] 指南。
+
+[[ui-user-settings]]
+=== UI 用户设置
+
+如果需要通过 REST 数据存储保存用户的 UI 设置和过滤器设置，请按以下步骤：
+
+* 在 `build.gradle` 中：
+** 添加 `io.jmix.flowui:jmix-flowui-restds-starter` 依赖
+** 移除 `io.jmix.flowui:jmix-flowui-data-starter` 依赖
+* 在 `application.properties` 中，通过 `jmix.restds.ui-config-store` 属性配置 REST 数据存储的名称，示例：
++
+[source,properties]
+----
+jmix.restds.ui-config-store=serviceapp
+----
+
+参阅应用程序分层指南中的 xref:separate-tiers-guide:index.adoc#frontend-application[前端应用程序配置] 部分了解更多。
+
+[[rest-paths]]
+=== REST API 路径
+
+如果 REST API 的端点具有非标准的 xref:rest:app-properties.adoc#paths[路径]，可以用下面展示的这些应用程序属性进行配置。这些属性以数据存储的名称开头（该示例中为 `serviceapp`）：
+
+[source,properties]
+----
+serviceapp.basePath=/rest
+serviceapp.entitiesPath=/entities
+serviceapp.userInfoPath=/userInfo
+serviceapp.permissionsPath=/permissions
+serviceapp.capabilitiesPath=/capabilities
+----
+
+[[data-model]]
+== 数据模型
+
+客户端应用需要包含与服务端实体完全匹配的 DTO 实体。为了实现实体和 DTO 的自动映射，两端实体的属性名称和类型必须一致。
+
+但是属性的数量可以不一致。例如，服务端实体可能比客户端实体具有更多的属性。在数据传输完成后，某一端实体中不存在的属性将分配 null 值。
+
+客户端 DTO 实体必须带有 `@Store` 注解，指向配置的服务端附加数据存储。
+
+下面的示例演示了服务端和客户端应用中的 `Region` 实体定义。
+
+[source,java,indent=0]
+.服务端应用中的 Region 实体
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/entity/Region.java[tags=jpa-entity]
+----
+
+[source,java,indent=0]
+.客户端应用中的 Region 实体
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Region.java[tags=restds-entity]
+----
+
+如果客户端实体的名称与服务端不同，可以用 `@RestDataStoreEntity` 注解指定服务端实体的名称。示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/RegionDto.java[tags=restds-entity]
+----
+
+客户端的嵌入属性需要使用 `@JmixEmbedded` 注解，而不能用 JPA 的 `@Embedded`。
+
+客户端侧的一对多属性需要在 `@Composition` 注解中定义 `inverse` 属性，设置反向关联字段。
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/entity/Customer.java[tags=restds-entity]
+----
+
+[[fetch-plans]]
+== Fetch Plans
+
+在客户端应用中加载外部实体时，可以指定 xref:data-access:fetching.adoc[fetch plan] 来加载实体的引用。
+
+如果服务端程序使用 Jmix 2.5 之前的版本构建，则通用 REST API 目前仅支持在 fetch plans 存储库中定义的 xref:rest:entities-api/load-entities.adoc#named-fetch-plans[命名 fetch plans]。因此，REST 数据存储在向服务端请求数据时，会同时提供 fetch plan 的名称。从而要求服务端和客户端应用程序必须在 fetch plan 存储库中定义所有的 fetch plan，并使用相同的名称。
+
+从 Jmix 2.5 开始，通用 REST 开始支持 xref:rest:entities-api/load-entities.adoc#inline-fetch-plans[内联 fetch plans]。如果该功能没有通过 xref:rest:app-properties.adoc#jmix.rest.inline-fetch-plan-enabled[jmix.rest.inline-fetch-plan-enabled] 应用程序属性关闭，则可以像操作数据库一样，在视图的 XML 或 Java 代码中定义 fetch plan。
+
+REST 数据存储依赖服务端 REST 的 xref:rest:capabilities-api.adoc[] 确定是否启用了内联 fetch plan。如果检查确定已启用，则 REST 数据存储会传递内联的 fetch plan，否则仅传输 fetch plan 的名称。
+
+[[loaded-state]]
+== 加载的数据
+
+如果 fetch plan 不包含某个属性，则该属性不会加载。与 JPA 实体属性不同，未加载的 REST 实体的属性值为 null，并且在访问时不会触发任何异常。
+
+更新实体时，REST 数据存储仅保存已加载的属性。如果某个属性未从服务端加载，但随后从 null 变为某个非 null 值，该属性会被认为已加载，并保存新值。
+
+`EntityStates.isLoaded(entity, property)` 方法能正确检查 REST 实体的特定属性是否加载。
+
+[[filtering-loaded-data]]
+== 数据的过滤
+
+本节介绍使用 `DataManager` 加载外部实体时支持的过滤方式。但不论哪种方式最后都会调用服务端应用的 REST API xref:rest:entities-api/load-entities.adoc#load-list-search-filter[搜索端点]，因此只有符合条件的实体会通过网络传输。
+
+[[filter-by-conditions]]
+=== 使用过滤条件
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-condition]
+----
+
+[[filter-by-query]]
+=== 使用查询
+
+查询语句是一个通用 REST xref:rest:entities-api/load-entities.adoc#load-list-search-filter[搜索端点] 支持的 JSON 表达式：
+
+[source]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-query]
+----
+
+[[filter-by-identifiers]]
+=== 使用标识符
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/DataLoadingSamples.java[tags=by-ids]
+----
+
+[[using-query-in-view-xml]]
+=== XML 中使用查询
+
+JSON 查询语句可以在 XML 中的数据容器或 `itemsQuery` 元素中使用：
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/customer/customer-detail-view.xml[tags=items-query]
+----
+
+如需在 JSON 查询中使用一个参数而非常量值，可以用 `parameterName` 代替 `value`，如上面的代码所示。REST 数据存储会在请求时将该属性替换为 `"value": <parameter-value>`。
+
+xref:flow-ui:facets/dataLoadCoordinator.adoc[] facet 也可以使用查询 JSON 和参数，但只支持手动配置。下面的示例中，`regionsDc` 和 `customersDc` 通过 JSON 查询进行关联，`dataLoadCoordinator` 为选择的 region 提供了一个 region 和 customer 的主从关系表：
+
+[source,xml,indent=0]
+----
+include::example$rest-ds-client/src/main/resources/com/company/clientapp/view/region/region-list-view.xml[tags=query]
+----
+
+[[entity-events]]
+== 实体事件
+
+REST 数据存储会发送 xref:data-access:entity-events.adoc#saving-loading-events[EntitySavingEvent 和 EntityLoadingEvent]，这点与 `JpaDataStore` 一样。但是不会发送 xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent]，因为在实体加载后无法跟踪实体属性的变化。尽管无法提供 `EntityChangedEvent`，REST 数据存储能提供两个特殊的事件：
+
+* `RestEntitySavedEvent` - 当实体在服务端成功保存后发送。事件中包含在发送给服务端之前的实体状态。
+* `RestEntityRemovedEvent` - 当实体从服务端删除后发送。事件中包含在发送给服务端之前的已删除实体。
+
+[[security]]
+== 安全
+
+REST 数据存储会使用由资源角色定义的 xref:security:resource-roles.adoc#entity-policy[实体操作策略] 和由行级角色定义的 xref:security:row-level-roles.adoc#predicate-policy[谓词策略]。
+
+可以使用授权服务扩展组件提供的客户端凭证授权或密码授权来完成 REST 数据存储中的身份验证。密码授权需要设置额外的应用程序属性 `<ds-name>.authenticator` 和 `jmix.restds.authentication-provider-store`，如 <<configuration>> 部分所述。
+
+[[file-storage]]
+== 文件存储
+
+服务端应用程序的实体可以包含指向其文件存储的 `FileRef` 属性。REST 数据存储提供了一个 `RestFileStorage`，实现了 `FileStorage` 接口，这是一个代理类，可以处理服务端应用程序文件存储中的文件。
+
+`RestFileStorage` 使用通用 REST xref:rest:files-api.adoc[] API 在客户端和服务端程序之间传输文件。
+
+使用 `RestFileStorage` 时，需要在客户端应用程序主类或 Spring 配置类中定义以下 bean：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/RestDsClientApplication.java[tags=fileStorage]
+----
+
+这里的 `serviceapp` 是 `application.properties` 中定义的 REST 数据存储的名称，`fs` 是服务端应用程序中需要使用的文件存储名称。
+
+客户端应用程序中的 REST 文件存储的名称由这两个参数加短横拼接而成。所以对于上面的示例，这个名称是 `serviceapp-fs`。如果如果客户端应用程序中有多个文件存储（比如，本地的 `fs` 和 远端的 `serviceapp-fs`），那么请参阅 xref:files:file-storage.adoc#multiple-fs[使用多个文件存储]。
+
+使用 `RestFileStorage` 的示例程序请参考 xref:separate-tiers-guide:index.adoc[] 指南。
+
+[[invoking-services]]
+== 调用服务
+
+如果服务端应用程序有 xref:rest:business-logic.adoc#exposing-a-service[开放的 Java 服务 REST API]，那么客户端程序可以调用。
+
+[[remote-service-interfaces]]
+=== @RemoteService 接口
+
+调用服务最简单的方法就是创建一个使用 `@RemoteService` 注解的接口，其中包含镜像的服务方法。对于带有这个注解的接口，REST 数据存储扩展组件会生成客户端代理对象。这些对象能自动序列化参数、调用远端 REST 服务并对结果进行反序列化。
+
+下面的示例是服务端 bean 的实现：
+
+[source,java,indent=0]
+.服务端应用的 CustomerService.java
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/service/CustomerService.java[tags=service]
+----
+
+这个服务方法可以通过 `/rest/services/customers/getCustomersByName` 端点访问。
+
+在客户端调用时，创建下面的接口：
+
+[source,java,indent=0]
+.客户端应用的 CustomerService.java
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/service/CustomerService.java[tags=service]
+----
+
+REST 数据存储扩展组件会为这个接口自动创建一个 bean，因此，可以直接在视图或 bean 中注入这个接口作为常规 Spring bean 使用。示例：
+
+[source,java,indent=0]
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/view/customer/CustomerDetailView.java[tags=service]
+----
+
+有关调用服务方法的示例，请参阅 xref:integrated-apps-guide:index.adoc[]。
+
+[IMPORTANT]
+====
+`@RemoteService` 接口的方法参数和返回值必须是下列类型之一：
+
+* 简单类型：基本类型（`int`、`double` 等），或包装类型（`Integer`、`Double` 等），以及 `String`。
+* xref:data-model:entities.adoc[实体]
+* xref:data-model:enumerations.adoc[枚举]
+* 有对应 xref:data-model:datatype.adoc[Datatype] 的类型。包括 xref:data-model:entities.adoc#attributes[实体属性] 支持的类型，以及自定义的数据类型。
+* 任意 POJO 或 Java record 类型，但是属性需要是上面这些类型。
+* 参数化的 `java.util.List` 类型，列表必须包含上面的类型。
+====
+
+[[using-rest-client]]
+=== 使用 RestClient
+
+还可以通过 Spring 的 `RestClient` 调用服务端应用开放的端点。`RestClient` 需要提前配置 REST 数据存储的连接和认证参数：
+
+. 从 `RestDataStoreUtils` bean 调用 `getRestClient(String dataStoreName)` 获取 `RestClient` 实例。
+
+. 使用 `RestClient` API 调用服务端端点。
+
+[[sharing-code]]
+== 在应用程序之间共享代码
+
+可以在集成了 REST 数据存储的应用程序之间共享实体类和服务接口。虽然会导致应用程序之间的紧耦合，但可以减少代码重复和开发工作量。
+
+使用这种方法，共享代码放置在一个单独的扩展组件中，供客户端和服务应用程序共同使用。共享代码可以包含 JPA 实体、业务服务接口、安全角色以及任何常见的工具类。
+
+下面我们将以 Products 和 Orders 应用程序为例，介绍共享实体、服务接口和角色所需的步骤。Products 应用程序通过 REST API 暴露其 `Product` 和 `ProductCategory` 实体以及 `InventoryService`。Orders 应用程序使用这些实体并通过 REST 数据存储调用服务。
+
+[[shared-add-on]]
+=== 共享扩展组件
+
+共享扩展组件是通过 Studio 的 *New Project* 向导中的标准 `Add-On (Java)` 模板创建的。包含 `shared` 和 `shared-starter` 模块：
+
+[source]
+----
+shared-addon
+├── shared
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── company
+│   │   │   │           └── shared
+│   │   │   │               ├── entity
+│   │   │   │               │   ├── Product.java
+│   │   │   │               │   └── ProductCategory.java
+│   │   │   │               ├── security
+│   │   │   │               │   └── ProductsRole.java
+│   │   │   │               ├── service
+│   │   │   │               │   └── InventoryService.java
+│   │   │   │               └── SharedConfiguration.java
+│   │   │   └── resources
+│   │   │       └── com
+│   │   │           └── company
+│   │   │               └── shared
+│   │   │                   ├── liquibase
+│   │   │                   │   ├── changelog
+│   │   │                   │   │   └── 010-init-products.xml
+│   │   │                   │   └── changelog.xml
+│   │   │                   ├── messages.properties
+│   │   │                   └── module.properties
+│   │   └── test
+│   │       └── ...
+│   └── shared.gradle
+├── shared-starter
+│   ├── src
+│   │   └── ...
+│   └── shared-starter.gradle
+├── build.gradle
+└── settings.gradle
+----
+
+主 `shared` 模块中的构建脚本仅仅定义了一些 Jmix 依赖：
+
+[source,groovy]
+.shared-addon/shared/shared.gradle
+----
+include::example$rest-ds-shared/shared-addon/shared/shared.gradle[tags=dependencies]
+----
+
+扩展组件包含以下共享代码：
+
+* `Product` 和 `ProductCategory` JPA 实体。
+* `ProductsRole` 资源角色定义了允许访问实体及其属性的策略。
+* `InventoryService` 是定义某些业务方法的接口。
+* `010-init-products.xml` 是为 `Product` 和 `ProductCategory` 实体创建数据库结构的 Liquibase changelog。
+
+[[sharing-code-service-application]]
+=== 服务端应用程序
+
+Products 服务应用程序以标准方式包含共享扩展组件，无需任何特定配置。
+
+Products 应用程序的构建脚本定义了对共享扩展组件 starter 的依赖：
+
+[source,groovy]
+.products/build.gradle
+----
+include::example$rest-ds-shared/products/build.gradle[tags=dependencies]
+----
+
+应用程序提供了 `InventoryService` 接口的实现：
+
+[source,java]
+.products/src/main/java/com/company/products/service/InventoryServiceImpl.java
+----
+include::example$rest-ds-shared/products/src/main/java/com/company/products/service/InventoryServiceImpl.java[tags=service]
+----
+
+[[sharing-code-client-application]]
+=== 客户端应用程序
+
+Orders 客户端应用程序也包含了共享扩展组件：
+
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=dependencies]
+----
+
+此外，客户端应用程序会调整实体和远程服务的配置，以正确处理共享代码。
+
+. 构建脚本通过 `jmix.entitiesEnhancing.nonJpaPackages` 属性将共享实体包从 JPA 映射中排除：
++
+[source,groovy]
+.orders/build.gradle
+----
+include::example$rest-ds-shared/orders/build.gradle[tags=non-jpa-entities]
+----
++
+也可以通过 `jmix.entitiesEnhancing.nonJpaClasses` 属性配置需要排除的类。
+
+. `SharedEntitiesConfigurer` bean 将 `products` REST 数据存储设置为共享扩展组件实体的数据存储：
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedEntitiesConfigurer.java[]
+----
+
+. `SharedServicesConfigurer` bean 添加了一个扫描过滤器，用于查找共享扩展组件的服务接口用来创建客户端代理。还定义了服务接口的存储名称：
++
+[source,java]
+.orders/src/main/java/com/company/orders/SharedServicesConfigurer.java
+----
+include::example$rest-ds-shared/orders/src/main/java/com/company/orders/SharedServicesConfigurer.java[]
+----
+
+[[limitations]]
+== 局限性
+
+与 JPA 数据存储相比，REST 数据存储有下列限制：
+
+* 不支持实体引用的延迟加载。fetch plan 中没有加载的实体引用在访问时会得到 null。
+
+* 没有带 `AttributeChanges` 的 `EntityChangeEvent` 事件。
+
+* `DataManager.loadValues()` 和 `loadValue()` 方法会抛出 `UnsupportedOperationException` 异常。

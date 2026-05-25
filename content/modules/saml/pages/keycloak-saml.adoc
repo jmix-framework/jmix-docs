@@ -1,0 +1,166 @@
+= Keycloak SAML 配置
+
+https://www.keycloak.org/[Keycloak^] 是一个开源的身份和访问管理解决方案，支持用户联合、OAuth、SAML 和 OpenID Connect 协议。以下内容说明如何在 Jmix 应用程序中配置 Keycloak 使用 SAML ，以便用户通过 Keycloak 登录。
+
+NOTE: 这些说明已在 Keycloak 26.5.6 版本上测试通过。其他版本（尤其是较旧版本）的 Keycloak 可能在管理控制台中使用不同的标题，并将某些设置放在不同位置，但底层的 SAML 配置应该是相同的。
+
+[[prerequisites]]
+== 前提条件
+
+* 一个可通过稳定 URL 访问的 Jmix 应用程序（例如 `\https://jmix-app.com`）。本指南使用占位符 `your-app-url` 来表示应用程序的 URL。
+* 一个有管理访问权限的 Keycloak 服务器（例如 `\https://keycloak.test.com`）。本指南使用占位符 `your-keycloak-server` 来表示该服务器。
+* 一个 Keycloak realm（例如 `master`）。本指南使用占位符 `your-realm` 来表示该 realm。
+
+[[configure-jmix-application]]
+== 配置 Jmix 应用程序
+
+在 Jmix 应用程序中：
+
+. xref:saml:index.adoc#installation[安装该组件]。
+. 将应用程序配置为 SAML 服务 provider，使用以下 Spring Security 属性：
++
+.application.properties
+[source,properties]
+----
+spring.security.saml2.relyingparty.registration.keycloak.entity-id=https://<your-app-url>/saml/sp
+spring.security.saml2.relyingparty.registration.keycloak.acs.location=https://<your-app-url>/login/saml2/sso/keycloak
+spring.security.saml2.relyingparty.registration.keycloak.assertingparty.metadata-uri=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.url=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.response-url=https://<your-app-url>/logout/saml2/slo
+----
+
+NOTE: 属性键值中的 `keycloak` 表示 provider id。也可以是其他的值。
+
+[[configure-keycloak-client]]
+== 配置 Keycloak 客户端
+
+在 Keycloak 中，创建或选择用来管理 Jmix 应用程序认证的 realm。
+
+. 选择或创建管理 Jmix 应用程序认证的 realm。
+. 在该 realm 中，使用以下值创建一个新客户端：
+** *Client type:* `SAML`。
+** *Client ID:* `\https://<your-app-url>/saml/sp`（与 `entity-id` 属性值相同）。
+** *Root URL:* 应用程序基础 URL，例如 `\https://jmix-app.com`。
+** *Valid redirect URIs*: 支持的重定向 URL 范式，例如 `\https://jmix-app.com/*`。
+** *Valid post logout redirect URIs*: 支持的注销后重定向 URL 范式，例如 `\https://jmix-app.com/*`。
+
+这些配置将 Keycloak 客户端与上一步中的 Jmix 服务 provider 进行关联。
+
+[[configure-user-access]]
+== 配置用户对应用程序的访问
+
+使用 Keycloak 角色和用户角色映射来控制哪些用户可以访问应用程序以及他们能分配哪些 Jmix 角色。
+
+[[create-roles]]
+=== 创建角色
+
+创建用户可分配的角色：
+
+. 转到 *Realm roles* 并创建一个新角色。
+. 提供 *Role name*。如果使用默认的 Jmix 角色映射，应该与 Jmix 角色代码匹配，例如 `system-full-access`。
+
+// 注意：角色映射的自定义逻辑在其他部分中描述。
+
+[[create-and-configure-users]]
+=== 创建和配置用户
+
+创建一个 Keycloak 用户：
+
+. 转到 *Users* 并创建一个新用户。
+. 选择创建的用户，然后转到 *Credentials* 标签页设置密码。
+. 转到 *Role Mapping* 标签页，分配之前创建的 realm 角色。
+
+[[add-saml-attributes]]
+=== 添加 SAML 属性（可选）
+
+NOTE: 此步骤仅将属性添加到 SAML 断言中。应用程序不会自动使用这些属性。如需使用这些值映射至应用程序中的用户属性，还必须在应用程序中配置 xref:saml:additional-setup.adoc#mapping-saml-attributes[属性映射]。
+
+如果需要包含任何额外的 SAML 属性，可以在 Keycloak 中按如下方式添加：
+
+. 转到您的 *Client* -> *Client Scopes* -> `\https://<your-app-url>/saml/sp-dedicated` -> *Configure a new mapper*。
+. 选择合适的 mapper 类型。对于内置属性（例如 email、firstName、lastName），请选择 *User Property* 并提供值：
+** *Name:* 描述性映射器名称，例如 `FirstName mapper`
+** *Property:* IdP 内的属性名称：`firstName`
+** *SAML Attribute Name:* SAML Assertion 中的属性名称：`FirstName`
+
+按照相同步骤添加更多属性。
+
+[[signing-and-certificates]]
+== 配置签名和证书
+
+需要公钥和私钥来启用签名。可以通过 openssl 手动生成，然后导入到 IdP。也可以使用 Keycloak 生成这些密钥：
+
+. 转到 *Client* 并打开 *Keys* 标签页。
+. 启用 *Client signature required*。
+. 生成新密钥并导出为 pkcs12 密钥库。记下设置的密钥库密码。
+. 提取私钥和证书：
++
+----
+openssl pkcs12 -in keystore.p12 -nodes -nocerts -out private.key -passin pass:<STORE_PASSWORD>
+openssl pkcs12 -in keystore.p12 -nodes -nokeys -out public.crt -passin pass:<STORE_PASSWORD>
+----
++
+[NOTE]
+====
+如果提取失败，则在两个命令添加 `-legacy` 参数。此时，还需要将提取的私钥转换为 pkcs8 格式：
+
+----
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in private.key -out private-pkcs8.key
+----
+====
++
+. 将这些文件放于应用程序能访问的位置，例如 `src/main/resources`，然后通过属性添加：
++
+.application.properties
+[source,properties]
+----
+spring.security.saml2.relyingparty.registration.keycloak.signing.credentials[0].private-key-location=classpath:private-pkcs8.key
+spring.security.saml2.relyingparty.registration.keycloak.signing.credentials[0].certificate-location=classpath:public.crt
+----
+
+[[signing-algorithm]]
+== 配置签名算法
+
+请按以下配置所需的特定签名算法：
+
+.application.properties
+[source,properties]
+----
+spring.security.saml2.relyingparty.registration.keycloak.signing.credentials[0].algorithm=http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
+----
+
+[[verification-certificate]]
+== 提供验证证书（可选）
+
+某些环境可能还需要验证证书。请按以下步骤：
+
+. 打开 Keycloak 元数据描述符，地址为 `https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor`
+. 复制 `X509Certificate` 的值。
+. 使用以下格式保存到文件（例如 `keycloak-signing.crt`）：
++
+----
+-----BEGIN CERTIFICATE-----
+<value>
+-----END CERTIFICATE-----
+----
++
+. 将文件放置在应用程序可以访问的位置，例如 `src/main/resources`，并通过属性添加：
++
+.application.properties
+[source,properties]
+----
+spring.security.saml2.relyingparty.registration.keycloak.assertingparty.verification.credentials[0].certificate-location=classpath:keycloak-signing.crt
+----
+
+[[test-connection]]
+== 测试连接
+
+配置好应用程序和 Keycloak 后，启动应用程序并测试 SSO 流程。
+
+验证以下内容：
+
+* 用户被重定向到 Keycloak 登录页面。
+* 认证成功。
+* SAML 断言中存在预期的属性。
+* 应用程序中授予了预期的角色。
+* 如果配置了 SLO，注销功能正常工作。

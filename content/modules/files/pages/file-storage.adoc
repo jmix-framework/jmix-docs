@@ -1,0 +1,127 @@
+= 使用文件存储
+
+文件存储是一种抽象，提供文件存储方式和位置的不同实现，并提供统一的 https://github.com/jmix-framework/jmix/blob/master/jmix-core/core/src/main/java/io/jmix/core/FileStorage.java[接口^] 用于访问文件，或者从数据模型实体引用。
+
+Jmix 带有文件存储的两个实现：<<local-fs,本地文件存储>> 和 <<aws-fs,AWS 文件存储>>。在 Studio 中创建一个新项目时，默认包括本地文件存储实现。
+
+TIP: 文件存储中可以存储任意大小的文件，因为文件与文件存储之间的传输是通过在输入和输出流之间复制小块数据来完成的，因此永远不会完全将文件加载到内存中。
+
+[[examples]]
+== 示例
+
+[[ui-example]]
+=== UI 中使用文件
+
+本章节我们演示如何使用 UI 组件处理文件存储中的文件。
+
+首先，在实体中创建 `FileRef` 类型的属性，示例：
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/entity/Attachment.java[tags=files]
+----
+
+当运行应用程序时，Studio 会生成一个数据库迁移脚本，用于创建字符串类型的相应列。因为 `FileRef` 是 URI 格式的字符串表现形式。
+
+如需从 UI 视图上传文件，请使用 xref:flow-ui:vc/components/fileStorageUploadField.adoc[] 组件绑定实体属性：
+
+[source,xml,indent=0]
+----
+include::example$/files-ex1/src/main/resources/com/company/demo/view/attachment/attachment-detail-view.xml[tags=files]
+----
+
+如需下载文件，在列表视图的数据网格中添加一个组件列：
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/view/attachment/AttachmentListView.java[tags=files]
+----
+<1> 用 xref:downloading-files.adoc#downloader[Downloader] bean 下载文件。
+<2> `download()` 方法接收 `FileRef` 对象值，并该值指定的文件存储中获取文件。文件的名称和类型也包含在 `FileRef` 值中，因此 Web 浏览器可以正确选择是下载还是显示文件。
+
+[[file-storage-example]]
+=== 使用 FileStorage 接口
+
+下面示例展示如何直接使用 https://github.com/jmix-framework/jmix/blob/master/jmix-core/core/src/main/java/io/jmix/core/FileStorage.java[FileStorage^] 接口。
+
+第一个方法从一个 web 服务中获取文件并保存至文件存储。第二个方法从文件存储加载文件并保存至本地文件系统。
+
+示例中使用了与之相同的 `Attachment` 实体。
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/view/attachment/AttachmentListView.java[tags=file-storage]
+----
+<1> 如果在项目中定义了 <<multiple-fs,多个文件存储>>，则 `FileStorageLocator` 支持使用特定的文件存储。如果只有单一文件存储（默认情况），则可以直接注入 `FileStorage` 接口。
+<2> 获取 web 资源的输入流。除了 `URLConnection` 类，也可以使用使用 `HttpClient` 或 Apache HttpClient 等第三方库。
+<3> 将资源内容保存至文件存储。返回的 `FileRef` 对象是文件存储中文件的引用。
+<4> 将引用保存至实体属性。
+<5> 获取从文件存储加载文件的输入流。
+<6> 将文件保存至本地文件系统。
+
+[[local-fs]]
+== 本地文件存储
+
+本地文件存储支持将文件保存在应用程序服务器的本地文件系统或任何网络附属存储（NAS）中。
+
+如需在应用程序中使用本地文件存储，请确保 `build.gradle` 文件的 `dependencies` 中包含下列内容：
+
+[source,groovy,indent=0]
+----
+include::example$/files-ex1/build.gradle[tags=dependencies]
+----
+
+文件存储在由文件存储维护的特殊目录结构中。默认情况下，根目录是 `${user.dir}/.jmix/work/filestorage`，其中 `${user.dir}` 是用户工作目录（JVM 启动目录）。可以通过 xref:ROOT:app-properties.adoc#jmix.core.work-dir[jmix.core.work-dir] 应用程序属性指定一个工作目录或者通过 `jmix.localfs.storage-dir` 属性指定一个绝对路径。示例：
+
+[source,properties]
+----
+jmix.localfs.storage-dir = /opt/file-storage
+----
+
+`jmix.localfs.max-file-size` 属性可以限制上传文件的大小。默认值为 `100MB`。
+
+[[aws-fs]]
+== AWS 文件存储
+
+AWS 文件存储支持将文件存储在 https://aws.amazon.com/s3[Amazon S3^]。
+
+如需在应用程序中使用 AWS 文件存储，请按照 xref:ROOT:add-ons.adoc[扩展组件] 部分的描述从组件市场安装，或手动在 `build.gradle` 的 `dependencies` 中添加：
+
+[source,groovy,indent=0]
+----
+include::example$/files-ex1/build.gradle[tags=dependencies-aws]
+----
+
+如果打算只使用 AWS 文件存储，需要从 `build.gradle` 中删除本地文件存储的依赖（即包含 `io.jmix.localfs:jmix-localfs-starter` 的那一行）。如果想使用多个文件存储，参阅 <<multiple-fs,下一节>> 内容了解如何配置多个文件存储。
+
+定义应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/files-ex1/src/main/resources/application.properties[tags=aws-config]
+----
+
+在 AWS 选择 region 后，需要先创建该地区的 S3 bucket。
+
+[[multiple-fs]]
+== 使用多个文件存储
+
+如需在应用程序中使用多个文件存储，在应用程序属性中指定一个默认的存储：
+
+[source,properties]
+----
+include::example$/files-ex1/src/main/resources/application.properties[tags=default-fs]
+----
+
+本地文件存储的名称为 `fs`，AWS 文件存储的名称为 `s3`。
+
+如果需要使用相同类型的多个文件存储，可以使用唯一名称定义额外的存储。例如，定义根目录位于 `/var/tmp/myfs` 的额外本地文件存储，将下列代码添加至主应用程序类：
+
+[source,java,indent=0]
+----
+include::example$/files-ex1/src/main/java/com/company/demo/DemoApplication.java[tags=multiple-fs]
+----
+
+如需以编程的方式处理不同的文件存储，可使用 `FileStorageLocator` bean。支持通过名称获取文件存储。
+
+xref:flow-ui:vc/components/fileStorageUploadField.adoc[] 组件的 `fileStorage` 属性可以指定文件存储名称。如未指定，则使用默认文件存储。

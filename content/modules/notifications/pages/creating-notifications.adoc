@@ -1,0 +1,54 @@
+= 创建通知
+
+可以通过管理界面或者编程式创建通知。
+
+[[administration-ui]]
+== 管理界面
+
+在应用程序安装此扩展组件之后，主菜单会包含 *Notifications（通知消息）* 项。*Notifications browser（通知消息）* 视图展示创建的通知列表以及管理通知的按钮。
+
+image::ntf-list.png[align="center" width="1362"]
+
+[[ntf-editor]]
+点击 *Create notification（新建通知）* 按钮后会展示通知编辑界面。
+
+image::ntf-editor.png[align="center", width="482"]
+
+有下列字段：
+
+* *Subject（主题）* - 通知的主题。
+* *Type（类型）* - 通知类型。组件默认不带任何通知类型，参阅 xref:notifications:configuration.adoc#notification-types[配置] 章节创建通知类型。
+* *Recipients（收件人）* - 通知的收件人列表。在该字段内输入 username，然后可以在列表中选择合适的用户。
+* *Channels（通道）* - 发送通知的通道。
+** *In-app channel（站内通道）* - 用户在应用程序界面收到通知。
+** *Email channel（邮件通道）* - 用户收到邮件通知。需要安装 xref:email:index.adoc[电子邮件] 扩展组件。
+* *Body（正文）* - 通知正文。
+
+[[programmatic-creation]]
+== 编程式创建
+
+*NotificationManager* 服务提供给用户发送通知的方法。
+
+下面示例中，每当新订单（Order）创建时，会给用户发送通知。
+
+image::ntf-programmatic.png[align="center" width="1270"]
+
+此场景属于 _实体生命周期事件_ 类型。当创建新的订单实体时，必须执行该逻辑。在数据库中创建、更新或删除实体时，Jmix 框架会发布 xref:data-access:entity-events.adoc#entity-changed-event[EntityChangedEvent]。
+
+需要定义一个 Spring bean 作为事件监听器处理该事件。监听 `EntityChangedEvent` 的方法需要使用 `@TransactionalEventListener` 注解，以确保仅在实体已提交到数据库后执行。
+
+[source,java,indent=0]
+----
+include::example$/notifications-ex1/src/main/java/com/company/notificationsex1/listener/OrderEventListener.java[tags=ntf-create]
+----
+<1> 在事务提交后监听 `EntityChangedEvent`，确保订单记录已存储在数据库中。
+<2> 为加载和保存数据开启一个新事务，这是因为当前事务在提交完成后已经关闭。如果没有这个注解，`dataManager.load()` 或 `dataManager.save()` 会由于无激活事务而失败。
+<3> 初始化 `NotificationRequestBuilder`，创建一个 `NotificationRequest` 对象。
+<4> 定义通知的主题。
+<5> 用提供的 username 设置收件人。
+<6> 用名称确定通知的发送通道，可以使用 `in-app` 或 `email`。
+<7> 设置通知正文内容类型。
+<8> 设置通知正文。
+<9> 创建并发送通知请求。
+
+TIP: 点击操作面板的 *Code Snippets* xref:jmix:studio:code-snippets.adoc[自动生成] 发送消息的代码。

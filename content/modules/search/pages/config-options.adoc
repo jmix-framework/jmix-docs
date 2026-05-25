@@ -1,0 +1,165 @@
+= 部分配置释义
+
+[[indexes-creation]]
+== 索引创建
+
+搜索扩展组件检查 ES 索引当前的配置并与期望的索引配置进行比较。根据选择的索引结构管理策略（Index Schema Management Strategy）采取不同的操作：
+
+* `create-only` - 创建所有缺失的索引，保留使用不相关配置的已存在索引。
+* `create-or-recreate` - 创建所有缺失的索引，重新创建使用不相关配置的已存在索引（会丢失所有索引数据）。这是默认策略。
+* `create-or-update` 策略通过创建缺失的索引并更新已有索引，而无需完全重建。
++
+使用此策略时：
+
+** 如果向已有索引添加一个或多个新字段，索引不会被重建。所有先前已索引的实例将保留在索引中（数据对应旧配置），而新索引的实例将使用新配置加入（包括额外字段）。
+** 如果从索引中删除了任何字段，则索引将变为不可用。此类索引必须使用 JMX 控制台手动重建。
+* `none` - 忽略缺失的索引，保留使用不相关配置的已存在索引。如需手动操作索引可以使用该策略。
+
+在 `application.properties` 文件添加下列应用程序属性可以配置策略：
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=management-strategy]
+----
+
+应用程序启动时会自动进行索引结构同步。此外，也可以通过 xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean] 的 `synchronizeXXX` 操作手动进行。
+
+EntityIndexing MBean 还包含 `recreateIndex` 操作。该操作直接删除并创建索引，并忽略当前的索引结构管理策略，即使目标索引有实际的配置。所有索引数据都会丢失。
+
+[[index-naming]]
+== 索引命名
+
+索引的命名格式：`<prefix><entity_name>`。
+
+默认前缀为 `search_index_`。
+
+如果多个项目使用同一个 ES 服务，需要确保索引名称的唯一性：所有项目都需要唯一的实体名称或者项目需要使用不同的前缀。
+
+前缀可以在 `application.properties` 文件使用下列属性配置：
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=prefix]
+----
+
+还可以在 `@JmixEntitySearchIndex` 注解的 `indexName` 属性中设置索引全名。
+
+[[existing-data-indexing]]
+== 已有数据索引
+
+有两种方式处理已有数据的索引：
+
+* *Automatic（自动）* - 这是索引结构同步的一部分，默认启用。将已经存在索引的实体实例都加入队列中（后台进程）。可以仅对特定实体使用自动索引。
+
+* *Manual（手动）* - 调用 xref:search:search-api.adoc#entity-indexing-mbean[EntityIndexing MBean] 的 `enqueueIndexAll` 操作。
+
+如需启用对特定实体的自动索引，添加下列应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=auto-index]
+----
+
+另外，也可以通过添加下列应用程序属性完全禁用自动索引：
+
+[source,properties]
+----
+jmix.search.enqueue-index-all-on-startup-index-recreation-enabled = false
+----
+
+[[tracking-changes]]
+== 实体跟踪
+
+默认情况下，系统会跟踪索引实体的变更。将所有变更实体的信息保存在索引队列中。
+
+可以添加下列应用程序属性禁用该功能：
+
+[source,properties]
+----
+jmix.search.changed-entities-indexing-enabled = false
+----
+
+[[roles]]
+== 安全角色
+
+为了能使用搜索组件的功能，用户必须拥有下列角色之一：
+
+* *Search: edit filter* 提供能在过滤器添加全文搜索条件的权限。
+* *Search: view search results* 提供访问搜索结果视图的权限。
+
+[[index-settings]]
+== 索引配置和分析
+
+扩展组件支持索引配置包括分析配置。
+
+NOTE: 该配置依赖使用的搜索平台（OpenSearch 或 Elasticsearch），如果切换搜索引擎的话，需要重新创建配置。
+
+=== 配置 API
+
+[NOTE]
+====
+我们重新设计了配置 API，将索引配置和分析配置做了区分。
+之前的方法（`getCommonSettingsBuilder`、`getEntitySettingsBuilder`）已经**废弃**。
+只有在没有使用新的 API 方法或启用 xref:index-definitions.adoc#extended-search[@ExtendedSearch] 时，这些老 API 才有效。
+一旦使用了新 API，这些老 API 即被忽略。
+====
+
+==== 创建 Configurer Bean
+
+创建一个 Spring bean，实现以下接口之一：
+
+* `OpenSearchIndexSettingsConfigurer` – 用于 OpenSearch。
+* `ElasticsearchIndexSettingsConfigurer` – 用于 Elasticsearch。
+
+实现 `configure()` 方法，该方法提供一个 `ConfigurationContext` 对象。
+
+==== 配置索引设置
+
+使用专用的**索引设置构建器**来配置索引设置：
+
+* `getCommonIndexSettingsBuilder()` – 适用于**所有**索引。
+* `getEntityIndexSettingsBuilder(Class<?> entityClass)` – 适用于**特定**实体索引。
+实体特定的设置具有更高的优先级，并且会 _覆盖通用设置_。
+
+==== 配置分析
+
+使用专用的**分析构建器**来配置分析设置：
+
+* `getCommonAnalysisBuilder()` – 适用于**所有**索引。
+* `getEntityAnalysisBuilder(Class<?> entityClass)` – 适用于**特定**实体索引。
+
+使用构建器上的 `.analysis()` 方法来定义：
+
+* **分析器** – `.analyzer()`
+* **分词器** – `.tokenizer()`
+* **过滤器** – `.filter()`
+* **字符过滤器** – `.charFilter()`
+* **归一化器** – `.normalizer()`
+
+=== 完整示例
+
+以下示例演示了 OpenSearch 的自定义 configurer。
+配置了通用的索引设置和分析，然后对 `Order` 实体使用了特定设置进行覆盖覆盖。
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchIndexSettingsConfigurer.java[tags=import;index-settings-configurer;configure;configure-body]
+----
+
+=== API 迁移指南
+
+如果是从早期版本升级，请按如下方式替换已弃用的方法：
+
+|===
+| 已弃用 | 新 API
+| `getCommonSettingsBuilder()` | `getCommonIndexSettingsBuilder()` +
+`getCommonAnalysisBuilder()`
+| `getEntitySettingsBuilder(Class)` | `getEntityIndexSettingsBuilder(Class)` +
+`getEntityAnalysisBuilder(Class)`
+|===
+
+[WARNING]
+====
+不要新旧 API 混合使用。一旦开始使用新的构建器方法，已弃用的方法将被忽略。
+注意，如果正在使用 `@ExtendedSearch`，则**要求**使用新 API。
+====

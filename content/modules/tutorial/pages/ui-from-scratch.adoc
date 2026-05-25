@@ -1,0 +1,473 @@
+= 7. 从头创建 UI
+
+到这一步，应用程序已经具备了管理员和 HR 经理使用的所有功能：可以配置部门和入职步骤，管理用户，生成并跟踪每个新员工的入职步骤。
+
+现在我们需要为员工创建 UI，支持他们管理自己的入职流程。员工需要能登录系统并打开 `My Onboarding` 视图查看自己的入职步骤。每个步骤可以通过勾选复选框的方式标记为已完成。超期的步骤需要被高亮显示以作提醒。
+
+下面是 `My Onboarding` 视图的一个原型：
+
+image::ui-from-scratch/my-onboarding.svg[]
+
+前面的章节中，我们是通过自动生成和修改实体的 CRUD 视图的方式来创建 UI。本节中，我们将从头创建 `My Onboarding` 视图。
+
+[[create-blank-view]]
+== 创建空视图
+
+如果你的应用程序正在运行，先通过主工具栏的 *Stop*（image:common/suspend.svg[]）按钮停止运行。
+
+在 *Jmix* 工具窗口中，点击 *New*（image:common/add.svg[]）-> *View*：
+
+image::ui-from-scratch/create-screen-1.png[align="center", width="367"]
+
+*Create Jmix View* 窗口中，选择 `Blank view`（空视图）模板：
+
+image::ui-from-scratch/create-screen-2.png[align="center", width="776"]
+
+点击 *Next*。
+
+向导的下一步中，输入：
+
+* *Descriptor name*：`my-onboarding-view`
+* *Controller name*：`MyOnboardingView`
+* *Package name*：`com.company.onboarding.view.myonboarding`
+
+image::ui-from-scratch/create-screen-3.png[align="center", width="776"]
+
+点击 *Next*。
+
+向导的下一步中，修改视图标题为 `My onboarding`：
+
+image::ui-from-scratch/create-screen-4.png[align="center", width="726"]
+
+点击 *Create*。
+
+Studio 会创建一个空视图，并在设计器打开：
+
+image::ui-from-scratch/create-screen-5.png[align="center"]
+
+新视图也会被添加到主菜单中。在 *Jmix* 工具窗口，双击 *User Interface* -> *Main Menu* 节点，切换到 *Structure* 标签页，将 `MyOnboardingView` 拖放至顶部：
+
+image::ui-from-scratch/create-screen-6.png[align="center",width="1142"]
+
+点击主工具栏中的 *Debug*（image:common/start-debugger.svg[]）按钮启动应用程序。在浏览器打开 `++http://localhost:8080++` 然后登录应用程序。
+
+点击主菜单的 *Application* -> *My onboarding*，会打开一个空视图。
+
+[[add-table]]
+== 添加数据网格
+
+我们先给视图添加一个数据网格，用来展示当前用户的入职步骤。
+
+[[define-data-container]]
+=== 定义数据容器
+
+首先，添加一个数据容器，用于为 UI 数据网格提供 `UserStep` 实体集合。点击操作面板的 *Add Component*，选择 `Data components` 并双击 `Collection`，在弹出的对话框中 *Entity* 字段选择 `UserStep`，点击 *OK*：
+
+// image::ui-from-scratch/data-container-1.gif[]
+
+Studio 会创建集合数据容器：
+
+[source,xml]
+----
+<data>
+    <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
+        <fetchPlan extends="_base"/>
+        <loader id="userStepsDl" readOnly="true">
+            <query>
+                <![CDATA[select e from UserStep e]]>
+            </query>
+        </loader>
+    </collection>
+</data>
+----
+
+[[load-data]]
+=== 加载数据
+
+首先，删除自动生成的数据加载器的 `readOnly="true"` 属性，因为我们需要修改并保存当前视图中的实体。可以在组件属性面板修改或者在 XML 中直接编辑：
+
+[source,xml]
+----
+<loader id="userStepsDl">
+    <query>
+        <![CDATA[select e from UserStep e]]>
+    </query>
+</loader>
+----
+
+默认的查询语句会加载所有的 `UserStep` 实例，但是这里我们仅需要加载当前用户的入职步骤，且有特定的顺序。我们用 JPQL 设计器修改这个查询语句。在 *Jmix UI* 结构面板中选择 `userStepsDc` 容器，然后点击 `query` 属性的值。然后添加一个使用 `:user` 参数的 `where` 子句，以及一个使用 `sortValue` 排序的 `order by` 子句：
+
+形成的查询语句如下：
+
+[source,xml]
+----
+<query>
+    <![CDATA[select e from UserStep e
+    where e.user = :user
+    order by e.sortValue asc]]>
+</query>
+----
+
+下一个任务是为 `:user` 参数提供一个值。可以在 `BeforeShowEvent` 处理方法中实现。切换至 `MyOnboardingView` 控制器类，点击顶部操作面板的 *Generate Handler* 按钮，选择 *Controller handlers* -> `BeforeShowEvent`：
+
+image::ui-from-scratch/data-container-3.png[]
+
+点击 *OK*。Studio 会生成一个处理方法的桩代码：
+
+[source,java]
+----
+@Route(value = "MyOnboardingView", layout = MainView.class)
+@ViewController(id = "MyOnboardingView")
+@ViewDescriptor(path = "my-onboarding-view.xml")
+public class MyOnboardingView extends StandardView {
+    @Subscribe
+    public void onBeforeShow(final BeforeShowEvent event) {
+
+    }
+}
+----
+
+需要获取当前登录的用户，然后将该用户设置到加载器的查询参数中。
+
+点击操作面板的 *Code Snippets* 生成获取当前用户的代码：
+
+// image::ui-from-scratch/data-container-4.gif[align="center"]
+
+然后使用操作面板的 *Inject* 按钮注入 `userStepsDl` 加载器，将 `:user` 参数设置为当前用户并调用 `load()` 方法执行查询语句，将数据加载至集合数据容器。
+
+加载数据至集合容器的代码如下：
+
+[source,java]
+----
+@Autowired
+private CurrentAuthentication currentAuthentication;
+
+@ViewComponent
+private CollectionLoader<UserStep> userStepsDl;
+
+@Subscribe
+public void onBeforeShow(final BeforeShowEvent event) {
+    final User user = (User) currentAuthentication.getUser();
+    userStepsDl.setParameter("user", user);
+    userStepsDl.load();
+}
+----
+
+[TIP]
+====
+通过 Studio 生成的实体列表或详情视图中，数据加载默认是通过 `DataLoadCoordinator` facet 触发的：
+
+[source,xml]
+----
+<facets>
+    <dataLoadCoordinator auto="true"/>
+</facets>
+----
+
+这就是前面几章节中我们不需要手动调用 CRUD 视图中数据加载器 `load()` 方法的原因。
+====
+
+[[set-up-data-grid]]
+=== 配置数据网格
+
+右键点击 *Jmix UI* 结构面板中的 `layout` 元素，选择 *Add Component* 菜单。找到并双击 `DataGrid` 组件。在 *DataGrid* 弹窗中，选择 `userStepsDc` 数据容器，并反选所有的 *Actions*：
+
+image::ui-from-scratch/table-1.png[align="center",width="741"]
+
+点击 *OK*。
+
+可以看到，数据网格没有展示步骤名称的列：
+
+[source,xml]
+----
+<dataGrid id="userStepsDataGrid" dataContainer="userStepsDc" width="100%">
+    <columns>
+        <column property="dueDate"/>
+        <column property="completedDate"/>
+        <column property="sortValue"/>
+    </columns>
+</dataGrid>
+----
+
+`Step` 是一个关联属性，默认不包含在数据网格的 fetch plan 中。xref:tutorial:data-in-ui.adoc#rearrange-data-grid-columns[前一章节] 中我们在用户详情视图展示 UserSteps 数据网格的时候就遇到过这种情况。
+
+在 fetch plan 和列中添加 `step.name` 属性，并删除不需要的 `sortValue` 列。
+
+此时，视图的 XML 如下：
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://myOnboardingView.title">
+    <data>
+        <collection id="userStepsDc" class="com.company.onboarding.entity.UserStep">
+            <fetchPlan extends="_base">
+                <property name="step" fetchPlan="_base"/>
+            </fetchPlan>
+            <loader id="userStepsDl">
+                <query>
+                    <![CDATA[select e from UserStep e
+                    where e.user = :user
+                    order by e.sortValue asc]]>
+                </query>
+            </loader>
+        </collection>
+    </data>
+    <layout>
+        <dataGrid id="userStepsDataGrid" dataContainer="userStepsDc" width="100%">
+            <columns>
+                <column property="step.name"/>
+                <column property="dueDate"/>
+                <column property="completedDate"/>
+            </columns>
+        </dataGrid>
+    </layout>
+</view>
+----
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。确保为当前用户（可能是 `admin`）在用户详情视图生成几条 UserSteps。然后刷新 `My onboarding` 视图，查看入职步骤：
+
+image::ui-from-scratch/table-3.png[align="center"]
+
+[[add-component-column]]
+=== 添加组件列
+
+本小节中，我们将为表格添加一个带有复选框的列，用于标记入职步骤已完成。xref:data-in-ui.adoc#component-column[之前章节] 中，我们为用户详情视图的 UserSteps 数据网格完成了类似的任务。
+
+在 XML 中，添加 `completed` 列：
+
+[source,xml]
+----
+<columns>
+    <column key="completed" sortable="false" width="4em" flexGrow="0"/>
+----
+
+在控制器中，注入 `UiComponents` 工厂。为 `completed` 列生成 `renderer` 处理方法，并实现：
+
+[source,java]
+----
+@Autowired
+private UiComponents uiComponents;
+
+@Supply(to = "userStepsDataGrid.completed", subject = "renderer")
+private Renderer<UserStep> userStepsDataGridCompletedRenderer() {
+    return new ComponentRenderer<>(userStep -> {
+        Checkbox checkbox = uiComponents.create(Checkbox.class);
+        checkbox.setValue(userStep.getCompletedDate() != null);
+        checkbox.addValueChangeListener(e -> {
+            if (userStep.getCompletedDate() == null) {
+                userStep.setCompletedDate(LocalDate.now());
+            } else {
+                userStep.setCompletedDate(null);
+            }
+        });
+        return checkbox;
+    });
+}
+----
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新 `My onboarding` 视图，测试最新的改动：
+
+image::ui-from-scratch/gen-column-1.png[align="center"]
+
+[[add-labels]]
+== 添加标签
+
+数据网格基本完成了，下面我们添加展示步骤总数、完成总数和超期步骤的文本标签。
+
+点击操作面板的 *Add Component*，并拖拽 *Layouts* -> `VBox`（垂直布局盒子）至 *Jmix UI* 结构面板中的 `layout` 元素中，放置于 `userStepsDataGrid` 之前。然后在 `vbox` 中添加三个 `HTML` -> `Span` 组件。
+
+设置标签的 id：
+
+[source,xml]
+----
+<layout>
+    <vbox>
+        <span id="totalStepsLabel"/>
+        <span id="completedStepsLabel"/>
+        <span id="overdueStepsLabel"/>
+    </vbox>
+----
+
+现在，我们可以在控制器的代码中通过编程的方式计算并设置这些标签。切换至 `MyOnboardingView` 控制器，注入三个标签和 `userStepsDc` 集合容器：
+
+[source,java]
+----
+@ViewComponent
+private Span completedStepsLabel;
+
+@ViewComponent
+private Span overdueStepsLabel;
+
+@ViewComponent
+private Span totalStepsLabel;
+
+@ViewComponent
+private CollectionContainer<UserStep> userStepsDc;
+----
+
+然后添加两个方法，用于计算和设置计数器：
+
+[source,java]
+----
+private void updateLabels() {
+    totalStepsLabel.setText("Total steps: " + userStepsDc.getItems().size());
+
+    long completedCount = userStepsDc.getItems().stream()
+            .filter(us -> us.getCompletedDate() != null)
+            .count();
+    completedStepsLabel.setText("Completed steps: " + completedCount);
+
+    long overdueCount = userStepsDc.getItems().stream()
+            .filter(us -> isOverdue(us))
+            .count();
+    overdueStepsLabel.setText("Overdue steps: " + overdueCount);
+}
+
+private boolean isOverdue(UserStep us) {
+    return us.getCompletedDate() == null
+            && us.getDueDate() != null
+            && us.getDueDate().isBefore(LocalDate.now());
+}
+----
+
+最后，从两个事件处理器中调用 `updateLabels()` 方法：
+
+. 在已有的 `BeforeShowEvent` 处理器中调用 `updateLabels()`：
++
+[source,java]
+----
+@Subscribe
+public void onBeforeShow(final BeforeShowEvent event) {
+    // ...
+    updateLabels();
+}
+----
++
+这样在视图打开时就会更新这些标签。
+
+. 点击 *Generate Handler* 并选择 *Data container handlers* -> `userStepsDc` -> `ItemPropertyChangeEvent`：
++
+image::ui-from-scratch/label-2.png[align="center"]
++
+. 在生成的处理器中调用 `updateLabels()` 方法：
++
+[source,java]
+----
+@Subscribe(id = "userStepsDc", target = Target.DATA_CONTAINER)
+public void onUserStepsDcItemPropertyChange(final InstanceContainer.ItemPropertyChangeEvent<UserStep> event) {
+    updateLabels();
+}
+----
++
+有了 `ItemPropertyChangeEvent` 处理方法，当使用表格中的复选框修改步骤的 `completedDate` 属性时，也会更新标签。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新 `My onboarding` 视图，测试标签值：
+
+image::ui-from-scratch/label-3.png[align="center"]
+
+[[save-changes-and-close-view]]
+== 保存改动并关闭视图
+
+在这个视图内，现在我们可以修改入职步骤的状态，但是这些改动在重新打开视图后就会丢失。我们现在为视图添加两个按钮：`Save` 按钮用于保存更改并关闭视图；`Discard` 按钮用于关闭视图不保存数据。
+
+首先，点击操作面板的 *Add Component*，拖拽一个 *Layouts* -> `HBox`（水平布局盒子），放置于 `userStepsDataGrid` 下方。然后在其内部添加两个按钮：
+
+按照下方代码设置按钮的 id 和名称。对于 `Save` 按钮，添加 `themeNames="primary"` 属性：
+
+[source,xml]
+----
+<hbox>
+    <button id="saveButton" text="Save" themeNames="primary"/>
+    <button id="discardButton" text="Discard"/>
+</hbox>
+----
+
+通过 *Jmix UI* 组件面板 -> *Handlers* 生成按钮点击事件的处理方法。
+
+在控制器类中注入 `DataContext` 并实现点击处理方法：
+
+[source,java]
+----
+@ViewComponent
+private DataContext dataContext;
+
+@Subscribe(id = "saveButton", subject = "clickListener")
+public void onSaveButtonClick(final ClickEvent<JmixButton> event) {
+    dataContext.save(); // <1>
+    close(StandardOutcome.SAVE); // <2>
+}
+
+@Subscribe(id = "discardButton", subject = "clickListener")
+public void onDiscardButtonClick(final ClickEvent<JmixButton> event) {
+    close(StandardOutcome.DISCARD); // <2>
+}
+----
+<1> `DataContext` 会跟踪数据容器中加载实体的更改。当调用 `save()` 方法时，所有对实例的改动都将保存至数据库。
+<2> `close()` 方法关闭视图。接收一个“输出”对象，可以由调用方处理。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新 `My onboarding` 视图并查看按钮：
+
+image::ui-from-scratch/buttons-3.png[align="center"]
+
+[[styling-data-grid]]
+== 数据网格样式
+
+`My onboarding` 视图的最后一个需求就是通过修改 `Due date` 单元格的字体颜色对超期的入职步骤进行高亮展示。我们将创建一个 CSS 类，并在数据网格中使用。
+
+首先，通过为数据网格添加 `classNames` 属性分配一个 CSS 类 `onboarding-steps`：
+
+image::ui-from-scratch/theme-1.png[align="center", width="282"]
+
+然后选择 `dueDate` 列，在组件属性面板切换至 *Handlers* 标签页，生成 `partNameGenerator` 处理方法。实现如下：
+
+[source,java]
+----
+@Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+    return isOverdue(userStep) ? "overdue-step" : null;
+}
+----
+处理方法的参数为当前渲染行的 UserStep 实例，返回当前列的 CSS 选择器使用的名称。
+
+最后，从 *Jmix* 工具窗口的 *User Interface* -> *Themes* 部分打开 `onboarding.css` 文件，添加下列 CSS 代码：
+
+[source,css]
+----
+vaadin-grid.onboarding-steps::part(overdue-step) {
+    color: red;
+}
+----
+
+在上面的 CSS 选择器中，`vaadin-grid.onboarding-steps` 指定了特定的数据网格实例，`::part(overdue-step)` 指定了需要高亮的网格。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新 `My onboarding` 视图并查看按钮：
+
+image::ui-from-scratch/theme-4.png[align="center"]
+
+[[summary]]
+== 小结
+
+本节中，我们从头开发了一个能处理数据的 UI 视图。
+
+学习内容：
+
+* xref:flow-ui:data/data-loaders.adoc[数据加载器] 的查询语句可以带参数。参数值可以在 `BeforeShowEvent` 中设置，或者在其他视图或其他 UI 组件事件处理方法中设置。
+
+* 如需触发数据加载，可以在事件处理器中调用数据加载器的 `load()` 方法或为视图添加 xref:flow-ui:facets/dataLoadCoordinator.adoc[] facet。
+
+* xref:flow-ui:vc/layouts/vbox.adoc[] 和 xref:flow-ui:vc/layouts/hbox.adoc[] 容器用于将内部组件进行垂直或水平摆放。根容器 `layout` 本身是一个垂直布局盒子。
+
+* xref:flow-ui:data/data-context.adoc[] 的 `save()` 方法将所有实体改动保存至数据库。
+
+* 视图可以通过由 `View` 基类提供的 `close()` 方法编程式关闭。
+
+* 项目主题中的 CSS 文件可以定义 UI 组件的样式。
+
+* 使用 `partNameGenerator` 处理方法修改表中单元格的样式。
+
+* xref:studio:code-snippets.adoc[] 工具箱可以用来快速查找和生成使用框架 API 的代码。
+
+// todo flowui layout rules
+// TIP: 参阅 xref:ui:vcl/layout.adoc[] 了解更多关于放置 UI 组件和布局容器的信息。

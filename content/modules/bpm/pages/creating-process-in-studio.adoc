@@ -1,0 +1,352 @@
+= 在 Studio 中创建流程
+
+对于开发人员来说，Studio 中的 BPMN 建模器是创建自动化流程的主要工具。
+除了建模之外，Jmix Studio 还提供：
+
+* 通过 Jmix 项目树导航至流程模型。
+* BPM Inspector，用于操作 BPMN 元素的属性。
+* 实体数据任务：扩展的 BPMN 组件，可以直接在流程中操作 Jmix 实体。
+* 加载实体的 JPQL 查询语句向导。
+* 创建 Jmix 视图流程表单的向导。
+* 构建工作流时的一些智能提示。
+* 在流程上下文中生成 Spring bean 和 Java 代理模板。
+* 应用启动和热部署时进行流程部署。
+
+[[modeling-process-in-studio]]
+== 在 Studio 中建模
+
+在 Jmix 工具窗口中，找到 BPM 节点。
+右键点击并创建一个新的 BPMN 模型。
+
+对我们的报销流程，可以这样填写：
+
+* *Process id*：`reimbursement`
+* *Name*：`Reimbursement`（会自动填入）
+
+image::bpm:getting-started/create-process-studio.png[,400]
+
+然后在 *BPMN Navigator* 面板找到 documentation 字段，并填写：
+
+image::getting-started/fill-documentation-studio.png[,800]
+
+[[creating-start-form]]
+=== 创建开始表单
+
+画布中的每个元素都有其自有属性。
+此时，画布中唯一的元素只有 `StartEvent`，
+表示发起流程的用户所能看到的
+xref:bpm:getting-started-testing-process.adoc#start-form[开始表单]。
+下面我们开始配置：
+
+* 点击 `StartEvent` 元素。
++
+* 在 *Form Type* 字段选择 `Input dialog`。*Open mode* 自动设置为 *Dialog*。
++
+image::getting-started/start-form-studio.png[,800]
+
+下一步，创建输入参数，提示用户需要为表单输入一些信息：
+
+* 点击 `Parameters` 字段的 _create_
+并添加 `requestNumber` 参数，使用下列属性：
+
+image::getting-started/request-number-studio.png[,800]
+
+
+* 重复上面的步骤创建另外三个参数：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
+
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|true
+|true
+
+|`expenseDate`
+|Expense Date
+|Date
+|true
+|true
+
+|`document`
+|Document
+|File
+|true
+|true
+
+|===
+
+创建的所有字段如图：
+
+image::getting-started/start-form-filled-studio.png[,800]
+
+* 下一步，创建一个用于选择审批经理的输入参数。
+这个参数需要配置更多的属性：
++
+[cols="1,1,1,1,1,1,1,"]
+|===
+|Process variable | Caption | Type | Editable | Required | Entity name | UI Component | JPQL query
+
+|`manager`
+|Manager
+|Entity
+|true
+|true
+|User
+|ComboBox
+|_留空^*^_
+|===
++
+__^*^ 如果未指定任何语句，则默认为__ `select e from User e`。
++
+image::getting-started/manager-field-studio.png[,800]
++
++
+*  设置 *Business key* 字段的值为 `requestNumber`。
+xref:bpm:bpm-concepts.adoc#business-key[business key] 是一个流程实例在特定领域的标识符。
+
+添加所有参数完成后，*Form* 应该如下：
+
+image::getting-started/set-business-key-studio.png[,800]
+
+[[creating-approval-task]]
+=== 创建审批任务
+
+创建一个用于审批的任务。
+审批任务由 xref:bpm:getting-started-testing-process.adoc#approval-form[审批表单] 完成，
+只有被指定可以审批该笔报销的经理才能看到。
+
+首先，在画布中添加一个新的元素：
+
+* 点击 `StartEvent` 元素进行选中。
+* 点击 *Append task* image:quick-start/append-task-icon.png[width="20"] 图标。
+* 点击 *Change type* image:quick-start/change-type-icon.png[width="20"] 图标并选择 *User Task*。
++
+// image::getting-started/add-user-task-studio.png[,800]
+image::getting-started/manager-assigned-studio.png[,800]
++
+TIP: 默认情况下，可以用内置的 `initiator` 流程变量分配任务。
++
+* 继续在 *Form* 部分设置下列属性：
+** *Form type*：`Input dialog`
+** *Open mode*：`Dialog`（默认设置）
+
+* 点击 [image:bpm:getting-started/create-btn.png[,60] 链接按钮]
+添加下列已有参数，并设置为不可编辑：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
+
+|`requestNumber`
+|Request number
+|String
+|false
+|false
+
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|false
+|false
+
+|`expenseDate`
+|Expense Date
+|Date
+|false
+|false
+
+|`document`
+|Document
+|File
+|false
+|false
+|===
++
+* 点击 [image:bpm:getting-started/create-btn.png[,60] 链接按钮]
+并为表单创建最后一个参数：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
+
+|`comment`
+|Comment
+|Multiline string
+|true
+|false
+|===
++
+这个参数是一个文本字段，经理可以在审批的时候输入一些备注。
++
+image::getting-started/user-task-form-1.png[,800]
+
+[[creating-outcomes]]
+=== 创建输出
+
+*Approval* 步骤有两个输出：同意（approved）或驳回（rejected）。
+因此，在审批过程中，经理需要有两个按钮可以操作。
+
+* 画布中选中审批（Approval）元素。
+然后在 *Outcomes* 属性中点击 [image:bpm:getting-started/create-btn.png[,60] 链接按钮]。
+
+* 为第一个输出设置下列属性：
+
+image::getting-started/approval-outcomes.png[,800]
+
+根据 *Approval* 任务的不同输出，后续流程路径也将不同。
+在流程的分叉口，我们添加一个排他性的网关（Exclusive Gateway）元素：
+
+* 选中 *Approval* 任务元素并点击 *Append Gateway* image:quick-start/append-gateway-icon.png[width="20"]。
+* 选中网关元素并通过 image:quick-start/append-task-icon.png[width="20"] -> image:quick-start/change-type-icon.png[width="20"] -> *User Task* 创建一个新的用户任务。
+* 选中网关元素并点击 image:quick-start/append-end-event-icon.png[width="20"] 创建 `EndEvent` 元素。
+* 选中元素间的流并命名：`approved` 和 `rejected`。
+
+image::getting-started/model-3.png[,400]
+
+* 选中 `approved` 流，并设置其 *Condition* 属性：
+** *Condition source*：`User task outcome`
+** *User task id*：`Approval`
+** *User task outcome*：`approve`
++
+image::getting-started/approve-condition-studio.png[,800]
++
++
+* 类似的，为 `rejected` 流设置 *Condition* 属性：
+** *Condition source*：`User task outcome`
+** *User task id*：`Approval`
+** *User task outcome*：`reject`
+
+image::getting-started/default-flow-studio.png[,800]
+
+[[creating-payment-user-task]]
+=== 创建支付用户任务
+
+模型中的另一个用户任务就是需要在审批通过的情况下通知会计可以支付报销款了。
+这个任务只有会计才能使用，通过 xref:bpm:getting-started-testing-process.adoc#payment-form[支付表单] 实现。
+
+* 在画布中选中用户任务，然后设置 *Id* 和 *Name*：
+** *Id*：`payment`
+** *Name*：Payment
+
+对于这个任务，我们需要实现的一个功能是，
+当该任务发送给所有的会计时，任何一个会计都可以领取该任务。
+因此，这里并不是将任务分配给特定的人员，
+而是可以设置 *Candidate groups（候选组）* 或 *Candidate users（候选用户）*。
+
+现在我们为所有的会计创建一个 *Candidate group*。
+
+TIP: 离开建模器之前，
+可以用工具栏的 image:quick-start/save-draft-button.png[width="32"] 按钮保存模型草稿。
+之后随时可以通过 image:quick-start/open-draft-button.png[width="32"] 按钮打开保存的草稿。
+
+* 打开 *BPM -> User groups* 视图，创建一个名为 `Accountants` 的分组，code 设置为 `accountants`。
+* 用户类型设置为 *Users*。
+* 添加一些用户到这个分组。
++
+image::quick-start/user-group.png[align="center" width="1414"]
+
+image::getting-started/setting-candidates-studio.png[,800]
+
+NOTE: 流程中的用户必须具有 `BPM: process actor` 角色。
+该角色提供方位 BPM 视图和实体的权限，以便用户可以启动流程或处理用户任务。
+角色分配可以在 *Application -> Users* 视图完成。
+
+* 返回建模器，选中 `Payment` 用户任务。
+* 找到 *Candidate groups* 属性字段，并点击编辑按钮 image:getting-started/edit-btn-studio.png[width="32"]。
+* 在候选组编辑器中，添加 `Accountants` 分组。
++
+image::quick-start/groups.png[align="center" width="756"]
+
+* 与 `Approval` 任务一样，为 `Payment` 任务也配置一个输入对话框。
+属性设置如下：
+** *Form type*：`Input dialog`
+** *Open mode*：`Dialog`（默认设置）
+* 添加输入参数。参数与审批表单一致，但备注栏也需要设置为不可编辑：
++
+[cols="1,1,1,1,1"]
+|===
+|Process variable | Caption | Type | Editable | Required
+
+|`requestNumber`
+|Request number
+|String
+|false
+|true
+
+|`expenseAmount`
+|Expense amount
+|Decimal (double)
+|false
+|true
+
+|`expenseDate`
+|Expense Date
+|Date
+|false
+|true
+
+|`document`
+|Document
+|File
+|false
+|true
+
+|`comment`
+|Comment
+|Multiline string
+|false
+|false
+
+|===
++
+* 返回画布，在 `Payment` 任务之后添加 `EndEvent` 元素 image:quick-start/append-end-event-icon.png[width="20"]。
+
+
+[[specifying-users-to-start-process]]
+=== 指定用户发起流程
+
+必须为用户创建一个特定的分组，只有这个组内的用户才能发起流程。
+这个示例中，我们的分组将包含所有用户。
+
+* 切换至 Web 应用程序。
+* 打开 *User groups* 视图，创建一个新的分组，属性如下：
+
+** *Name*：All users
+** *Code*：all-users
+** *Type*：All users
++
+image::quick-start/all-users.png[align="center" width="1392"]
+
+* 回到 *Modeler* 视图，点击画布的空白处，展示流程属性。
+* 在 *Starter candidates* 中，设置 *Candidate groups* 为 `All users`。
++
+image::getting-started/set-starters-studio.png[,800]
+
+[[starting-process]]
+== 部署流程
+
+流程模型已准备好，可以部署至流程引擎。
+按照以下步骤：
+
+* 将草稿复制到流程：
++
+image::getting-started/copy-to-processes-studio.png[,800]
+
+* 如果应用程序已经启动，使用 "Hot deploy" 按钮：
++
+image::getting-started/hot-deploy-studio.png[,800]
+
+* 否则，启动应用程序或以调试模式运行：
++
+image::getting-started/run-debug-buttons.png[,200]
+
+* 如果流程部署成功，可以看到控制台的输出：
++
+ BPMN process deployed: reimbursement.bpmn
+
+现在可以按照 xref:bpm:getting-started-testing-process.adoc[下一章] 的内容启动并测试流程了。
+
+

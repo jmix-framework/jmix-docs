@@ -1,0 +1,210 @@
+= 发布扩展组件
+
+本指南提供将开源扩展组件发布至 Jmix https://www.jmix.cn/marketplace/[市场^] 的全部所需内容和配置。
+
+[NOTE]
+====
+使用我们推荐的方案，需要源代码和二进制制件都在 GitHub 上托管。
+
+或者，也可以将你的扩展组件制件发布至 Maven Central。此时，仅需要为源码创建 GitHub 仓库，组件由你自己发布，然后按照 <<register-in-marketplace,在市场注册扩展组件>> 说明进行操作。
+====
+
+[[create-project]]
+== 创建扩展组件项目
+
+可以用 Jmix Studio 项目创建向导新建 Jmix 扩展组件项目。选择模板 “Single Module Add-on”。
+
+NOTE: 在你的扩展组件中，请不要使用 `io.jmix.*` 作为基础包名和制件的组名。此名称保留给 Jmix 核心扩展组件使用。理想情况下，基础包名应该是你自己的互联网域名的反向 DNS 表示法。
+
+由于要与 GitHub Actions 工作流交互（后面介绍），需要修改仓库的设置，将扩展组件的制件发布至 GitHub Packages：
+
+[source, groovy]
+.build.gradle
+----
+// ...
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/" + System.getenv("GITHUB_REPOSITORY"))
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+    publications {
+        javaMaven(MavenPublication) {
+            artifactId = archName
+            from components.java
+        }
+    }
+}
+----
+
+另外，还要删除 `build.gradle` 中的版本属性（在 `group = 'my.new.jmix.addon'` 下面）。然后，在 `build.gradle` 同级目录创建一个 `gradle.properties` 文件，包含版本信息：
+
+[source,properties]
+.gradle.properties
+----
+version=0.0.1-SNAPSHOT
+----
+
+[[github-repository]]
+== 创建 GitHub 仓库
+
+现在你需要一个 GitHub 仓库。GitHub 提供了发布开源扩展组件所需的全部条件：
+
+* 源代码托管
+* 持续集成系统（GitHub Actions）
+* 包管理（GitHub Package Registry）
+
+你可以在 https://github.com/new[这里^] 创建新的 GitHub 仓库。
+
+[[license]]
+== 选择许可
+
+开源许可方面，有多个选择。 https://opensource.org/licenses/Apache-2.0[Apache 2.0 许可^] 和 https://opensource.org/licenses/MIT[MIT 许可^] 是开源项目常见的自由许可。Jmix 本身是 https://github.com/jmix-framework/jmix/blob/master/LICENSE.txt[Apache 2.0^] 许可。
+
+选好许可后，将许可文件放入 GitHub 仓库的根目录中。
+
+[[continuous-integration]]
+== 配置持续集成（CI）
+
+GitHub 提供了一个内置的 CI 系统，可以免费为开源项目编译代码、运行测试、执行发布等。
+
+将以下 GitHub Actions 工作流文件添加到仓库中，CI 系统将执行编译和自动化测试。需要在仓库中手动创建目录 `.github/workflows`。
+
+[source,yaml]
+.test.yml
+----
+name: CI pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  ci:
+    name: CI pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v1
+        with:
+          java-version: '17'
+
+      - name: Make wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        if: always() # always run even if the previous step fails
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+----
+
+[source,yaml]
+.release.yml
+----
+name: Publish release
+on:
+  release:
+    types: [created]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '17'
+      - name: Publish package
+        run: gradle -Pversion=${{ github.event.release.tag_name }} build publish
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ github.token }}
+----
+
+有了这两个文件，GitHub Actions 会执行下列任务：
+
+* 编译代码
+* 运行单元测试和集成测试
+* 保存测试结果
+* 发布新版本
+
+[[create-release]]
+== 创建发布版
+
+GitHub 支持通过 Web UI 和 CLI 创建发布版。对于 Web UI，首先必须为特定的提交创建一个标签。然后，可以创建相应的发布版。有关更多信息，请参阅 https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository[GitHub 文档]。
+
+如需通过 CLI 创建 GitHub 发布版，请使用此命令：`gh release create 0.1.0`。将 `0.1.0` 替换为你想要创建的版本。
+
+TIP: 我们建议遵循 https://semver.org/[语义版本控制]，根据在此版本中的改动类型来确定新增的版本号。这样用户可以更容易了解版本更新的潜在影响。
+
+发布版创建完成后，GitHub Actions 将创建相应的制件并执行发布。
+
+[[register-in-marketplace]]
+== 在市场注册扩展组件
+
+[[create-issue]]
+=== 新建 issue
+
+如需将扩展组件发布到 Jmix 组件市场，需要在 https://github.com/jmix-framework/jmix-website-content/issues/new/choose[jmix-website-content^] 仓库中创建 issue。选择 “Publish Add-on to Marketplace” 并输入插件名称和它所在的 Github 仓库。
+
+Issue 创建完成后，我们将对扩展组件进行常规检查，如果制件发布在 GitHub Packages 上，则创建代理支持用户从 Jmix 的标准仓库 `global.repo.jmix.io` 和 `nexus.jmix.io` 下载。
+
+[[submit-description]]
+=== 提交描述
+
+在 `jmix-website-content` 仓库的 https://github.com/Haulmont/jmix-website-content/tree/master/Content/Add-ons[add-on 目录^] 创建一个 Pull Request（PR），提交扩展组件的描述文档。我们会合并这个 PR 并在网站发布相应的内容。
+
+如果之后想要更改组件描述，可以在此仓库创建一个新的 PR，包含想要的更改内容。
+
+[[update-bom]]
+=== 更新 Jmix BOM
+
+<<create-release,发布版>> 在 GitHub 上发布后，将能够通过 Jmix 制件仓库 `global.repo.jmix.io` 和 `nexus.jmix.io` 下载制件。
+
+通常，Jmix 使用 BOM 集中管理多个兼容版本。可以在 GitHub 上的 https://github.com/jmix-framework/jmix/tree/master/jmix-bom[jmix-bom^] 项目中找到为特定 Jmix 版本指定的组件版本。
+
+这种方法的主要好处是用户不必手动查找与他们的 Jmix 版本兼容的扩展组件版本。而是，由组件的发布者在 BOM 中统一声明哪个版本与特定的 Jmix 版本兼容。
+
+如需关联至特定的 Jmix 版本，请在 https://github.com/jmix-framework/jmix/issues[^] 创建一个 issue，并提供兼容的扩展组件和 Jmix 版本信息。
+
+或者，也可以在相应的 https://github.com/jmix-framework/jmix/branches/all?query=release_[版本分支^] 提交 PR。
+
+1. Fork https://github.com/jmix-framework/jmix[jmix-framework/jmix^] 仓库。
+
+2. 切换至你想要添加版本的 release 分支（例如，`{page-origin-branch}`）。
+
+3. 在 `jmix-bom/bom.gradle` 中的 `community add-ons` 备注后添加带有 Maven 坐标和正确版本的内容：
++
+[source,gradle]
+.bom.gradle
+----
+// community add-ons
+// ...
+api 'my.new.jmix.addon:my-add-on:1.0.0'
+api 'my.new.jmix.addon:my-add-on-starter:1.0.0'
+// end community add-ons
+----
+
+4. 创建目标分支的 PR：`jmix-framework/jmix` 仓库的 `{page-origin-branch}` 分支。
+
+[NOTE]
+====
+当发布新的主要或次要 Jmix 版本（例如，5.5.0）时，其 BOM 不包含任何第三方插件，因为没有经过与新版本的兼容性测试。
+
+你需要为相应的 release 分支（例如，`release_5_5`）提交新的 PR，将扩展组件包含到新的 BOM 中。
+在组件添加到 BOM 之前，如果用户在其构建脚本中明确指定组件版本，仍然可以在新的 Jmix 版本中使用扩展组件。
+====

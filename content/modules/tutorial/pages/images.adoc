@@ -1,0 +1,178 @@
+= 6. 处理图片
+
+本节中，我们将为 `User` 实体添加 `picture` 属性并学习如何上传并在 UI 展示图片。
+
+[[file-ref-attr]]
+== 添加文件属性
+
+Jmix 支持将上传的文件存储在数据库之外的所谓 _文件存储（File Storage）_ 中。文件存储最简单的情况就是文件系统的一个带有特殊结构的文件夹。将文件存储中的文件与实体关联，需要为实体创建一个 `FileRef` 类型的属性。
+
+我们创建一个属性用于管理用户的照片。
+
+如果你的应用程序正在运行，先通过主工具栏的 *Stop*（image:common/suspend.svg[]）按钮停止运行。
+
+在 *Jmix* 工具窗口双击 `User` 实体并选择其最后一个属性（我们要在最后添加新属性）：
+
+在 *Attributes* 工具栏中，点击 *Add*（image:common/add.svg[]）。弹出的 *New Attribute* 对话框中，*Name* 字段填写 `picture`，然后在 *Type* 下拉框中选择 `FileRef`：
+
+image::images/attribute-2.png[align="center", width="862"]
+
+*Length* 字段使用默认值（1024）即可。对于 `FileRef` 属性来说，列长度是用来保存文件引用而非文件本身，因此并不是限定文件的大小。
+
+点击 *OK*。
+
+然后选中 `picture` 属性，在 *Attributes* 工具栏中点击 *Add to Views*（image:common/add-attribute-to-screens.svg[]）按钮：
+
+出现的对话框中会显示所有用于展示 `User` 实体的视图。我们选择 `User.detail` 视图并点击 *OK*。
+
+Studio 会在 `User.detail` 视图的 `formLayout` 中添加 `pictureField` 组件：
+
+[source,xml]
+----
+<formLayout id="form" dataContainer="userDc">
+    ...
+    <fileStorageUploadField id="pictureField" property="picture"/>
+</formLayout>
+----
+
+点击主工具栏中的 *Debug*（image:common/start-debugger.svg[]）按钮启动应用程序。
+
+在运行应用程序之前，Studio 会生成 Liquibase 更改日志：
+
+image::images/run-app-1.png[align="center"]
+
+可以看到，更改日志包含了一条增加 `USER_` 表 `PICTURE` 列的语句。列类型为 `VARCHAR(1024)`，因为文件引用实际上是一个字符串。
+
+点击 *Save and run*。
+
+Studio 会先执行更改日志，再构建和运行应用程序。
+
+应用程序准备好后，在浏览器打开 `++http://localhost:8080++` 并使用 `admin` / `admin` 凭证登录。
+
+点击主菜单的 *Application* -> *Users*。
+
+选择一个用户并点击 *Edit*。表单会显示一个用于上传图片的 UI 控件：
+
+image::images/run-app-3.png[align="center"]
+
+[[image-in-form]]
+== 表单内展示图片
+
+本小节内，我们将改进详情视图，在表单内展示上传的图片。
+
+首先，我们在可收放的 `Details` 布局中放入 `fileStorageUpload`：
+
+// image::images/form-1.gif[]
+
+现在这个空间并不是直接位于 `formLayout` 中（`formLayout` 为内部组件定义了数据容器），因此，我们需要显式地为上传控件设置 `dataContainer`
+
+image::images/form-4.png[align="center",width="338"]
+
+然后在 `fileStorageUpload` 组件下方添加 `image` 组件，并设置如下属性：
+
+[source,xml]
+----
+<details summaryText="Picture">
+    <hbox>
+        <fileStorageUploadField id="pictureField" dataContainer="userDc" property="picture"/>
+        <image id="image" property="picture" dataContainer="userDc" height="10em" width="10em"
+            classNames="user-picture"/>
+    </hbox>
+</details>
+----
+
+* `dataContainer="userDc" property="picture"` 属性将 `image` 组件与 `User` 实体的 `picture` 属性进行关联。
+* `classNames="user-picture"` 是定义了一个 CSS 类。
+
+从 Jmix 工具窗口的 *User Interface* -> *Themes* 打开 `onboarding.css` 文件，定义 `user-picture` 类：
+
+image::images/form-5.png[align="center",width="680"]
+
+`object-fit: contain` 属性可以确保图片能占满所有空间并保持宽高比。
+
+[source,css]
+----
+.user-picture {
+    object-fit: contain;
+}
+----
+
+按下 *Ctrl/Cmd+S* 并切换至运行的程序。刷新用户详情视图，试试上传一个图片：
+
+image::images/form-2.png[align="center"]
+
+[[image-in-table]]
+== 在数据网格中展示图片
+
+我们在 `User.list` 视图中的数据网格中添加一列用来展示图片。
+
+打开 `user-list-view.xml` 并在 `usersDataGrid` 添加一列：
+
+[source,xml]
+----
+<columns resizable="true">
+    <column key="picture" sortable="false" flexGrow="0" resizable="false"/>
+----
+
+在 `UserListView` 类添加以下字段：
+
+[source,java]
+----
+@ViewComponent
+private DataGrid<User> usersDataGrid;
+
+@Autowired
+private UiComponents uiComponents;
+
+@Autowired
+private FileStorage fileStorage;
+----
+
+TIP: 可以使用编辑器顶部操作面板内的 *Inject* 按钮为视图控制器注入依赖和 Spring bean。
+
+选中 `picture` 列，在组件属性面板的 *Handlers* 标签页创建 `renderer` 处理方法，实现如下：
+
+[source,java]
+----
+@Supply(to = "usersDataGrid.picture", subject = "renderer")
+private Renderer<User> usersDataGridPictureRenderer() {
+    return new ComponentRenderer<>(user -> { // <1>
+        FileRef fileRef = user.getPicture();
+        if (fileRef != null) {
+            Image image = uiComponents.create(Image.class);  // <2>
+            image.setWidth("30px");
+            image.setHeight("30px");
+            StreamResource streamResource = new StreamResource(
+                    fileRef.getFileName(),
+                    () -> fileStorage.openStream(fileRef));
+            image.setSrc(streamResource); // <3>
+            image.setClassName("user-picture");
+
+            return image; // <4>
+        } else {
+            return null;
+        }
+    });
+}
+----
+<1> 方法返回一个 `Renderer` 对象，用于创建一个可以在列中渲染的 UI 组件。参数为当前行对应的实体实例。
+<2> 使用 `UiComponents` 工厂创建 `Image` 组件实例。
+<3> 图片组件从 `User` 的 `picture` 字段获取文件地址，然后从文件存储中获取内容。
+<4> 返回列单元格中显示的组件。
+
+按下 *Ctrl/Cmd+S* 保存修改然后切换至运行中的程序。刷新用户列表视图。可以在第一列看到用户的图片：
+
+image::images/table-3.png[]
+
+[[summary]]
+== 小结
+
+本节中，我们增加了上传和显示用户图片的功能。
+
+学习内容：
+
+* xref:files:uploading-files.adoc[上传后的文件] 可以保存在一个 xref:files:file-storage.adoc[文件存储] 中，并通过 `FileRef` 类型的属性与实体相关联。
+
+* xref:flow-ui:vc/components/fileStorageUploadField.adoc[] 组件支持上传文件、将文件保存到文件存储并与实体属性关联。
+
+* xref:flow-ui:vc/html-components/image.adoc[] 组件可以显示文件存储中的图片。

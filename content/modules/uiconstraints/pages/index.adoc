@@ -1,0 +1,101 @@
+= UI 约束
+
+UI 约束扩展组件支持通过资源角色中定义的声明性策略来控制 UI 组件的可见性与可访问性。
+
+例如，可以将按钮设为非活动状态，可以隐藏表格，等等。
+
+任何 UI 组件或 xref:flow-ui:actions.adoc[操作] 都可以由 UI 约束进行管理，即使该组件未绑定数据模型，或者不受实体操作和实体属性 xref:security:resource-roles.adoc#policies[策略] 的控制。唯一的条件是组件必须具有 ID。
+
+使用该功能可以不必编写代码分析用户的角色或特定权限，也不用在应用程序视图中管理组件的状态。还提供了 *Security -> Resource roles* 视图，可以在运行时调整角色对 UI 的访问控制。
+
+[[installation]]
+== 安装
+
+[NOTE]
+====
+此扩展组件需要企业版 https://www.jmix.cn/subscription-plans-and-prices/[订阅^]。如果没有企业版订阅，可以按照 xref:ROOT:account-management.adoc#enterprise-trial[企业版试用] 介绍的方法试用。
+====
+
+请按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的介绍通过 Jmix 市场自动安装。
+
+手动安装步骤：
+
+. 配置 premium 仓库的访问：
++
+include::ROOT:partial$premium-repo.adoc[]
+
+. 在 `build.gradle` 中添加依赖：
++
+[source,groovy,indent=0]
+----
+include::example$uiconstraints-ex1/build.gradle[tags=dependencies]
+----
+
+[[usage]]
+== 用法
+
+UI 约束扩展组件提供了 _UI 组件策略_，可以在 xref:security:resource-roles.adoc[资源角色] 中配置。既支持开发时通过带注解的 Java 接口配置，也支持运行时通过角色管理视图进行配置。
+
+Java 接口中用到的 `@UiComponentPolicy` 注解在 <<ui-component-policy-annotation,策略注解>> 部分介绍。
+
+运行时的角色编辑器可以通过主菜单 *Security -> Resource roles* 访问。当应用程序中包含 UI 约束扩展组件时，策略的下拉列表中会包含 *UI component policy* 选项：
+
+image::resource-role-policies.png[align="center",width=373]
+
+UI 组件策略编辑器支持指定目标视图，并从下拉列表中选择已有的组件然后配置策略操作和效果：
+
+image::ui-component-policy.png[align="center",width=776]
+
+与实体和实体属性策略不同，UI 组件策略是“拒绝”策略，即，使用这个策略只能使 UI 组件或操作的可见性或可访问性低于策略使用之前的状态。例如，如果某个实体属性在实体属性策略中配置了可见，则 UI 组件策略可以使该属性对应的 UI 组件不可见（设置 `VISIBLE` 操作为 `DENY` 效果）。请参阅 <<effect,effect>>。
+
+UI 组件策略在视图打开过程的最后应用，即在 xref:flow-ui:views/view-events.adoc#ready-event[ReadyEvent] 发送之后。此时，视图的所有初始化工作都已完成，且已经应用了其他策略。
+
+[[ui-component-policy-annotation]]
+== UiComponentPolicy 注解
+
+编程时，可以使用 `@UiComponentPolicy` 注解在 xref:security:resource-roles.adoc[资源角色] 接口中定义 UI 约束。
+
+示例：
+
+[source,java,indent=0]
+----
+include::example$uiconstraints-ex1/src/main/java/com/company/demo/security/EmployeeRole.java[]
+----
+
+`@UiComponentPolicy` 注解的属性如下：
+
+[[view-class-and-view-id]]
+=== viewClass 和 viewId
+
+UI 组件策略是为视图中的组件定义。视图可以通过 `viewClass` 或 `viewId` 属性指定。
+
+[[component-ids]]
+=== componentIds
+
+每个 `@UiComponentPolicy` 注解可以为视图中的一个或多个 UI 组件定义策略。组件的 ID 必须在 `componentIds` 属性中列出。支持为下列 UI 组件类型配置策略：
+
+* 给定视图中的可视化组件（`textField`、`button`、`vbox`、`div` 等）。示例：`firstNameField`、`importButton`。
+* 给定视图中的操作。示例：`save`。
+* UI 组件的操作。示例：`userGrid.edit`。
+* fragment 中的组件或操作。示例：`addressFragment.cityField`。
+
+[[action]]
+=== 操作
+
+UI 组件策略支持两种 `action`：
+
+* `VISIBLE` - 管理组件的可见性。
+* `ENABLED` - 管理组件的可访问性。如果组件支持只读状态，则会设置为只读状态。否则，设置为禁用状态。
+
+[[effect]]
+=== 效果
+
+`effect` 属性可以配置两个值之一：`ALLOW` 或 `DENY`。
+
+默认情况下，如果未应用 UI 组件策略，则视图中的所有 UI 组件都具有原本的可见性和可访问性状态。如果存在相应的实体属性策略，则与数据绑定组件是可见和可访问的。
+
+如果在 UI 组件策略中指定了 `DENY` 效果，则会隐藏或禁用 UI 组件或操作。这是 UI 组件策略的最常见用法。
+
+如果需要覆盖由其他角色对同一组件应用的另一个 UI 组件策略，则可以使用 `ALLOW` 效果。例如，如果已为用户分配了 A 角色，并且此角色禁止访问某个 UI 组件，则可以配置一个 B 角色，对同一组件配置 `ALLOW` 效果即可恢复对该组件的访问。
+
+NOTE: `ALLOW` 效果无法显示/启用由于初始状态或对应实体或实体属性权限缺失而隐藏/禁用的组件。

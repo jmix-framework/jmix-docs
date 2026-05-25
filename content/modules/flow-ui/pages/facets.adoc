@@ -1,0 +1,82 @@
+= Facets
+
+++++
+<div class="jmix-ui-live-demo-container">
+    <a href="https://demo.jmix.io/ui-samples/sample/facets" class="live-demo-btn" target="_blank">在线示例</a>
+</div>
+++++
+
+Facets 是非可视化组件，用于为视图或组件添加辅助功能。
+
+[[built-in]]
+== 内置 Facets
+
+框架提供下列 facets：
+
+* xref:facets/dataLoadCoordinator.adoc[]
+* xref:facets/settings.adoc[]
+* xref:facets/timer.adoc[]
+* xref:facets/urlQueryParameters.adoc[]
+
+在 Jmix Studio 中添加 facet：
+
+点击操作面板中的 *Add Component*，选择 *Facets*，然后双击需要添加的 facet 项。
+
+image::facets/add-facet.png[align="center", width="769"]
+
+Studio 会创建 `<facets>` 元素：
+
+[source,xml,indent=0]
+----
+    <facets>
+        <settings auto="true"/>
+    </facets>
+----
+
+include::facets/facet-tip.adoc[]
+
+[[custom]]
+== 自定义 Facets
+
+应用程序或者扩展组件可以提供自定义的 facets。按照下列步骤创建自定义 facet：
+
+. 创建一个接口，继承 `io.jmix.flowui.facet.Facet`。
+. 根据 `io.jmix.flowui.facet.impl.AbstractFacet` 创建一个实现类。
+. 使用新的 `FacetRegistrationBuilder` 注册 facet（参考下面的示例）
+. 创建一个可用于视图 XML 中的 XSD 结构文件。
+. 可选，创建一个带注解标记的接口，这样可以支持在 Studio 的视图设计器中的 *Jmix UI* 面板展示该 facet。
+
+具体实现请参考框架的 `DataLoadCoordinator` 和 `UrlQueryParametersFacet` 类。
+
+[[registering-custom-facet]]
+=== 注册自定义 Facet
+
+Facet 注册机制包含三个主要组件：
+
+* 实现 —— 实现 facet 逻辑的类。
+* 加载器 —— 从 XML 读取 facet 配置并创建 facet 实例的类。
+* 标签 —— 用于在视图中声明 facet 的 XML 元素名称。
+
+可以使用 `FacetRegistrationBuilder` 注册新的 facet 组合。
+
+注册自定义定时器 facet 的示例：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/facets/timer/FacetConfiguration.java[tags=register]
+----
+<1> 指定实现 facet 的类。
+<2> 如果你的 facet 应该替换现有的框架 facet（例如标准的 `Timer`），则调用该方法。这会把视图中原始 facet 的所有使用替换成自定义实现。
+<3> 将 XML 标签（例如 `"timer"`）与加载器类关联。加载器必须扩展 `io.jmix.flowui.xml.facet.loader.FacetLoader`，并且知道如何从 XML 创建 facet。
+
+如果你的 facet 没有替换现有的 facet，可以省略 `replaceFacet()`，只需提供一个加载器即可：
+
+[source,java,indent=0]
+----
+@Bean
+    public FacetRegistration customTimerFacet() {
+        return FacetRegistrationBuilder.create(TimerExtImpl.class)
+                .withFacetLoader("customTimer", TimerFacetExtLoader.class)
+                .build();
+    }
+----

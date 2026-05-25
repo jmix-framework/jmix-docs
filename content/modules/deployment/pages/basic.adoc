@@ -1,0 +1,297 @@
+= 简单部署
+
+[IMPORTANT]
+====
+请确保 `build.gradle` 文件包含下列代码：
+
+[source,groovy]
+----
+vaadin {
+    optimizeBundle = false
+}
+----
+
+此代码用于构建生产环境版本。
+====
+
+[[bootJar]]
+== 创建可执行 JAR
+
+在项目的根目录打开命令行工具，执行以下命令：
+
+[source,shell script]
+.Linux 和 macOS
+----
+./gradlew -Pvaadin.productionMode=true bootJar
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootJar
+----
+
+可执行 JAR 的名称由项目名和版本号组成。例如，如果在 `settings.gradle` 中设置以下内容：
+
+[source]
+----
+rootProject.name = 'myapp'
+----
+
+然后在 `build.gradle` 中：
+
+[source]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+JAR 名称将会是 `myapp-0.0.1-SNAPSHOT.jar`。
+
+可执行 JAR 文件创建在 `/build/libs` 文件夹中。可以将其复制到任何地方并按如下方式运行：
+
+[source,shell script]
+----
+java -jar myapp-0.0.1-SNAPSHOT.jar
+----
+
+如需自定义打包过程或创建可部署的 WAR 文件，请参阅 {spring-boot-doc}/gradle-plugin/packaging.html[Spring Boot 文档^]。
+
+[[docker-image]]
+== 创建 Docker 镜像
+
+[[using-dockerfile]]
+=== 使用 Dockerfile
+
+创建 Docker 镜像的最标准的方法是使用 Dockerfile。可以在任何环境使用，并根据要求进行调整。最简单的 Dockerfile 如下所示：
+
+[source,dockerfile]
+.Dockerfile
+----
+FROM eclipse-temurin:21-jre-alpine
+COPY build/libs/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+----
+
+按下列步骤可以用 Dockerfile 构建镜像：
+
+. 在项目根目录创建一个 Dockerfile。
+. 按照 <<bootJar,前一节>> 的说明构建一个可执行的 JAR 文件。
+. 在项目根目录执行以下命令创建镜像：
++
+[source,shell]
+----
+docker build -t IMAGE_NAME .
+----
++
+注意，要将 `IMAGE_NAME` 替换为你的镜像名称。
+
+[[bootBuildImage]]
+=== 使用 bootBuildImage
+
+Gradle 的 `bootBuildImage` 任务可以构建一个优化了的镜像。
+
+在项目的根目录打开命令行工具，执行以下命令：
+
+[source,shell script]
+.Linux 和 macOS
+----
+./gradlew -Pvaadin.productionMode=true bootBuildImage
+----
+
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootBuildImage
+----
+
+默认情况下，镜像的名称为项目名，镜像的标签为项目版本。
+
+例如，如果在 `settings.gradle` 中设置以下内容：
+
+[source,groovy]
+----
+rootProject.name = 'myapp'
+----
+
+然后在 `build.gradle` 中：
+
+[source,groovy]
+----
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+----
+
+创建的镜像为：`myapp:0.0.1-SNAPSHOT`。
+
+如果使用 xref:grid-export:index.adoc[] 扩展组件导出 Excel，则可能需要在 `build.gradle` 中添加以下配置，以确保图片能包含所需的所有字体：
+
+[source,groovy]
+----
+tasks.named("bootBuildImage") {
+    builder = "paketobuildpacks/builder-jammy-full"
+}
+----
+
+更多关于生成镜像和自定义的内容请参阅 {spring-boot-doc}/gradle-plugin/packaging-oci-image.html[Spring Boot 文档^]。
+
+[[bootWar]]
+== 部署 WAR
+
+如果要构建 WAR 文件部署至应用程序服务，请执行以下步骤：
+
+. 确保主应用程序类继承 `SpringBootServletInitializer`，示例：
++
+[source,java]
+----
+@SpringBootApplication
+public class MyApplication
+        extends SpringBootServletInitializer
+        implements AppShellConfigurator {
+    // ...
+}
+----
+
+. `build.gradle` 文件中的 `plugins` 添加 `war` 插件：
++
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'war'
+}
+----
+
+. 在项目的根目录打开命令行工具，执行以下命令：
++
+[source,shell script]
+.Linux 和 macOS
+----
+./gradlew -Pvaadin.productionMode=true bootWar
+----
++
+[source,shell script]
+.Windows
+----
+gradlew "-Pvaadin.productionMode=true" bootWar
+----
+
+WAR 文件创建在 `/build/libs` 文件夹中。文件名按照 <<bootJar,前一节>> 中的描述生成。
+
+[IMPORTANT]
+====
+从 Jmix 2.0 开始，部署应用需要 Tomcat 10 以上的版本，才能支持 Jakarta EE 9（`jakarta.*` 命名空间），参阅 https://tomcat.apache.org/migration-10.html#Specification_APIs[Tomcat 文档^]。
+
+请使用最新的 Tomcat 10 部署 Jmix WAR。
+====
+
+[[multiple-wars]]
+=== 多个 WAR
+
+在同一 Tomcat 服务中部署多个 Jmix WAR 会导致 JMX bean 的命名冲突异常：
+
+----
+Caused by: javax.management.InstanceAlreadyExistsException: jmix.ui:type=TemporaryStorage
+----
+
+要解决这个问题就需要给每个 WAR 配置一个独有的 JMX 域名。可以按如下配置：
+
+.application.properties
+----
+spring.jmx.default-domain=myDomain
+----
+
+[[jndi-data-source]]
+=== 使用 JNDI 数据源
+
+将应用程序部署为 WAR 时，可以使用应用程序服务提供的 JNDI 数据源将连接设置交于外部管理。
+
+下面示例展示如何使用 Spring 的 {spring-boot-doc}/reference/features/profiles.html[profiles^] 功能配置应用程序的开发环境和生产环境的主 `DataSource`。
+
+. 在你的主应用程序类中，将 `@Profile("!prod")` 注解添加到 `dataSourceProperties` 和 `dataSource` 方法上，以确保这些 bean 仅在开发环境中创建：
++
+[source,java,indent=0]
+----
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource")
+DataSourceProperties dataSourceProperties() {
+    return new DataSourceProperties();
+}
+
+@Profile("!prod")
+@Bean
+@Primary
+@ConfigurationProperties("main.datasource.hikari")
+DataSource dataSource(DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().build();
+}
+----
+
+. 添加创建生产环境 `DataSource` bean 的方法：
++
+[source,java,indent=0]
+----
+@Profile("prod")
+@Bean(name = "dataSource")
+@Primary
+DataSource prodDataSource(ApplicationContext context) {
+    JndiDataSourceLookup lookup = new JndiDataSourceLookup();
+    DataSource dataSource = lookup.getDataSource("java:comp/env/jdbc/demo"); // <1>
+
+    // to avoid org.springframework.jmx.export.UnableToRegisterMBeanException:
+    for (MBeanExporter mbeanExporter : context.getBeansOfType(MBeanExporter.class).values()) {
+        if (JmxUtils.isMBean(((Object) dataSource).getClass())) {
+            mbeanExporter.addExcludedBean("dataSource");
+        }
+    }
+
+    return dataSource;
+}
+----
+<1> 数据源的 JNDI 名称，由应用程序服务提供。
+
+. 当运行应用程序服务器时，在 `spring.profiles.active` 应用程序属性中将启用的配置文件设置为 `prod`。
+
+下面是在 Tomcat 中部署 `demo.war` 应用程序并做配置的示例。
+
+. 复制 `demo.war` 至 `tomcat/webapps` 文件夹。
+
+. 创建 `tomcat/bin/setenv.sh` 文件，包含以下内容：
++
+[source,shell script]
+----
+CATALINA_OPTS="-Dspring.profiles.active=prod"
+----
+
+. 创建 `tomcat/conf/Catalina/localhost/demo.xml` 文件，定义数据源并设置正确的数据库连接参数（XML 文件名必须与 WAR 名称相同）：
++
+[source,xml]
+----
+<Context>
+    <Resource type="javax.sql.DataSource"
+              name="jdbc/demo"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost/demo"
+              username="root"
+              password="root"
+              maxIdle="2"
+              maxTotal="20"
+              maxWaitMillis="5000"
+    />
+</Context>
+----
++
+注意，`Resource` 元素的 `name` 属性定义 JNDI 名称，在创建 `DataSource` bean 时，由 `JndiDataSourceLookup.getDataSource()` 方法使用。
+
+
+. 将合适的 JDBC 驱动程序文件（例如，`postgresql-42.2.9.jar`）复制到 `tomcat/lib`。
+
+启动 Tomcat 时，应用程序将使用 `tomcat/conf/Catalina/localhost/demo.xml` 文件中定义的数据源。
+
+[[reverse-proxy]]
+== 反向代理
+
+有关在 Jmix 应用程序前配置 *Apache HTTPD* 或 *nginx* 的说明，请参考 {vaadin-docs}/flow/production/reverse-proxy[Vaadin 反向代理指南^]。该指南包含转发头信息、WebSocket 支持以及针对不同部署布局的路径重写等详细信息。

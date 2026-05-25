@@ -1,0 +1,260 @@
+= Google Cloud
+:page-aliases: deploy-to-google-cloud.adoc
+
+开始之前，请先创建账号并确保能访问 https://console.cloud.google.com/[Google Cloud 控制台^]。我们将使用 Google App Engine 部署应用程序。
+
+NOTE: 我们将使用 PostgreSQL 数据库。
+
+[[sdk]]
+== 安装 SDK
+
+参阅 link:https://cloud.google.com/sdk/docs/install[文档^] 安装 Cloud SDK。
+
+安装 `app-engine-java` 组件：
+
+[source,shell script]
+----
+gcloud components install app-engine-java
+----
+
+== Google Cloud 项目设置
+
+在 Google Cloud 运行应用程序，需要先创建一个 *Project*。在项目中，需要创建一个运行可执行 JAR 文件的 *Application*，以及应用程序使用的一个 *Database*。我们用 Google Cloud SDK 的命令行工具，但是也可以使用 Google Cloud 网页控制台完成。
+
+首先创建项目。在终端输入以下命令：
+
+[source,shell script]
+----
+gcloud init
+----
+
+发送命令后，会询问项目初始化配置。使用你账号的初始化配置创建一个新项目。示例中，我们使用 `jmix-application` 名称。
+
+[source,text]
+----
+This account has no projects.
+
+Would you like to create one? (Y/n)?  Y
+
+Enter a Project ID. Note that a Project ID CANNOT be changed later.
+Project IDs must be 6-30 characters (lowercase ASCII, digits, or
+hyphens) in length and start with a lowercase letter. *jmix-application*
+----
+
+之后，我们需要关联项目和付费账户。这可能是免费的，但是需要关联账户才能部署应用程序。
+
+查找付费账户 ID：
+
+[source,shell script]
+----
+gcloud alpha billing accounts list
+----
+
+输入如下所示：
+
+[source,text]
+----
+ACCOUNT_ID            NAME                OPEN  MASTER_ACCOUNT_ID
+019961-BB112F-B3C8E6  My Billing Account  True
+----
+
+执行下面命令将项目与账户 ID 关联：
+
+[source,shell script]
+----
+gcloud alpha billing projects link jmix-application --billing-account=019961-BB112F-B3C8E6
+----
+
+下一步，我们需要为 Google Cloud SDK 设置默认的项目，并启用下列 API 用于部署应用程序：
+
+* SQL Admin API
+* Cloud Build API
+* Cloud Debugger API
+
+[source,shell script]
+----
+gcloud config set project jmix-application
+gcloud services enable sqladmin.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable clouddebugger.googleapis.com
+----
+
+然后，在项目中创建一个 Google App Engine 应用程序。该应用程序负责运行上传的 JAR 文件。使用下列命令：
+
+[source,shell script]
+----
+gcloud app create
+----
+
+在地理位置列表中选择一个合适的位置。示例中，我们选择 `europe-west2`。
+
+应用程序创建好后，我们可以配置数据库。数据库名称为 `sampledb`。将在名为 `sample` 的 PostgreSQL 实例中创建。数据库实例与应用程序在同一个区域 - `europe-west2`。
+
+对于 PostgreSQL 数据库类型，我们需要指定服务器参数。link:https://cloud.google.com/sql/docs/postgres/create-instance#machine-types[这里^] 可以查找所有支持的参数（CPU 和内存）。
+
+执行下列命令创建 PostgreSQL 数据库实例：
+
+[source,shell script]
+----
+gcloud sql instances create sample --database-version=POSTGRES_12 --tier=db-custom-1-3840 --region=europe-west2
+----
+
+使用下列命名为应用程序创建数据库并修改默认用户的密码：
+
+[source,shell script]
+----
+gcloud sql databases create sampledb --instance=sample
+gcloud sql users set-password postgres --instance=sample --prompt-for-password
+----
+
+现在数据库运行起来了。此时需要记录下列信息：
+
+* 数据库名称（示例中为 `sampledb`）。
+* 数据库用户名（默认为 `postgres`）。
+* 数据库密码（在创建数据库时设置的密码）。
+* Google Cloud 特定的实例连接名。
+
+通过下列命令获取 `project-id:zone-id:instance-id` 格式的实例连接名：
+
+[source,shell script]
+----
+gcloud sql instances describe sample
+----
+
+在输出信息中找到 *connectionName* 属性，示例中为 `jmix-application:europe-west2:sample`。
+
+至此，云环境配置完成。
+
+[[prepare-app]]
+== 准备应用程序
+
+[[database-connection]]
+=== 定义数据库连接
+
+由于现在有多个数据库连接（本地开发库以及 Google Cloud 数据库），我们需要配置附加属性文件，包含 Google Cloud 环境的连接参数。
+
+要在不同的配置文件之间切换，我们将使用 {spring-boot-doc}/reference/features/profiles.html[运行时配置文件^]。示例中，我们将使用 `gae` 配置文件名。
+
+根据 {spring-boot-doc}/reference/features/external-config.html#features.external-config.files.profile-specific[Spring Boot 文档^] 的命名规则要求，我们新建名为 `application-gae.properties` 的配置文件。
+
+文件中，我们将设置数据库连接参数和特定的云环境 Spring Boot 应用程序诊断上下文路径。
+
+示例中，文件如下：
+
+[source, properties]
+----
+gae.conn.name = jmix-application:europe-west2:sample
+gae.database = sampledb
+
+main.datasource.username = postgres
+main.datasource.password = <password that you specified>
+main.datasource.url = jdbc:postgresql://google/${gae.database}?useSSL=false&cloudSqlInstance=${gae.conn.name}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&user=${main.datasource.username}&password=${main.datasource.password}
+
+management.contextPath = /_ah
+----
+
+[[cloud-specific-settings]]
+=== 云环境特定配置
+
+在 Google Cloud AppEngine 中运行应用程序，我们需要创建名为 `app.yaml` 的运行环境配置。在源代码 `src/main/appengine/app.yaml` 路径建立文件。
+
+文件中，我们需要指定应用程序运行时的环境变量和弹性（scaling）参数。关于配置文件的更多信息，请参阅 link:https://cloud.google.com/appengine/docs/flexible/java/configuring-your-app-with-app-yaml[Google Cloud 文档^]。
+
+示例中，我们设置最少的一组参数：
+
+* Java 17 作为运行环境。
+* 启用的 Spring 运行时配置文件（`gae`）。
+* 临时文件夹路径
+* 无弹性伸缩。
+
+文件具体如下：
+[source, properties]
+----
+runtime: java11
+env_variables:
+  SPRING_PROFILES_ACTIVE: "gae"
+  JMIX_CORE_WORKDIR: "/tmp/.jmix/work"
+manual_scaling:
+  instances: 1
+----
+
+应用程序配置完成，现在需要修改构建脚本以支持使用 Google Cloud SDK 部署应用程序。
+
+[[deploy-task]]
+=== 部署任务
+
+首先，需要添加 Google Cloud 插件，引入其 Gradle 任务。可以在构建脚本开始处添加下列内容：
+
+[source, groovy]
+----
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.cloud.tools:appengine-gradle-plugin:2.4.1'
+    }
+}
+----
+
+然后我们需要与 Spring Boot 插件一起使用该插件。在 Spring Boot 插件后添加下面一行：
+
+[source, groovy]
+----
+apply plugin: 'com.google.cloud.tools.appengine'
+----
+
+在 dependencies 部分，添加云连接器：
+
+[source, groovy]
+----
+implementation('com.google.cloud.sql:postgres-socket-factory:1.2.0') {
+    exclude group: 'com.google.guava', module: 'guava'
+}
+----
+
+最后，在构建文件的末尾添加部署任务定义，其中需指定项目 ID：
+
+[source, groovy]
+----
+appengine {  // App Engine tasks configuration
+    deploy {   // deploy configuration
+        projectId = 'jmix-application'
+        version = '1'
+    }
+    stage {
+        artifact = "${buildDir}/libs/${project.name}-${project.version}.jar"
+    }
+}
+----
+
+现在可以部署应用程序了。
+
+[[deploy]]
+== 部署应用程序
+
+执行下列命令可以将应用程序部署至 Google Cloud：
+
+[source,shell script]
+----
+./gradlew appengineDeploy
+----
+
+Gradle 将使用 Google Cloud SDK，并上传应用程序 JAR 至云环境。
+
+控制台输出内容大致如下：
+
+[source,text]
+----
+Beginning deployment of service [default]...
+Created .gcloudignore file. See `gcloud topic gcloudignore` for details.
+#============================================================#
+#= Uploading 1 file to Google Cloud Storage                 =#
+#============================================================#
+File upload done.
+Updating service [default].............................done.
+Setting traffic split for service [default]..................................done.
+Deployed service [default] to [https://jmix-application.nw.r.appspot.com]
+----
+
+注意最后一行的 URL。可以使用这个地址访问部署的应用程序。

@@ -1,0 +1,188 @@
+[[rest_reports]]
+= 报表 REST API
+
+报表扩展组件的 REST API 提供下列功能：
+
+* 获取报表列表。
+
+* 获取特定报表的详细信息。
+
+* 运行报表并获取结果。
+
+* 获取特定报表组的详细信息。
+
+* 获取 Swagger 文档。
+
+报表 REST API 使用 OAuth2 协议进行身份验证，与 xref:rest:access-control.adoc[通用 REST] 相同。
+
+如需启用报表 REST API，请确保 `build.gradle` 包含以下依赖：
+
+[source,groovy,indent=0]
+----
+include::example$/library/build.gradle[tags=reports-rest]
+----
+
+如需通过 REST API 提供报表，请在 xref:reports:creation/details.adoc[报表详情] 标签页上选中 *Available through REST API（REST API 可见）* 复选框。
+
+下面提供了一些报表特定 REST API 的介绍。有关如何获取 OAuth 令牌和其他 REST API 功能的相关信息，请参阅 REST API 扩展组件 xref:rest:index.adoc[文档]。
+
+[[rest_reports_get_all]]
+== 获取报表列表
+
+--
+可以使用以下 *GET* 请求获取已有报表列表：
+
+[source, plain,indent=0]
+----
+/rest/reports/report
+----
+
+示例：
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report
+
+Authorization: Bearer j-Rn3PPAiH7cZZfaDiDWQEDp9YU
+Content-Type: application/json
+----
+
+响应体将包含标记了 *Available through REST API（REST API 可见）* 的报表的简要信息：
+
+[source, json,indent=0]
+----
+[
+    {
+        "id": "cb090350-2694-e2bb-f5d9-813daa8dc418", //<1>
+        "name": "booksAvailability(xlsx)",//<2>
+        "code": "BOOKS_AVAIL",//<3>
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"//<4>
+    },
+    {
+        "id": "d8c7f4c5-2dd7-c7f1-7286-f8dd286d2603",
+        "name": "LiteratureTypes(csv)",
+        "group": "4e083530-0b9c-11e1-9b41-6bdaa41bff94"
+    }
+]
+----
+
+<1> 报表 ID，
+<2> 报表名称，
+<3> xref:creation/details.adoc[报表系统编码]（如果存在），
+<4> 报表组 ID。
+--
+
+[[rest_reports_get_one]]
+== 获取报表信息
+
+--
+使用以下 *GET* 请求获取指定报表的详细信息：
+
+[source, plain,indent=0]
+----
+/rest/reports/report/{id}
+----
+
+查询路径的最后一部分是报表标识符，示例：
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/report/cb090350-2694-e2bb-f5d9-813daa8dc418
+----
+
+返回的 JSON 对象将包含报表的以下信息：
+
+* ID
+* 报表名称
+* 报表组 ID
+* xref:creation/details.adoc[系统编码]（如果存在）
+* xref:creation/templates.adoc[报表模板]
+* xref:creation/parameters.adoc[参数] 及其类型。
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/report_info.json[]
+----
+--
+
+[[rest_reports_run]]
+== 运行报表
+
+--
+如需运行报表，请发送以下 *POST* 请求：
+
+[source, plain,indent=0]
+----
+/rest/reports/run/{id}
+----
+
+路径的最后一部分是报表标识符，示例：
+
+[source, plain,indent=0]
+----
+POST http://localhost:8080/rest/reports/run/2dd27fbf-8830-416a-899f-339543f8f27a
+----
+
+报表参数在请求体中传递：
+
+[source, plain,indent=0]
+----
+{parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+
+要使用非默认模板打印报表，在请求体中传递模板编码：
+
+[source, plain,indent=0]
+----
+{template: 'Template_1', parameters: [{name: 'author',value: '4b3a21b0-d6b7-4161-b0b6-55f118fbaac5'}]}
+----
+--
+
+[[rest_reports_get_group_details]]
+== 获取报表组信息
+
+--
+特定报表组的详细信息可以通过下列 *GET* 请求获取：
+
+[source, plain,indent=0]
+----
+/rest/reports/group/{groupId}
+----
+
+路径的最后一部分是分组 ID，示例：
+
+[source, plain,indent=0]
+----
+GET http://localhost:8080/rest/reports/group/4e083530-0b9c-11e1-9b41-6bdaa41bff94
+----
+
+返回的 JSON 对象将包含报表组的以下信息：
+
+* 组 ID
+* 组名称
+* 组编码（如果存在）
+
+[source, json,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/rest/group_info.json[]
+----
+--
+
+[[rest_reports_openapi]]
+== 获取 OpenAPI 文档
+
+--
+可以通过 *GET* 请求下列地址获取报表扩展组件的完整 OpenAPI 文档：
+
+[source, plain,indent=0]
+----
+http://localhost:8080/rest/reports/docs/openapi.json
+http://localhost:8080/rest/reports/docs/openapi.yaml
+----
+
+[CAUTION]
+====
+当从服务端获取 `openapi.yaml` 时，会返回 `application/yaml` 类型的响应体，因此请求头中要使用 `Accept: application/yaml`。
+====
+
+--

@@ -1,0 +1,121 @@
+= 数据库反向工程
+
+Studio 支持为已有的数据库创建 xref:data-model:index.adoc[数据模型] 和标准 UI 视图。
+
+首先，需要创建一个 xref:studio:data-stores.adoc#additional-data-store[附加数据存储] 或将主数据存储切换至已有数据库。
+
+在 xref:studio:tool-window.adoc[Jmix 工具窗口] 右键点击数据存储，并选择 *Generate Model from Database*。
+
+image::generate-data-model-item.png[align="center",width="442"]
+
+然后 Studio 会打开  *Generate Model from Database* 向导。
+
+[[wizard]]
+== 模型生成向导
+
+第一步::
++
+--
+在模型生成向导的第一步中，点击 *Refresh List*。
+
+向导会展示数据库中那些没有对应项目数据模型的表。可以利用上方的过滤器控件按表名查找表。
+
+image::generate-data-model-step1.png[align="center",width="936"]
+
+选择需要映射至数据模型的表。某些表通过外键依赖其他表，因此，当选择一个表时，其依赖的所有其他表也都会被选中。如果取消选择，则其依赖的所有表也变成非选中状态。
+
+可以点击 image:icons/selectall.svg[Select All] 和 image:icons/unselectall.svg[Deselect All] 复选框选中或取消选中全部表。
+
+另外，还可以点击 image:icons/gear.svg[Settings] 配置新实体的 Java 包路径以及系统属性的默认映射。
+
+例如，如果数据库中的所有或大多数表都包含 `Modified` 和 `ModifiedBy` 列，则可以将它们映射到所创建实体的 `lastModifiedDate` 和 `lastModifiedBy` 属性。在这种情况下，无需为每个表单独配置映射。使用 *Exclude columns from mapping* 列表排除不需要不自动映射的某些列。
+
+点击 *Next*。
+--
+
+第二步::
++
+--
+这一步中，你可以查看并编辑为数据库表自动生成的映射。
+
+image::generate-data-model-step2.png[align="center",width="936"]
+
+*Status* 列描述自动映射的结果：
+
+* *OK* - 自动映射成功，所有的数据库列都对应到新的实体了。
+* *Join table* - 识别出实体建的关系并映射至一个多对多的 join 表。
+* *Composite key* - Jmix Studio 创建了一个组合键值的实体。
+* *Composite PK will be replaced* - 数据库表具有组合主键，但是没有其他表关联。组合主键将使用 UUID 类型的主键替换。
+* *New PK will be created* - 数据库表没有主键。会创建一个新的 UUID 类型主键。
+* *PK is an identity field* - 数据库表有使用标识符字段的主键。其主键值由服务端管理，无法修改。
+* *There are unmapped columns* - 某些列无法映射至新实体。
+* *Composite PK referenced by other tables* - 数据库表具有组合主键，并且有关联表。Studio 无法映射这样的表。
+* *Choose primary key for DB view* - 这是一个数据库视图（view），需要选择一列或者多列作为实体标识符。此时，可以点击 *Choose PK* 按钮并选择主键列。
+* *Unsupported PK type* - 数据库表的主键是一个不支持的类型。Studio 无法映射这样的表。
+
+image:icons/refresh.svg[Refresh mapping button] 按钮支持对选择的表进行重新自动映射。例如，可以使用数据库 SQL 工具对数据库结构做一些调整，然后返回该向导重新尝试自动映射。
+
+image:icons/edit.svg[Edit mapping] 按钮打开展示映射详情的窗口。可以在这里修改实体名称和实体类实现的一组系统接口。修改完会影响为了与 Jmix 实体兼容而创建的系统列数量。
+
+image::table-mapping-editor.png[align="center",width="767"]
+
+当选择一个数据库视图时，会显示 *Choose PK* 按钮而非 *Edit mapping*，这里需要选择实体的标识符列。
+
+通过点击 *Previous*，可以返回上一步重新选择数据库表。
+
+点击 *Next* 至下一步。
+--
+
+第三步::
++
+--
+这一步可以指定要为新实体创建什么 UI 视图。
+
+image::generate-data-model-step3.png[align="center",width="936"]
+
+如果未选中 *Create standard views* 复选框，Studio 不会为新实体生成 UI 视图。
+
+使用 *In module*、*Package* 和 *Menu* 字段指定视图源码放置的位置和视图的主菜单项。
+
+使用 *Standard views* 列的下拉列表选择需要生成的视图类型。
+
+这一步也可以暂时跳过，在数据模型完成后，可以再未实体生成 UI 视图。
+
+点击 *Create*。Studio 会自动生成实体和视图。
+
+[NOTE]
+当 Studio 基于表定义创建实体时，会使用 `@DdlGeneration(value = DdlGeneration.DbScriptGenerationMode.DISABLED)` 注解标记实体。
+意思是，不会为此类实体生成 xref:data-model:db-migration.adoc#configuration[Liquibase 更改日志]。
+如需对导入的实体启用 Liquibase 脚本功能，可以直接删除该注解（或者在实体设计器中修改设置）。
+--
+
+[[partial-reverse-engineering]]
+== 部分反向工程
+
+此功能支持根据数据库 schema 为已完成映射的实体生成实体属性。当需要先修改数据库，而后同步数据模型和用户界面时，请使用该功能。
+
+Jmix Studio 可以跟踪数据库更改，并帮助将这些更改迁移到代码中，同时保留已有的自定义代码。
+
+对数据库表进行更改后，可以在 JPA 实体模型中生成缺失的属性。使用以下方法之一：
+
+. 在 *Entity Designer* 的 *Attributes* 面板中点击 image:icons/attr-from-db.svg[]。
++
+image::add-attr-from-db-2.png[align="center",width="468"]
+
+. 点击实体代码编辑器工具栏中的 *Add attribute from DB* 按钮。
++
+image::add-attr-from-db.png[align="center",width="885"]
+
+点击以上任一按钮都会打开 *Add Entity Attribute(s) from DB* 对话框。
+
+image::add-attr-from-db-dialog.png[align="center",width="1136"]
+
+*Table/View* 下拉字段中已选中 `address` 表。
+
+在 *Columns* 部分，选择想要创建的新属性。表格中的单元格是可编辑的，支持：
+
+* 修改属性名称。
+* 更改映射类型（例如，指定为枚举类型）。
+* 如果 Studio 建议的数据类型不符合要求，可以选择其他数据类型。
+
+点击 *OK*。新属性将被添加到已有的 `Address` 实体中，而不会修改之前编写的任何代码。

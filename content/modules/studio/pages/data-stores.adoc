@@ -1,0 +1,123 @@
+= 数据存储
+
+当一个 Jmix 应用程序创建完成后，会自带一个主 xref:data-model:data-stores.adoc[数据存储]，可以从 xref:studio:tool-window.adoc[Jmix 工具窗口] 访问。
+
+image::data-tree.png[align="center",width="363"]
+
+双击可以打开数据存储的属性对话框。默认选择 HSQLDB 数据库类型。
+
+[[database-properties]]
+image::data-properties.png[align="center",width="851"]
+
+主数据存储和附加数据存储都有下列属性：
+
+* *Database type* - 数据库服务类型。可以从列表选择支持的数据库类型。
+* *Database URL* - 数据库服务地址、端口以及数据库名称。
+** *Connection params* - 其他连接参数。连接参数的格式依赖选择的数据库类型。字符串需要在数据库名称和参数之间包含一个分隔符。可以通过 *Connection params* 字段最右边的小铅笔按钮方便地输入连接参数。此时，Studio 会自动合成连接串并添加特定数据库类型的分隔符。
++
+image::data-params.png[align="center",width="636"]
++
+** *Show raw URL* - 显示连接参数的 URL 形式。
+** *Integrated Security* - 当连接至 Microsoft SQL Server 2012+ 数据库时，启用相应的认证选项。
+* *Database user* 和 *Password* - 数据库连接凭证。
+
+如果您使用 xref:studio:profile-specific-properties.adoc[profile-specific 配置文件]，则 xref:studio:data-stores.adoc[数据存储属性] 编辑器会从 profile 中读写配置，而非 `application.properties`。
+
+可以用 `${VAR:default_value}` 这种格式的占位符，其中 `VAR` 是用于设置数据库属性的环境变量。
+
+image::data-vars.png[align="center",width="851"]
+
+Studio 会解析占位符，并将结果值用于数据库的所有操作：测试连接、重新创建、更新、Liquibase 差异比较等。
+
+*Supported DB Types - 支持的数据库类型* 部分包含 *Enable support for several DB types - 启用多数据库类型* 复选框。如果勾选了这个复选框，则可以选择多个支持的数据库。Studio 会生成支持所选数据库的一组 Liquibase 脚本。
+
+*Database Identifiers Length Mode - 数据库标识符长度模式* 部分可以选择以下三种模式（表、列、索引等名称的长度）：
+
+* *Oracle* - 最大 30 个字符。 
+* *Postgres* - 最大 64 个字符。
+* *Unlimited* - 无限长度。
+
+
+[[additional-data-store]]
+== 附加数据存储
+
+如需创建附加数据存储，可以使用数据存储右键菜单的 <<data-store-actions,操作>>。另一种方式是从 *Advanced* 菜单选取：
+
+image::new.png[align="center",width="427"]
+
+参阅上面的 <<database-properties,数据库属性>> 内容，适用于主/附加数据存储。
+
+[[db-schema-management]]
+image::data-schema.png[align="center",width="776"]
+
+对于附加数据存储，指定 *Data store name（数据存储名称）* 并在 *DB Schema Management* 选择数据库结构管理类型：
+
+* *Disabled* - Studio 不跟踪此数据库结构的变化。这是默认模式。
+* *Update Only* - 仅提供更新操作，并创建 Liquibase 变更日志。
+* *Create and Update* - 提供更新和重建操作，并创建 Liquibase 变更日志。
+
+[[unsupported-database]]
+=== 连接不支持的数据库
+
+您可以定义一个附加存储连接至一个 Jmix 原生不支持的数据库。
+
+该功能目前处于预览状态，并默认禁用。如需启用，按下 2 次 `Shift`，选择 *Jmix Features*，并勾选 *Generic Database Support for Additional Data Store*。
+
+启用后，在创建附件数据存储时，可以看到 *Database type* 下拉框中有 `Generic DB` 选项。选择该选项后，Studio 会让输入以下参数：
+
+* *DBMS type* - 为该数据库类型定义一个名称。这个名称会用在与该数据库相关的类上（下面会解释）。最好尽量简短，且只包含小写字母，例如 `foo`。
+* *Database URL* - JDBC 连接的完整 URL，例如，`jdbc:foosql://localhost/database`。
+* *Driver class name* - JDBC 驱动类名。例如，`org.foosql.Driver`。
+* *Driver artifact* - JDBC 驱动制件的坐标，例如，`org.foosql:foosql:1.0.0`。
+* *Connection test query* - 测试连接的 SQL，例如，`select 1`。
+* *Database platform* - 扩展 `org.eclipse.persistence.platform.database.DatabasePlatform` 的类名，用于为 EclipseLink ORM 框架描述这个数据库。可以选择已有的能兼容该数据库的类，或者选择 `Create DatabasePlatform class` 创建一个新类。
+
+image::data-store-unsupported.png[align="center",width="776"]
+
+点击 *OK*。
+
+Studio 会在根包中创建 `Myds1StoreConfiguration` 类，包含所需的 bean。还会在 `<base-package>/dbms` 包中创建下列桩代码：
+
+* `FooPlatform` - 扩展 `DatabasePlatform`。为 EclipseLink ORM 框架描述这个数据库。
+* `FooDbmsFeatures` - 实现 `DbmsFeatures` 接口。为 Jmix 框架描述这个数据库。
+* `FooSequenceSupport` - 实现 `SequenceSupport` 接口。描述如何在该数据库中处理序列（sequence）。
+* `FooDbTypeConverter` - 实现 `DbTypeConverter` 接口。定义在 Java 对象和 JDBC 参数/结果之间互相转换的方法。
+
+Studio 还会在 `build.gradle` 文件中添加 `org.foosql:foosql:1.0.0` 依赖。
+
+现在可以在桩代码中实现那些需要实现的方法了。可以参考框架中的 `JmixPostgreSQLPlatform`、`PostgresqlDbmsFeatures` 等，作为示例。
+
+[[data-store-actions]]
+== 数据存储操作
+
+在 Jmix 项目树中右键点击一个数据存储，打开右键菜单：
+
+image::data-actions.png[align="center",width="623"]
+
+菜单中操作的数量与数据存储的类型和数据库结构管理类型有关。
+
+* *New -> Additional Data Store* - 打开新建数据存储的对话框。
+* *New -> Liquibase Changelog* - 使用正确的名称生成一个新的空 xref:data-model:db-migration.adoc#changelogs[changelog] 文件。
+* *Manage Data Store* - 打开编辑数据存储配置的对话框。
+* *Delete Data Store* - 删除该数据存储以及关联的配置文件和 Liquibase changelog。
+* *Recreate* - 重新创建该数据存储对应的数据库。适用于 *Create and Update* <<db-schema-management,数据库结构管理>> 类型的主/附加数据存储。
+* *Update* - 更新该数据存储对应的数据库。适用于 *Update Only* 和 *Create and Update* <<db-schema-management,数据库结构管理>> 类型的主/附加数据存储。
+
+* *Generate Liquibase Changelog* - 通过比较数据模型和数据库结构为所选择的数据存储生成更改日志文件。适用于 *Update Only* 和 *Create and Update* schema 类型的主/附加数据存储。
++
+TIP: 参阅 xref:data-model:db-migration.adoc#ignoring-existing-tables[数据库结构迁移 -> 忽略已有表格] 部分了解如何在 Studio 中忽略已经存在的数据库表。
++
+include::partial$subscription-note.adoc[]
+
+* *Check Liquibase Changelog Includes* - 检查 root changelog 中的引入是否与项目的扩展组件相匹配。如果有不匹配的地方，Studio 会展示一个通知弹窗，并建议添加或删除某些引入。
+
+* *Aggregate Liquibase Changelogs* - 可以将近期的多个 changelog 合并为一个，避免 changeset 之间的重复操作。
++
+该功能可以用在每次提交代码前。能帮助维护干净的 changelog，并减少应用程序的启动时间。
++
+*Aggregate Liquibase Changelogs* 操作会启动一个向导窗口，开发者可以自定义需要合并的 changelog。
++
+include::partial$subscription-note.adoc[]
+
+* *Generate Model from Database* - 为某个数据库逆向生成数据模型。
+* *Jump to Source* - 打开 Spring 配置类。

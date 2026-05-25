@@ -1,0 +1,143 @@
+= 配置
+
+[[https]]
+== 配置 HTTPS
+
+若要对桌面端应用程序进行认证，服务器必须使用 HTTPS。下面是在开发环境设置 HTTPS 的简要说明。
+
+[[trusted-certificate]]
+=== 生成可信证书
+
+可信证书可以从 SSL 证书提供商处获取，或使用 `certbot` 生成。出于开发目的，可以自己颁发根证书，并用来签署开发服务证书。为简单起见，我们建议使用 `mkcert` 工具。
+
+. 按照仓库中的说明安装 `mkcert`：https://github.com/FiloSottile/mkcert[https://github.com/FiloSottile/mkcert^]。
+
+. 生成并安装根证书：
++
+[source]
+----
+mkcert -install
+----
+
+. 为 localhost 创建一个证书：
++
+[source]
+----
+mkcert -pkcs12 localhost 127.0.0.1 ::1
+----
++
+当前目录会生成 `localhost+2.p12` 文件。
+
+. 使用证书为项目创建一个 keystore 文件：
++
+[source]
+----
+keytool -importkeystore -srckeystore localhost+2.p12 -srcstoretype pkcs12 -destkeystore localhost.jks
+----
++
+输入 `changeit` 作为 keystore 的密码。
++
+当前目录会生成 `localhost.jks` 文件。
+
+[[configuring-server]]
+=== 服务配置
+
+本节介绍当从 IDE 运行应用程序或者用可执行 JAR 运行时，如何使用上一节生成的证书。
+
+. 创建 `src/main/resources/<base-package>/keystore` 目录，并将 `localhost.jks` 复制到该目录。
+
+. 在 `application.properties` 文件设置下列应用程序属性，用真实值替换 `<base-package>` 和 `<password>`：
++
+[source,properties,indent=0]
+----
+# 启用 HTTPS
+server.ssl.enabled=true
+# keystore 的格式
+server.ssl.key-store-type = JKS
+# 包含证书的 keystore 路径
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# 生成 keystore 的密码
+server.ssl.key-store-password = <password>
+# 证书的映射别名
+server.ssl.key-alias = localhost
+
+# 服务端口
+server.port = 8443
+----
++
+[NOTE]
+====
+keystore 路径的 `<base-package>` 部分（`server.ssl.key-store` 配置中）应该是由斜杠分隔的路径：
+----
+server.ssl.key-store = classpath:com/example/demo/keystore/localhost.jks
+----
+====
+. 打开主应用程序类，并修改 `printApplicationUrl()` 方法。由于配置了 HTTPS，URL 需要修改为 `https://`：
++
+[source,java,indent=0]
+----
+@EventListener
+    public void printApplicationUrl(final ApplicationStartedEvent event) {
+        LoggerFactory.getLogger(DemoApplication.class).info("Application started at "
+                + "https://localhost:"
+                + environment.getProperty("local.server.port")
+                + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+    }
+----
+
+[[maintenance]]
+== 维护作业
+
+WebDAV 扩展组件包含几个维护作业，如下所述。如需定期执行这些作业，请在项目中 xref:quartz:index.adoc#installation[安装] Quartz 扩展组件。
+
+[[expired-lock-cleaning-job]]
+=== ExpiredLockCleaningJob
+
+删除过期的 xref:webdav-documents.adoc#lock-unlock[锁] 对象。默认每 2 小时运行一次。
+
+如需修改任务调度，请使用 xref:webdav:webdav-properties.adoc#jmix.webdav.expired-lock-cleaning-cron[jmix.webdav.expired-lock-cleaning-cron] 应用程序属性。
+
+[[webdav-document-versions-cleaning-job]]
+=== WebdavDocumentVersionsCleaningJob
+
+删除没有链接任何文档的 `WebdavDocumentVersion` 实例。默认每月运行一次。
+
+如需修改任务调度，请使用 xref:webdav:webdav-properties.adoc#jmix.webdav.document-versions-cleaning-cron[jmix.webdav.document-versions-cleaning-cron] 应用程序属性。
+
+[[security]]
+== 权限配置
+
+文档的访问权限通过 xref:security:resource-roles.adoc[资源] 和 xref:security:row-level-roles.adoc[行级] 角色配置。
+
+[[predefined-roles]]
+=== 预定义角色
+
+WebDAV 扩展组件提供了两个默认资源角色：
+
+* *WebDAV: minimal access* - 使用 WebDAV 功能的基础角色。
+* *WebDAV: view document browser* - 提供访问 xref:webdav-documents.adoc[WebDAV 文档] 视图的权限。
+
+// [[row-level-restrictions]]
+// === Restricting Access to Documents
+//
+// Suppose that some group of users should be able to edit only the documents created by themselves. Below is an example of how to do it using row-level roles.
+//
+// //The following example shows how to restrict access to a particular group of users. Suppose that there is a row-level role called `Users`. It is required to configure this row-level role so that only document authors can edit documents and document versions.
+//
+// . Create a row-level role at runtime using UI screens available at *Administration → Row-level roles.*
+// . Create a row-level xref:security:row-level-roles.adoc#predicate-policy[predicate policy] for the `UPDATE` action and `WebdavDocument` entity.
+// . Define a Groovy script for the created policy:
+// +
+// [source,groovy,indent=0]
+// ----
+// import io.jmix.core.security.CurrentAuthentication
+//
+// def authBean = applicationContext.getBean(CurrentAuthentication)
+//
+// return {E}.createdBy.equals(authBean.user.username)
+// ----
+// . Assign the role to the users.
+//
+// The system will check whether the current user is a document author. If it is not the case, the user will not be allowed to edit a document, and the `Access denied` message will be displayed.
+//
+// The *OK* button intended to save document versions will be inactive. The document itself will be opened in read-only mode.

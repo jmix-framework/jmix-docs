@@ -1,0 +1,118 @@
+= SupersetDashboard 组件
+
+`SupersetDashboard` UI 组件可以将 Apache Superset 配置的仪表板嵌入应用程序的视图中。
+
+[[usage]]
+== 用法
+
+项目中安装了扩展组件之后，可以在 Studio xref:studio:view-designer.adoc[视图设计器] 的 *Add Component* 工具箱中找到 `SupersetDashboard` 组件。
+
+该组件需要配置 `id`、`height`、`width` 等属性，并指定从 Apache Superset 获取的 <<embeddedId,embeddedId>>。示例：
+
+[source,xml,indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
+----
+
+另外，也可以将组件注入控制器通过编程式的方式进行交互：
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
+----
+
+== XML 属性
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+<<chartControlsVisible,chartControlsVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+<<embeddedId,embeddedId>> -
+<<filtersExpanded,filtersExpanded>> -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+<<titleVisible,titleVisible>> -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[chartControlsVisible]]
+=== chartControlsVisible
+设置图表控制组件的可见性。
+
+image::chart-controls-example.png[]
+
+[[embeddedId]]
+=== embeddedId
+嵌入的仪表板 ID。可以在 Superset 的仪表板配置中获取该 ID。参阅 xref:getting-started.adoc[] 向导中 xref:dashboard.adoc#create-dashboard[] 时启用嵌入功能的的示例。
+
+NOTE: 启用嵌入功能时，别忘了需要在 Superset 配置中设置 `EMBEDDED_SUPERSET` 功能标签。参阅 xref:configuration.adoc#enable-embedding-dashboards[]。
+
+嵌入 ID 在获取 _访客 token_ 和加载仪表板时会用到。如果嵌入 ID 发生了变化，组件会重新加载仪表板。如果没有配置嵌入 ID，在会显示一个占位图片。
+
+[[filtersExpanded]]
+=== filtersExpanded
+
+设置是否展开过滤器栏。
+
+[[titleVisible]]
+=== titleVisible
+设置标题栏的可见性。
+
+image::title-visible-example.png[align="center"]
+
+[[dataset-constraints]]
+== 数据集约束
+
+Superset 中的仪表板可以包含多个图表，这些图表显示来自不同数据集的数据。`SupersetDashboard` 组件可以对这些数据集设置约束。约束可以在组件的 XML 元素中静态定义，也可以在运行时动态计算。
+
+提供约束时，需要定义数据集的 ID 并编写可以添加到数据集查询语句的 *WHERE* 子句中的原生 SQL 条件。
+
+TIP: 从 Superset UI 中不是很容易找到数据集 ID。当从数据集列表中打开数据集时，地址栏 URL 的 `datasource_id` 参数就是数据集 ID。
+
+[[static-dataset-constraints]]
+=== 静态约束
+
+现在我们考虑在 xref:getting-started.adoc[] 章节创建的 `Employees' salaries` 仪表板中使用静态数据集约束。数据集加载了员工、部门和薪资。假设我们需要限制薪资的下限，比如 `80,000`。
+
+约束在 `dashboard` 组件内的 `datasetConstraint` 元素中定义。Studio *Add* 操作或在 XML 中手动添加。
+
+所需的约束定义如下所示：
+
+[source, xml, indent=0]
+----
+include::example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
+----
+
+`salary` 是数据集的列。
+
+[[dataset-constraints-provider]]
+=== 动态约束
+
+数据集约束可以在运行时动态计算，并在打开仪表板时传递给 Superset。因此，可以根据当前用户权限或任何其他的条件筛选出仪表板所需要的数据。
+
+数据集约束由 `DatasetConstraint` Java 类表示。约束列表可以通过以下方式为 `SupersetDashboard` 组件提供：
+
+* 在视图中创建一个 `datasetConstraintsProvider` 处理方法，返回约束列表。
+
+* 创建一个实现了 `DatasetConstraintsProvider` 接口的 Spring bean，使用 `setDatasetConstraintsProvider()` 方法将其传递给组件。
+
+假设有以下需求：部门经理只能查看自己部门薪资的信息。数据集约束可以支持当前用户的行级角色。
+
+在下面的示例中使用了第一种方法，视图中带有 `datasetConstraintsProvider` 处理方法，具体的实现逻辑放到常规的 Spring bean 中：
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[]
+----
+
+Bean 用在了 `datasetConstraintsProvider` 方法中，这个方法可以通过 Jmix UI 属性面板生成：
+
+[source, java, indent=0]
+----
+include::example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
+----

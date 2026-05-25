@@ -1,0 +1,139 @@
+= 错误处理
+
+
+[[errors-catching]]
+== 捕获错误
+
+错误可以由 xref:bpmn/bpmn-events.adoc#error-end-event[错误结束事件] 或编程的方式抛出。
+
+抛出的错误 *必须* 由错误捕获事件进行捕获，例如，使用错误边界事件或错误事件子进程。
+否则，将导致异常。
+
+[[catching-error-boundary-event]]
+=== 用边界事件捕获错误
+
+当错误事件被捕获时，将销毁定义了边界事件的活动，
+同时还会销毁其内部所有的执行过程（例如，并发活动、嵌入子流程等）。
+流程按照边界事件的传出流继续前进。
+
+image::bpm:errors-hanling/error-catching-boundary.png[,300]
+
+[[event-subprocess-priority]]
+=== 事件子流程优先级
+
+事件子流程的优先级高于错误边界事件。
+因此，当发生错误时，子流程会启动，但边界错误处理器（Boundary error handler）不会被激活。
+
+image::bpm:errors-hanling/start-error-event-example-2.png[,500]
+
+[[error-propagation]]
+=== 错误传播
+
+假设流程具有两个调用活动的并行路径，每个活动都可能抛出错误。
+如果有处理错误的事件子流程，则可以使用不带传出流的错误边界事件：
+
+image::bpm:errors-hanling/parallel-errors catcing.png[,500]
+
+从调用活动内部抛出的错误会传播值流程的顶层并由事件子流程捕获。
+
+// Such an error will propagate its parent scopes upwards until a scope is found on which a boundary error event is defined that matches the error event definition.
+
+[[matching-errors]]
+=== 错误匹配
+
+通常，错误事件有一个编码（code）。有时可以省略编码而使用 `id` 参数。
+
+*单一错误捕获事件*
+
+当给定范围内只有一个错误捕获事件时，它会捕获任何编码的 *全部* 错误。
+
+在下面的示例中，单一的错误捕获事件可以捕获编码为 1 和 2 的错误。
+此时将忽略错误捕获事件中的 _Error_ 参数。
+
+image::bpm:errors-hanling/error-one-catch-many.png[,600]
+
+一个包含错误启动事件的事件子流程也是一样，可以捕获任务错误。
+
+*错误编码匹配*
+
+在下面的示例中，为不同类型的错误使用了不同的错误捕获事件：
+
+image::bpm:errors-hanling/matching-errors.png[,600]
+
+如果发生错误 #1，则激活第一个捕获事件，如果发生错误 #2，则激活第二个。
+
+[NOTE]
+====
+在 BPM 引擎中，当错误和错误事件引用的是同一个 _错误定义（error definition）_ 时，则认为匹配。
+====
+
+*错误编码不匹配*
+
+当抛出错误的编码与任何错误捕获事件都不匹配时，将激活第一个定义的捕获事件。
+
+image::bpm:errors-hanling/error-code-not-match.png[,600]
+
+*第一个* 的意思是 XML 中先定义的那个边界事件：
+
+[source,xml]
+----
+...
+<boundaryEvent id="Event_02" name="Catch error 2"
+    attachedToRef="Activity_13z00xo"> <1>
+  <outgoing>Flow_06d3rwf</outgoing>
+  <errorEventDefinition id="ErrorEventDefinition_0w90u2d" />
+</boundaryEvent>
+<sequenceFlow id="Flow_1b1df9j" sourceRef="Event_01" targetRef="Activity_0tcie7m" />
+<sequenceFlow id="Flow_1trubue" sourceRef="Activity_0tcie7m" targetRef="Event_1073oeg" />
+<boundaryEvent id="Event_01" name="Catch error 1"
+    attachedToRef="Activity_13z00xo"> <2>
+  <outgoing>Flow_1b1df9j</outgoing>
+  <errorEventDefinition id="ErrorEventDefinition_1aum1e6" />
+</boundaryEvent>
+...
+----
+<1> -- 边界事件 #2 先定义。
+<2> -- 边界事件 #1 后定义。
+
+此时，当抛出错误编码为 “500” 的错误时，会激活捕获事件 #2。
+
+[NOTE]
+====
+这个规则同样适用于附着在任务或调用活动的边界事件。
+====
+
+*无编码错误*
+
+当参数 `errorCode` 被省略时，将使用 `errorId`。
+
+例如，抛出编码为 "green" 的错误：
+
+[source,xml]
+----
+  <error id="err_green" name="Error green" errorCode="green" />
+----
+
+但是捕获事件设置的错误是 `id="green"`，而没有设置错误编码：
+
+[source,xml]
+----
+  <error id="green" name="Err1"/>
+----
+
+此时错误也能匹配。
+
+*编程式抛出错误*
+
+当使用编程式生成错误时，错误只有编码，没有 id：
+
+[source,java]
+----
+throw new BpmnError("500");
+----
+
+[[unhandled-errors]]
+== 未处理的错误
+
+当抛出错误却没有捕获时，会抛出一个 Flowable 异常。
+
+// image::bpmn-events/multi-errors-example.png[,600]

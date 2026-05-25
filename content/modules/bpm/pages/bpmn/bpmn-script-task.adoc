@@ -1,0 +1,123 @@
+= 脚本任务
+
+[[overview]]
+== 概览
+
+*脚本任务（script task）* 是指当流程到达该任务时，执行一个 _Groovy_ 脚本。
+
+通常，当我们需要初始化流程变量时，会使用脚本任务，
+设置默认值、计算表达式，
+或者执行一些其他的逻辑，类似这种只需一小段代码即可完成的所有操作。
+
+但脚本并不限于上述内容。脚本中可以实现实现任何业务逻辑，取决于具体需求。
+
+[NOTE]
+====
+Jmix BPM 仅支持 Groovy 脚本。但原始的 Flowable 产品也支持 JavaScript。
+因此，从外部源导入流程模型时要小心。
+====
+
+.*图形表示法*
+脚本任务在图中显示为典型的 BPMN 2.0 任务（圆角矩形），矩形左上角有一个小的“脚本”图标。
+
+image::bpmn-script-task/script-task.png[,150]
+
+
+.*XML 表示*
+脚本任务通过指定 `script` 和 `scriptFormat` 属性定义。
+
+[source,xml]
+----
+<scriptTask id="script-task" name="Script task"
+    scriptFormat="groovy"  <1>
+    flowable:resultVariable="result"> <2>
+      <script>
+        printlnt "This is a script" <3>
+        return "OK"
+      </script>
+</scriptTask>
+----
+<1> -- 脚本类型（仅支持 Groovy）
+<2> -- 结果变量（可选）
+<3> -- 脚本内容
+
+[[properties]]
+== 属性
+
+脚本任务具有以下特定属性：
+
+* *scriptFormat*：扩展属性，配置脚本的语言。当前仅支持 Groovy。参考 https://groovy-lang.org/documentation.html[Groovy 文档^]。
+
+* *script*：: 脚本内容。使用 *Script editor* 编辑。
+
+* *resultVariable*：可选属性，会在执行上下文中将脚本的执行结果存储在指定名称的变量中。参阅 <<script-result, 详情>>。
+
+image::bpmn-script-task/script-task-properties.png[,473]
+
+WARNING: 脚本内容不能为空，否则会在流程部署时解析出错。
+
+[[variables-scripts]]
+=== 脚本中的变量
+
+流程到达脚本任务时，execution 中的所有可访问的流程变量都可以在脚本中使用。
+在此示例中，脚本变量 'inputArray' 实际上是一个流程变量（整数数组）。
+
+[source,xml]
+----
+<script>
+    sum = 0
+    for ( i in inputArray ) {
+        sum += i
+    }
+</script>
+----
+
+也可以在脚本中设置流程变量，只需调用
+
+[source,groovy]
+----
+execution.setVariable("variableName", variableValue)
+----
+
+默认情况下，不会自动存储任何变量。
+
+[[beans-scripts]]
+=== 脚本中使用 bean
+
+脚本中可以通过名称访问 bean。下面的 Groovy 脚本调用了 `MyBean` 的 `doSomething` 方法并将结果保存在执行上下文的变量中：
+
+[source, groovy]
+----
+res = MyBean.doSomething()
+execution.setVariable("doSomething", res)
+----
+
+TIP: 调用 bean 的主要且推荐方式是使用 xref:bpmn/bpmn-service-task.adoc[]。如果需要同时使用 Groovy 逻辑和 Java bean，可以在脚本任务之前或之后的服务任务中调用 bean，然后通过流程变量进行通信。
+
+[[script-result]]
+=== 脚本结果
+
+脚本任务的返回值可以分配给已有流程变量或新的流程变量。
+指定目标变量时，可以在脚本任务属性面板的 *Result variable* 字段中设置。
+
+当脚本任务执行时，脚本的返回值会自动分配给指定的流程变量。
+如果变量不存在，Flowable 将创建一个与 *Result variable* 字段同名的新变量。
+
+通过使用 *Result variable* 字段，可以将脚本任务的结果集成到流程变量中，
+以便能在整个流程的执行过程中存储、操作和访问数据。
+
+在脚本中，可以使用 _'return'_ 运算符。例如：
+
+[source,groovy]
+----
+def a = "abc"
+return a
+----
+
+如果脚本中没有 _'return'_，则将使用最后一行的结果，在下面的示例中，结果为 “JMIX”。
+
+[source,groovy]
+----
+String a = "abc".toUpperCase()
+String b = "jmix".toUpperCase()
+----

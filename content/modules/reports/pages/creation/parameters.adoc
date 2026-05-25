@@ -1,0 +1,176 @@
+= 参数
+
+外部参数在运行报表时从外部传递，可用作数据集中的条件。每个报表带区都可以使用全部的外部参数，因此外部参数在模板中可像数据集字段一样直接使用。在数据集的字段名与参数名相同时，数据集字段值优先，报表将使用数据集字段值。
+
+外部参数可以由调用代码在通过 xref:run-report.adoc#reports-api[API] 运行报表时传入。另外，当用户运行报表时，也会展示一个对话框，用来输入参数。后面这种情况需要在报表编辑器的 *Parameters（参数）* 标签页中定义外部参数。
+
+image::parameters.png[align="center",width="1073"]
+
+点击 *Create（新建）* 后，展示 *Report parameter（报表参数）* 对话框。
+
+image::report-parameter.png[align="center", width="642"]
+
+[[properties]]
+== 输入参数属性
+
+在 *Properties（属性）* 标签页，可以定义参数的属性：
+
+* *Name* - 参数名称，在运行报表时这个名称显示在参数输入表单中。
+* *Alias（别名）* - 用于在数据集中访问的参数别名。
+* *Type* - 参数类型。
+* *Hidden* - 定义是否对用户隐藏此参数。
+* *Required?* - 是否为必需参数。
+* *Default value* - 定义用户未选择值的情况下将使用的默认参数值。
+
+参数类型可以是 *String*、*Number*、*Boolean* 基本类型之一或者时间类型，另外，也支持 *Enumeration（枚举）*、*Entity* 或 *List of entities（实体列表）* 参数类型。根据所选择的类型不同，需要额外配置不同的字段：
+
+如果选择 *Entity（实体）* 或 *List of entities（实体列表）* 类型：
+
+* *Entity* - 实体参数。
+* *Entity selection view（实体选择视图）* - 可选的视图标识符，用于选择实体实例。如果未指定视图，将使用通用的实体选择视图。
+
+如果选择了 *Enumeration（枚举）* 类型：
+
+* *Enumeration* - 参数枚举类。
+
+如果选择了时间类型（*Date*、*Time* 或 *Date and time*）：
+
+* *Default date(time) is current（默认日期（时间）为当前日期时间）* - 是否将当前时间戳用作默认参数值。
+
+[[localization]]
+== 本地化
+
+在 *Localization（本地化）* 标签页，可以定义不同语言环境的参数名。需要输入 `++locale_name = parameter_name++` 格式的本地化值，示例：
+
+[source, properties,indent=0]
+----
+zh_CN = 书
+----
+
+[[transformation]]
+== 参数转换
+
+在 *Transformation（转换）* 标签页中可以定义处理参数的 Groovy 脚本，在报表使用参数之前先通过脚本处理。
+
+Groovy 脚本应返回新的参数值。脚本中可以使用下列参数：
+
+* `params` - 参数的 map，可以通过别名 `params` 访问。
+
+* `paramValue` - 用于访问参数当前值。
+
+* `dataManager` - `DataManager` 类型的对象，提供 CRUD 功能。
+
+* `metadata` - `Metadata` 类型的对象，提供对应用程序元数据的访问。
+
+* `applicationContext` - `org.springframework.context.ApplicationContext` 类型的对象，提供对托管 bean 的访问。
+
+示例：
+
+[source, plain, indent=0]
+----
+return "%" + paramValue + "%"
+----
+
+还可以使用预定义的转换器为文本（String）参数添加通配符：
+
+* `Starts with`，
+
+* `Ends with`，
+
+* `Contains`。
+
+image::transformation.png[align="center",width="642"]
+
+在 *Validation（验证）* 标签页中，可以使用 Groovy 脚本定义一些参数验证条件，请参阅下面的详细说明。
+
+[[validation]]
+== 输入参数验证
+
+可以验证输入参数和（或）定义参数交叉验证。
+
+. 在 *Validation（验证）* 标签页中通过选中 *Validate（验证）* 复选框为每个参数启用参数验证。验证逻辑由 Groovy 脚本指定。脚本应检查参数值，如果值无效，则调用 `showErrorMessage()` 方法。此方法会向用户显示一条给定的警告信息，提示用户参数验证失败。
++
+脚本中可以使用下列参数：
++
+* `value` - 用户输入的参数值。
++
+* `applicationContext` - `org.springframework.context.ApplicationContext` 类型的对象，提供对托管 bean 的访问。
++
+* `currentAuthentication` - `io.jmix.core.security.CurrentAuthentication` 类型的对象，关联当前认证用户。
++
+* `dataManager` - `DataManager` 对象，提供 CRUD 功能。
++
+* `metadata` - `Metadata` 对象，提供对应用程序元数据的访问。
++
+* `showErrorMessage` - 在脚本内调用可以触发验证失败。
++
+image::validation.png[align="center",width="642"]
+
+. 通过选中 *Parameters（参数）* 标签页的 *Cross parameters validation（多参数交叉验证）* 部分的 *Validate（验证）* 复选框，可以启用参数交叉验证。验证逻辑由 Groovy 脚本指定。这个脚本应检查参数值之间是否合乎逻辑，检查不通过时调用 `showErrorMessage()` 方法。此方法将向用户显示一条警告信息，表示验证错误。
++
+除了上面列出的变量之外，脚本中还可以使用 `params` 变量访问外部报表参数映射。
++
+image::cross-parameter-validation.png[align="center",width="834"]
+
+[[input-parameter-def]]
+== @InputParameterDef 注解
+
+在设计时，使用 `@InputParameterDef` 注解定义报表的输入参数。输入参数在运行报表时从外部传入，并可用作 xref:reports:creation/bands.adoc#datasets[数据集] 中的条件。
+
+如需实现额外的逻辑，创建一个带有 <<input-parameter-delegate,@InputParameterDelegate>> 注解的方法。
+
+`@InputParameterDef` 注解有以下属性：
+
+* `alias` - 数据集中访问该参数的唯一别名。
+* `name` - 输入参数名称。可以使用 `msg://` 前缀来引用 xref:localization:message-bundles.adoc[本地化消息]。
+* `required` - 参数是否必填。默认值：`false`。
+* `type` - 参数的数据类型，由 `ParameterType` 枚举定义：
+** `DATE` - 日期，不含时间。值类：`java.util.Date`。
+** `TEXT` - 文本字符串。值类：`String`
+** `ENTITY` - 单个实体实例（持久化实体或 DTO）。
+** `BOOLEAN` - `Boolean` 值。
+** `NUMERIC` - 数字，可包含小数部分。值类：`Double`。
+** `ENTITY_LIST` - 实体实例（持久化实体或 DTO）的 `java.util.Collection`。
+** `ENUMERATION` - 枚举值，`Enum` 的子类。
+** `DATETIME` - 日期加时间。值类：`java.util.Date`。
+** `TIME` - 时间。值类：`java.util.Date`。
+* `enumerationClass` - 可用于 `ParameterType.ENUMERATION` 类型参数的枚举类。
+* `defaultValue` - 默认值的字符串表示，未选择其他值时使用。对于复杂类型，建议改用 `io.jmix.reports.yarg.structure.DefaultValueProvider` 代理。
+* `defaultDateIsCurrent` - 是否使用当前时间戳作为 `ParameterType.DATE`、`ParameterType.TIME`、`ParameterType.DATETIME` 类型的默认值。默认值：`false`。
+* `entity` - `ParameterType.ENTITY` 和 `ParameterType.ENTITY_LIST` 类型的附加参数，由 <<entity-parameter-def,@EntityParameterDef>> 定义。
+* `predefinedTransformationEnabled` - 为 `ParameterType.TEXT` 参数启用预定义转换，当参数用在 SQL 和 JPQL 数据集的查询条件时，可以启用该参数。默认值：`false`。
+* `predefinedTransformation` - `ParameterType.TEXT` 参数的预定义转换类型，由 `PredefinedTransformation` 枚举定义：`STARTS_WITH`、`CONTAINS`、`ENDS_WITH`。默认值：`CONTAINS`。
+* `hidden` - 是否应对用户隐藏参数请求。默认值：`false`。
+
+[[input-parameter-delegate]]
+== @InputParameterDelegate 注解
+
+`@InputParameterDelegate` 注解定义了一个代理方法，实现与输入参数相关的逻辑。
+
+*要求*：
+
+* 方法不能有参数。
+* 方法必须返回一个支持的函数式接口。
+
+支持的接口：
+
+* `DefaultValueProvider` - 为参数提供默认值。
+* `ParameterValidator` - 验证参数值。
+* `ParameterTransformer` - 转换参数值。
+
+`@InputParameterDelegate` 注解有一个 `alias` 属性，该属性是当前报表定义中声明的输入参数的别名。
+
+[[entity-parameter-def]]
+== @EntityParameterDef 注解
+
+为 `ParameterType.ENTITY` 和 `ParameterType.ENTITY_LIST` 类型的输入参数定义附加参数。
+
+该注解有以下属性：
+
+* `entityClass` - 参数的实体类。默认值：`void.class`。
+* `component` - 从 UI 启动报表时，设置用于输入 `ParameterType.ENTITY` 参数值的 UI 组件类型。`component` 属性支持以下 `EntityInputComponent` 枚举值：
+** `OPTION_LIST` - 使用 xref:flow-ui:vc/components/entityComboBox.adoc[EntityComboBox] 组件。选项通过 JPQL 查询加载。
+** `LOOKUP_VIEW` - 使用 xref:flow-ui:vc/components/entityPicker.adoc[EntityPicker] 组件，该组件会打开一个查找视图。默认值。
+* `optionsQueryJoin` - 加载选项时，该 JOIN 子句会添加到加载选项的 JPQL 中。
+* `optionsQueryWhere` - 加载选项时，该 WHERE 子句会添加到加载选项的 JPQL 中。
+* `lookupViewId` - 指定查找视图的 ID，打开该视图选择 `ParameterType.ENTITY` 或 `ParameterType.ENTITY_LIST` 参数值。

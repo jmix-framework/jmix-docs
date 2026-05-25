@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<view xmlns="http://jmix.io/schema/flowui/view"
+      title="msg://dataGridView.title">
+    <!-- tag::data[] -->
+    <data readOnly="true">
+        <!-- end::data[] -->
+        <collection id="customersDc" class="com.company.onboarding.entity.Customer">
+            <loader id="customersDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Customer e]]>
+                </query>
+            </loader>
+            <fetchPlan extends="_base"/>
+        </collection>
+        <!-- tag::usersDc[] -->
+        <collection id="usersDc"
+                    class="com.company.onboarding.entity.User">
+            <fetchPlan extends="_base">
+                <property name="department">
+                    <property name="name"/> <!--1-->
+                </property>
+            </fetchPlan>
+            <loader id="usersDl">
+                <query>
+                    <![CDATA[select e from User e order by e.username]]>
+                </query>
+            </loader>
+        </collection>
+        <!-- end::usersDc[] -->
+        <!-- tag::keyValueCollection[] -->
+        <keyValueCollection id="statusesDc">
+            <loader id="statusesLoader">
+                <query>
+                    <![CDATA[select o.department, o.onboardingStatus,
+                    count(o.onboardingStatus) from
+                    User o group by o.department, o.onboardingStatus]]>
+                </query>
+            </loader>
+            <properties>
+                <property name="department" datatype="string"/>
+                <property name="onboardingStatus" datatype="int"/>
+                <property name="count" datatype="int"/>
+            </properties>
+        </keyValueCollection>
+        <!-- end::keyValueCollection[] -->
+        <!-- tag::userStepsDc[] -->
+        <collection class="com.company.onboarding.entity.UserStep" id="userStepsDc">
+            <fetchPlan extends="_base">
+                <property name="user" fetchPlan="_base">
+                    <property name="department" fetchPlan="_base"/>
+                </property>
+                <property name="step" fetchPlan="_base"/>
+            </fetchPlan>
+            <loader id="userStepsDl">
+                <query>
+                    <![CDATA[select e from UserStep e]]>
+                </query>
+            </loader>
+        </collection>
+        <!-- end::userStepsDc[] -->
+        <collection id="stepsDc" class="com.company.onboarding.entity.Step">
+            <loader id="stepsDl" readOnly="true">
+                <query>
+                    <![CDATA[select e from Step e]]>
+                </query>
+            </loader>
+            <fetchPlan extends="_base"/>
+        </collection>
+        <!-- tag::data[] -->
+    </data>
+    <!-- end::data[] -->
+    <facets>
+        <dataLoadCoordinator auto="true"/>
+    </facets>
+    <!-- tag::layout[] -->
+    <layout>
+        <!-- end::layout[] -->
+        <accordion width="100%">
+        <accordionPanel width="100%">
+        <!-- tag::basics[] -->
+        <dataGrid id="usersTable"
+                  width="100%"
+                  minHeight="20em"
+                  dataContainer="usersDc">
+            <columns>
+                <column property="username"/> <!--2-->
+                <column property="firstName"/>
+                <column property="lastName"/>
+                <column property="active"/>
+                <column property="onboardingStatus"/>
+                <column property="department.name"/> <!--3-->
+            </columns>
+        </dataGrid>
+        <!-- end::basics[] -->
+        </accordionPanel>
+            <accordionPanel width="100%">
+        <!-- tag::with-key-value[] -->
+        <dataGrid width="100%" dataContainer="statusesDc">
+            <columns>
+                <column property="department"/>
+                <column property="onboardingStatus"/>
+                <column property="count"/>
+            </columns>
+        </dataGrid>
+        <!-- end::with-key-value[] -->
+            </accordionPanel>
+            <accordionPanel width="100%">
+        <!-- tag::metaClass[] -->
+        <dataGrid width="100%" id="dataGrid" metaClass="User">
+            <columns>
+                <column property="firstName"/>
+                <column property="lastName"/>
+                <column property="username"/>
+                <column property="joiningDate"/>
+                <column property="onboardingStatus"/>
+            </columns>
+        </dataGrid>
+        <!-- end::metaClass[] -->
+            </accordionPanel>
+            <accordionPanel width="100%">
+        <!-- tag::includeAll[] -->
+        <dataGrid width="100%"
+                  dataContainer="usersDc">
+            <columns includeAll="true"/>
+        </dataGrid>
+        <!-- end::includeAll[] -->
+            </accordionPanel>
+            <accordionPanel width="100%">
+        <!-- tag::includeAllReference[] -->
+        <dataGrid width="100%"
+                  dataContainer="userStepsDc">
+            <columns includeAll="true">
+                <column property="user.department.name"/>
+            </columns>
+        </dataGrid>
+        <!-- end::includeAllReference[] -->
+            </accordionPanel>
+            <accordionPanel width="100%">
+        <!-- tag::exclude[] -->
+        <dataGrid width="100%"
+                  dataContainer="userStepsDc">
+            <columns includeAll="true"
+                     exclude="id,version,sortValue"/>
+        </dataGrid>
+        <!-- end::exclude[] -->
+            </accordionPanel>
+            <accordionPanel width="100%">
+        <dataGrid width="100%"
+                  dataContainer="userStepsDc" columnReorderingAllowed="true">
+            <!-- tag::column-property[] -->
+            <columns>
+                <column property="user.firstName" sortable="false"/>
+                <column property="user.lastName" sortable="false"/>
+                <column property="step" frozen="true" sortable="true"/>
+                <column property="dueDate" editable="true" sortable="true"/>
+                <column property="user.department.name" sortable="false"/>
+            </columns>
+            <!-- end::column-property[] -->
+        </dataGrid>
+            </accordionPanel>
+            <accordionPanel width="100%" summaryText="dataGrid with actions">
+                <!-- tag::dataGrid-actions[] -->
+                <hbox id="buttonsPanel" classNames="buttons-panel"> <!--1-->
+                    <button id="createBtn" action="usersDataGrid.create"/>
+                    <button id="editBtn" action="usersDataGrid.edit"/>
+                    <button id="removeBtn" action="usersDataGrid.remove"/>
+                    <button id="infoBtn" action="usersDataGrid.getInfo"/>
+                </hbox>
+                <dataGrid width="100%" dataContainer="usersDc" id="usersDataGrid">
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName"/>
+                        <column property="lastName"/>
+                        <column property="active"/>
+                        <column property="onboardingStatus"/>
+                        <column property="joiningDate"/>
+                    </columns>
+                    <actions>
+                        <action id="create" type="list_create"/> <!--2-->
+                        <action id="edit" type="list_edit"/>
+                        <action id="remove" type="list_remove"/>
+                        <action id="getInfo" text="Get Info"/> <!--3-->
+                    </actions>
+                </dataGrid>
+                <!-- end::dataGrid-actions[] -->
+            </accordionPanel>
+            <accordionPanel width="100%" summaryText="dataGrid with custom context menu">
+                <!-- tag::dataGrid-context-menu[] -->
+                <dataGrid width="100%" dataContainer="usersDc" id="menuDataGrid">
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName"/>
+                        <column property="lastName"/>
+                        <column property="active"/>
+                        <column property="onboardingStatus"/>
+                        <column property="joiningDate"/>
+                    </columns>
+                    <actions showInContextMenuEnabled="false"> <!--1-->
+                        <action id="create" type="list_create"/>
+                        <action id="edit" type="list_edit"/>
+                        <action id="remove" type="list_remove"/>
+                        <action id="getInfo" text="View"/>
+                        <action id="sendMessage" text="Message"/>
+                    </actions>
+                    <contextMenu id="contextMenu">
+                        <item action="menuDataGrid.getInfo" icon="INFO_CIRCLE"/> <!--2-->
+                        <separator/>
+                        <item text="Contact" icon="USER"> <!--3-->
+                            <item action="menuDataGrid.sendMessage" icon="COMMENT"/>
+                            <item id="emailItem"/> <!--4-->
+                        </item>
+                        <separator/>
+                        <item action="menuDataGrid.remove" icon="TRASH"/>
+                    </contextMenu>
+                </dataGrid>
+                <!-- end::dataGrid-context-menu[] -->
+            </accordionPanel>
+            <accordionPanel summaryText="Using Renderers">
+                <dataGrid width="100%" dataContainer="usersDc" id="usersDtGr">
+                    <columns>
+<!--                        <column property="username"/>-->
+<!--                        <column property="firstName"/>-->
+<!--                        <column property="lastName"/>-->
+<!--                        <column property="active"/>-->
+<!--                        <column property="onboardingStatus"/>-->
+                        <!-- tag::localDateRenderer[] -->
+                        <column property="joiningDate">
+                            <localDateRenderer format="MMM dd, yyyy"/>
+                        </column>
+                        <!-- end::localDateRenderer[] -->
+                        <column key="picture" autoWidth="true" flexGrow="0" header="Picture"/>
+                        <!-- tag::localDateTimeRenderer[] -->
+                        <column property="passwordExpiration">
+                            <localDateTimeRenderer format="dd/MM/YYYY HH:mm:ss"/>
+                        </column>
+                        <!-- end::localDateTimeRenderer[] -->
+                    </columns>
+                </dataGrid>
+        </accordionPanel>
+            <accordionPanel>
+                <dataGrid width="100%" dataContainer="usersDc" id="editableUserTable">
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName"/>
+                        <column property="lastName"/>
+                        <column property="active"/>
+                        <column property="onboardingStatus"/>
+                        <column property="timeZoneId" editable="true"/>
+                        <editorActionsColumn width="8em" flexGrow="0">
+                            <editButton text="Edit" icon="PENCIL"/>
+                            <closeButton text="Close" icon="CLOSE"/>
+                        </editorActionsColumn>
+                    </columns>
+                </dataGrid>
+            </accordionPanel>
+            <accordionPanel summaryText="Inline editing non-buffered">
+                <!-- tag::dataGrid-non-buffered-editor[] -->
+                <dataGrid width="100%" dataContainer="usersDc" id="editableUsersTable">
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName" editable="true"/> <!--1-->
+                        <column property="lastName" editable="true"/>
+                        <column property="active" editable="true"/>
+                        <column property="onboardingStatus"/>
+                        <editorActionsColumn>
+                            <editButton text="Edit" icon="PENCIL"/> <!--2-->
+                            <closeButton text="Close" icon="CLOSE"/> <!--3-->
+                        </editorActionsColumn>
+                    </columns>
+                </dataGrid>
+                <!-- end::dataGrid-non-buffered-editor[] -->
+            </accordionPanel>
+            <accordionPanel summaryText="Inline editing buffered">
+                <!-- tag::dataGrid-buffered-editor[] -->
+                <dataGrid width="100%" dataContainer="usersDc" editorBuffered="true"> <!--1-->
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName" editable="true"/> <!--2-->
+                        <column property="lastName" editable="true"/>
+                        <column property="active" editable="true"/>
+                        <column property="onboardingStatus"/>
+                        <editorActionsColumn>
+                            <editButton text="Edit" icon="PENCIL"/> <!--3-->
+                            <saveButton icon="CHECK" themeNames="success"/> <!--4-->
+                            <cancelButton icon="CLOSE" themeNames="error"/> <!--5-->
+                        </editorActionsColumn>
+                    </columns>
+                </dataGrid>
+                <!-- end::dataGrid-buffered-editor[] -->
+            </accordionPanel>
+            <accordionPanel summaryText="Inline editing by double-clicking">
+                <!-- tag::dblClickTable[] -->
+                <dataGrid width="100%" dataContainer="usersDc" id="dblClickTable">
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName" editable="true"/>
+                        <column property="lastName" editable="true"/>
+                        <column property="active" editable="true"/>
+                        <column property="onboardingStatus"/>
+                    </columns>
+                </dataGrid>
+                <!-- end::dblClickTable[] -->
+            </accordionPanel>
+            <accordionPanel summaryText="Data grid with numberFormat renderer">
+                <dataGrid dataContainer="stepsDc" width="100%" id="stepsDataGrid">
+                    <columns>
+                        <column property="name"/>
+                        <!-- tag::numberFormat[] -->
+                        <column property="factor">
+                            <numberRenderer numberFormat="#,#00.0000"/>
+                        </column>
+                        <!-- end::numberFormat[] -->
+                        <column property="duration"/>
+                        <column property="sortValue"/>
+                    </columns>
+                </dataGrid>
+            </accordionPanel>
+            <accordionPanel summaryText="Data grid with text renderer">
+                <dataGrid dataContainer="userStepsDc" width="100%" id="userStepsDataGrid">
+                    <columns>
+                        <column property="dueDate"/>
+                        <column property="completedDate"/>
+                        <column property="sortValue"/>
+                        <column property="user"/>
+                        <column property="step"/>
+                        <!-- tag::textRenderer[] -->
+                        <column key="status" header="Status"/>
+                        <!-- end::textRenderer[] -->
+                        <!-- tag::completed[] -->
+                        <column key="completed" width="4em" flexGrow="0"/>
+                        <!-- end::completed[] -->
+                    </columns>
+                </dataGrid>
+            </accordionPanel>
+            <accordionPanel summaryText="Using Sorting by Multiple Columns">
+                <!-- tag::multiSort[] -->
+                <dataGrid width="100%"
+                          dataContainer="usersDc"
+                          multiSort="true"
+                          multiSortOnShiftClickOnly="true"
+                          multiSortPriority="APPEND">
+                    <!-- end::multiSort[] -->
+                    <columns>
+                        <column property="username"/>
+                        <column property="firstName"/>
+                        <column property="lastName"/>
+                        <column property="active"/>
+                        <column property="onboardingStatus"/>
+                    </columns>
+                </dataGrid>
+            </accordionPanel>
+            <accordionPanel summaryText="DataGrid with aggregation">
+                <!-- tag::aggregatable-dataGrid[] -->
+                <dataGrid width="100%"
+                          dataContainer="stepsDc"
+                          aggregatable="true"
+                          aggregationPosition="TOP"> <!--1-->
+                    <columns>
+                        <column property="name"/>
+                        <column property="duration">
+                            <aggregation type="AVG"
+                                         cellTitle="msg://aggregation.cellTitle"/> <!--2-->
+                        </column>
+                        <column property="sortValue"/>
+                        <column property="factor">
+                            <aggregation type="AVG">
+                                <formatter>
+                                    <number format="#,##0.00"/> <!--3-->
+                                </formatter>
+                            </aggregation>
+                        </column>
+                    </columns>
+                </dataGrid>
+                <!-- end::aggregatable-dataGrid[] -->
+            </accordionPanel>
+            <accordionPanel summaryText="DataGrid with aggregation and strategyClass">
+                <!-- tag::aggregatable-grid[] -->
+                <dataGrid width="100%"
+                          dataContainer="usersDc"
+                          aggregatable="true"
+                          aggregationPosition="TOP">
+                    <columns>
+                        <column property="firstName"/>
+                        <column property="lastName"/>
+                        <column property="onboardingStatus">
+                            <aggregation
+                                    strategyClass="com.company.onboarding.view.component.datagrid.DataGridUserStatusAggregation"/>
+                        </column>
+                    </columns>
+                </dataGrid>
+                <!-- end::aggregatable-grid[] -->
+            </accordionPanel>
+<!--            <accordionPanel summaryText="Blank panel">-->
+<!--            </accordionPanel>-->
+        </accordion>
+        <!-- tag::layout[] -->
+    </layout>
+    <!-- end::layout[] -->
+</view>

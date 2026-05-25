@@ -1,0 +1,48 @@
+= 电子邮件 API
+
+[[sending-methods]]
+== 邮件发送
+
+如需发送邮件，使用 `Emailer` bean 的下列方法：
+
+* `sendEmail()` - 邮件同步发送。调用代码会处于等待状态，直至邮件发送到 SMTP 服务器为止。可以通过一组参数指定要发送的邮件：以逗号分隔的收件人列表、主题、内容、附件数组；或者通过一个特殊的 `EmailInfo` 对象，封装所有这些信息并支持显式设置发件人的地址。
++
+下面示例使用 `EmailInfo` 对象发送邮件：
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=emailer;email-info1;email-info2]
+----
+<1> 注入 `io.jmix.email.Emailer` 接口。
+<2> 使用 `io.jmix.email.EmailInfoBuilder` 创建 `io.jmix.email.EmailInfo` 对象。
+<3> 同步发送 email。
++
+在同步发送的过程中，框架可以抛出包含收件人地址和响应错误信息的 `EmailException` 异常。
++
+方法执行时，会在数据库创建一个 `SendingMessage` 实例，该实例包含所有收件人的地址。实例初始为 `SendingStatus.SENDING（发送中）` 状态，发送成功后为 `SendingStatus.SENT（已发送）`。如果发送过程中出错，则状态为 `SendingStatus.NOT_SENT（未发送）`。
++
+* `sendEmailAsync()` - 邮件异步发送。该方法返回 `SendingStatus.QUEUE（排队中）` 状态的 `SendingMessage` 实例。实际的发送操作由 xref:configuration.adoc#email-sending-scheduler[调度器] 调用 `Emailer.processQueuedEmails()` 方法执行。
+
+[[email-attachments]]
+== 邮件附件
+
+`io.jmix.email.EmailAttachment` 对象是一个包装类，包含附件的字节数组、文件名，还有邮件中附件的唯一标识符。
+
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=create-attachment]
+----
+
+附件的唯一标识符不是必需的，但是当需要在邮件正文中插入图片时，则需要使用该标识符。此时，在创建 `EmailAttachment` 时需要指定一个唯一的 `contentId`，例如，上面例子中的 “logoId”。在正文中插入图片时，使用 `cid:logoId` 这样的表达式指定附件的路径，示例：
+
+[source,html]
+----
+<img src="cid:logoId"/>
+----
+
+另外，也可以用字符串创建一个文本附件，并指定编码和附件名称。下面示例中，创建了一个附件并与邮件一起发送：
+
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=text-attachment]
+----

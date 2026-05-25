@@ -1,0 +1,147 @@
+= 1. 日历数据绑定
+
+在本小节中，我们将创建：
+
+* `Meeting` JPA 实体。
+* 带有 data provider 的 `FullCalendar` 组件。
+
+[[meeting-event]]
+== 会议事项
+
+`FullCalendar` 组件中的一个事项通过 `Meeting` 实体表示。需要提供特定的属性才能正确显示：
+
+* `name` - 事项标题。
+* `startDate` - 事项的开始日期和时间。组件不会显示没有 `startDate` 的事项。
+* `endDate` - 事项的结束日期。如果未指定 `endDate`，组件将根据 `allDay` 属性设置事项的默认时长。本示例中省略了 `allDay` 属性，事项都作为非全天事项处理。
+
+[[create-meeting-entity]]
+=== 创建会议实体
+
+参考入门教程的 xref:tutorial:simple-crud.adoc[简单 CRUD] 部分了解创建 JPA 实体的详细说明。
+
+`Meeting` 实体具有以下属性：
+
+* `name`，`String` 类型。勾选 *Mandatory* 复选框。
+* `startDate`，`LocalDateTime` 类型。勾选 *Mandatory* 复选框。
+* `endDate`，`LocalDateTime` 类型。
+* `user` - 属性类型为 `Association`、Java 类型为 `User` 实体，关系为多对一。勾选 *Mandatory* 复选框。
+
+`Meeting` 实体不需要生成标准的列表和详情视图，因为该实体将以编程方式生成并显示在 `FullCalendar` 组件中。
+
+[[generate-meeting]]
+=== 生成会议
+
+用户完成所有入职步骤后，应用程序会生成会议事项，该会议的目的是评估已完成的入职任务。该事项将显示在用户的 *MyCalendar* 视图中。
+
+检查用户是否已完成所有步骤的最佳时机是在 xref:flow-ui:data/data-context.adoc[DataContext] 的 xref:flow-ui:data/data-context.adoc#pre-save-event[PreSaveEvent] 中。在该事件的监听器中，检查是否有没完成的入职步骤。如果没有未完成的步骤，则创建新的会议事项。
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-pre-save-event]
+----
+
+下一步，我们实现 `generateOnboardingResultsMeeting()` 方法。该方法创建一个 `Meeting` 的实例，并将该事项计划在下一工作日。
+
+[source, java, indent=0]
+----
+include::example$/fullcalendar-ex1/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=onboarding-generate-meeting]
+----
+<1> 创建 `Meeting` 实例，合并到 `DataContext` 中，实体会自动持久化。
+<2> 计算下一个工作日，如果今天是星期五，则事项计划在下个星期一。
+<3> 设置会议的开始日期和时间。
+
+[[add-components]]
+== 在 MyCalendar 添加组件
+
+首先，创建一个新的空视图，名为 *MyCalendar*。
+
+image::creating-my-calendar-view.png[align="center",width="776"]
+
+Studio 会生成空视图并打开视图设计器。
+
+[[load-data]]
+=== 加载数据
+
+在添加 `FullCalendar` 组件之前，需要先为 `Meeting` 实体创建一个 xref:flow-ui:data/collection-container.adoc[集合数据容器]。
+
+点击操作面板中的 *Add Component*，双击 *Data components* 中的 *Collection container*。在打开的弹窗中，*Entity* 字段选择 `Meeting`，点击 *OK*。
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar2]
+----
+
+当前数据加载器的配置是查询所有用户的所有事项。但是，每个用户应该只能看到自己的事项。需要通过编辑器或手动修改 JPQL，添加按当前登录用户过滤的条件：
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/mycalendar/my-calendar.xml[tags=onboarding-add-fullcalendar3]
+----
+
+我们从 `CurrentAuthentication` bean 获取当前登录的用户，并将此信息传递给 xref:flow-ui:views/view-events.adoc#before-show-event[BeforeShowEvent] 中的数据加载器：
+
+* 订阅 `BeforeShowEvent`。
+* 注入 `meetingsDl` 数据加载器。
+* 注入 `CurrentAuthentication` bean。
+
+现在可以为加载器设置一个参数来获取当前用户的事项：
+
+[source, java, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/java/com/company/onboarding/view/mycalendar/MyCalendar.java[tags=onboarding-add-fullcalendar4]
+----
+
+[[add-fullcalendar]]
+=== 添加 FullCalendar 组件
+
+在操作面板中，点击 *Add Component*，找到 `FullCalendar` 并双击。
+
+新的 `calendar` 元素会被添加到视图中。按以下代码配置 `id`、`height` 和 `width` 属性。
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampleone/sample-one.xml[tags=onboarding-add-fullcalendar1]
+----
+
+[[add-data-provider]]
+=== 添加 Data Provider
+
+data provider 是 `FullCalendar` 中显示的事项来源。有不同类型的 data provider，我们将使用基于 xref:flow-ui:data/data-containers.adoc[数据容器] 的 provider。
+
+为 `FullCalendar` 添加 *ContainerDataProvider*：
+
+. 在 *Jmix UI* 结构面板或视图 XML 中选择 `calendar` 组件。
+. 点击组件属性面板中的 *Add* 按钮。
+. 从下拉菜单中，选择 *Data Providers* → *ContainerDataProvider*。
+
+image::add-container-data-provider.png[align="center",width="416"]
+
+在弹窗中，选择 `meetingsDc`。
+
+在 `containerDataProvider` 元素中，可以配置实体属性映射。`Meeting` 实体有以下属性：
+
+* `name`
+* `startDate`
+* `endDate`
+
+因此，需要配置下列属性：
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/sampletwo/sample-two.xml[tags=onboarding-add-fullcalendar3]
+----
+
+完整的日历组件 XML 如下：
+
+[source, xml, indent=0]
+----
+include::example$fullcalendar-ex1/src/main/resources/com/company/onboarding/view/samplethree/sample-three.xml[tags=onboarding-add-fullcalendar4]
+----
+
+启动应用程序并以 `admin` 用户登录。`admin` 用户没有入职步骤，我们需要生成一下：
+
+* 从菜单中选择 *Users* 打开 `User.list` 视图。
+* 在表格中选择 `admin` 用户，点击 *Edit* 按钮。然后，填写 *Joining Date* 字段，生成入职步骤并保存更改。
+* 从菜单中选择 *MyCalendar* 即可访问日历视图。
+
+image::getting-started-data-binding-result.png[align="center",width="1358"]

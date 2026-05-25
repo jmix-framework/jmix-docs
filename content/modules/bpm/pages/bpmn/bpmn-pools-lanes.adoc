@@ -1,0 +1,107 @@
+= 泳池和泳道
+
+流程通常包含在一个 *pool*（泳池）内，而泳池可以进一步划分为 *lanes*（泳道）。Pool 和 lane 分别表示参与者和职责，让复杂的流程有了更清晰的结构划分。
+
+image::bpmn-pool-lanes/pool-lanes.png[,460]
+
+[[pools]]
+== 泳池
+
+泳池表示 xref:bpm:bpmn/bpmn-collaboration.adoc[协作] 中的一个参与者。虽然流程可以在没有泳池的情况下运行，但添加泳池可以明确表示所涉及的角色。当添加一个泳池时，会自动包裹图中的所有元素。
+
+image::bpmn-pool-lanes/adding-pool.png[]
+
+WARNING: 删除泳池时会同时删除其中包含的 *全部元素*。
+
+=== 属性
+
+添加泳池后，一个基础流程就变成了一个 <<collaboration-model, 协作>>。因此，当没有选中任何元素时，右侧面板将显示 xref:bpm:bpmn/bpmn-collaboration.adoc#properties[协作属性]，而不是流程的属性。
+
+image::bpmn-pool-lanes/collaboration-properties.png[,810]
+
+选中泳池元素后，可以指定其 *Id* 和 *Name*，以及编辑对应的 xref:bpmn/bpmn-process.adoc#properties[流程属性]。
+
+image::bpmn-pool-lanes/process-properties.png[,810]
+
+=== XML 表示
+
+泳池由 `collaboration` 以及内部的 `participant` 元素表示。
+
+[source,xml]
+----
+<collaboration id="Collaboration_16sinaz">
+    <participant id="Participant_1txu04k" processRef="pool-demo" />
+</collaboration>
+<process id="pool-demo" name="Pool demo" isExecutable="true">
+    <startEvent id="Event_0yeospn">
+      <outgoing>Flow_1snk2tn</outgoing>
+    </startEvent>
+    <sequenceFlow id="Flow_1snk2tn" sourceRef="Event_0yeospn" targetRef="Activity_187mecy" />
+    <userTask id="Activity_187mecy">
+      <incoming>Flow_1snk2tn</incoming>
+    </userTask>
+</process>
+----
+
+//todo: delete in favor of /bpmn/bpmn-collaboration.html
+[[collaboration-model]]
+=== 协作模型
+
+多个泳池创建一个协作模型，可以对多个参与者之间的关系和交互进行抽象。
+
+image::bpmn-pool-lanes/collaboration-two-processes.png[,700]
+
+部署协作模型时，每个流程都将使用自己的 _id_ 单独部署，并且在流程定义列表中显示。因此，在协作时也可以开始任何流程。
+
+image::bpmn-pool-lanes/process-definitions-wiindow.png[,650]
+
+[[lanes]]
+== 泳道
+
+*Lane*（泳道）是泳池内的一个子分区，代表特定的角色、职责或部门。
+
+=== 属性
+
+选中泳道元素可查看其属性。
+
+[cols="1,6", grid=rows, frame=none]
+|===
+|*属性*
+|*描述*
+|*Id*
+|泳道的 id
+|*Name*
+|泳道的名称。
+|*Assignee source*
+|基于表达式、流程变量或用户 provider 指定执行人。详细信息请参见 xref:bpm:bpmn/bpmn-user-task.adoc[用户任务]。
+|*Candidate groups*
+|允许执行泳道内活动的用户组。
+|*Candidate users*
+|允许执行泳道内活动的单个用户。
+|===
+
+NOTE: 泳道内没有明确定义执行人的用户任务都使用泳道的执行人。
+
+=== XML 表示
+
+泳道在 XML 文件中通过 `laneSet` 元素和独立的 `lane` 元素表示。
+每个 `lane` 有一组属性以及包含在其中的活动。
+
+[source,xml]
+----
+<process id="pool-and-lanes" name="Pool and lanes" isExecutable="true">
+    <laneSet id="LaneSet_1lxq2l3">
+      <lane id="Lane_1" name="User 1">
+        <extensionElements>
+          <jmix:assignmentDetails assigneeSource="expression" assigneeValue="user1" assignee="user1" candidateUsersSource="users" candidateGroupsSource="userGroups" />
+          <jmix:conditionDetails conditionSource="userTaskOutcome" />
+        </extensionElements>
+        <flowNodeRef>Activity_0n34ol9</flowNodeRef>
+        <flowNodeRef>Activity_0758bjc</flowNodeRef>
+        <flowNodeRef>Event_1mkoyrv</flowNodeRef>
+      </lane>
+      <lane id="Lane_2" name="User 2">
+        ...
+      </lane>
+    </laneSet>
+----

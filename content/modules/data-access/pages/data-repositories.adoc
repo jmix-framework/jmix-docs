@@ -1,0 +1,198 @@
+= 使用 Data Repositories
+
+https://docs.spring.io/spring-data/commons/docs/current/reference/html/#repositories.core-concepts[Spring Data] repositories 为实体操作提供了非常有用的抽象，特别是实现业务逻辑的时候。
+
+Jmix data repositories 基于 Spring Data 构建，但是在底层使用的是 xref:data-access:data-manager.adoc[DataManager]。这样既可以使用方便的 repository 接口，又能支持 Jmix 中的高级数据访问功能，比如 xref:data-access:entity-events.adoc[实体事件]，xref:data-model:entities.adoc#cross-data-store-ref[跨数据存储实体引用]，xref:security:authorization.adoc#data-access-checks[数据访问权限检查] 等。
+
+[[working-with-data-repositories]]
+== 使用 Data Repositories
+
+Jmix data repository 有两种创建方式：使用 xref:studio:data-repository-wizard.adoc[Data Repository 向导]，或按照下面的步骤手动创建。
+
+. 创建一个接口，继承自 `JmixDataRepository`。使用实体类和实体 ID 类作为 `JmixDataRepository` 的参数。示例：
++
+--
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=data-repository;data-repository-end]
+----
+--
+
+. 在基础包中创建一个新的 Spring 配置类，并添加 `@EnableJmixDataRepositories` 注解：
++
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/JmixDataRepositoryConfiguration.java[]
+----
++
+Jmix 会初始化应用程序和扩展组件基础包内的所有 data repositories。如果需要对搜索和初始化 repositories 做进一步自定义，可以使用注解的 `basePackages`、`excludeFilters` 和 `includeFilters` 属性配置。
+
+. 在 Spring bean 或 UI 控制器内使用 `@Autowired` 注解注入 repository：
++
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/test/java/com/company/demo/repository/CustomerRepositoryTest.java[tags=inject]
+----
+
+[[jmix-data-repository-features]]
+== JmixDataRepository 的功能
+
+`JmixDataRepository` 接口派生自标准的 Spring Data https://docs.spring.io/spring-data/commons/docs/current/api/org/springframework/data/repository/PagingAndSortingRepository.html[PagingAndSortingRepository^]。此外，提供了一些 Jmix 特有的方法：
+
+* 数据加载方法支持 xref:data-access:fetching.adoc#fetch-plan[fetch plan]，比如 `findById()` 或 `findAll()`。
+* `create()` 方法 xref:data-model:entities.adoc#instantiation[初始化] 一个新实体。
+* 返回非 Optional 对象的 `getById()` 方法会在找不到实体时抛出异常。
+* `getDataManager()` 返回默认方法中使用的 xref:data-access:data-manager.adoc[DataManager]。
+* `save()` 方法可以对实体进行持久化，并返回保存后的实例，实例的加载使用的是指定的 fetch plan。方法接收需要保存的实体和加载实体使用的 fetch plan 作为参数。实体不能为 `null`，fetch plan 必须与实体匹配。
+
+[[JmixDataRepositoryContext]]
+=== JmixDataRepositoryContext
+
+从 `JmixDataRepository` 继承的 repository 的加载方法支持附加的 `JmixDataRepositoryContext` 类型参数。可以通过这个参数将从 UI 组件搜集的过滤、分页和排序参数传递给 `LoadContext` 对象。这样一来，xref:flow-ui:vc/components/genericFilter.adoc[]、xref:flow-ui:vc/components/simplePagination.adoc[] 和 xref:flow-ui:vc/components/dataGrid.adoc[] 组件的所有功能都可以与 Data Repositories 无缝集成。
+
+在构建使用 repository 数据加载器的视图时，Studio 会生成一个 xref:flow-ui:data/data-loaders.adoc#load-from-repository-delegate[loadFromRepositoryDelegate] 处理方法，使用 `Pageable` 和 `JmixDataRepositoryContext` 参数。
+
+==== 将 `LoadContext` 转换为 `JmixDataRepositoryContext`
+
+使用 `JmixDataRepositoryUtils.buildRepositoryContext()` 静态方法可将 `LoadContext` 转换为 `JmixDataRepositoryContext`。
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/view/order/OrderListView2.java[tags=load-context-to-repository-context]
+----
+
+TIP: 在转换过程中，由于保留了上下文的设置，因此可以修改 `LoadContext` 然后转换为 `JmixDataRepositoryContext`。
+
+[[ApplyConstraints]]
+=== 安全限制
+
+Data Repositories 可以使用 `io.jmix.core.repository.ApplyConstraints` 注解。如果注解的值是 `false`，则 Repository 使用 `UnconstrainedDataManager` 而非 `DataManager`。默认为 `true`。
+
+`@ApplyConstraints` 不仅可以应用在类上，也可以应用在单独的方法上，只对这些使用了注解的方法启用或忽略安全约束。
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/OrderRepository.java[tags=ApplyConstraints]
+----
+
+上面的示例中，`@ApplyConstraints(false)` 用在了两个方法上，这两个方法会使用 `UnconstrainedDataManager`。
+
+而在下面的示例中，整个类都禁用了安全约束，但在几个方法启用了约束：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/ProductRepository.java[tags=ApplyConstraints]
+----
+
+`findAll()` 和 `searchByIdNotNull()` 方法会使用常规的 `DataManager`，而其他方法使用 `UnconstrainedDataManager`。
+
+[[annotations]]
+=== 注解
+
+可以使用下列注解自定义查询方法：
+
+* `@io.jmix.core.repository.Query` 定义 JPQL 查询语句，与 Spring Data JPA 的 `@Query` 注解类似。
+* `@io.jmix.core.repository.FetchPlan` 定义加载数据时使用的 fetch plan。
+* `@io.jmix.core.repository.QueryHints` 和 `@jakarta.persistence.QueryHint` 可以配置 xref:data-model:soft-deletion.adoc#turn-soft-deletion-off[关闭软删除] 和 xref:cache.adoc#query-cache[使用查询缓存] 以及 xref:dyn-attr:dynattr-api.adoc#loading-and-saving[加载动态属性]。
+
+[NOTE]
+====
+如果方法名/查询与方法参数使用了不同的 fetch plan 或 hint，那么最后的值会按照优先级从高往低使用。
+
+*FetchPlan:*
+
+. `FetchPlan` 参数。方法中的 fetch plan 参数具有最高优先级。
+. `JmixDataRepositoryContext#fetchPlan` 参数。
+. `@FetchPlan` 注解值。
+
+*Hints:*
+
+. `JmixDataRepositoryContext` 参数。
+. `@QueryHints` 注解值。
+
+For hints with the same key, the value from the higher priority source will override the value from the lower priority source. Different keys will be merged.
+====
+
+[[query-method-examples]]
+== 方法示例
+
+[[derived-methods]]
+=== 派生方法
+
+Jmix data repositories 支持从方法名生成查询语句的 Spring Data 标准功能，示例：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=name-based-method]
+----
+
+查询方法可以使用 `Pageable` 进行分页和排序：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=paging]
+----
+
+[[query-annotation]]
+=== @Query 注解
+
+与 Spring Data JPA 类似，可以使用 `@io.jmix.core.repository.Query` 注解显式定义 JPQL 语句：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=query]
+----
+
+如果查询返回多个纯值和/或聚合结果，应该在 `@Query` 注解的 `properties` 属性中提供属性名称。该方法应返回 `KeyValueEntity` 的列表。每个实体实例将必须包含查询中定义的属性。例如：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-multiple-fields]
+----
+
+如果查询返回的是纯值列表，方法的返回类型直接定义为该值类型的列表：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-single-field]
+----
+
+如果查询返回的是单一纯值，方法的返回类型直接定义为该值的类型：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=query-single-value]
+----
+
+[[jmix-specific-parameters]]
+=== Jmix 特定参数
+
+Jmix data repositories 可以使用 xref:data-access:fetching.adoc#fetch-plan[fetch plan] 作为查询方法的参数：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository.java[tags=fetch-plan]
+----
+
+共享的 fetch plan 可以在查询方法的 `@io.jmix.core.repository.FetchPlan` 注解中定义：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository2.java[tags=fetch-plan]
+----
+
+一个 xref:cache.adoc#query-cache[支持缓存] 的查询可以通过 `@io.jmix.core.repository.QueryHints` 和 `@jakarta.persistence.QueryHint` 注解配置：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository3.java[tags=cacheable]
+----
+
+还可以在 repository 方法中使用 `@io.jmix.core.repository.QueryHints` 和 `@jakarta.persistence.QueryHint` 加载实体的 xref:dyn-attr:index.adoc[动态属性]：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/repository/CustomerRepository4.java[tags=dynamic-attribute-query-hint]
+----
+
+在需要返回带有动态属性的实体时，可以使用这个方法。

@@ -1,0 +1,224 @@
+= 实体数据任务
+
+[[overview]]
+== 概览
+
+*实体数据任务（Entity Data Task）* 或简称为 _数据任务_ 是一种特殊的服务任务，
+表示在流程中需要操作 _Jmix 实体_。
+用实体数据服务操作数据相比常规服务任务更加方便。
+可以从数据库加载实体、修改实体以及创建新实体。
+
+.*图形表示法*
+
+实体数据任务在图中展示为圆角矩形，左上角有一个小的数据库图标。
+
+image::jmix-data-task/data-task.png[,150]
+
+NOTE: 由于实体数据任务是 Jmix 的特定扩展，其他 BPMN 建模工具并不支持这种任务。当导出模型时，实体数据任务会被替换为标准的服务任务；但是其 XML 属性仍然保留。
+
+.*XML 表示*
+
+根据类型的不同，实体数据任务的 XML 表示形式会有所不同。请参阅相应任务类型介绍中的示例。
+
+下面是一个新创建的实体数据任务，默认情况下，这是一个 _加载实体_ 任务。
+
+[source,xml]
+----
+    <serviceTask id="entity-data-task" name="Entity Data Task"
+        flowable:type="jmix-load-entities-jpql">
+      <extensionElements />
+    </serviceTask>
+----
+
+[[properties]]
+== 属性
+
+实体数据任务有下列属性：
+
+image::jmix-data-task/data-task-properties.png[,463]
+
+配置数据任务时：
+
+* 首先，需要设置 xref:bpmn/bpmn-tasks.adoc#common-task-properties[通用任务属性]。
+
+* 然后，定义一个 <<data-task-types,_任务类型_>> 并根据所选的任务类型设置必要的参数。
+
+* 按需创建 _执行监听器_。
+
+* 关于 _异步（Async）_ 标记，详情参考 xref:bpmn/transactions.adoc[事务]。
+
+[NOTE]
+====
+实体数据任务没有可用的多实例属性。
+但是可用在多实例的嵌入子流程中。
+参阅 xref:bpm:bpmn/multi-instance-activities.adoc[多实例]。
+====
+
+
+[[data-task-types]]
+== 数据任务类型
+
+数据任务可以执行下列操作之一：
+
+* xref:modifying-entities[编辑实体（Modify Entity）]
+* xref:creating-entities[创建实体（Create Entity）]
+* xref:loading-entities[加载实体（Load Entities）]
+
+TIP: 删除实体时，请使用一个服务任务，然后通过 xref:jmix:data-access:data-manager.adoc[DataManager] 进行删除。
+
+[[loading-entities]]
+=== 加载实体
+
+如需加载实体，需要在属性面板选择 _Load Entities_ 任务类型。然后，定义 *JPQL query*，以及可选的 xref:loading-result[*结果变量*]。
+
+[[query-parameters]]
+==== JPQL 查询语句参数
+在 JPQL 语句中可以直接设置参数，例如：
+
+ select s from smpl_Order s where s.amount < 500
+
+但是很多情况下，我们需要从外部传参，即在运行时传参。
+因此，可以创建命名参数：
+
+image::jmix-data-task/create-jpql-parameter.png[,463]
+
+WARNING: 定义的参数名必须与 JPQL 中的参数名相同，这里没有自动检查，需要开发者注意。
+
+参数值可以用以下两种方式传递：
+
+* 流程变量
+* 表达式
+
+[[loading-result]]
+=== 加载结果
+
+如需在流程中使用 JPQL 加载的结果，需要定义 *结果变量（Result variable）*。
+可以输入已有的结果变量或通过输入新的变量名创建一个新的结果变量。
+
+如果已有的结果变量类型与所需的类型不匹配，则会被覆盖。
+结果变量的类型由查询语句的结果类型确定。
+
+在 *Save result as* 中，还有两个选项，根据查询的结果可以选择：*Single element（单一元素）* 或 *Collection（集合）*。
+
+.*XML 表示*
+
+在 XML 中，加载实体数据任务是一个服务任务，但是使用自定义类型 `flowable:type`：
+
+[source,xml]
+----
+<serviceTask id="load-orders-task" name="Load orders"
+    flowable:type="jmix-load-entities-jpql"> <1>
+  <extensionElements>
+    <flowable:field name="jpql"> <2>
+      <flowable:string>select s from smpl_Order s where s.amount &gt; :amount1</flowable:string>
+    </flowable:field>
+    <flowable:field name="resultVariable">
+      <flowable:string>order</flowable:string> <3>
+    </flowable:field>
+    <flowable:field name="saveLoadResultAs">
+      <flowable:string>collection</flowable:string> <4>
+    </flowable:field>
+    <flowable:field name="jpqlParameters"> <5>
+      <flowable:string>[{"name":"amount1","valueType":"processVariable","value":"targetAmount"}]</flowable:string>
+    </flowable:field>
+  </extensionElements>
+</serviceTask>
+----
+<1> -- 声明加载数据任务
+<2> -- JPQL 查询语句
+<3> -- 结果变量名
+<4> -- 结果类型
+<5> -- JSON 格式的查询参数
+
+[[modifying-entities]]
+== 修改实体
+
+可以修改存储在已有流程变量中的实体。实体类型将自动检测，支持修改所有非系统属性。
+
+此外，还可以通过输入流程变量的名称来直接指定流程变量。
+当变量未显示在列表中时，可以用这个方法。例如，变量是在服务任务中以编程方式创建的，或者是另一个数据任务加载实体的结果。
+
+image::jmix-data-task/modify-data-task-properties.png[,463]
+
+[[specifying-attributes]]
+=== 指定属性
+
+属性值可以通过下列方法之一设置：
+
+* 直接在字段内输入值
+* 表达式
+* Spring bean
++
+[NOTE]
+====
+默认情况下禁用 Spring bean选项。如需使用，需要设置应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=spring-bean-enable]
+----
+====
+
+.*XML 表示*
+
+在 XML 中，修改实体数据任务是一个服务任务，但是使用自定义类型 `flowable:type`。
+修改实体的属性值通过 JSON 传入。
+
+[source,xml]
+----
+<serviceTask id="modify-order-task" name="Modify order"
+    flowable:type="jmix-modify-entity"> <1>
+  <extensionElements>
+    <flowable:field name="entityName">
+      <flowable:string>smpl_Order</flowable:string> <2>
+    </flowable:field>
+    <flowable:field name="processVariable">
+      <flowable:string>order</flowable:string> <3>
+    </flowable:field>
+    <flowable:field name="entityAttributes">
+      <flowable:string>[{"name":"approvalDate","valueType":"directValue"}]</flowable:string> <4>
+    </flowable:field>
+  </extensionElements>
+</serviceTask>
+----
+<1> -- 声明任务类型
+<2> -- 定义实体类
+<3> -- 定义结果变量
+<4> -- JSON 格式的实体属性
+
+
+[[creating-entities]]
+== 创建实体
+
+创建实体时，从列表中选择实体名称。*BPMN Inspector* 中可以指定所有的非系统属性。
+
+image::jmix-data-task/create-data-task-properties.png[,463]
+
+如果需要在之后的流程使用这个实体，请设置 *Result variable* 参数。
+
+.*XML 表示*
+
+在 XML 中，创建实体数据任务是一个服务任务，但是使用自定义类型 `flowable:type`。
+创建实体的属性值通过 JSON 传入。
+
+[source,xml]
+----
+<serviceTask id="create-order-task" name="Create order"
+    flowable:type="jmix-create-entity"> <1>
+  <extensionElements>
+    <flowable:field name="entityName">
+      <flowable:string>smpl_Order</flowable:string> <2>
+    </flowable:field>
+    <flowable:field name="resultVariable">
+      <flowable:string>order</flowable:string> <3>
+    </flowable:field>
+    <flowable:field name="entityAttributes">
+      <flowable:string>[{"name":"status","valueType":"directValue","value":"New"},{"name":"customer","valueType":"expression","value":"${customer}"}]</flowable:string> <4>
+    </flowable:field>
+  </extensionElements>
+</serviceTask>
+----
+<1> -- 声明任务类型
+<2> -- 定义实体类
+<3> -- 定义结果变量
+<4> -- JSON 格式的实体属性

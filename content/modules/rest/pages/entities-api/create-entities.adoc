@@ -1,0 +1,274 @@
+= 创建实体
+
+实体 API 支持通过 `/entities/:entityName` 接口的 `POST` 请求创建实体。
+
+[[create-entity]]
+== 创建单一实体
+
+请求体的 JSON 对象包含实体属性值。
+
+NOTE: 无需在请求中提供 xref:data-model:entities.adoc#traits[实体特性] 属性，例如 `id` 或 `createdBy`。Jmix 会在保存实体时自动添加这些属性。
+
+当实体成功创建时，HTTP 会返回状态码 `201 - Created`。默认情况下，会返回一个带有实体元数据的 JSON 对象，主要包含新建实体的 `id` 属性，以便将来使用。
+
+[source, http request]
+.创建 Customer
+----
+POST http://localhost:8080/rest/entities/sample_Customer
+
+{
+  name: "Randall Bishop"
+}
+----
+
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "_entityName": "sample_Customer",
+  "_instanceName": "Randall Bishop",
+  "id": "78e7996d-8b69-6526-8e9f-16262a1c4113"
+}
+----
+
+或者，通过 URL 参数 `responseFetchPlan` 可以指定在实体创建成功后返回的实体属性。
+
+例如，URL `/entities/sample_Order?responseFetchPlan=order-with-details` 请求，会返回 order 的完整信息包括 order lines、customer 引用等。
+
+TIP: HTTP 响应头的 `Location` 字段也会包含新创建实体实例的 URL，方便将来使用（例如，读取、更新、或删除）。
+
+[[entity-validation]]
+== 实体验证
+
+当新建或更新实体时，默认会启用常规实体验证机制。即，根据实体验证的注解，如果有非法的输入，则 API 会拒绝请求并返回状态码 `400 - Bad Request`。
+
+API 会以 JSON 数组的形式返回包含违反验证规则的详细错误信息。数组中每条记录有下列结构：
+
+message:: 经翻译后可读的错误信息
+messageTemplate:: 未经解析的错误信息
+path:: 导致验证错误发生的属性名（或属性路径）
+invalidValue:: 请求中导致验证错误属性的值
+
+
+下列请求中包含两个错误，第一，`customer` 为必需属性；第二，`date` 日期不能是将来时间。
+
+[source, http request]
+.非法 Order 请求
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "date": "2048-01-01",
+  "amount": 49.99,
+  "customer": null
+}
+----
+
+API 返回实体验证错误的信息列表：
+
+[source, json]
+.Response: 400 - Bad Request
+----
+[
+  {
+    "message": "jakarta.validation.constraints.PastOrPresent.message",
+    "messageTemplate": "{jakarta.validation.constraints.PastOrPresent.message}",
+    "path": "date",
+    "invalidValue": "2048-01-01"
+  },
+  {
+    "message": "may not be null",
+    "messageTemplate": "{jakarta.validation.constraints.NotNull.message}",
+    "path": "customer",
+    "invalidValue": null
+  }
+]
+----
+
+[[association-attributes]]
+== 关联属性
+
+当需要创建的实体与其他已有实体关联时，需要在请求中引用关联实体。
+
+在 Order 示例中，需要在创建 Order 的时候使用 `customer` 属性引用 Customer 实体。请提供一个包含已有实体 ID 的 JSON 对象。Jmix 会根据提供的 ID 查询 customer，然后将找到的实体与新的 Order 进行关联。
+
+[source, http request]
+.N:1 引用的请求
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08
+}
+----
+
+对于所有类型的关联关系：`1:N`、`N:1`、`M:N` 均可通过 ID 指定关联实体。
+
+第二个例子展示如何将一个 `Product` 通过 `M:N` 关系关联至多个 `ProductTag` 实体，Product 实体如下：
+
+[source,java]
+.Product.java
+----
+
+@JmixEntity
+@Table(name = "SAMPLE_PRODUCT")
+@Entity(name = "sample_Product")
+public class Product {
+
+    @JoinTable(name = "SAMPLE_PRODUCT_PRODUCT_TAG_LINK",
+            joinColumns = @JoinColumn(name = "PRODUCT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PRODUCT_TAG_ID"))
+    @ManyToMany
+    private List<ProductTag> tags;
+
+    // ...
+
+}
+----
+
+请求中，通过 ID 引用 `ProductTag` 实体。这里，由于需要引用多个 product tag，JSON 对象放在了一个数组中。
+
+[source, http request]
+.`M:N` 引用关系的请求
+----
+POST http://localhost:8080/rest/entities/sample_Product?responseFetchPlan=product-with-tags
+
+{
+  "name": "123",
+  "price": 99.95,
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695" // <1>
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502"
+    }
+  ]
+}
+----
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "id": "f0e04748-dcdf-d856-2482-2904f2126fcc",
+  "price": 99.95,
+  "name": "123",
+  "tags": [
+    {
+      "id": "333f3a20-c47b-4bc9-ba34-a72d2d815695", // <2>
+      "name": "shiny"
+    },
+    {
+      "id": "c4c028f0-fec1-7512-83cd-c17537d1f502",
+      "name": "great"
+    }
+  ]
+}
+----
+<1> 通过一组包含 ID 的 JSON 对象表示已有的 `ProductTag`。
+<2> 响应中也包含了关联的两个 `ProductTag` 实体。
+
+[[composition-attributes]]
+== 组合属性
+
+对于标记 `@Composition` 的属性，情况稍有不同。由于组合关系表示子实体只是作为父实体的部分存在，因此也可以直接在创建父实体的请求中创建子实体。
+
+下面示例中，`OrderLine` 是 `Order` 的子实体。通过 `Order` 实体 `lines` 属性的 `@Composition` 注解实现。
+
+[source, java]
+.Order.java
+----
+public class Order {
+    @JmixGeneratedValue
+    @Column(name = "ID", nullable = false)
+    @Id
+    private UUID id;
+
+    @Composition
+    @OneToMany(mappedBy = "order")
+    private List<OrderLine> lines;
+
+    // ...
+}
+----
+
+当用 API 创建 Order 时，也可以在同一个请求中创建其包含的 order lines。这里需要提供子实体的所有属性，并且无需额外提供父子实体之间的关联关系。将子实体放入 JSON 数组中即可。
+
+下列请求会创建一个 order 及其 order lines：
+
+[source, http request]
+.带有子实体的请求
+----
+POST http://localhost:8080/rest/entities/sample_Order
+
+{
+  "customer": {
+    "id": "f88597ff-009d-1cf2-4a90-a4fb5b08d835"
+  },
+  "date": "2021-03-01",
+  "amount": 130.08,
+  "lines": [ // <1>
+    {
+      "quantity": 2,
+      "product": {
+        "id": "7750adbe-6c30-cede-31a6-577a1a96aa83"  // <2>
+      }
+    },
+    {
+      "quantity": 1,
+      "product": {
+        "code": "1ed85c7a-89f1-c339-a738-16307ed6003a"
+      }
+    }
+  ]
+}
+----
+<1> Order lines 使用包含所有实体属性的 JSON 对象数组创建
+<2> 如果子实体需要有其他实体的引用（例如 `OrderLine` 和 `Product` 的 `N:1` 关系），一样可以使用 ID 引用的方式。
+
+[[bulk-creation]]
+== 批量创建
+
+实体创建 API 还支持在一个请求中创建多个实体。JSON 请求体需要包含每个实体 JSON 对象的数组。
+
+[source, http request]
+.批量创建请求
+----
+POST http://localhost:8080/rest
+            /entities
+            /sample_Customer
+
+[
+  {
+    "name": "Randall Bishop"
+  },
+  {
+    "name": "Sarah Doogle"
+  }
+]
+----
+
+[source, json]
+.Response: 201 - Created
+----
+[
+  {
+    "id": "c5fea05d-9062-6ac8-e9b1-7051616de102"
+  },
+  {
+    "id": "4a6a3aa0-ecf5-dcf4-7b37-a268a4cd3720"
+  }
+]
+----
+
+如果违反了任何实体验证约束，则所有实体都不会创建并返回错误消息。参阅 <<entity-validation, 实体验证>> 了解详情。
+
+////
+NOTE: All entities of the Bulk API are processed as part of one database transaction. This means if there is a validation violation in at least one of the entities, none of the entities will be created at all.
+////

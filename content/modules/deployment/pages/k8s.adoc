@@ -1,0 +1,183 @@
+= Kubernetes 集群
+
+本章节中，我们介绍如何将 Jmix 应用程序部署至 k8s 集群。我们使用由 https://minikube.sigs.k8s.io/[minikube^] 提供的单节点集群，你可以安装到开发机器上，本地测试部署。
+
+我们主要关注为了使应用程序能运行在 k8s 中，需要做什么配置。即使没有任何 k8s 的经验，也可以通过本指南将你的应用程序准备好部署至这样的环境。但是，如果是生产环境的部署，最好还是有一些技术基础。
+
+如需了解更多关于集群的内容，请参阅 xref:features:cluster-communication.adoc[] 章节。
+
+[[app-configuration]]
+== 配置应用程序
+
+[[build-image]]
+=== 镜像构建
+
+Spring Boot Gradle 插件提供 `bootBuildImage` 任务，可以构建应用程序并创建 Docker 镜像。如需指定镜像名称，在 `build.gradle` 文件添加下列内容：
+
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=bootBuildImage]
+----
+
+[[hazelcast-configuration]]
+=== Hazelcast 配置
+
+Jmix 框架的模块使用了多种缓存：JPA 实体和查询缓存、悲观锁、动态属性配置等。在集群环境运行时，Jmix 应用程序需要在集群节点之间协调缓存。
+
+所有 Jmix 的缓存都支持通过 https://docs.hazelcast.com/imdg/latest/index.html[Hazelcast^] 协调。本指南中，我们将使用 Hazelcast 的嵌入（embedded）模式，以及用于在 k8s 环境自动发现的 https://github.com/hazelcast/hazelcast-kubernetes[hazelcast-kubernetes^] 插件。
+
+按照下列步骤配置 Hazelcast，支持在 k8s 集群中协调缓存。
+
+. 在 `build.gradle` 添加 Hazelcast 依赖：
++
+[source,groovy,indent=0]
+----
+include::example$/ex1/build.gradle[tags=dependencies]
+----
+
+. 通过在 `application.properties` 文件添加下列属性指定使用 Hazelcast 作为 JCache provider：
++
+[source,properties,indent=0]
+----
+include::example$/ex1/src/main/resources/application.properties[tags=properties]
+----
+
+. 在 `resources` 根目录创建 `hazelcast.yaml` 文件：
++
+[source,yaml,indent=0]
+----
+include::example$/ex1/src/main/resources/hazelcast.yaml[]
+----
+
+`hazelcast.network.join.kubernetes.service-name` 属性必须指向定义在 <<app-service-config,应用程序服务配置文件>> 中的应用程序服务。
+
+注意，文件中 `hazelcast.network.join.kubernetes.enabled` 设置为 `false`。应用程序在无 k8s 的环境本地运行时，需要设置为 `false`。但是如果运行在 k8s 中，要求设置为 `true`，可以在应用程序服务配置文件中使用 `HZ_NETWORK_JOIN_KUBERNETES_ENABLED` 环境变量配置。
+
+[[k8s-config]]
+== 创建 Kubernetes 配置文件
+
+在项目根目录创建 `k8s` 文件夹，添加下列文件。
+
+[[db-service-config]]
+=== 数据库服务配置
+
+该文件定义名称为 `sample-db-service` 的 PostgreSQL 数据库服务。
+
+.k8s/db.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/db.yaml[]
+----
+
+[[app-service-config]]
+=== 应用程序服务配置
+
+该文件定义名称为 `sample-app-service` 的应用程序服务。使用 `mycompany/sample-app` Docker <<build-image,镜像>>。
+
+.k8s/app.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/app.yaml[]
+----
+
+[[load-balancer-config]]
+=== 负载均衡配置
+
+Jmix xref:flow-ui:index.adoc[] 要求单个用户的所有请求都发送至同一个服务端。因此，在多服务的集群环境，需要一个粘性会话的负载均衡器。下面是带 https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#session-affinity[session affinity^] 的 NGINX Ingress Controller 配置。
+
+.k8s/balancer.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/balancer.yaml[]
+----
+
+[[hazelcast-rbac-config]]
+=== Hazelcast 访问控制配置
+
+.k8s/hazelcast-rbac.yaml
+[source,yaml,indent=0]
+----
+include::example$/ex1/k8s/hazelcast-rbac.yaml[]
+----
+
+[[local-k8s]]
+== 设置本地 Kubernetes
+
+. 确保你的机器有 Docker 在运行。下面命令展示 Docker 版本：
++
+[source,shell script]
+----
+docker -v
+----
++
+如果命令失败，参阅 https://docs.docker.com/get-docker[Docker 文档^] 了解如何安装并运行 Docker。
+
+. 按照 https://minikube.sigs.k8s.io/docs/start[说明^] 安装 Minikube。
+
+. 运行 Minikube：
++
+[source,shell script]
+----
+minikube start --vm-driver=virtualbox
+----
+
+. 启用 Ingress Controller：
++
+[source,shell script]
+----
+minikube addons enable ingress
+----
+
+. 配置 k8s 命令行工具使用 Minikube：
++
+[source,shell script]
+----
+kubectl config use-context minikube
+----
+
+. 在浏览器打开 k8s 仪表板，在一个单独的终端运行：
++
+[source,shell script]
+----
+minikube dashboard
+----
+
+[[build-and-run-app]]
+== 构建运行应用程序
+
+. 构建 Docker 镜像：
++
+[source,shell script]
+----
+./gradlew -Pvaadin.productionMode=true bootBuildImage
+----
+
+. 加载镜像至 Minikube：
++
+[source,shell script]
+----
+minikube image load mycompany/sample-app:latest
+----
+
+. 应用 k8s <<k8s-config,配置文件>>：
++
+[source,shell script]
+----
+kubectl apply -f ./k8s
+----
+
+. 如需增加应用程序实例数量，使用下列命令：
++
+[source,shell script]
+----
+kubectl scale deployment sample-app --replicas=2
+----
+
+. 查找集群 IP 地址：
++
+[source,shell script]
+----
+minikube ip
+----
++
+使用这个地址在浏览器打开应用程序，示例：`++http://192.168.99.100++`

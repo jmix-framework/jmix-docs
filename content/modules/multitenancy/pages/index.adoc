@@ -1,0 +1,165 @@
+= 多租户
+
+该扩展组件支持构建多租户的 Jmix 应用程序，多个租户的数据都保存在单一数据库中。一个应用程序实例即可满足多个租户的需求，租户是指彼此隔离且只能访问特定（通常是只读）数据的用户组。
+
+在一个多租户的 Jmix 应用程序中，有两种类型的数据：
+
+* *通用数据*：
+** 应用程序中所有租户之间共享的数据。
+** 租户对这些通用数据具有只读访问权限，这些数据可全局访问，但不能由单个租户修改。
+
+* *租户特有的数据*：
+** 每个租户的特定数据，对其他租户不可见或无法访问。
+** 租户可以完全访问自己的租户特定数据，他们可以根据需要与这些数据进行交互或修改，而不会影响属于其他租户的数据。
+
+通过在 Jmix 应用程序中实现多租户，开发人员可以有效地管理和向多个客户或用户组提供服务，确保数据隔离、安全性和基于每个租户特定需求的个性化访问控制。这种方式优化了数据的结构和访问，同时维护了不同用户组的数据隐私和完整性。
+
+CAUTION: xref:rest:index.adoc[] 扩展组件不能支持多租户。目前还无法按租户分隔实体实例。
+
+[[installation]]
+== 安装
+
+按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的说明通过 Jmix 市场进行自动安装。
+
+手动安装，在 `build.gradle` 添加下列依赖：
+
+[source,groovy,indent=0]
+----
+include::example$/multitenancy-ex1/build.gradle[tags=dependency]
+----
+
+include::ROOT:single-menu-note.adoc[]
+
+[[how-it-works]]
+== 原理
+
+在项目中，特定于租户的实体应包含带 `@TenantId` 注解的 String 类型属性。当租户用户加载这些实体时，框架会将 tenant-id 的 `WHERE` 条件添加到 JPQL 查询语句中，仅读取用户租户的数据。此外，在保存新实体时，tenant-id 属性会自动分配给当前用户的租户。
+
+CAUTION: 原生 SQL 不会自动过滤，因此租户用户不应该有权限访问任何能提供对原生 SQL 或 Groovy 代码访问的功能（包括 xref:jmx-console:index.adoc[JMX 控制台]、创建 xref:reports:index.adoc[报表] 等）。
+
+在项目中，`User` 实体必须包含 tenant-id 属性。所有租户用户的这个属性都需要设置为一个特定的值。属性值为空的用户（不属于任何租户）可以看到所有租户的数据，__全局管理员__ 可以这样设置，方便配置所有租户和维护整个系统。
+
+== 支持多租户的扩展组件和模块
+
+以下扩展组件和模块在使用多租户时会正确存储租户信息并保证租户隔离。每个扩展组件旁边列出了包含 `sysTenantId` 属性的具体实体。
+
+* xref:audit:index.adoc[]: `EntityLogItem`。
+* xref:bpm:index.adoc[]: `ContentStorage`、`UserGroup`、`UserGroupRole`、`UserGroupUser`。
+* xref:email:index.adoc[]: `SendingMessage`、`SendingAttachment`。
+* xref:reports:index.adoc[]: `Report`、`ReportGroup`。
+* xref:security:index.adoc[安全子系统]（框架中内置）: `ResourceRoleEntity`、`RowLevelRoleEntity`。
+* 过滤器配置（框架中内置）: `FilterConfiguration`。
+
+评估自定义和社区扩展组件是否支持：
+
+* 查看扩展组件的文档中是否有提及 `sysTenantId` 或 `@TenantId`。
+* 检查其实体是否包含租户字段以及该字段的使用方式。
+
+[[managing-tenants]]
+== 租户管理
+
+该扩展组件提供了 *Multitenancy（多租户） -> Tenants（租户）* 界面，支持全局管理员创建和编辑租户。
+
+租户注册记录包含两个属性：
+
+* *Tenant id（租户 ID）* - 租户特定实体中使用的租户标识符。创建之后无法修改。
+* *Tenant name（租户名称）* - 租户的描述名称。
+
+image::tenants-view.png[align="center", width="1070"]
+
+[[tenant-users]]
+== 租户用户
+
+在多租户应用程序中，不同租户中的用户可以具有相同的登录名。如需确保 `username` 属性在整个应用程序中是唯一的，租户用户应使用包含 tenant-id 前缀的用户名进行注册。例如，如果在 `t1` 和 `t2` 两个租户中有两个名为 Alice 的不同用户，则其用户名应分别为 `t1|alice` 和 `t2|alice`。
+
+租户用户可以使用完整的用户名（包括 tenant-id，例如 `t1|alice`）来登录应用程序。
+
+租户用户可通过两种方式登录应用程序：
+
+. 第一种方法是在访问登录屏幕时使用包含 tenant-id 的 URL 参数，例如 `++http://localhost:8080/login?tenantId=t1++` 。此时，用户只需输入不带 tenant-id 前缀的登录名，例如 `alice`。
++
+可以使用 `jmix.multitenancy.tenantIdUrlParamName` 应用程序属性来设置 URL 参数的自定义名称。
+
+. 用户可以提供完整的用户名，包括 tenant-id，例如 `t1|alice`。
+
+NOTE: 除上述方法之外，还可以实现自定义的唯一用户名结构。
+
+[CAUTION]
+====
+*替代用户*
+
+某个租户中的用户只能被同一租户中的其他用户 xref:security:users.adoc#user-substitution[替代]。
+====
+
+[[configuring-users]]
+== 用户配置
+
+本节中，我们介绍在项目中配置用户管理和认证以支持多租户的流程。
+
+. 在 `User` 实体中添加一个属性，并使用 `@TenantId` 注解：
++
+[source,java,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/entity/User.java[tags=tenantId]
+----
+
+. 在 `user-list-view.xml` 中的数据网格添加 `tenant` 列：
++
+[source,xml,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/resources/com/company/demo/view/user/user-list-view.xml[tags=tenant]
+----
+
+. 在 `user-detail-view.xml` 中添加一个选择租户的字段：
++
+[source,xml,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/resources/com/company/demo/view/user/user-detail-view.xml[tags=tenant]
+----
+
+. 在 `UserDetailView` 类添加下列代码：
++
+[source,java,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/view/user/UserDetailView.java[tags=tenant]
+----
+
+. 如需 <<tenant-users,按照之前解释的>>，支持在各个租户之间使用相同的登录名，请在 `LoginView` 类中添加以下代码：
++
+[source,java,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/view/login/LoginView.java[tags=tenant]
+----
+<1> 使用 `com.vaadin.flow.router.Location` 对象处理当前 URL。
+
+[[configuring-security]]
+== 安全配置
+
+为租户用户设置角色时，请勿在实体属性策略中包含 tenant-id 属性，因为该属性需要对用户隐藏。例如，如果 `Customer` 属于租户特定实体，并且包含用 `@TenantId` 注解的 `tenant` 属性，则授予此实体访问权限的角色需要显式地指定包含的属性，且不要包含 `tenant` 属性：
+
+[source,java,indent=0]
+----
+include::example$/multitenancy-ex1/src/main/java/com/company/demo/security/UsersRole.java[tags=mt-1]
+----
+
+[[role-assignment]]
+=== 角色分配
+
+角色分配限制在同一租户内的用户之间。
+
+在管理界面中分配角色时，系统按如下方式强制实施租户隔离：
+
+. 在 *Application → Users* 视图中
++
+使用 *Application → Users* 中的 *Role assignment* 按钮时：
+
+* 仅显示与所选用户属于同一租户的角色。
+* 其他租户的角色会被自动过滤并隐藏。
+
+. 在 *Security → Resource Roles* / *Security → Row-level Roles* 视图中
++
+使用 *Security → Resource roles* 或 *Security → Row-level roles* 中的 *Assign to users* 按钮时：
+
+* 选择对话框中会显示所有租户的用户。
+* 但是，如果选择了来自不同租户的用户，系统会组织确认选择。
+* 当尝试跨租户分配角色时，会显示警告通知。

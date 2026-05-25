@@ -1,0 +1,1319 @@
+= 事件
+
+在 BPMN 中，术语“event”（事件）有两种含义。它既指一个可视化元素（通常是一个圆形），也指实际发生的事情。两者之间的联系通过 <<event-subscriptions,事件订阅>> 来实现。
+
+== 事件元素类型
+
+流程中的事件根据其位置分类：*start*（启动）、*intermediate*（中间）或 *end*（结束）。
+
+事件根据其触发类型进行分类，例如 *message*（消息）、*timer*（定时器）或 *error*（错误）。
+
+事件可以是 *catching*（捕获型）或 *throwing*（抛出型）。捕获型事件等待某件事情发生。抛出型事件自身触发，而不是对触发做出反应。每个启动事件都是捕获型事件，每个结束事件都是抛出型事件。
+
+大多数事件可以附加到任务、子流程或调用活动上，这类事件称为 *boundary*（边界）事件。当活动正在运行时，该事件会监听指定类型的触发。边界事件始终是 *catching*（捕获型）。
+
+事件可以是 *interrupting*（中断型）和 *non-interrupting*（非中断型）。中断型事件会停止当前流程或活动，并将其转向替代路径，而非中断型事件则让流程继续运行，同时也触发事件。
+
+这些分类总结如下：
+
+[cols="6*.^", options=header]
+|===
+|名称
+|开始
+|中间捕获
+|中间抛出
+|边界
+|结束
+|xref:bpmn/bpmn-events.adoc#none-events[空]
+|image:bpmn-events/elements/none-start.png[,42]
+|
+|image:bpmn-events/elements/none-intermediate-throwing.png[,42]
+|
+|image:bpmn-events/elements/none-end.png[,42]
+|xref:bpmn/bpmn-events.adoc#message-events[消息]
+|image:bpmn-events/elements/message-start.png[,42]
+|image:bpmn-events/elements/message-intermediate-catching.png[,42]
+|
+|image:bpmn-events/elements/message-boundary.png[,105]
+|
+|xref:bpmn/bpmn-events.adoc#timer-events[定时器]
+|image:bpmn-events/elements/timer-start.png[,42]
+|image:bpmn-events/elements/timer-intermediate-catching.png[,42]
+|
+|image:bpmn-events/elements/timer-boundary.png[,105]
+|
+|xref:bpmn/bpmn-events.adoc#error-events[错误]
+|image:bpmn-events/elements/error-start.png[,42]
+|
+|
+|image:bpmn-events/elements/error-boundary.png[,105]
+|image:bpmn-events/elements/error-end.png[,42]
+|xref:bpmn/bpmn-events.adoc#cancel-events[取消]
+|
+|
+|
+|
+|image:bpmn-events/elements/cancel-end.png[,42]
+|xref:bpmn/bpmn-events.adoc#compensation-events[补偿]
+|image:bpmn-events/elements/compensation-start.png[,42]
+|
+|image:bpmn-events/elements/compensation-intermediate-throwing.png[,42]
+|image:bpmn-events/elements/compensation-boundary.png[,105]
+|
+|xref:bpmn/bpmn-events.adoc#signal-events[信号]
+|image:bpmn-events/elements/signal-none.png[,42]
+|image:bpmn-events/elements/signal-intermediate-catching.png[,42]
+|image:bpmn-events/elements/signal-intermediate-throwing.png[,42]
+|image:bpmn-events/elements/signal-boundary.png[,105]
+|
+|xref:bpmn/bpmn-events.adoc#terminate-end-event[终止]
+|
+|
+|
+|
+|image:bpmn-events/elements/terminate-end.png[,42]
+|===
+
+NOTE: Jmix BPM 并非支持所有的 BPMN 2.0 的事件。参考 <<workarounds>> 部分了解如何实现类似功能。
+
+[[event-subscriptions]]
+== 事件订阅
+
+事件订阅是一种机制，将作为流程元素的事件与其具体发生的情况连接起来。本质上，当一个流程具有事件订阅时，也就意味着当该事件发生时流程需要做出反应。
+
+事件订阅可以在部署期间或运行时创建，具体取决于事件类型：
+
+* *Start events*（启动事件）— 一个基于事件的启动事件（消息、定时器、错误、补偿、信号）会在流程定义部署时创建事件订阅。当相应事件发生时，会启动一个新的流程实例。
+* *Intermediate events / boundary events*（中间事件 / 边界事件）— 当流程执行到达这些捕获型事件之一时，会暂停并创建一个订阅。当相应事件发生时（例如收到消息或定时器到期），流程引擎会检查激活的订阅列表并找出匹配项。一旦找到匹配项，即恢复流程的执行。
+
+为了帮助识别需要启动的流程实例或需要恢复的流程执行，事件订阅配置了 *correlation parameters*（关联参数）。所有订阅及其参数都存储在 `ACT_RU_EVENT_SUBSCR` 数据库表中。
+
+=== 事件订阅 API
+
+==== 创建事件订阅
+
+可以编程式创建事件订阅。例如，可以通过发送消息启动一个流程实例：
+
+[source,java]
+----
+// 用消息启动流程
+ProcessInstance processInstance = runtimeService.startProcessInstanceByMessage("orderPlaced", processVariables);
+----
+
+==== 查询事件订阅
+
+可以查询已有的事件订阅，以查看哪些流程正在等待特定的事件。例如：
+
+[source,java]
+----
+List<EventSubscription> messageSubscriptions = runtimeService.createEventSubscriptionQuery()
+    .eventType("message")
+    .list();
+----
+
+==== 获取事件订阅
+
+通过 `RuntimeService` 可以获取订阅的列表。
+例如，获取信号订阅：
+
+[source,java]
+----
+// 查询所有的信号事件订阅
+List<EventSubscription> signalSubscriptions = runtimeService.createEventSubscriptionQuery()
+    .eventType("signal")
+    .list();
+----
+
+如需获取其他类型的事件，可以用 `"message"`、`"error"` 或 `"compensate"` 参数值。
+
+对于定时器，需要使用 `ManagementService`：
+
+[source,java]
+----
+List<Job> timerJobs = managementService.createTimerJobQuery().list();
+----
+
+==== 触发事件订阅
+
+可以在相应事件发生时以触发事件订阅。例如，要触发消息事件：
+
+[source,java]
+----
+runtimeService.messageEventReceived("orderPlaced", executionId, processVariables);
+----
+
+==== 删除事件订阅
+
+如果不再需要事件订阅，可以将其删除。例如，要删除特定事件订阅：
+
+[source,java]
+----
+runtimeService.createEventSubscriptionQuery()
+    .eventType("message")
+    .processInstanceId(processInstanceId)
+    .singleResult();
+----
+
+==== 通过监听器处理事件
+
+参阅 xref:bpm:listeners.adoc[] 部分。
+
+
+[[none-events]]
+== 空事件
+
+空（None）事件是未指定的事件。
+
+[[none-start-event]]
+=== 空启动事件
+
+从技术上讲，空启动事件表示未指定用于启动该流程实例的触发器。
+
+.*图形表示法*
+
+空启动事件通过没有内部图标（即，没有触发类型）的圆圈表示。
+
+image::bpmn-events/none-start-event.png[,150]
+
+.*属性*
+
+空启动事件用两个特殊的属性：
+
+* *表单（Form）* -- 定义手动启动流程时展示的 UI。参考 xref:forms.adoc[流程表单] 部分。
+* *流程变量（Process variables）* -- 提供通过 API 启动流程的参数信息。
+
+.*XML 表示*
+
+空启动事件的 XML 表示形式是一个常规的启动事件声明，但没有任何子元素。
+（其他启动事件类型都有一个声明类型的子元素）。
+
+[source,xml]
+----
+<startEvent id="startEvent1" name="Start"> <1>
+  <extensionElements>
+    <jmix:processVariables>
+      <jmix:processVariable name="invoiceId" type="string" /> <2>
+    </jmix:processVariables>
+    <jmix:formData type="no-form" /> <3>
+  </extensionElements>
+  <outgoing>Flow_0h77bcd</outgoing>
+</startEvent>
+----
+<1> -- 启动事件的定义
+<2> -- 流程变量
+<3> -- 这里可以是一个表单的定义
+
+[[multiple-start-events]]
+.*多个启动事件*
+
+尽管 BPMN 允许使用多个启动事件，但技术上说，流程只能有一个 _none_ 启动事件。否则会在部署时导致错误。
+不要使用多个 _none_ 启动事件，如下图所示：
+
+image::bpmn-events/multiple-start-none.png[,280]
+
+然而，可以使用多个其他类型的启动事件：
+
+image::bpmn-events/multiple-start-events-good.png[,300]
+
+只要消息（或信号）不同，就可以使用多个消息（或信号）启动事件。
+
+
+.*事件子流程的启动事件*
+
+事件子流程可以具有中断型或非中断型的启动事件。
+
+* *Interrupting* —— 当事件子流程结束时，主流程将被终止。
+* *Non-interrupting* —— 事件子流程并行执行并结束，
+主流程继续执行。
+
+image::bpmn-events/interrupting-non-events-subprocess.png[,500]
+
+上图中，第一个子流程在时间结束时中断主流程。
+第二个子流程执行一个服务任务并结束，不影响主流程。
+
+
+[[triggering-start-event]]
+==== API 触发空启动事件
+
+当通过 API 调用名称类似 `startProcessInstanceByXXX` 的方法之一启动流程实例时，将使用空启动事件。
+
+例如：
+[source, java]
+----
+ProcessInstance processInstance = runtimeService
+        .startProcessInstanceByKey("process-id");
+----
+
+[WARNING]
+====
+Flowable API 使用术语 '_process definition key_' ，相当于 *Jmix Studio* 中的 '_process id_'。
+====
+
+请参阅 xref:flowable-api.adoc[] 部分。
+
+
+[[intermediate-none-event]]
+=== 中间空事件
+
+*中间空事件（Intermediate none events）* 可用于表示流程中达到的某些状态。
+引擎本身在事件中不做任何事情，只是穿过该事件继续行进。
+
+.*图形表示法*
+中间空事件在图中展示为双线且没有内部图标（即，没有触发器类型）的圆圈。
+
+image::bpmn-events/intermediate-none-event.png[,80]
+
+.*属性*
+
+中间空事件无特定属性
+
+.*XML 表示*
+
+中间空事件的 XML 是使用 `intermediateThrowEvent` 定义的事件声明，没有任何子元素。
+
+[source,xml]
+----
+  <intermediateThrowEvent id="IntermediateEvent" />
+----
+
+[[intermrdiate-event-example]]
+==== 示例
+*中间空事件* 可用于监控并理解流程的运行情况，
+例如，作为里程碑或关键绩效指标（KPI）。
+
+image::bpmn-events/none-intermediate-event-example.png[,600]
+
+[[none-end-event]]
+=== 空结束事件
+
+*空结束事件（none end event）* 是一种结束事件，表示流程完成，但没有任何特定输出或结果。
+不会触发流程中的任何后续活动或流。
+
+.*图形表示法*
+空结束事件在图中展示为粗线且没有内部图标的圆圈。
+
+image::bpmn-events/none-end-event.png[,100]
+
+.*属性*
+
+空结束事件无特定属性
+
+.*XML 表示*
+
+[source,xml]
+----
+    <endEvent id="end-event" name="End">
+      <incoming>Flow_0qwib28</incoming>
+    </endEvent>
+----
+
+[[multiple-end-events]]
+.*多个结束事件*
+
+正式来说，结束事件并非必要。流程可以在没有后续活动的时候结束。
+但是最好通过结束事件完成流程的每条路径。
+
+image::bpmn-events/end-event-not-mandatory.png[,250]
+
+不要尝试将所有的分支都引导至同一个结束事件 - 这样只会让图表更混乱。
+
+image::bpmn-events/end-events-examples.png[,500]
+
+多个结束事件更有助于分析流程是如何结束的。
+
+image::bpmn-events/multiple-end-events.png[,600]
+
+[[timer-events]]
+== 定时器事件
+
+BPMN 中的定时器事件是根据预定义的时间点或持续时长触发的事件。
+定时器事件可以指定某些活动何时执行，以控制流程的走向。
+
+定时器也可以作为边界事件，既可以是中断的，也可以是非中断的。
+
+image::bpmn-events/timer-events-example.png[,500]
+
+[[timer-start-event]]
+=== 定时器启动事件
+*定时器启动事件* 用来在特定时间创建流程实例。
+可用于仅启动一次或按特定时间间隔启动的流程。
+
+[NOTE]
+====
+xref:bpmn/bpmn-subprocesses.adoc#embedded-subprocess[嵌入式子流程] 不能有定时器启动事件，
+但是 xref:bpmn/bpmn-subprocesses.adoc#event-subprocess[事件子流程] 可以有。
+====
+
+.*图形表示法*
+
+定时器启动事件在图中展示为内部有时钟图标的圆圈。
+
+image::bpmn-events/timer-start-event.png[,80]
+
+.*属性*
+
+定时器启动事件有一个 _Timer_ 属性，用于定义其类型和表达式。
+参阅 xref:timer-types[定时器类型]。
+
+.*XML 表示*
+
+定时器启动事件的 XML 是一个常规的启动事件声明，带有定义定时器的子元素。
+
+[source, xml]
+----
+<startEvent id="theStart">
+  <timerEventDefinition> <1>
+        . . . <2>
+  </timerEventDefinition>
+</startEvent>
+----
+<1> 定时器事件定义
+<2> 定义子元素
+
+[[using-timer-start-event]]
+==== 使用定时器启动事件
+
+在此示例中，主流程由定时器事件启动。
+它有两个事件子流程，也是由定时器启动。
+第一个是非中断的，可以在流程启动后的某个时刻完成一些活动。
+第二个事件子流程有一个可中断的定时器，当这个定时器事件触发时，主流程将停止。
+
+image::bpmn-events/timer-start-event-example.png[,500]
+
+WARNING: 不要在带定时器启动事件的流程中使用 `initiator` 变量，否则会导致执行错误。
+除非通过编程方式定义和设置值。
+
+[[timer-intermediate-event]]
+=== 定时器中间事件
+
+一个 *timer intermediate event（定时器中间事件）* 会暂停流程的执行。当流程执行到这个事件时，定时器会启动。一旦定时器结束，流程继续。
+
+定时器中间事件是一个 xref:bpm:bpmn/transactions.adoc#waiting-states[等待状态]。
+
+.*图形表示法*
+定时器中间事件在图中展示为中间捕获事件，内部有一个定时器图标。
+
+image::bpmn-events/timer-untermediate-catch-event.png[,200]
+
+.*属性*
+
+定时器中间事件有一个 _Timer_ 属性，定义其类型和表达式。
+参阅 xref:timer-types[定时器类型]。
+
+.*XML 表示*
+定时器中间事件的 XML 定义是中间捕获事件。
+此时，其表示类型的子元素是 `timerEventDefinition`。
+
+[source,xml]
+----
+<intermediateCatchEvent id="timer">
+  <timerEventDefinition>
+    <timeDuration>PT8H</timeDuration> <1>
+  </timerEventDefinition>
+</intermediateCatchEvent>
+----
+<1> xref:bpmn/bpmn-events.adoc#timer-types[定时器类型]，例如 `duration`。
+
+[[timer-types]]
+=== 定时器类型
+
+有以下三种定时器：
+
+* *Duration* – 在指定的时长之后触发
+* *Cycle* – 根据 _Cron 表达式_ 周期触发。
+* *Date* – 在指定的日期触发；如果指定的日期是以前的日期，则忽略该事件。
+
+NOTE: 对于启动定时器事件，时长是从流程部署到服务器的那一刻就开始计算。
+
+[[setting-time]]
+=== 配置时间
+
+设置定时器的时间参数有两种方式：使用 ISO 8601 格式的字符串或 Cron 表达式。
+
+[[standard-iso-8601]]
+==== ISO 8601
+
+https://www.iso.org/iso-8601-date-and-time-format.html[ISO 8601] 是日期时间和时间间隔的国际标准。示例：
+
+* 2035-06-17T07:42:14:: -- 日期时间：2035 年 6 月 17 日，7 时 42 分 14 秒
+* 2050:01:01:: -- 日期时间：2050 年 1 月 1 日，0 时 0 分 0 秒
+* PT30D:: -- 时长，30 天
+* PT10M:: -- 时长，10 分
+* P3Y6M4DT12H30M5S:: -- 时长，3 年 6 个月 4 天 12 小时 30 分钟 5 秒
+* R3PT10H:: -- 周期，每 10 小时重复 3 次
+
+WARNING: 不要使用小于 3 秒的短时长。BPM 不是一个实时系统。
+
+[[cron-expressions]]
+==== Cron 表达式
+
+Cron 是在类 Unix 操作系统中使用的一种基于时间的作业调度系统。支持用户在特定时间、日期或间隔运行计划任务或命令。“cron” 一词来自 “chronos”，在希腊语中是时间的意思。
+
+可以使用 cron 表达式指定时间周期；例如，下面的示例表示从整点开始，每 5 分钟触发一次：
+
+ 0 0/5 * * * ?
+
+WARNING: 在 *定时器中间事件* 中，Cron 表达式只能用于 _周期性_ 的事件类型。
+否则在部署流程时会出错。
+
+[[message-events]]
+== 消息事件
+
+消息事件是关联一个消息定义的事件。
+用于对业务流程的不同部分之间或不同流程之间的通信进行建模。
+
+
+有下列消息事件类型：
+
+* xref:bpmn/bpmn-events.adoc#message-start-event[消息启动事件]
+* xref:bpmn/bpmn-events.adoc#message-intermediate-catching-event[消息中间捕获事件]
+* 消息边界捕获事件
+
+NOTE: *Jmix BPM* 不支持消息抛出事件。
+参阅 xref:bpmn/bpmn-events.adoc#message-throwing-event-workaround[替代方案]。
+
+image::bpmn-events/message-events-types.png[,350]
+
+
+[[message-start-event]]
+=== 消息启动事件
+
+*消息启动事件（message start event）* 可使用命名消息启动流程实例。
+
+.*图形表示法*
+
+消息启动事件在图中显示为带有消息事件符号的圆圈。
+如果符号未填充，则表示捕获 （接收） 行为。
+
+image::bpmn-events/message-start-event.png[,150]
+
+.*属性*
+
+消息启动事件必须指定其关联的消息。否则流程部署会出错。
+
+.*XML 表示*
+
+消息启动事件的 XML 表示是带有 `messageEventDefinition` 子元素的普通启动事件：
+
+[source,xml]
+----
+    <startEvent id="Message_start_event>
+      <messageEventDefinition id="MessageEventDefinition_invoice"
+            messageRef="new-invoice-message" /> <1>
+    </startEvent>
+----
+<1> 指向消息定义。
+
+[[using-message-start-event]]
+==== 使用消息启动事件
+
+一个流程可以有一个或多个消息启动事件，但是必须是不同的消息。
+
+流程部署后，引擎会为每个消息启动事件创建一条消息 xref:bpmn/bpmn-events.adoc#event-subscriptions[订阅]。
+任何该流程老版本的订阅都将关闭。
+
+[WARNING]
+====
+消息启动事件的名称在所有已部署的流程定义中必须唯一。
+如果一个流程定义包含一个或多个消息启动事件，
+事件中引用了已部署的其他流程定义使用的同名启动消息，
+流程引擎在部署时会抛出异常。
+====
+
+
+==== 编程式触发消息启动事件
+
+启动流程实例时，消息启动事件可以通过 _RuntimeService_ 的 `startProcessInstanceByMessage` 方法触发。
+
+在 API 调用时，需要使用消息的 _name_ 作为参数，而非 _id_。例如，我们有如下消息定义：
+
+[source,xml]
+----
+<message id="green" name="Green" />
+----
+
+那么 API 方法可以这样调用：
+
+[source,java]
+----
+runtimeService.startProcessInstanceByMessage("Green");
+----
+
+NOTE: 嵌入式子流程不支持消息启动事件
+
+[[message-intermediate-catching-event]]
+=== 消息中间捕获事件
+
+*消息中间捕获事件（intermediate catching message event）* 使用特定的名称捕获消息。
+
+.*图形表示法*
+
+中间捕获消息事件在图中展示为典型的中间事件（双线的圆圈），内部有消息图标。消息图标未填充表示“捕获”。
+
+image::bpmn-events/message-catch-event.png[,80]
+
+
+.*属性*
+
+该元素必须指定其关联的消息。否则流程部署会出错。
+
+.*XML 表示*
+
+消息中间事件在 XML 中定义为中间捕获事件。
+此时，其表示类型的子元素是 `messageEventDefinition`。
+
+[source,xml]
+----
+<intermediateCatchEvent id="catch-message-event"
+    name="Catch message">
+  <messageEventDefinition id="MessageEventDefinition_16bx9rl"
+    messageRef="message-one" />
+</intermediateCatchEvent>
+----
+
+当流程进入中间消息捕获事件时，将创建相应的消息订阅。
+流程实例会在这里停止并等待，直到收到消息。
+之后，捕获事件完成，流程继续执行。
+
+消息中间捕获事件是一个 xref:bpmn/transactions.adoc#waiting-states[等待状态]。
+在下面的示例中，刘成刚将在 `Activity 1` 完成后等待消息，在收到消息后执行 `Activity 2`。
+
+image::bpmn-events/message-intermediate-example.png[,400]
+
+[[boundary-message-events]]
+==== 边界消息事件
+
+活动边界上依附的中间捕获消息，或简称 *边界消息事件（boundary message event）*，
+捕获与引用的消息定义同名的消息。
+
+.*图形表示法*
+
+边界消息事件可以是可中断的（实双线）或不可中断的（虚双线）。
+
+image::bpmn-events/boundary-message-event.png[,150]
+
+.*属性*
+
+该元素必须指定其关联的消息。否则流程部署会出错。
+
+.*XML 表示*
+
+边界事件在 XML 中做为依附的父活动的子元素。消息事件必须具有 `messageRef` 属性，引用已有消息定义。
+
+非可中断消息事件具有属性 `cancelActivity`=`false`。
+
+[source,xml]
+----
+<task id="Activity_task" name="Task" /> <1>
+<boundaryEvent id="interruptible-message-event" name="Message 1" <2>
+    attachedToRef="Activity_task">
+  <messageEventDefinition id="MessageEventDefinition_1"
+    messageRef="messageOne" />
+</boundaryEvent>
+<boundaryEvent id="non-interruptible-message-event" name="Message 2" <3>
+    cancelActivity="false"
+    attachedToRef="Activity_task">
+  <messageEventDefinition id="MessageEventDefinition_2" messageRef="messageTwo" />
+</boundaryEvent>
+----
+<1> 消息事件依附的任务。
+<2> 可中断的消息事件。
+<3> 不可中断的消息事件。
+
+[[using-boundary-message-event]]
+==== 使用边界消息事件
+
+消息事件可作为边界事件使用，既可中断，也可以是非中断：
+
+image::bpmn-events/message-boundary-events.png[,300]
+
+活动可以有多个边界消息事件。
+
+[[signal-events]]
+== 信号事件
+
+信号事件是关联流程中定义的 xref:bpmn/bpmn-process.adoc#signal-definition[信号] 的事件。当信号发出时，会激活所有与该信号关联的信号事件。信号具有范围，可以是 _Global（全局）_ 或 _Process instance（仅流程实例）_。
+
+image::bpmn-events/signal-events.png[,400]
+
+*Jmix BPM* 中有下列信号事件：
+
+* xref:bpmn/bpmn-events.adoc#signal-start-event[信号启动事件]
+* xref:bpmn/bpmn-events.adoc#signal-intermediate-catching-event[信号中间捕获事件]
+* xref:bpmn/bpmn-events.adoc#signal-intermediate-throwing-event[信号中间抛出事件]
+
+[NOTE]
+====
+不支持信号结束事件。请使用 xref:bpmn/bpmn-events.adoc#signal-throwing-end-event-workaround[workaround]。
+====
+
+[[signal-start-event]]
+=== 信号启动事件
+
+*信号启动事件（signal start event）* 可以使用一个命名的 xref:bpmn/bpmn-process.adoc#signal-definition[信号定义] 启动流程实例。
+流程可以有一个或多个信号启动事件，但信号定义必须不同。
+
+.*图形表示法*
+
+信号启动事件在图中显示为带有信号事件符号的圆圈。如果符号未填充，则表示捕获 （接收） 行为。
+
+image::bpmn-events/signal-start-event.png[,150]
+
+.*属性*
+
+元素必须指定其关联的信号。否则会导致部署错误。
+
+.*XML 表示*
+
+信号启动事件的 XML 表示是带有 `signalEventDefinition` 子元素的普通启动事件：
+
+[source,xml]
+----
+    <startEvent id="signal-start-event" name="Start">
+      <signalEventDefinition id="SignalEventDefinition_00paqo6" <1>
+        signalRef="signal-one" /> <2>
+      <outgoing>Flow_0h77bcd</outgoing>
+    </startEvent>
+----
+<1> 事件声明
+<2> 关联的信号定义
+
+[[using-signal-start-event]]
+==== 使用信号启动事件
+
+流程部署后，引擎会为每个信号启动事件创建一条信号 xref:bpm:bpmn/bpmn-events.adoc#event-subscriptions[订阅]。
+任何该流程老版本的订阅都将关闭。
+
+允许多个流程定义的信号启动事件引用同一信号。
+当信号触发时，将激活所有的订阅并启动流程。
+
+流程实例内可以使用 _intermediate signal throw event_ 触发信号，或者通过 API `signalEventReceived` 触发。
+
+在 API 调用中，请使用信号的 _name_，而不是 _id_。例如，我们有这样的信号定义：
+
+[source,xml]
+----
+<signal id="ready" name="Ready" flowable:scope="global" />
+----
+
+那么 API 方法可以这样调用：
+
+[source,java]
+----
+runtimeService.signalEventReceived("Ready");
+----
+
+[NOTE]
+====
+嵌入式子流程不支持信号启动事件。
+====
+
+
+[[signal-intermediate-catching-event]]
+=== 信号中间捕获事件
+
+*信号中间捕获事件（Signal intermediate catching event）* 捕捉
+xref:bpmn/bpmn-events.adoc#event-subscriptions[订阅] 的同名信号。
+信号中间捕获事件是一个 xref:bpm:bpmn/transactions.adoc#waiting-states[等待状态]。
+
+.*图形表示法*
+
+信号中间捕获事件在图中展示为典型的中间事件（双线的圆圈），内部有信号图标。
+图标未填充表示“捕获”。
+
+image::bpmn-events/signal-intermediate-catching-event.png[,200]
+
+.*属性*
+
+元素必须指定其关联的信号。否则会导致部署错误。
+
+.*XML 表示*
+
+[source,xml]
+----
+<intermediateCatchEvent id="signal-catch-event" name="Catch signal">
+      <incoming>Flow_0qwib28</incoming>
+      <outgoing>Flow_1itm8do</outgoing>
+      <signalEventDefinition id="SignalEventDefinition_1" <1>
+        signalRef="signal-one" /> <2>
+    </intermediateCatchEvent>
+----
+<1> -- 信号事件声明
+<2> -- 引用信号定义
+
+[[using-signal-catch-event]]
+==== 使用信号捕捉事件
+
+与其他事件（如错误事件）相反，信号捕获了之后不会消费。
+如果有两个活动信号边界事件捕获同一个信号事件，则两个边界事件都会触发，
+即使位于不同流程实例。
+
+
+[[signal-intermediate-throwing-event]]
+=== 信号中间抛出事件
+
+*信号中间抛出事件（intermediate throwing signal event）* 会抛出一个信号事件。
+抛出的信号会广播至所有的捕获信号事件，包括启动和中间信号
+xref:bpmn/bpmn-events.adoc#event-subscriptions[订阅]。
+
+.*图形表示法*
+
+信号中间抛出事件在图中展示为典型的中间事件（双线的圆圈），
+内部有信号图标。
+图标已填充表示“抛出”。
+
+image::bpmn-events/signal-throwing-event.png[,200]
+
+.*属性*
+
+元素必须指定其关联的信号。否则会导致部署错误。
+
+[[signal-publication-node]]
+==== 信号发布模式
+
+信号可以同步或异步发布。
+
+* 在默认配置中，信号是同步传递的。
+抛出的流程实例会等待，直到信号发布至所有的捕获流程实例。
+捕获流程实例也会在与抛出流程实例相同的事务中得到通知。
+也就是说，如果其中一个通知的实例产生技术错误（抛出异常），
+所有涉及的实例都会失败。
+
+* 信号也可以异步传递。
+此时，当抛出信号到达时，才确定哪些处理程序处于活动状态。
+对于每个活动处理程序，异步通知消息作业（Job）由 `JobExecutor` 存储和传递。
+
+.*XML 表示*
+
+信号中间事件在 XML 中定义为中间抛出事件。
+这里需要使用 `signalEventDefinition` 子元素。
+
+[source,xml]
+----
+<intermediateThrowEvent id="Event_sync">
+  <signalEventDefinition id="SignalEventDefinition_14tnjbf"
+    signalRef="my-signal" /> <1>
+</intermediateThrowEvent>
+
+
+<intermediateThrowEvent id="Event_async">
+  <signalEventDefinition id="SignalEventDefinition_14tnjbf"
+    signalRef="my-signal" flowable:async="true" /> <2>
+</intermediateThrowEvent>
+----
+<1> 省略了属性 `async`，默认为 `false`，信号同步发布。
+<2> 信号异步发布。
+
+[[error-events]]
+== 错误事件
+BPMN 中的错误事件通常用于对流程执行过程中可能出现的异常或错误情况进行建模。
+可以依附于 BPMN 图中的活动或子流程，定义应如何处理依附对象的错误。
+例如，通过触发错误处理方法，可以记录错误或通知相关参与者。
+
+错误事件有以下类型：
+
+* xref:bpmn/bpmn-events.adoc#error-start-event[错误启动事件]（仅适用于事件子流程）
+* xref:bpmn/bpmn-events.adoc#error-boundary-event[错误边界事件]
+* xref:bpm:bpmn/bpmn-events.adoc#error-end-event[错误结束事件]
+
+[[error-start-event]]
+=== 错误启动事件
+
+*错误启动事件（error start event）* 可用于触发 xref:bpmn/bpmn-subprocesses.adoc#event-subprocess[事件子流程]。
+不能用于启动流程实例。错误启动事件是中断的（类型）。
+
+.*图形表示法*
+
+错误启动事件在图中展示为带有错误事件符号的圆圈。如果符号未填充，则表示捕获 （接收） 行为。
+
+image::bpmn-events/error-start-event.png[,140]
+
+.*属性*
+
+元素必须指定其关联的错误。如果没设置，则发生的每个错误事件都可以启动子流程。
+
+.*XML 表示*
+
+错误启动事件的 XML 表示是带有 `errorEventDefinition` 子元素的常规启动事件声明：
+
+[source,xml]
+----
+  <startEvent id="error-event" name="Error">
+    <errorEventDefinition id="ErrorEventDefinition_1" <1>
+        errorRef="failure" /> <2>
+  </startEvent>
+----
+<1> 错误事件声明
+<2> 设置错误定义。
+
+==== 示例
+
+在下面示例中，第一个任务以编程方式生成 BPMN 错误。
+此时，事件子流程会启动，完成后，主流程将终止。
+
+image::bpmn-events/error-start-event-example.png[,500]
+
+
+[[error-boundary-event]]
+=== 错误边界事件
+
+*错误边界事件（error boundary event）* 可以捕获在依附的活动范围内抛出的错误。
+
+.*图形表示法*
+
+错误边界事件在图中显示为边界上的中间事件（双线的圆圈），
+内部有错误图标。
+错误图标未填充以表示“捕获”（型）。
+
+image::bpmn-events/error-boundary-event.png[,180]
+
+.*属性*
+
+元素必须指定其关联的错误。如果没设置，则发生的每个错误事件都可以启动子流程。
+
+.*XML 表示*
+
+[source,xml]
+----
+<serviceTask id="Activity_1" name="Check error"
+. . .
+</serviceTask>
+<boundaryEvent id="error-boundary-event" name="Error"
+    attachedToRef="Activity_1">
+  <errorEventDefinition id="ErrorEventDefinition_1"
+    errorRef="failure" />
+</boundaryEvent>
+----
+
+[[error-end-event]]
+=== 错误结束事件
+
+当流程执行到 *错误结束事件（error end event）* 时，当前流程路径将结束并抛出错误。
+
+.*图形表示法*
+
+错误结束事件在图中显示为典型的结束事件（粗线的圆圈），内部有错误图标。
+错误图标已填充表示“抛出”。
+
+image::bpmn-events/error-end-event.png[,150]
+
+.*属性*
+
+元素必须指定其关联的错误。如果没设置，则发生的每个错误事件都可以启动子流程。
+
+.*XML 表示*
+
+错误结束事件在 XML 以结束事件表示，带 `errorEventDefinition` 子元素。
+
+[source,xml]
+----
+<endEvent id="Event_01" name="Error">
+  <incoming>Flow_1i3jqxp</incoming>
+
+  <errorEventDefinition id="ErrorEventDefinition_11xfxfw" <1>
+    errorRef="failure" /> <2>
+</endEvent>
+----
+<1> 声明错误事件
+<2> 设置错误定义，可以省略。
+
+[[using-error-end-event]]
+==== 使用错误结束事件
+
+*错误结束事件（error end event）* 是一个抛出事件，必须有对应的捕获事件。
+如果错误结束事件属于某个子流程，捕获事件可以是错误边界事件。
+
+image::bpmn-events/error-end-event-in-subprocess.png[,500]
+
+捕获事件也可以是错误启动事件，如果有子流程的话。
+
+image::bpmn-events/error-end-event-with-event-subprocess.png[,350]
+
+[WARNING]
+====
+使用无捕获错误事件的错误结束事件会导致运行时错误。
+
+image::bpmn-events/error-end-event-bad-example.png[,350]
+====
+
+参阅 xref:bpm:error-handling.adoc[错误处理] 部分。
+
+
+[[compensation-events]]
+== 补偿事件
+
+补偿事件可以撤销之前的步骤，如果这些步骤用部分失败或输出没有满足条件。
+
+补偿事件的类型：
+
+* xref:bpmn/bpmn-events.adoc#compensation-boundary-event[补偿边界事件]
+* xref:bpmn/bpmn-events.adoc#compensation-intermediate-throw-event[补偿中间抛出事件]
+
+
+[[compensation-intermediate-throw-event]]
+=== 补偿中间抛出事件
+
+*补偿中间抛出事件（Compensation intermediate throwing event）* 可用于触发补偿。
+
+[[triggering-compensation]]
+==== 触发补偿
+
+可以为指定的活动触发补偿，也可以为补偿事件依附的范围触发补偿。
+补偿行为是通过执行与活动关联的补偿处理逻辑来完成。
+
+当为活动抛出补偿时，
+关联的补偿处理逻辑的执行次数与活动成功完成需要执行的次数相同。
+
+如果为当前范围抛出补偿，则当前范围内的所有活动都会得到补偿。
+包括并发分支上的活动。
+
+补偿按层次结构触发：
+如果要补偿的活动是子流程，
+则为子流程中包含的所有活动触发补偿。
+如果子流程具有嵌套的内部活动，则以递归方式抛出补偿。
+但是，补偿不会传播到流程的“上层”：
+即，如果是在子流程内触发的补偿，则不会传播到子流程范围之外的活动。
+BPMN 规范指出，补偿是针对“同一级别的子流程”的活动触发的。
+
+在 Flowable 中，补偿按流程执行的相反顺序执行。也就是说，最后完成的那个活动，将首先得到补偿，依此类推。
+
+中间抛出补偿事件可用于补偿成功完成的事务子流程。
+
+.*图形表示法*
+
+中间补偿抛出事件在图中展示为典型的中间事件（双线圆圈），
+内部有补偿图标。
+补偿图标已填充以表示“抛出”。
+
+image::bpmn-events/compensation-throwing-event.png[,180]
+
+.*属性*
+
+补偿抛出事件无特定属性。
+
+.*XML 表示*
+
+补偿中间事件在 XML 中定义为中间抛出事件。此时需使用 `compensateEventDefinition` 子元素。
+
+[source,xml]
+----
+<intermediateThrowEvent id="throwCompensation">
+  <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo" />
+</intermediateThrowEvent>
+----
+
+此外，可选属性 `activityRef` 用于触发特定范围或活动的补偿：
+
+[source,xml]
+----
+<intermediateThrowEvent id="throwCompensation">
+    <compensateEventDefinition id="CompensateEventDefinition_0s3nsqo"
+        activityRef="bookHotel" /> <1>
+</intermediateThrowEvent>
+----
+<1> 为特定活动触发补偿。
+
+[[compensation-example]]
+==== 示例
+
+如果在包含子流程的范围内触发了补偿，并且该子流程包含带补偿处理逻辑的活动，
+则当抛出补偿时，只有子流程已成功完成，补偿才会传播到子流程中。
+
+如果在子流程内部的某些活动已经完成并具有依附的补偿处理逻辑，
+则子流程本身尚未完成时，不会执行这些处理逻辑。
+参考下面示例：
+
+image::bpmn-events/compensation-example.png[,700]
+
+在这个流程中，我们有两个并发分支：一个是嵌入式子流程，另一个是 “charge credit card” 活动。
+假设两个分支都已启动，并且第一个分支正在等待用户完成 “review bookings” 任务。
+
+第二个分支在执行 “charge credit card” 活动，在这个活动中发生错误
+触发 “cancel booking” 事件以启动补偿。
+
+此时，第一分支的子流程尚未完成，也就是说补偿没有传递到这个分支。
+因此，不会执行 “cancel hotel booking” 补偿处理逻辑。
+
+如果用户任务（以及嵌入子流程）在 “cancel booking” 操作之前完成，
+补偿将传播到嵌入子流程中。
+
+[[compensation-boundary-event]]
+=== 补偿边界事件
+
+*补偿边界事件（Compensation boundary event）* 可用于将补偿处理逻辑依附至活动。
+
+补偿边界事件必须有方向地关联单个补偿处理逻辑。
+
+补偿边界事件具有与其他边界事件不同的激活策略。
+其他边界事件（比如信号边界事件）在所依附的活动启动时被激活。
+活动完成后，这些边界事件将被禁用，并取消相应的事件订阅。
+
+而补偿边界事件则不同。
+补偿边界事件在所依附的活动成功完成时激活。
+此时，才创建补偿事件的相应订阅。
+当触发补偿事件或对应的流程实例结束时，删除订阅。
+因此，其逻辑如下：
+
+* 当补偿触发时，与补偿边界事件关联的补偿处理逻辑会被调用，其调用次数与所依附的活动成功完成的次数相同。
+
+* 如果一个补偿边界事件所依附的活动具有 xref:bpm:bpmn/multi-instance-activities.adoc[多实例] 特性，则会为每个实例创建一个补偿事件的订阅。
+// * If a compensation boundary event is attached to an activity contained inside a loop,
+//a compensation event subscription is created each time the activity is executed.
+//todo: check this again
+
+* 如果流程实例结束，会取消所有补偿事件的订阅。
+
+[NOTE]
+====
+嵌入式子流程不支持补偿边界事件。
+====
+
+
+.*图形表示法*
+
+补偿边界事件在图中显示为边界上的典型中间事件（双线圆圈），内部有补偿图标。补偿图标未填充以表示“捕获”。
+除了补偿边界事件之外，下图显示了补偿处理逻辑与边界事件的单向关联。
+
+补偿边界事件必须有向关联至单一补偿处理逻辑。
+
+image::bpmn-events/compensation-boundary-event.png[,300]
+
+
+.*XML 表示*
+
+补偿边界事件在 XML 中定义为典型的边界事件：
+
+[source,xml]
+----
+<boundaryEvent id="Event_1" attachedToRef="Activity_1">
+  <compensateEventDefinition id="CompensateEventDefinition_05" />
+</boundaryEvent>
+
+. . .
+
+<association id="Association_02zt79e"
+associationDirection="One"
+sourceRef="Event_1" targetRef="Activity_1" />
+----
+
+
+[[cancel-events]]
+== 取消事件
+
+取消事件仅在 xref:bpmn/bpmn-subprocesses.adoc#transaction-subprocess[事务子流程] 中使用。
+只有在事务子流程中，才可以从工具箱找到取消事件。
+
+有两种类型的取消事件：
+
+* xref:cancel-end-event[取消结束事件]
+* xref:cancel-boundary-event[取消边界事件]
+
+[[cancel-end-event]]
+=== 取消结束事件
+
+
+*取消结束事件（cancel end event）* 只能与 BPMN xref:bpmn/bpmn-subprocesses.adoc#transaction-subprocess[事务子流程] 结合使用。当流程到达取消结束事件事件时，将抛出一个取消事件，该事件必须由取消边界事件捕获。然后，取消边界事件取消当前事务并触发补偿。
+
+.*图形表示法*
+
+取消结束事件在图中显示为典型的结束事件（粗线圆圈），内部带有取消图标。取消图标完全为黑色，表示“抛出”。
+
+image::bpmn-events/cancel-end-event.png[,100]
+
+.*XML 表示*
+
+取消结束事件在 XML 中表示为带 `cancelEventDefinition` 子元素的结束事件。
+
+[source,xml]
+----
+<endEvent id="myCancelEndEvent">
+    <cancelEventDefinition />
+</endEvent>
+----
+
+[[cancel-boundary-event]]
+=== 取消边界事件
+
+一个依附在事务子流程边界的 *中间捕获取消事件（intermediate catching cancel event）*，简称 *取消边界事件（boundary cancel event）*，当事务被取消时触发。
+
+当触发取消边界事件时，首先会中断当前范围内的所有激活的执行分支。
+然后，为事务范围内的所有激活的补偿边界事件启动补偿。
+
+补偿是同步执行的，边界事件在离开事务之前会等待补偿完成。
+当补偿完成时，使用取消边界事件的出口顺序流，离开事务子流程。
+
+[NOTE]
+====
+* 一个事务子流程只允许一个取消边界事件。
+* 如果事务子流程中有嵌套的子流程，只有成功完成的子流程才会触发补偿。
+* 如果取消边界事件放置在具有多实例特性的事务子流程上，如果一个实例触发了取消，则边界事件将取消所有实例。
+====
+
+.*图形表示法*
+
+取消边界事件，用内部有一个取消图标的标准中间事件（双线圆圈）表示。取消图标是白色的（未填充），代表“捕获”。
+
+image::bpmn-events/cancel-boundary-event.png[,300]
+
+.*XML 表示*
+
+取消边界事件的 XML 定义为一个典型的边界事件：
+
+[source,xml]
+----
+<boundaryEvent id="boundary" attachedToRef="transaction" >
+    <cancelEventDefinition />
+</boundaryEvent>
+----
+
+由于取消边界事件是中断的，因此 `cancelActivity` 属性不是必需。
+
+[[terminate-end-event]]
+== 终止结束事件
+
+当到达 *终止结束事件（terminate end event）* 时，当前的流程实例或子流程会被终止。
+
+.*图形表示法*
+
+终止结束事件，用内部有一个全黑圆的标准结束事件（粗圆圈）表示。
+
+image::bpmn-events/terminate-end-event.png[,80]
+
+.*XML 表示*
+
+终止结束事件在 XML 中为结束事件，带有 `terminateEventDefinition` 子元素。
+
+[source,xml]
+----
+<endEvent id="myEndEvent >
+    <terminateEventDefinition  flowable:terminateAll="true">
+    </terminateEventDefinition>
+</endEvent>
+----
+
+[NOTE]
+====
+`terminateAll` 属性可选（默认为 `false`）。
+====
+
+[[using-terminate-end-event]]
+=== 使用终止结束事件
+
+在这个示例中，我们可以看到并行执行的两个用户任务。
+如果任务 #2 首先完成，则执行将到达终止结束事件。
+此时，任务 #1 将被删除，即使仍然处于活动状态。
+
+image::bpmn-events/terminate-end-event-example.png[,500]
+
+在下一个示例中，终止结束事件位于子流程中。当达到时，仅影响子流程。
+因此，如果任务 #1 处于活动状态，则将被删除，子流程将被终止，主流程则以正常方式继续。
+
+image::bpmn-events/terminate-end-event-example-2.png[,700]
+
+[[bpmn-events-coverage]]
+== BPMN 事件覆盖度
+//(Conformance)
+
+在 Jmix BPM 中，并非支持所有的 BPMN 2.0 事件，不支持的事件以粉红色标记。
+也就是说，虽然 BPMN 2.0 标准定义了广泛的事件，
+但 Jmix BPM 集成了 Flowable 引擎，该引擎可能没有实现标准中所有的事件类型。
+
+image::bpmn-events/jmix-events.png[]
+
+不支持的事件
+
+* 消息抛出的中间和结束事件
+* 信号抛出结束事件
+* 补偿结束事件
+* 升级事件（Escalation events）的全部类型
+* 条件事件（Conditional events）的全部类型
+* 连接事件（Link events）的全部类型
+
+[CAUTION]
+====
+从第三方设计工具导入 BPMN 模型时要小心：
+不支持的事件虽然可以显示在关系图上，但可能会在运行时发生错误。
+====
+
+[[workarounds]]
+== 不支持事件的解决方法
+
+在本节中，我们介绍如何为 Jmix BPM 中不支持的元素实现所需流程逻辑。
+
+[[message-throwing-event-workaround]]
+=== 消息抛出事件
+
+首先，在建模中，尽量使用 _信号_ 代替 _消息_。多数情况下，这两种事件可以互换。
+
+image::bpmn-events/signal-instead-of-message.png[,270]
+
+然后，使用服务任务调用 API。
+
+image::bpmn-events/throw-message-workaround-1.png[,350]
+
+服务任务可以实现为 Spring bean，示例：
+
+[source,java]
+----
+@Component(value = "smpl_MyService")
+public class MyService {
+
+    @Autowired
+    private RuntimeService runtimeService;
+
+    public void sendMessage(String messageName, String executionId) {
+        runtimeService.messageEventReceived(messageName, executionId);
+    }
+}
+----
+
+
+[[signal-throwing-end-event-workaround]]
+=== 信号抛出结束事件
+
+使用 _信号抛出中间事件_ 和 _空结束事件_ 的组合替换：
+
+image::bpmn-events/workaround-signal-end-event.png[,400]
+
+[[compensation-end-event-workaround]]
+=== 补偿结束事件
+
+image::bpmn-events/compensation-end-event-workaround.png[,500]
+
+
+
+[[escalation-events-workaround]]
+=== 升级事件
+
+在某些情况下，可以使用 BPMN 错误事件替代升级事件（escalation events）。
+BPMN 中的错误事件用于处理流程执行期间发生的错误或异常。
+可用于对流程中的错误处理和恢复机制进行建模。
+
+另一方面，升级事件用于将问题上报到组织或流程层次结构中的更高级别。
+当问题无法在当前级别解决并且需要升级以采取进一步措施时，通常会使用升级事件。
+
+因此，升级事件在技术上非常接近错误事件。
+
+image::bpmn-events/workaround-escalation-events.png[,600]
+
+
+[[conditional-events-workaround]]
+=== 条件事件
+
+条件事件定义当给定的条件计算结果为 `true` 时会触发的事件。
+可以用作事件子流程的启动事件，也可以用作中间事件和边界事件。
+启动和边界事件可以是中断或非中断。
+
+可以将信号或消息事件与执行监听器结合使用实现类似的逻辑。
+
+image::bpmn-events/workaround-conditional-events.png[,350]
+
+[[link-events-workaround]]
+=== 连接事件
+
+不要使用连接事件。
+
+[NOTE]
+====
+从 Camunda 建模器等第三方工具导入 XML 文件时，连接事件可能会出现在图中。
+====

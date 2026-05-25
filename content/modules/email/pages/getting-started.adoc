@@ -1,0 +1,76 @@
+= 开始使用
+:page-aliases: email:quick-start.adoc
+
+本节介绍使用 xref:index.adoc[] 扩展组件的一个简单示例。目标是为应用程序用户创建一个消息推送（newsfeed）。此类推送可通过电子邮件发送公告、更新、通知、使用统计信息以及其他相关信息。
+
+请创建一个新的 Jmix 项目，并 xref:index.adoc#installation[安装该扩展组件]。
+
+== 创建实体和视图
+
+首先，创建一个实体及其 CRUD 视图，用于保存新闻并进行管理。按以下步骤：
+
+. 创建 `NewsItem` 实体，使用下列属性：
+
+* `date`，为 `LocalDate` 类型。
+* `subject`，为 `String` 类型。
+* `content`，为 `String` 类型，长度无限制。
+
+. 为实体创建列表和详情视图。
+. 打开列表视图，添加一个新的按钮，并绑定发送 email 的操作：
++
+.news-item-list-view.xml
+[source,xml,indent=0]
+----
+include::example$/email-ex1/src/main/resources/com/company/emailex1/view/newsitem/news-item-list-view.xml[tags=news-item-datagrid]
+----
++
+<1> 添加新按钮。
+<2> 添加新操作。
+
+== 发送 email 的逻辑
+
+UI 完成后，我们需要继续添加业务逻辑。这里的业务逻辑会使用扩展组件的 xref:api.adoc[API]。
+
+. 为 `sendEmailAction` 操作创建一个处理方法。在方法中，我们显示一个对话框询问是否将新闻加入发送队列：
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=dialogs;send-email-handler]
+----
+<1> 注入 `io.jmix.flowui.Dialogs` 对象。
++
+. 实现 `sendNewsByEmail()` 方法。
++
+[source,java,indent=0]
+----
+include::example$/email-ex1/src/main/java/com/company/emailex1/view/newsitem/NewsItemListView.java[tags=resources;emailer;send-news-by-mail]
+----
+<1> 注入 `io.jmix.email.Emailer` 接口。
+<2> 注入 `io.jmix.core.Resources` 接口。
+<3> 为了演示如何添加附件，我们将使用一个应用程序图标文件。
+<4> 创建一个 `io.jmix.email.EmailAttachment` 对象。
+<5> 使用 `io.jmix.email.EmailInfoBuilder` 创建一个 `io.jmix.email.EmailInfo` 对象。
+<6> *from* 地址将从 xref:configuration.adoc#jmix.email.from-address[jmix.email.from-address] 属性中获取。
+<7> 异步发送电子邮件（在后台）。
+
+== 配置 SMTP 服务参数
+
+使用 Spring Boot 的 xref:configuration.adoc#spring-boot-mail-properties[mail 属性] 在 `application.properties` 文件中定义基本的邮件发送参数，例如协议、主机、端口等。
+
+NOTE: 可能需要从系统管理员或服务提供商处获取 SMTP 服务器配置参数。有关使用这些提供商配置邮件发送的步骤，请参阅 xref:oauth-providers.adoc[]。
+
+== 使用 UI
+
+运行应用程序，打开 *News Item* 界面，然后点击 *Create* 新建一个实体。保存实体后返回之前的视图，选择一条并点击 *Send Email*。此时会弹出窗口询问是否发送电子邮件，选择 *Yes*。
+
+image::confirmation.png[align="center"]
+
+切换至应用程序的 *Email -> xref:menu-views/email-history.adoc[]* 视图。此时可以看到一行状态为 `Queue（排队中）` 的记录，表示邮件仍然在排队，并未发送。邮件信息展示在右侧。
+
+image::email-history.png[align="center"]
+
+如需从 UI 发送邮件，选中列表中的条目，然后点击 *Resend email（再次发送）*。可以在发送之前修改或添加收件人。发送成功后，表格中的状态会变成 `Sent（已发送）`。
+
+TIP: 如需正常发发送排队的邮件或按特定的计划发送，可以配置 xref:configuration.adoc#email-sending-scheduler[Quartz 调度器]。
+
+image::resend.png[align="center"]

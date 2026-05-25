@@ -1,0 +1,205 @@
+= 元数据
+
+可以通过 Jmix 的 xref:data-model:metadata.adoc[Metadata] 机制解析实体结构和实体间的关系。通过以 `/metadata` 开头的 REST API 接口可以访问这些功能。
+
+元数据 API 包含下列接口：
+
+
+* <<entity-metadata>>，提供实体和实体属性的信息。
+* <<fetch-plans>>，提供 fetch plan 的信息。
+* <<enum-values>>，提供枚举和枚举值的信息。
+
+
+[[entity-metadata]]
+== 实体元数据
+
+实体元数据 API 由两个接口组成，支持获取实体属性的信息：
+
+`/metadata/entities`:: 所有实体的元数据描述
+`/metadata/entities/:entityName`:: 给定实体的元数据描述
+
+[source, http request]
+.Order 实体的元数据请求
+----
+GET http://localhost:8080/rest
+            /metadata
+            /entities
+            /rstex11_Order
+----
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "entityName": "rstex11_Order",
+  "ancestor": null,
+  "properties": [
+    {
+      "name": "date",
+      "attributeType": "DATATYPE",
+      "type": "localDate",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Date",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "amount",
+      "attributeType": "DATATYPE",
+      "type": "decimal",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Amount",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "id",
+      "attributeType": "DATATYPE",
+      "type": "uuid",
+      "cardinality": "NONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Id",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "lines",
+      "attributeType": "COMPOSITION",
+      "type": "rstex11_OrderLine",
+      "cardinality": "ONE_TO_MANY",
+      "mandatory": false,
+      "readOnly": false,
+      "description": "Lines",
+      "persistent": true,
+      "transient": false
+    },
+    {
+      "name": "customer",
+      "attributeType": "ASSOCIATION",
+      "type": "rstex11_Customer",
+      "cardinality": "MANY_TO_ONE",
+      "mandatory": true,
+      "readOnly": false,
+      "description": "Customer",
+      "persistent": true,
+      "transient": false
+    }
+  ]
+}
+----
+
+[[fetch-plans]]
+== Fetch Plan
+
+Fetch Plan 元数据 API 提供给定实体可用的 xref:data-access:fetching.adoc[fetch plans] 结构信息，包含两个接口：
+
+`/metadata/entities/:entityName/fetchPlans`:: 给定实体的所有可用 fetch plans
+`/metadata/entities/:entityName/fetchPlans/:fetchPlanName`:: 给定实体的特定 fetch plan
+
+下面示例中，获取了 `rstex11_Order` 实体的所有 fetch plans：
+
+[source, http request]
+.Order 可用的 Fetch Plans 请求
+----
+GET http://localhost:8080/rest
+            /metadata
+            /entities
+            /rstex11_Order
+            /fetchPlans
+----
+
+[source,json]
+.Response: 200 - OK
+----
+[
+  {
+    "name": "order-with-details",
+    "entity": "rstex11_Order",
+    "properties": [
+      "date",
+      "amount",
+      "createdDate",
+      "createdBy",
+      "lastModifiedDate",
+      "deletedDate",
+      "lastModifiedBy",
+      "id",
+      "version",
+      "deletedBy",
+      "customer",
+      {
+        "name": "lines",
+        "fetchPlan": {
+          "name": "_base",
+          "properties": [
+            "quantity",
+            "createdDate",
+            "createdBy",
+            "lastModifiedDate",
+            "deletedDate",
+            "lastModifiedBy",
+            "id",
+            "version",
+            "deletedBy",
+            {
+              "name": "product",
+              "fetchPlan": {
+                "name": "_instance_name",
+                "properties": [
+                  "name"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
+----
+
+[[enum-values]]
+== 枚举值
+
+枚举元数据 API 提供枚举值的信息。
+
+`/metadata/enums`:: 所有枚举的名称和值
+`/metadata/enums/:enumClassName`:: 给定枚举的名称和值
+
+NOTE: `enumClassName` 参数是要求传递带有包名的枚举全限定名称，即，使用 `rest.sample.entity.CustomerType`，而非 `CustomerType`。
+
+下面示例展示获取 `rest.sample.entity.CustomerType` 枚举的信息：
+
+[source, http request]
+.Enum Values Request
+----
+GET http://localhost:8080/rest
+            /metadata
+            /enums
+            /rest.sample.entity.CustomerType
+----
+
+[source,json]
+.Response: 200 - OK
+----
+{
+  "name": "rest.sample.entity.CustomerType",
+  "values": [
+    {
+      "name": "BUSINESS",
+      "id": "BUSINESS",
+      "caption": "Business"
+    },
+    {
+      "name": "PRIVATE",
+      "id": "PRIVATE",
+      "caption": "Private"
+    }
+  ]
+}
+----

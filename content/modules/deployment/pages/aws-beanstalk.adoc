@@ -1,0 +1,100 @@
+= AWS
+:page-aliases: deploy-to-aws.adoc
+
+本掌机饿哦我们将介绍如何将 Jmix 应用程序构建为可执行 JAR 并在 link:https://aws.amazon.com/elasticbeanstalk/[AWS Elastic Beanstalk^] 服务中部署。
+
+开始之前，请先创建 AWS 账号并确保能访问 link:https://console.aws.amazon.com/console/home[AWS 控制台^]。
+
+NOTE: 我们将使用 PostgreSQL 数据库。
+
+TIP: 如果只是为了测试或者演示目的，可以考虑使用 xref:studio:quick-cloud-deployment.adoc[]。此时，应用程序会与数据库一并部署在一个新创建的 EC2 实例中运行。
+
+[[executable-jar]]
+== 部署可执行 JAR
+
+[[prepare-app]]
+=== 准备应用程序
+
+由于现在有多个数据库连接（本地开发库以及 AWS），我们需要配置附加属性文件，包含 AWS 环境的连接参数。
+
+要在不同的配置文件之间切换，我们将使用 {spring-boot-doc}/reference/features/profiles.html[运行时配置文件^]。示例中，我们将使用 `aws` 配置文件名。
+
+根据 {spring-boot-doc}/reference/features/external-config.html#features.external-config.files.profile-specific[特定 profile 的配置文件^] 的命名规则要求，我们新建名为 `application-aws.properties` 的配置文件。
+
+文件中，我们将使用 AWS Elastic Beanstalk 环境变量指定数据库连接参数：
+
+* `RDS_HOSTNAME` - 内部 Beanstalk 数据库服务器名
+* `RDS_PORT` - Beanstalk 分配的数据库端口
+* `RDS_DB_NAME` - 数据库名称
+* `RDS_USERNAME` - 数据库用户名
+* `RDS_PASSWORD` - 数据库密码
+
+TIP: 注意，这些变量仅在通过 Beanstalk 创建数据库时使用。如果你是用 RDS 或其他 AWS 服务创建的数据库，则不需要这些变量。
+
+除了数据源坐标外，我们还需要在部署前设置下列属性：
+
+* `server.port` - 默认设置为 5000。也可以指定为 Beanstalk 的环境属性 `SERVER_PORT`。我们稍后介绍如何设置 Beanstalk 环境。
+* `main.liquibase.enabled` - 如果设置为 `true`（默认值），则会在应用程序启动时自动执行 Liquibase 数据库脚本。
+
+所以，`application-aws.properties` 文件内容如下：
+
+[source,properties,indent=0]
+----
+main.datasource.url = jdbc:postgresql://${RDS_HOSTNAME}:${RDS_PORT}/${RDS_DB_NAME}
+main.datasource.username = ${RDS_USERNAME}
+main.datasource.password = ${RDS_PASSWORD}
+server.port=5000
+----
+
+应用程序准备完成，可以创建可执行 JAR 并继续下面的步骤。
+
+[[create-aws-env]]
+=== 创建 AWS 环境
+
+登录 AWS 控制台，从服务列表选择 *Elastic Beanstalk*。
+
+然后在 Beanstalk 主页面点击相应的按钮创建应用程序。输入下列应用程序信息：
+
+* Application name - 应用程序名称。
+* Platform - Java。根据需要选择平台分支。
+
+在 *Application code* 部分选择 *Upload your code*。在 *Source code origin* 部分的 *Local file* 点击 *Choose file* 按钮上传应用程序 JAR。JAR 一般位于 `/build/libs` 文件夹。
+
+点击 *Configure more options* 按钮添加数据库。在配置页面，编辑数据库参数：
+
+image::aws-ebs-add-database.png[align=center]
+
+按照这个图片设置数据库参数：
+
+image::aws-rds-parameters.png[align=center]
+
+TIP: 推荐测试环境中设置 *Retention* 为 `Delete`。生产环境设置为 `Create snapshot` 避免不小心删除应用程序时数据丢失。
+
+创建完数据库后，我们还需要一个步骤指定运行时配置文件启用正确的应用程序配置 - `aws`。在环境配置页面编辑 *Software* 设置：
+
+image::aws-ebs-environment-settings.png[align=center]
+
+在 *Environment properties* 部分，添加 `SPRING_PROFILES_ACTIVE` 属性，设置为 `aws`：
+
+image::aws-ebs-environment-values.png[align=center]
+
+保存全部设置并创建应用程序。创建和启动过程一般需要 5-10 分钟。
+
+[[test]]
+=== 测试部署
+
+当应用程序创建并部署完成后，打开 environment 列表，点击相应的环境：
+
+image:aws-ebs-app-env-list.png[align=center]
+
+在环境页面，点击 *Go to environment* 链接打开部署好的应用程序页面。
+
+image:aws-ebs-app-env-page.png[align=center]
+
+应用程序应该正常加载。
+
+=== 参考
+
+本指南基于 link:https://aws.amazon.com/blogs/devops/deploying-a-spring-boot-application-on-aws-using-aws-elastic-beanstalk/[AWS 指南^]，更多细节可以参阅该文档。
+
+另外，link:https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Java.html[Beanstalk Java 应用程序部署指南^] 也很有帮助。

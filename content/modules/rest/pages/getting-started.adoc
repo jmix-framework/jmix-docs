@@ -1,0 +1,119 @@
+= 开始使用
+:page-aliases: rest:quick-start.adoc
+
+本章节包含一个通过通用 REST API 获取应用程序中用户信息的示例。
+
+首先，按照 xref:index.adoc#installation[扩展组件安装] 章节添加 REST API 组件。
+
+[[obtaining-access-token]]
+== 获取 access token
+
+如需访问受保护的资源，客户端必须提供有效的 access token。OAuth 2.1 规范提供了从授权服务获取 access token 的几种方式。称为授权类型。在本示例中，我们将使用 {oauth-specification-page}#name-client-credentials-grant[客户端凭证授权^]，这种类型适合需要保密的客户端，例如后端集成。
+
+支持 OAuth 2.1 协议负责发放 token 的功能在授权服务（Authorization Server）扩展组件中。如需安装，请参阅 xref:authorization-server:index.adoc#installation[授权服务] 文档。
+
+[source,groovy,indent=0]
+----
+implementation 'io.jmix.authserver:jmix-authserver-starter'
+----
+
+方案是，在 Jmix 应用程序中，我们必须注册这个客户端（客户端表示一个需要访问 Jmix REST API 的外部应用程序），定义客户端的 id 和秘钥，然后使用这些凭证在特定的 HTTP 请求中获取 access token。
+
+注册客户端的最简单方式就是添加标准的 Spring 授权服务配置：
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-registration]
+----
+
+下一组应用程序属性是 Jmix 特有的，用来定义哪些资源角色和行级角色必须分配给发出的 token。本示例中，我们将分配两个资源角色：
+
+* `rest-minimal`（REST: minimal access） - 启用 REST API 端点访问。
+* `user-management`（用户管理）- 支持使用 REST API 操作 User 实体。
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=my-client-role-assignment]
+----
+
+`user-management` 角色定义如下：
+
+[source,java,indent=0]
+----
+include::example$/rest-ex1/src/main/java/com/company/demo/security/UserManagementRole.java[tags=user-management-role]
+----
+<1> API 权限范围（scope）表示这个角色用于 REST API 请求。
+
+完成属性定义后，应该可以获取 access token 了。本示例中，我们将使用 `curl` 命令行工具与 REST API 交互。
+
+[source, bash]
+----
+curl -X POST http://localhost:8080/oauth2/token \
+   --basic --user my-client:my-secret \
+   -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=client_credentials"
+----
+
+TIP: 如果是 Windows 系统，需要删除 `\` 符号，将命令写成一行。
+
+结果类似如下：
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "access_token":"hKhgNyGMTqaKd6prH-GoHF8zFVTSr9tKKyE3OnMoafRO4FT4Xq_cewHr28cIRITaRmF0olRXpVTyFdxcOPTAl8Vc7xopHrdNuXNXwEeBn7NSiEMvQXW5zO0dwMn_H8FQ",
+  "token_type":"Bearer",
+  "expires_in":299
+}
+----
+
+`access_token` 属性值是用户 token，可作为请求头中的 `Authorization` 参数使用进行后续其他请求。Token 作为临时凭证，授予你访问应用程序的权限。
+
+[[rest-endpoints-security]]
+== REST 端点的安全配置
+
+默认情况下，当在应用程序中添加 REST API 扩展组件时，REST 端点是不受保护的。有 xref:security:custom-endpoints.adoc[几种方式] 可以对端点进行保护。其中一个方式是通过添加下列应用程序属性为资源服务配置需要认证的 URL：
+
+[source,properties,indent=0]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=rest-authenticated-url-patterns]
+----
+
+IMPORTANT: 如果未配置 REST 端点的安全性，则访问这些端点时将重定向到 UI 登录页面，或者由于在没有用户安全上下文的情况下执行代码而导致服务端错误。
+
+[[retrieve-entity-list]]
+== 获取实体列表
+
+使用 access token  就可以继续使用通用 REST API 接口获取用户列表（将 `<access_token>` 替换成上一步获取到的 token 值）。这里，我们通过 API 获取应用程序中当前所有的用户：
+
+[source, bash]
+----
+curl -X GET http://localhost:8080/rest/entities/User \
+    -H "Authorization: Bearer <access_token>"
+----
+
+[NOTE]
+====
+这个请求假设项目中存在名为 `User` 的实体。
+
+实体名称可以是 Java 类名称或者 `@Entity`/`@JmixEntity` 注解的 `name` 属性。
+如果在创建项目时设置了 *Project id*，则实体名称为 `<projectid>_User`。
+====
+
+响应中包含应用程序中所有的用户：
+
+.HTTP/1.1 200
+[source, json]
+----
+[
+  {
+    "_entityName": "User",
+    "_instanceName": "[admin]",
+    "id": "60885987-1b61-4247-94c7-dff348347f93",
+    "version": 1,
+    "active": true,
+    "username": "admin"
+  }
+]
+----

@@ -1,0 +1,118 @@
+= 3. 使用桌面应用程序
+
+若要对桌面应用程序进行身份验证，服务器必须启用 HTTPS。以下是在开发环境中配置 HTTPS 的简单说明。
+
+[[using-libreoffice]]
+== 使用 LibreOffice
+
+安装 LibreOffice 并配置 xref:webdav-properties.adoc#jmix.webdav.applications[jmix.webdav.applications] 属性，使用 LibreOffice 打开所有文件：
+
+[source,properties]
+----
+jmix.webdav.applications = {"vnd.libreoffice.command":\
+  {"name":"LibreOffice","protocols":\
+  {"writable":"vnd.libreoffice.command:ofe|u|",\
+  "read_only":"vnd.libreoffice.command:ofv|u|"},\
+  "extensions":["odt", "ods", "odp", "doc", "docx", "xls", "xlsx", "ppt", "pptx"]}}
+----
+
+[[keystore-file]]
+== 创建 Keystore 文件
+
+. 按照仓库中的说明安装 `mkcert`：https://github.com/FiloSottile/mkcert[https://github.com/FiloSottile/mkcert^]。
+
+. 生成并安装根证书：
++
+[source]
+----
+mkcert -install
+----
+
+. 为 localhost 创建一个证书：
++
+[source]
+----
+mkcert -pkcs12 localhost 127.0.0.1 ::1
+----
++
+当前目录会生成 `localhost+2.p12` 文件。
+
+. 使用证书为项目创建一个 keystore 文件：
++
+[source]
+----
+keytool -importkeystore -srckeystore localhost+2.p12 -srcstoretype pkcs12 -destkeystore localhost.jks
+----
++
+输入 `changeit` 作为 keystore 的密码。
++
+当前目录会生成 `localhost.jks` 文件。
+
+[[configuring-server]]
+== 服务配置
+
+本节介绍当从 IDE 运行应用程序或者用可执行 JAR 运行时，如何使用上一节生成的证书。
+
+. 创建 `src/main/resources/<base-package>/keystore` 目录，并将 `localhost.jks` 复制到该目录。
+
+. 在 `application.properties` 文件设置下列应用程序属性，用真实值替换 `<base-package>` 和 `<password>`：
++
+[source,properties,indent=0]
+----
+# 启用 HTTPS
+server.ssl.enabled=true
+# keystore 的格式
+server.ssl.key-store-type = JKS
+# 包含证书的 keystore 路径
+server.ssl.key-store = classpath:<base-package>/keystore/localhost.jks
+# 生成 keystore 的密码
+server.ssl.key-store-password = <password>
+# 证书的映射别名
+server.ssl.key-alias = localhost
+
+# 服务端口
+server.port = 8443
+----
++
+[NOTE]
+====
+keystore 路径的 `<base-package>` 部分（`server.ssl.key-store` 配置中）应该是由斜杠分隔的路径：
+----
+server.ssl.key-store = classpath:com/example/demo/keystore/localhost.jks
+----
+====
+. 打开主应用程序类，并修改 `printApplicationUrl()` 方法。由于配置了 HTTPS，URL 需要修改为 `https://`：
++
+[source,java,indent=0]
+----
+@EventListener
+public void printApplicationUrl(final ApplicationStartedEvent event) {
+    LoggerFactory.getLogger(DemoApplication.class).info("Application started at "
+            + "https://localhost:"
+            + environment.getProperty("local.server.port")
+            + Strings.nullToEmpty(environment.getProperty("server.servlet.context-path")));
+}
+----
+
+[[running-application]]
+== 运行应用程序
+
+完成了上面的步骤后，可以在 `++https://localhost:8443++` 打开应用程序。
+
+从应用程序菜单中选择 *Knowledge base*。点击 WebDAV 文档链接。
+
+image::open-webdav-doc1.png[align="center", width="1432"]
+
+浏览器会先显示一个对话框要求用户在 LibreOffice 打开 WebDAV 文件。同意打开。
+
+编辑并保存 WebDAV 文档后，将创建该文档的一个新版本，也是最新的版本。
+
+image::open-webdav-doc3.png[align="center", width="1169"]
+
+[[summary]]
+== 总结
+
+我们了解到：
+
+* 要使用桌面 office应用程序打开和编辑 WebDAV 文档，必须为 Web 应用程序配置 HTTPS。以确保桌面 office 应用程序和 WebDAV 服务器之间的安全通信，尤其是编辑和保存敏感文档时。
+* HTTPS 加密为数据的传输提供了安全通道，防止未经授权的访问并保证文档编辑过程的完整性。

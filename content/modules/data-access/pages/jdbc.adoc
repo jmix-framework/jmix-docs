@@ -1,0 +1,83 @@
+= 使用 JDBC
+
+尽管 Jmix 主要使用 JPA 进行数据访问，但在某些场景下可能仍需直接使用 JDBC，例如执行复杂的 SQL 查询、执行批量操作或调用存储过程。
+
+TIP: 我们建议优先使用 xref:data-manager.adoc[DataManager]，仅在必要时才使用到 JDBC。
+
+可以使用 Spring 提供的 `JdbcTemplate` 或 `JdbcClient` 类在 JDBC 级别执行操作。
+
+`JdbcTemplate` 和 `JdbcClient` 都会自动加入 Spring 管理的 xref:transactions.adoc[事务]，因此可以在同一事务中与 JPA 操作一起使用。
+
+[[jdbc-template]]
+== 使用 JdbcTemplate
+
+`JdbcTemplate` 是 Spring 框架的一个经典类，通过资源管理和异常事务简化了 JDBC 操作。
+
+如需使用 `JdbcTemplate` 访问 xref:data-model:data-stores.adoc#main[主数据存储]，只需在 bean 中注入：
+
+[source,java,indent=0]
+----
+include::example$data-access-ex1/src/main/java/com/company/demo/bean/CustomerJdbcService.java[tags=jdbc-template]
+----
+
+如果需要访问 xref:data-model:data-stores.adoc#additional[附加数据存储]，首先注入存储对应的 `javax.sql.DataSource`，然后创建一个 `JdbcTemplate` 的新实例。在下面的示例中，创建了 `db1` 数据存储的 `JdbcTemplate`：
+
+[source,java,indent=0]
+----
+include::example$data-access-ex1/src/main/java/com/company/demo/bean/FooJdbcService.java[tags=inject-ds;jdbc-template]
+----
+
+[[jdbc-client]]
+== 使用 JdbcClient
+
+`JdbcClient` 是在 Spring 6.1 引入的，为 JDBC 提供了更现代的流式操作 API。
+
+如需使用 `JdbcClient` 访问 xref:data-model:data-stores.adoc#main[主数据存储]，只需在 bean 中注入：
+
+[source,java,indent=0]
+----
+include::example$data-access-ex1/src/main/java/com/company/demo/bean/CustomerJdbcService.java[tags=jdbc-client]
+----
+
+如果需要访问 xref:data-model:data-stores.adoc#additional[附加数据存储]，首先注入存储对应的 `javax.sql.DataSource`，然后创建一个 `JdbcClient` 的新实例。在下面的示例中，创建了 `db1` 数据存储的 `JdbcClient`：
+
+[source,java,indent=0]
+----
+include::example$data-access-ex1/src/main/java/com/company/demo/bean/FooJdbcService.java[tags=inject-ds;jdbc-client]
+----
+
+[[stored-procedures]]
+== 调用存储过程
+
+可以使用 Spring 的 `SimpleJdbcCall` 类执行存储过程。相对于 `JdbcTemplate`，该类提供了更好的参数处理和数据库元数据支持。
+
+下面的示例演示如何在主数据存储调用 PostgreSQL 的存储过程。
+
+[source,sql]
+----
+CREATE OR REPLACE FUNCTION get_customer_stats(
+    p_customer_id UUID,
+    OUT total_orders INTEGER,
+    OUT total_amount DECIMAL(19,2)
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT
+        COUNT(*),
+        COALESCE(SUM(AMOUNT), 0)
+    INTO
+        total_orders,
+        total_amount
+    FROM ORDER_
+    WHERE CUSTOMER_ID = p_customer_id;
+END;
+$$;
+----
+
+[source,java,indent=0]
+----
+include::example$data-access-ex1/src/main/java/com/company/demo/bean/CustomerJdbcService.java[tags=stored-procedure]
+----
+
+如果需要调用附加数据存储中的存储过程，首先按 <<jdbc-template,上面>> 的说明创建对应 `javax.sql.DataSource` 的 `JdbcTemplate`。

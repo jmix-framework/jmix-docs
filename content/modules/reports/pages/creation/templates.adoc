@@ -1,0 +1,645 @@
+= 模板
+
+[[add_template]]
+== 添加模板
+
+可以在报表详情视图添加报表模板。在报表列表视图新建或编辑报表时，切换至运行时报表编辑器的 *Templates（模板）* 标签页：
+
+image::template-list.png[align="center",width="769"]
+
+一个报表可以有多个模板，但是必须选择一个模板作为默认模板。
+
+下面是添加模板的表单：
+
+image::report-template-detail-view.png[align="center",width="642"]
+
+* *Template code（模板编码）* - 模板的标识符。
+
+* *Template file（模板文件）* - 从文件系统加载并与报表结构描述一起保存到数据库中。
+
+* *Output type（输出类型）* - 报表输出类型。该配置应该根据 <<output_format_compliance,输出格式兼容性>> 中描述的规则与模板文件类型相一致。
+
+* *Output name pattern（输出名称格式）* - 可选的文件名格式，将用于生成的报表文件名。可以是常量字符串，也可以包含报表参数变量，例如 `${header.authorName}.xlsx`。可以创建具有若干参数和字符串拼接的更复杂的格式，格式需要由报表结构中任意带区的脚本创建，例如，`${Root.title}.xlsx`，其中 `title` 是在脚本中定义：
++
+[source, groovy,indent=0]
+----
+[['title' : ('Report for '+params['author'].firstName+' '+params['author'].lastName)]]
+----
+
+* *Is custom（是否自定义）* - 表示格式化逻辑是自定义的，不是系统提供的格式化器。当选中该选项时，你还需要定义两个附件的字段：
+
+** *Defined by（定义方式）* - 自定义模板的定义方式：<<template_custom,class>>、脚本或 <<exec_external_report,URL>>。
+
+** *Custom definition（自定义内容）* - Java 类的全限定名称、Groovy 脚本内容或者用于创建模板的 URL。如果选择 *Script（脚本）*，则在 Groovy 脚本中可以使用下列参数：
++
+--
+* `params` - 参数映射，通过别名 `params` 访问。
+
+* `rootBand` - `BandData` 类型的对象，提供对带区数据集的访问。
+
+* `applicationContext` - `ApplicationContext` 类型的对象，提供对托管 bean 的访问。
+--
+
+* *Is alterable output（输出格式可变）* - 支持用户在运行时通过对话框选择输出类型。
++
+--
+如果此标志启用，则在运行报表时将显示输出类型选择对话框。如果报表包含多个模板，还会显示模板选择的下拉列表。
+--
+
+* *Is default（默认）* - 将模板标记为特定报表的 “默认模板” 时，除非用户显式选择不同的模板，否则该模板将被用于生成报告。
+
+[[template_types]]
+== 模板类型
+
+TIP: 多种模板类型示例请参考 xref:reports-guide:index.adoc[] 指南。
+
+[[template_xls]]
+=== XLS(X) 模板
+
+可以使用 *Microsoft Office* 或 *LibreOffice* 创建 XLS(X) 模板。
+
+[[template_xls_regions]]
+每个 xref:creation/bands.adoc[报表带区] 必须在模板中具有相应的区域，该区域名称与带区相同。例如，报表有两个区 - `Header` 和 `Data`。这表示模板也应具有 `Header` 和 `Data` 命名区域。如需创建命名区域，选择相应的单元格区域，然后在应用程序左上角的字段中输入名称。要编辑已有的命名区域，请在 Microsoft Office 中使用 *Formulas* -> *Name Manager* 菜单命令，在 LibreOffice 中使用 *Insert* -> *Names* -> *Manage* 命令。同时，Excel 表格中想展示在报表中的每个区域也需要有报表结构中对应的带区（至少是要有一个空带区）。
+
+报表带区以 xref:creation/bands.adoc[带区] 中指定的顺序输出。
+
+报表带区可以是水平或垂直的。如果报表区是水平的，命名区域将向下扩展；如果是垂直的，将向右扩展。水平报表带区可以用树状结构组织并包含子报表带区（嵌套或子报表带区）。因此，对于子报表带区，需要直接在与父报带表区对应的区域下创建命名区域。
+
+XLSX 格式化器使用以下算法渲染子报表带区：
+
+* 渲染父报表带区的第一行 ->
+* 渲染第一行的所有子行 ->
+* 渲染父报表区的下一行。
+
+带区数据集字段以 `++${field_name}++` 格式放置在模板中，其中 `++field_name++` 是相应的报表带区字段名称。示例：
+
+image::report_template_xls.png[align="center"]
+
+可以在报表模板中使用变量。变量需要以 `++${<BandName>.<variableName>}++` 的格式插入到 XLSX 模板的工作表名称或页眉/页脚中。
+
+单元格中可能包含格式以及多个变量字段。如需输出图像或公式，需要将它们完全放入与报表带区链接的相应命名区域。
+
+公式可以引用相同报表带区或另一报表带区的单元格。如需由格式化程序处理，公式应该使用报表区中的单元格范围，或直接使用单元格坐标，例如，`(A1*B1)` 或 `($B:$B)`。
+
+如需将数据作为 Excel 图表处理，在报表结构中创建一个空报表区，并在模板中创建一个具有相同名称的命名区域。然后在此命名区域内创建一个图表，并使用图表右键菜单中的 *Select data（选择数据）* 按钮引用关联的报表数据区域。如果图表数据位于连续的单元格范围内，请选择该范围内的任意单元格。图表将包含该范围内的所有数据。如果数据不在连续范围内，请选择不相邻的单元格或范围。
+
+[TIP]
+====
+*在 XLSX 模板中启用自动行高*
+
+如需在手动创建的 XLSX 模板中启用自动行高计算，需要定义一个以 `hint_rowAutoHeight` 开头的命名区域，并指定需要启用自动行高的目标单元格范围。
+
+对于通过 xref:getting-started.adoc#creating-report-at-runtime[报表向导] 生成的 XLSX 报表，在配置的每个报表区域内都会自动添加该命名区域。
+
+执行报表时，内容超出单行可用空间的单元格将自动变为多行，行高也会相应调整以显示全部内容。
+====
+
+[NOTE]
+====
+*XLSX 转为 PDF 和 CSV*
+
+XLSX 报表可以自动转换为 CSV 和 PDF 格式。转换成 PDF 需要安装 xref:configuration.adoc#libre_office[LibreOffice]。
+====
+
+[[template_csv]]
+=== CSV 模板
+
+可以使用 *Microsoft Office* 或 *LibreOffice* 创建 CSV 模板。
+
+CSV 模板中的报表带区只能是水平方向的，命名区域将向下延展。此外，报表带区应属于第一级数据，即 `Root` 区的第一级子区。其他方面，应使用与 <<template_xls,XLS(X) 模板>> 相同的规则。
+
+image::csv_template.png[align="center"]
+
+*内联编辑器*
+
+CSV 模板支持内联编辑。可以直接在 *Report template（报表模板）* 窗口中编辑模板，无需重新上传模板文件即可查看更改。
+
+image::csv-report-editor.png[align="center",width="642"]
+
+[[template_doc]]
+=== DOC(X) 模板
+
+可以使用 *Microsoft Office* 或 *LibreOffice* 创建 DOC(X) 模板。
+
+DOC(X) 类型的模板可以包括文档文本或者表格。文档文本可以输出任意区的第一行数据。而在表格中，可以输出任意数量的报表带区行。
+
+要在文档文本中使用字段变量，可以用 `++${band_name.field_name}++` 格式的字符串，其中 `++band_name++` 是带区名称，`++field_name++` 是带区字段的名称。
+
+如需将数据输出到表格中，需要将表格与一个报表带区关联。通过在表格的第一个单元格中指定 `++##band=band_name++` 实现，其中 `++band_name++` 是带区名。表格字段以 `++${field_name}++` 格式获取，其中 `++field_name++` 是与表格关联的带区的字段名称。与文档文本字段相同，也可以使用带区名称前缀来访问其他带区的字段。并支持在一个单元格中输出多个字段。
+
+DOC(X) 中的水平报表带区不能包含子区。如果需要子区，请使用 XLS(X) 格式。
+
+[CAUTION]
+====
+模板中表格必须包含一行或两行。如果表格有两行，则相应的带区字段必须在第二行。第一行应包含带有相应报表区名称的标记，如果需要，还可以包含静态文本或其他报表带区字段。
+====
+
+下面是一个模板示例，输出一个由两个带区（`Book` 和 `Authors`）组成的报表。第一个带区（表格上方）输出书名和分类，第二个带区（表格）输出本书的作者列表。
+
+image::report_template_doc.png[align="center"]
+
+[CAUTION]
+====
+DOC(X) 模板不支持单元格数据格式化。要避免由于用户的语言环境而导致的数字或日期格式问题，例如不必要的数字分隔符，请尝试将数据转换为字符串。
+例如，
+
+将
+[source, sql,indent=0]
+----
+select e.year as "year"
+----
+转换为
+[source, sql,indent=0]
+----
+select cast(e.year as varchar(4)) as "year"
+----
+====
+
+[TIP]
+====
+*在 DOCX 模板中处理多行字符串*
+
+默认情况下，生成报表时会忽略参数值中的换行符。如需在最终 DOCX 输出中保留换行符（例如 `\n` 或 `\r\n`），必须启用 xref:configuration.adoc#jmix.reports.multilineStringsProcessingEnabled[jmix.reports.multilineStringsProcessingEnabled] 应用程序属性。
+
+*该功能仅用于 DOCX 报表输出格式，对 XLSX 或 PDF 等其他格式无效。*
+====
+
+[[template_html]]
+=== HTML 模板
+
+HTML 模板在 `.html` 文件（无 `BOM` 的 `UTF-8` 编码）中定义。可以使用 https://github.com/flyingsaucerproject/flyingsaucer[Flying Saucer^] 库的 HTML/CSS 功能；其主要功能指南请参考 http://flyingsaucerproject.github.io/flyingsaucer/r8/guide/users-guide-R8.html[Github 网页^]。
+
+如需控制页面尺寸、页眉和页脚，请使用特殊的 CSS 规则和属性。
+
+//TODO:
+// 可以在 xref:sample-reports.adoc#example_html[HTML 示例报表] 中找到每页都显示页面/页脚的报表示例。
+
+有两种方法可以在模板中放入数据：
+
+* 使用 FreeMarker 标签。
+* 使用 Groovy 模板引擎。
+
+默认情况下，报表向导会生成带有 FreeMarker 标签的 HTML 模板。
+
+在报表模板对话框中使用 *Template type（模板类型）* 单选按钮切换这两种方法。
+
+HTML 模板支持内联编辑。可以直接在 *Report template（报表模板）* 窗口中编辑模板，无需重新上传模板文件即可查看更改。
+
+image::html-template-editor.png[align="center",width="642"]
+
+Groovy 模板引擎::
++
+--
+可以将 HTML 报表模板作为 Groovy 模板进行预处理，通过 http://docs.groovy-lang.org/latest/html/api/groovy/text/GStringTemplateEngine.html[GStringTemplateEngine^] 来处理模板。
+
+模板引擎使用 JSP 格式的 `<% %>` 脚本和 `<%= %>` 表达式语法或者 `GString` 格式的表达式。`out` 变量用来绑定模板将的 writer。因此，如果定义没有错误，模板可以使用任何 Groovy 代码。`GStringTemplateEngine` 能访问：
+
+* 外部参数：`BandName.fields.ParamName`；
+* 区域：`BandName.bands.ChildBandName`；
+* 字段：`BandName.fields.FieldName`。
+
+方便起见，也可以使用变量，示例：
+
+[source, html,indent=0]
+----
+<% def headerRow = Root.bands.HeaderRow %>
+<p>Date: ${headerRow.fields.reportDate}</p>
+----
+
+下面示例模板输出单一用户的报表：
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_grooveEngine1.html[]
+----
+可以在 xref:sample-reports.adoc#example_html_groovy_template[Groovy 报表示例] 部分找到使用 Groovy 模板的示例。
+--
+
+FreeMarker::
++
+--
+FreeMarker 文档可以参阅 https://freemarker.apache.org/docs/[freemarker.apache.org^]。
+
+FreeMarker 文档模型的结构如下：
+
+[source, groovy,indent=0]
+----
+Band { 
+      bands [ bandName : [ band, .. ], .. ]
+      fields [ fieldName : fieldValue, .. ] 
+}
+----
+
+例如，应该使用以下表达式访问 `band` 带区中索引为 `0` 的第一行数据的 `name` 字段：
+
+[source, groovy,indent=0]
+----
+Root.bands.band[0].fields.name
+----
+
+为方便起见，可以使用变量，示例：
+
+[source, html,indent=0]
+----
+<#assign headerRow = Root.bands.Header[0]>
+<p>Date: ${headerRow.fields.reportDate}</p>
+----
+
+还可以使用 `getMessage()` 方法获取本地化消息值：
+
+`getMessage()` 可以接收一个或两个参数。如果只传一个参数，则获取枚举的本地化值。如果传两个参数，则将两个参数分别作为消息的 xref:localization:message-bundles.adoc#group-and-key[group 和 key]，用来从消息包中获取 xref:localization:message-bundles.adoc[本地化消息值]。
++
+[source, groovy,indent=0]
+----
+${getMessage(order.status)}
+----
+
+下面是一个模板示例，输出一个由两个带区（`Book` 和 `Authors`）组成的报表。第一个区输出书名和分类，第二个区输出本书的作者列表。
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_html_6.html[]
+----
+
+下面是一个更复杂的例子。假设我们有以下报表带区结构：
+
+[source, groovy,indent=0]
+----
+Root {
+    HeaderBand {
+        query = return [[ "name" : "Column1" ],[ "name" : "Column2" ]]
+    }
+    Band1 {
+        query = return [
+                ["field1" : "Value 11", "field2" : "Value 12"],
+                ["field1" : "Value 21" , "field2" : "Value 22"]
+        ]
+    }
+    Band2 {
+        query = return [[ "header" : "Header1" ], [ "header" : "Header2" ]]
+        SubBand1 {
+            query = return [["header" : 'SubHeader1'] , [ "header" : 'SubHeader2' ]]
+        }
+    }
+}
+----
+
+* 插入字段：
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_html_8.html[]
+----
+
+* 插入列表：
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_html_9.html[]
+----
+
+* 插入表格：
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_html_10.html[]
+----
+
+* 插入多级列表：
+
+[source, html,indent=0]
+----
+include::example$/library/src/main/resources/com/company/library/reports/templates/examples_html_11.html[]
+----
+--
+
+嵌入图片::
++
+--
+目前，Jmix 报表组件在 HTML 报表中不提供类似于 DOCX/XLSX 可以插入图片的功能。但是，图片仍然可以使用 `img` 标签并在 `src` 属性中指定图片链接的方式嵌入。使用下面的任一种方法都能为 HTML 报表添加图片。
+
+* 通过 URL
++
+图片可以由应用程序静态托管。例如，`build\resources\static\images\` 中的图片可以这样引入：
++
+[source, html,indent=0]
+----
+<img src="http://localhost:8080/images/SomeImage.jpg"
+     height="68"
+     width="199"
+     border="0"
+     align="right"/>
+----
+
+* 通过 Bitmap
++
+图片在 `src` 属性中以字节数组形式添加。此方法可以使用实体的 `FileRef` 属性变量。甚至可以将字节数组直接添加到模板中，虽然不建议使用此方法：
++
+[source, html, indent=0]
+----
+<img alt="SomePicture.png"
+     src="data:image/png;base64,iVBORw0K ..... AcEP9PwxD0hNKK1FCAAAAAElFTkSuQmCC"/>
+----
++
+还可以将数据库中字节数组（`byte[]`）类型的图片插入到 HTML 报表中。需要在值格式设置中使用 Groovy 脚本将 `byte[]` 转换为 `Base64 Data URL` 字符串。
+
+. 在报表结构中，选择所需的带区，例如 `User`。
+. 在此带区内，创建或确保存在一个名为 `picture` 的参数。该参数将从数据库（来自实体的 `picture` 字段）接收 `byte[]` 数据。
+. 在报表结构中，导航到 *Value Formats* 选项卡。
+. 创建一个新格式：
+
+** *Name*: `picture` - 必须与第二步里面的参数名一致。
+** 勾选 *Groovy script*。
+** *Groovy 脚本*：
++
+[source, groovy, indent=0]
+----
+import java.util.Base64
+
+if (value) {
+    return "data:image/png;base64," + Base64.getEncoder().encodeToString(value)
+} else {
+    return "";
+}
+----
+. 在报表的 HTML 模板中，按以下示例引用生成的值：
++
+[source, html, indent=0]
+----
+<img src="${User[0].fields('picture')}" alt="picture"/>
+----
+
+* 通过自定义的前缀：
+** 可以使用 `resource://` 前缀引用 `conf` 文件夹或 classpath 中的图片文件。仅可用在输出为 PDF 的 HTML 模板中。例如，`abc.jpg` 在 `resource\com\company\app\images` 文件夹，则可以这样嵌入：
++
+[source, html, indent=0]
+----
+<img src="resource://com/company/app/images/abc.jpg"
+    height="68"
+    width="199"
+    border="0"
+    align="right"/>
+----
+** `fs://` 前缀支持使用 `FileRef` 格式。示例：
++
+[source, html,indent=0]
+----
+<img src="fs://2025/07/08/78c65527-9cb7-ee77-940f-86e31b214f49.jpeg?name=filename.jpeg"
+    height="68"
+    width="199"
+    border="0"
+    align="right"/>
+----
++
+NOTE: 查询参数 `?name=\{original_filename}.\{ext}` 是必须提供的。系统依赖该参数来正确解析字符串并重构 `FileRef` 对象。
+--
+
+[[html_to_pdf]]
+HTML 转换为 PDF::
+
+具有 HTML 格式模板和 PDF 输出的报表有时候会显示错误的字体。要解决此问题，将带有所需 `.ttf` 字体的 `jmix/fonts` 子目录添加到 Jmix 配置目录（默认为 `${user.dir}/.jmix/conf/`）。此外，可以通过在 xref:configuration.adoc#jmix.reports.pdf-fonts-directory[jmix.reports.pdf-fonts-directory] 应用程序属性中指定路径来使用已有的操作系统字体。
+
+要解决 Ubuntu 服务器上的字体问题，应该执行以下操作：
+
+* 安装 `ttf-mscorefonts-installer` 包：
++
+----
+$ sudo apt-get install ttf-mscorefonts-installer
+----
+
+* 设置 xref:configuration.adoc#jmix.reports.pdf-fonts-directory[jmix.reports.pdf-fonts-directory] 应用程序属性：
++
+----
+jmix.reports.pdf-fonts-directory = /usr/share/fonts/truetype/msttcorefonts
+----
+
+* 在 HTML 模板中明确指定字体，例如：
++
+[source, html,indent=0]
+----
+<html>
+<head>
+    <style type="text/css">
+        * {
+            font-family: Times New Roman;
+        }
+    </style>
+----
+
+另外要提到的是解析特殊字符。为避免将 HTML 转换为 PDF 时出错，建议将字段封装在 HTML 模板文件的 `<![CDATA[ ]]>` 结构中：
+[source, html,indent=0]
+----
+<tr>
+	<td> <![CDATA[${(row.fields('book_name'))!?string!}]]> </td>
+	<td> <![CDATA[${(row.fields('author'))!?string!}]]> </td>
+</tr>
+----
+
+[[template_jasper]]
+=== JasperReports 模板
+
+JasperReports 格式化器支持使用 JasperReports 模板输出 Jmix 报表提取的信息。模板将由报表引擎处理，并支持几种输出类型，请参阅 <<output_format_compliance>>。
+
+可以使用 JasperReports 工具（例如，Jaspersoft Studio）或在文本编辑器中创建 JRXML 模板。报表数据结构中定义的每个 xref:creation/bands.adoc[报表带区] 必须在模板中有相应的 `band` 元素，`band` 元素（在 JasperReports 术语中也称为带区）放置在标准 JasperReports 报表区内：`title`、`pageHeader`、`columnHeader`、`detail` 等。
+
+报表引擎将所有报表带区数据放在一个数据源中：`JRBandDataDataSource`，以树形结构组织数据 - `Root` 带区为根带区，并将 `CubaJRFunction` 实例作为主数据源传递给模板，可以通过参数 `REPORTING` 使用。在报表模板中可以不声明此参数，未声明的情况下会自动添加，但如果要在 JasperReports IDE 中编译模板，则需要显式声明此参数。
+
+`REPORTING` 参数提供两个功能：
+
+* `dataset` - 从主数据源获取可用的子数据源，例如，在表格或子报表中作为子数据集。此方法在根带区的子节点中搜索具有指定名称的报表带区，并使用搜索到的报表带区数据作为新的根创建新数据源。示例：
++
+[source, xml,indent=0]
+----
+<subDataset name="Product">
+	<field name="name" class="java.lang.String"/>
+	<field name="price" class="java.lang.Long"/>
+</subDataset>
+...
+<dataSourceExpression><![CDATA[$P{REPORTING}.dataset("Product")]]></dataSourceExpression>
+----
+
+* `bitmap` - 将给定的字节数组转换为 `ByteArrayInputStream`，可用于将图片嵌入到报表中。示例：
+
+[source, xml,indent=0]
+----
+<field name="Main.image" class="java.lang.Object"/> //image from DB as byte array
+...
+<imageExpression><![CDATA[$P{REPORTING}.bitmap($F{Main.image})]]></imageExpression>
+----
+
+每个 xref:creation/bands.adoc[报表带区] 只能在模板中使用一次，因此如果需要在一个报表中以不同的形式表示相同的数据（例如，作为表格和图表），需要创建与模板中 `band` 元素一样多的报表带区。不支持嵌套报表带区，所有带区都应该是 *Root* 区的直接子节点。
+
+可以使用 `$F{<field name>}` 格式从数据源获取数据。示例：
+
+[source, xml,indent=0]
+----
+<textField>
+    <textFieldExpression><![CDATA[$F{library_department_name}]]></textFieldExpression>
+</textField>
+----
+
+可以在 xref:sample-reports.adoc#example_jasper[Jasper 示例报表] 章节参考报表示例。
+
+// TODO - test in bootJar
+// [[template_jasper_uberJar]]
+// [TIP]
+// ====
+// If your application uses the https://doc.cuba-platform.com/manual-latest/uberjar_deployment.html[UberJAR] deployment option, do the following to run JasperReports with the UberJAR:
+
+// * Copy `jasperreports-.jar` and `yarg-.jar` to uber JAR directory,
+
+// * Create a file `jasperreports.properties` in the uber JAR directory,
+
+// * Add the `net.sf.jasperreports.compiler.classpath` property in this file with the names of the copied JARs as the property value, 示例：
+
+// [source, plain,indent=0]
+// ----
+// net.sf.jasperreports.compiler.classpath = jasperreports-6.9.0.jar;yarg-2.0-SNAPSHOT.jar
+// ----
+// ====
+
+[[template_custom]]
+=== 类定义模板
+
+当很难或无法使用 SQL、JPQL 或 Groovy 选择数据时，可以使用类定义模板。例如，当报表是需要组合几个报表的结果时，就可以使用类定义模板。
+
+创建一个类并实现 `io.jmix.reports.yarg.formatters.CustomReport` 接口。定义 `createReport()` 方法，该方法返回一个字节数组并接收以下输入参数：
+
+* `report` - `io.jmix.reports.yarg.structure.Report` 类型的报表描述。
+* `rootBand` - `io.jmix.reports.yarg.structure.BandData` 类型的根带区数据。
+* `params` - 外部报表参数映射。
+
+下面是一个简单的类定义模板的示例。会创建一个 HTML 文档，显示从参数中获取的书籍的名称：
+
+[source, java,indent=0]
+----
+include::example$/library/src/main/java/com/company/library/reports/BookReport.java[]
+----
+
+在模板详情视图中，选中 *Is custom（是否自定义）* 复选框，在 *Defined by（定义方式）* 字段中选择 *Class（类）*，并设置自定义内容为 Java 类的完全限定名：
+
+image::class-defined-template.png[align="center",width="642"]
+
+[[table_output]]
+=== 表格
+
+当在向导中选择表格输出时，系统会自动创建一个模板。运行报表时，数据会在应用程序中的一个特殊界面视图。
+
+也可以手动为一个已存在的报表创建表格模板，在报表模板详情视图中选择 *Table（表格）* 作为输出类型。
+
+image::report-template-table.png[align="center",width="642"]
+
+在 *Band（数据区）* 列，添加需要在结果表格中显示的带区名称。对于每个带区，设置一个 key-value 映射，key 是数据集属性，value 是本地化名称。
+
+报表扩展组件会获取报表带区数据，并从报表带区树的第一级为每个带区绘制一个可排序表格。
+
+表格列显示 SQL 和 JPQL 数据集的所有属性。如果使用实体/实体列表数据集，则表格仅显示选择的属性。
+
+表格结果可通过应用程序的 *Reports（报表） -> Show tables（展示报表表格）* 视图查看。使用 *Excel（生成 Excel）* 按钮可以将显示的表格导出为 Excel 文件。
+
+image::show-report-table.png[align="center"]
+
+[[exec_external_report]]
+== 执行外部报表
+
+报表扩展组件支持运行外部服务的报表，例如，Microsoft Reporting Services，并下载输出文件。如需定义外部报表，按照下列步骤：
+
+* 在报表模板对话框勾选 *Is custom（是否自定义）* 复选框。
+* 在 *Defined by（定义方式）* 选择 *URL*。
+* 在 *Custom definition（自定义内容）* 字段指定外部报表的 URL。报表参数以 `${param Alias}` 格式传递给 URL。
++
+* 配置 xref:configuration.adoc#jmix.reports.curl-path[jmix.reports.curl-path] 应用程序属性，设置为 *curl* 命令行工具的路径。
+
+[[output_format_compliance]]
+== 输出格式兼容性矩阵
+
+下面表格中展示输入模板格式和输出格式的关系，例如，输入 XLSX 模板可以输出 XLSX、CSV、PDF 和 HTML 格式。
+
+[options="header"]
+|===============
+|Template / Output|XLSX|XLS|CSV|DOCX|DOC|PDF  |HTML
+|XLSX             |+   |   |+  |    |   |+ ^1^|+ ^1^
+|XLS              |    |+  |   |    |   |+ ^1^|
+|CSV              |    |   |+  |    |   |     |
+|DOCX             |    |   |   |+   |   |+ ^2^|+ ^2^
+|DOC              |    |   |   |    |  +|+ ^1^|
+|HTML             |    |   |   |    |   |+    |+
+|JRXML            |+   |+  |+  |+   |+  |+    |+
+|===============
+
+^1^ - 必须 xref:configuration.adoc#libre_office[安装] LibreOffice。
+
+^2^ - 根据 xref:configuration.adoc#jmix.reports.use-office-for-document-conversion[jmix.reports.use-office-for-document-conversion] 应用程序属性的配置，输出可以选择是否使用 LibreOffice。如果不使用 LibreOffice，则需要自己提供所需的字体，参阅 <<html_to_pdf,HTML 转换 PDF>>。
+
+[[template-def]]
+== @TemplateDef 注解
+
+在设计时，使用 `@TemplateDef` 注解定义模板。如果报表类包含多个模板，可以多次使用该注解。如需实现额外的逻辑，需要声明一个带有 <<template-delegate,@TemplateDelegate>> 注解的方法。
+
+`@TemplateDef` 注解有以下属性：
+
+* `code` - 模板的唯一代码。在以编程方式引用模板时使用此代码。
+* `isDefault` - 是否默认模板。除非用户明确指定其他模板，否则自动使用此模板生成文档。默认值：`false`。
+* `outputType` - 报表引擎生成的输出内容类型。输出类型应与 <<output_format_compliance,输出格式兼容性>> 中描述的模板文件类型一致。
+* `alterableOutput` - 用户是否可以在运行时选择报表输出类型。默认值：`false`。
+* `custom` - 自定义输出文档渲染的附加参数。参见 <<custom-template-parameters,@CustomTemplateParameters>>。
+* `outputNamePattern` - 可选的文件名格式，用于生成所产生报表的文件名。可以是常量字符串，也可以包含报表参数作为变量（例如，`${header.authorName}.xlsx`）。
+* `filePath` - 类路径中包含模板文件的路径。模板文件通常放置在同一模块的 `resources` 源根目录下。
+* `table` - `ReportOutputType.TABLE` 输出类型的表格模板定义。参见 <<template-table-def,@TemplateTableDef>>。
+* `templateEngine` - 处理文本模板内容的模板引擎。处理带各种输出类型的 HTML 模板文件。默认值：`TemplateMarkupEngine.FREEMARKER`。
+
+[[custom-template-parameters]]
+== @CustomTemplateParameters 注解
+
+`@CustomTemplateParameters` 注解用在 <<template-def,@TemplateDef>> 中，为自定义报表模板定义参数。自定义模板可以基于 xref:creation/bands.adoc#band-def[带区数据] 和 xref:creation/value-formats.adoc#value-format-def[值格式] 提供生成输出文档的自定义实现。
+
+`@CustomTemplateParameters` 注解有以下属性：
+
+* `enabled` - 是否使用自定义模板实现。默认值：`false`。
+* `definedBy` - 如何调用自定义模板。默认值：`CustomTemplateDefinedBy.DELEGATE`。
++
+NOTE: 这里不支持 `SCRIPT` 和 `CLASS`；请改用 `DELEGATE`。
+* `urlScript` - 一个脚本，接受参数 map并一个可调用的 URL。调用该 URL 生成输出。
+
+[[template-table-def]]
+== @TemplateTableDef 注解
+
+`@TemplateTableDef` 注解定义输出类型为 `io.jmix.reports.entity.ReportOutputType.TABLE` 的模板结构。
+
+`band` 属性 - 包含在输出中的一个或多个带区。每个带区由一个单独的表格组件显示。参见 <<table-band-def,@TableBandDef>>。
+
+[[table-band-def]]
+== @TableBandDef 注解
+
+是表格模板定义的一部分，`@TableBandDef` 注解表示一个报表带区，其数据显示在结果表格中。
+
+`@TableBandDef` 注解有以下属性：
+
+* `bandName` - 当前报表定义中声明的报表带区名称。
+* `columns` - 显示带区字段的列。参见 <<table-column-def,@TableColumnDef>>。
+
+[[table-column-def]]
+== @TableColumnDef 注解
+
+是表格模板定义的一部分，`@TableColumnDef` 注解表示结果表格中的一列，该列通过键值从带区数据中获取值。
+
+`@TableColumnDef` 注解有以下属性：
+
+* `key` - 数据集属性名称，用于从带区数据中获取值。
+* `caption` - 列标题。使用 `msg://` 格式进行 xref:localization:message-bundles.adoc[本地化]。默认消息组从声明类的包中推断。
+
+[[template-delegate]]
+== @TemplateDelegate 注解
+
+`@TemplateDelegate` 注解标记一个代理方法，该方法实现与模板定义相关的逻辑。
+
+*要求*：
+
+* 方法必须没有参数。
+* 方法必须返回一个支持的函数式接口。
+
+支持的接口：
+
+* `CustomReport` - 报表输出文档的自定义生成代理。
+
+`@TemplateDelegate` 注解有 `code` 属性，该属性是当前报表定义中声明的模板代码。

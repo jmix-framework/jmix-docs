@@ -1,0 +1,87 @@
+= 访问控制
+
+[[protecting-api-using-access-tokens]]
+== 保护 REST 端点
+
+对 REST API 端点的访问可以使用 access token 进行保护。授权服务（Authorization Server）扩展组件可以用来获取 access token。参阅 xref:authorization-server:protecting-resources.adoc#protecting-rest-api-endpoints[授权服务] 扩展组件的文档了解详情。
+
+[[anonymous-access]]
+== 匿名访问
+
+某些 REST API 端点可以作为无需认证的接口开放，使用 Jmix 的匿名访问功能。此时，API 请求是通过 `anonymous` 用户进行，这个用户是 Jmix 应用默认配置的。
+
+对于没有使用 `Authorization` 请求头调用任何安全端点，都会使用 `anonymous` 用户进行认证。
+
+参阅 xref:security:custom-endpoints.adoc#token-based-authentication[基于 Token 的验证] 了解定义匿名资源的访问。最简便的方式是使用应用程序属性配置，URL pattern 以逗号隔开。
+
+[source,properties]
+----
+include::example$/rest-ex1/src/main/resources/application.properties[tags=resource-server-anonymous-url-patterns]
+----
+
+配置完成后，可以不使用 `Authentication` 请求头与 `ProductService` 进行交互：
+
+.GetProductInformation Request
+[source, http request]
+----
+GET {{baseRestUrl}}
+         /services
+         /productService
+         /getProductInformation
+         ?productId=123
+# Authorization: not set
+----
+
+这个请求会成功拿到服务的返回内容：
+
+.HTTP/1.1 200
+[source, json]
+----
+{
+  "name": "Apple iPhone",
+  "productId": "123",
+  "price": 499.99
+}
+----
+
+如需为某些 xref:entities-api.adoc[实体] 端点提供匿名访问，请确保 `anonymous` 用户有访问这些实体的权限。可以创建一个 xref:security:resource-roles.adoc[资源角色] 然后分配给 `anonymous` 用户，代码中使用 `DatabaseUserRepository.initAnonymousUser()` 方法。示例：
+
+[source,java,indent=0]
+----
+@ResourceRole(name = "AnonymousRestRole", code = AnonymousRestRole.CODE, scope = "API")
+public interface AnonymousRestRole {
+
+    String CODE = "anonymous-rest-role";
+
+    @EntityAttributePolicy(entityClass = Product.class,
+        attributes = "*",
+        action = EntityAttributePolicyAction.MODIFY)
+    @EntityPolicy(entityClass = Product.class,
+        actions = {EntityPolicyAction.READ, EntityPolicyAction.UPDATE})
+    void product();
+}
+----
+
+[source,java,indent=0]
+----
+@Primary
+@Component("UserRepository")
+public class DatabaseUserRepository extends AbstractDatabaseUserRepository<User> {
+    // ...
+
+    @Override
+    protected void initAnonymousUser(User anonymousUser) {
+        Collection<GrantedAuthority> authorities = getGrantedAuthoritiesBuilder()
+                .addResourceRole(AnonymousRestRole.CODE)
+                .build();
+        anonymousUser.setAuthorities(authorities);
+    }
+}
+----
+
+TIP: 匿名访问功能 *不需要* `anonymous` 用户有 `rest-minimal` 角色。
+
+[[predefined-roles]]
+== 预定义角色
+
+*REST: minimal access* （`rest-minimal`）：支持用户使用 API 与应用程序交互。

@@ -1,0 +1,163 @@
+= 资源角色
+
+资源角色赋予用户对系统中特定对象和操作的权限：对实体的 CRUD 操作权限、实体属性权限、UI 视图权限等。
+
+NOTE: 没有资源角色的用户没有任何权限，无法访问应用程序的数据和 UI。
+
+[[create]]
+== 创建资源角色
+
+可以在设计时使用带注解的 Java 接口（参考 xref:studio:role-designer.adoc#resource-role-designer[Studio 角色设计器]）创建资源角色，或者在运行时用 *Security（安全） -> Resource roles（资源角色）* 视图创建。
+
+每个角色有一个用户友好的名称和一个编码。给用户分配角色时使用编码，因此如果已经有用户分配了某个角色，不要再次修改此角色的编码了。
+
+定义设计时角色示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/FullAccessRole.java[tags=role]
+----
+<1> `@ResourceRole` 注解表示这个接口定义了资源角色。
+<2> 用户友好的角色名。
+<3> 角色的编码。
+<4> 角色的 <<role-scope,作用域>>（可选）。
+<5> 接口可以有一个或多个方法用来定义策略注解（见下文）。不同的方法只是用来对相关的策略进行分组。方法名没有限制，当角色在 UI 展示时，方法名作为 *Policy group（策略组）* 展示。
+
+[[policies]]
+== 资源策略
+
+资源角色通过指定 _资源策略_ 定义许可权限。资源策略由一个资源和对该资源的访问权限组成。
+
+[[entity-policy]]
+=== 实体策略
+
+实体策略指定对实体的 CRUD 操作权限。
+
+在设计时角色中，实体策略使用 `@EntityPolicy` 注解定义，示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-policy;method]
+----
+
+用 `entityClass` 参数指定实体。如需定义所有实体的策略，请将 `entityName` 参数设置为 `*`。
+
+`actions` 参数设置许可的 CRUD 操作。如需请用所有操作，设置为 `EntityPolicyAction.ALL` 值。
+
+[[entity-attribute-policy]]
+=== 实体属性策略
+
+实体属性策略指定对实体属性的操作权限。
+
+在设计时角色中，实体属性策略使用 `@EntityAttributePolicy` 注解定义，示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=entity-attribute-policy;method]
+----
+
+用 `entityClass` 参数指定实体。如需定义所有实体的策略，请将 `entityName` 参数设置为 `*`。
+
+用 `attributes` 参数指定实体属性名称。如需定义所有实体属性的策略，设置为 `*`。
+
+`action` 参数设置许可的级别：“view（查看）” 或 “modify（修改）”。“modify” 级别包含 “view”。
+
+[[view-policy]]
+=== 视图策略
+
+视图策略指定 UI 视图的许可权限。
+
+在设计时角色中，视图策略使用 `@ViewPolicy` 注解定义，示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=view-policy;method]
+----
+
+`viewIds` 参数指定许可的 UI 视图 id。如需启用全部视图，设置为 `*`。
+
+[[menu-policy]]
+=== 菜单策略
+
+菜单策略指定 UI 主菜单项的许可权限。
+
+在设计时角色中，菜单策略使用 `@MenuPolicy` 注解定义，示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=menu-policy;method]
+----
+
+`menuIds` 参数指定许可的菜单项 id。如需启用全部菜单项，设置为 `*`。
+
+[[specific-policy]]
+=== 特殊策略
+
+特殊策略用于定义任何其他功能的权限。
+
+框架使用特定权限来限制对各种机制的访问。例如，xref:rest:index.adoc[通用 REST API] 定义了 `rest.enabled` 策略，因此用户必须拥有此权限才能使用 REST API 接口与应用程序交互。
+
+你也可以使用特定策略来限制对应用程序功能的访问。以下是这种访问控制的示例。
+
+在设计时角色中，特殊策略使用 `@SpecificPolicy` 注解定义，示例：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerFullAccessRole.java[tags=specific-permission]
+----
+
+使用框架提供的 `AccessManager` 和 `SpecificOperationAccessContext` 类在应用程序代码中检查策略：
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/service/NotificationService.java[tags=access-manager;specific-permission]
+----
+
+参阅 xref:security:authorization.adoc#access-constraints[访问约束] 部分了解有关检查权限的更多内容。
+
+如需启用所有的特殊策略，在 `@SpecificPolicy.resources` 注解属性中使用 `*` 值。
+
+[[ui-component-policy]]
+=== UI 组件策略
+
+UI 组件策略定义对 UI 视图中的字段、按钮以及操作等组件的访问权限。该策略由独立的 xref:uiconstraints:index.adoc[UI Constraints] 扩展组件提供。
+
+[[role-scope]]
+== 角色作用域
+
+角色作用域定义了角色生效的范围。有两个内置作用域：
+
+* `UI`：基于 Vaadin 的应用程序 xref:flow-ui:index.adoc[UI]。
+* `API`：通用的 xref:rest:index.adoc[REST API]。
+
+使用作用域可以根据用户访问应用程序的不同方式授予不同的角色集合。
+API 角色通常限制性更强。
+
+例如，如果用户 `bob` 在应用程序中分配了以下角色：`R1(scope=UI,API)`、`R2(scope=UI)` 和 `R3(scope=API)`，那么当他登录 UI 时，他拥有 `R1` 和 `R2` 角色；而当他在 REST API 中进行认证时，他拥有 `R1` 和 `R3` 角色。
+
+如果没有为角色指定作用域，则该角色对所有作用域均生效。
+
+可以使用 `io.jmix.security.model.SecurityScope` 接口的字符串常量来定义内置角色作用域。
+
+[[role-granularity]]
+== 角色粒度
+
+一个资源角色可以有任意数量的策略，并且一个用户可以有任意数量的角色。因此，可以设计具有不同粒度级别的角色：
+
+* 细粒度的角色定义了对紧密相关资源（如实体、实体 UI 视图和菜单项）的权限。例如，“对 Customer 的完全访问权限”、“可以创建和更新 Orders”。通常会给用户分配几个这样的角色。
+
+* 粗粒度角色定义了特定工作所需的所有权限，例如，“销售人员”。这样的角色本身可以定义所有权限或从基础角色继承，因此可以将粗粒度角色作为细粒度角色的聚合。
+
+我们建议在设计时创建细粒度角色，仅使用运行时功能将它们组合成不同的粗粒度角色，以便能更简单地给用户分配角色，并支持对安全模型临时进行调整。
+
+[[example]]
+== 示例
+
+下面是设计时资源角色的完整示例，启用了对下列实体和其 UI 视图的有限访问权限：
+
+image::resource-roles-diagram.svg[align="center"]
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/permissions/CustomerNonConfidentialAccessRole.java[tags=role]
+----

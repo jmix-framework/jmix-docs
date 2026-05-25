@@ -1,0 +1,110 @@
+= 使用 UI 中的搜索
+
+[[visual-components]]
+== 可视化组件
+
+搜索扩展组件提供两个 UI 组件：xref:search-field-component.adoc[SearchField] 和 xref:full-text-filter-component.adoc[FullTextFilter]。
+
+[[search-strategies]]
+== 搜索策略
+
+搜索策略定义如何处理搜索词。基本上是使用一些查询语句配置搜索请求。
+
+xref:search-field-component.adoc[SearchField] 和 xref:full-text-filter-component.adoc[FullTextFilter] 组件支持下列内置的搜索策略：
+
+* `startsWith`
++
+NOTE: 该策略 **仅当** 在至少一个索引定义上启用了 xref:index-definitions.adoc#extended-search[@ExtendedSearch] 时才可用。
++
+对预索引的 Edge N-Gram 子字段执行基于前缀的搜索：
+
+** 从生成 xref:search-properties.adoc#jmix.search.minPrefixLength[jmix.search.min-prefix-length]（默认：`3`）到 xref:search-properties.adoc#jmix.search.maxPrefixLength[jmix.search.max-prefix-length]（默认：`8`）所有长度的前缀。
+** 提供比通配符查询更快的性能。
+** 当输入超过最大前缀长度时，如果 xref:search-properties.adoc#jmix.search.wildcardPrefixQueryEnabled[jmix.search.wildcard-prefix-query-enabled] = `true`（默认），则回退到通配符查询。
++
+NOTE: 对短于 `jmix.search.min-prefix-length` 的词条始终返回空结果。
+
+* `phrase`
++
+执行精确短语匹配：
+
+** 文档必须将所有搜索词按 **准确顺序** 包含在同一字段内。
+** 相当于搜索引擎中的传统词组查询。
+** 非常适合姓名、头衔或准确词语的搜索。
+
+* `anyTermAnyField`
++
+对所有字段执行析取式词项匹配：
+
+** 返回在 **任何** 索引字段中匹配 **任意** 输入词项的文档。
+** 词项之间使用 OR 逻辑组合。
+** 向后兼容的默认策略。
+
++
+默认情况下设置此策略。
+
+CAUTION: `allTermsAnyField` 和 `allTermsSingleField` 已弃用并在 UI 中隐藏，但如有需要可以重新实现。
+
+可以使用 `searchStrategy` 属性设置合适的搜索策略，示例：
+
+[source,xml,indent=0]
+----
+include::example$/search-ex1/src/main/resources/com/company/demo/view/search/filter-view.xml[tags=strategy]
+----
+
+如需覆盖默认策略，在 `application.properties` 文件添加下列应用程序属性：
+
+[source,properties,indent=0]
+----
+include::example$/search-ex1/src/main/resources/application.properties[tags=default-strategy]
+----
+
+[[custom-search-strategies]]
+=== 自定义搜索策略
+
+另外，也可以创建自己的搜索策略。为此，首先创建一个实现下列接口之一的 Spring bean：
+
+* `OpenSearchSearchStrategy` - 如果使用 OpenSearch。
+* `ElasticsearchSearchStrategy` - 如果使用 Elasticsearch。
+
+然后需要实现两个方法：
+
+* `String getName()` - 返回策略的唯一名称。
+
+* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - 根据需要使用传入的 builder 配置所需的搜索请求。
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
+----
+
+然后，可以在 xref:search-field-component.adoc[SearchField] 或 xref:full-text-filter-component.adoc[FullTextFilter] 组件使用策略名称设置策略。
+
+[[fts-condition-in-filter-component]]
+== 过滤器组件中的全文搜索条件
+
+当项目中添加了搜索扩展组件后，xref:flow-ui:vc/components/genericFilter.adoc[GenericFilter] 组件的 *Add condition（添加条件）* 弹窗会出现一个新的条件：
+
+image:search:add_condition.png[align="center",width="1151"]
+
+在 *Full-text filter condition editor（全文过滤条件编辑）* 对话框中，你可以为全文过滤器设置标题并选择一个搜索策略。如果未设置，则使用默认策略。
+
+image:search:condition_editor.png[align="center",width="642"]
+
+与过滤器关联的列表组件中的记录会基于全文搜索结果过滤。
+
+[[using-search-api-in-views]]
+== 视图中使用搜索 API
+
+视图控制器中可以使用搜索 API，示例：
+
+[source,java,indent=0]
+----
+include::example$/search-ex1/src/main/java/com/company/demo/view/search/UsingApiView.java[tags=inject;click-event]
+----
+<1> 点击按钮时，从视图控制器调用 API。
+<2> 定义搜索字符串，这一步是必须的，会搜索所有的索引字段，并找出其中是否包含 `"silver"`。
+<3> 设置返回结果集中包含的记录数量。默认值为 `10`。
+<4> 设置搜索的实体。默认会搜素全部的索引实体。
+<5> 使用 `EntitySearcher` 服务启动搜索。
+<6> 使用 `SearchResultProcessor` 从搜索结果中获取实体。

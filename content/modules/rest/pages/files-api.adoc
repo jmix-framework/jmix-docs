@@ -1,0 +1,198 @@
+= 文件
+
+文件 API 使用 Jmix 的 xref:files:index.adoc[文件存储机制]，并将接口开放给客户端，用于从 Jmix 应用程序上传或下载文件。
+
+[[uploading-files]]
+== 上传文件
+
+上传文件接口地址为 `/files`，使用 `POST` 请求方法。
+
+有两种传输数据的方法：
+
+1. 使用 `multipart/form-data`
+2. 使用不同的 content type，请求体包含二进制数据。
+
+根据使用场景的不同，两种方式各有优劣。文件上传成功且保存后，两种方式都会收到 `201 - Created` 状态码。
+
+NOTE: 如需上传文件，用户的角色需要有 `rest.fileUpload.enabled` xref:security:resource-roles.adoc#specific-policy[特殊策略]。
+
+[[using-multipart-form-data]]
+=== 使用 multipart/form-data
+
+当使用标准浏览器表单提交文件至 Jmix 应用程序时，推荐使用第一种方式上传，因为浏览器此时会默认使用 `multipart/form-data` Content-type。表单中包含文件二进制数据的字段需要命名为 `file`，Jmix 才会将这部分数据作为文件内容。
+
+下面是 `multipart/form-data` 请求的示例，用 HTTP 表单上传 `cat.jpg` 文件：
+
+[source, http request]
+.以 multipart/form-data 请求上传文件
+----
+POST http://localhost:8080/rest/files
+Content-Type: multipart/form-data; boundary=WebAppBoundary // <1>
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="cat.jpg" // <2>
+Content-Type: image/jpeg
+
+< ./cat.jpg // <3>
+--WebAppBoundary--
+----
+<1> HTTP 请求的 `Content-Type` 为 `multipart/form-data`
+<2> `Content-Disposition` 部分指定 `name="file"` 和 `filename="cat.jpg"`，表示上传的文件。
+<3> `< ./cat.jpg` 表示文件的二进制数据（_这里省略了实际的二进制内容_）。
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileRef": "fs://2021/03/12/a3b6011d-9040-151e-7d17-f7ccdf75d72f.jpg?name=cat.jpg", // <1>
+  "name": "cat.jpg",
+  "size": 85862
+}
+----
+<1> `fileRef` 包含文件的引用，以备将来使用。
+
+如需控制文件存储的文件名，可以设置 URL 参数 `name`：
+`POST http://localhost:8080/rest/files?name=dog.jpg`。如有此参数，Jmix 会从参数获取文件名而忽略 `Content-Disposition` 中的文件名。
+
+用下面的应用程序属性可以限制上传文件的大小：
+
+[source, properties]
+----
+spring.servlet.multipart.max-file-size=10MB
+----
+
+[[using-direct-upload]]
+=== 使用二进制直接上传
+
+上传文件时，还可以不使用 `multipart/form-data` content type。而是直接使用文件的类型作为 content type。此时，HTTP 的请求体需要直接包含文件的二进制内容。还需要提供 `name` URL 参数告知此文件的文件名。
+
+下面是使用直接上传文件的示例：
+
+[source, http request]
+.直接上传文件请求
+----
+POST http://localhost:8080/rest/files?name=cat-via-direct-request.jpg // <1>
+Content-Type: image/jpeg // <2>
+
+< ./cat.jpg // <3>
+----
+<1> `name` URL 参数提供文件的文件名
+<2> `Content-Type` 是文件的实际 content type
+<3> `< ./cat.jpg` 表示文件的二进制数据（_这里省略了实际的二进制内容_）。
+
+[source, json]
+.Response: 201 - Created
+----
+{
+  "fileRef": "fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg",
+  "name": "cat-via-direct-request.jpg",
+  "size": 85862
+}
+----
+
+[[downloading-files]]
+== 下载文件
+
+文件在上传至 Jmix 应用程序之后，便可以下载或直接展示。
+
+文件下载地址为：`/files?fileRef=:fileRef`，使用 HTTP 的 `GET` 方法。如果文件存在，API 返回 `200 - OK` 状态码，返回体中包含文件的二进制内容。否则，返回 `404 - Not Found`。
+
+下面示例中通过 API 下载了之前上传的文件：
+
+[source, http request]
+.下载文件请求
+----
+GET http://localhost:8080/rest
+            /files
+            ?fileRef=fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg // <1>
+----
+<1> `fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg` 引用标识一个文件
+
+[NOTE]
+====
+`fileRef` 参数需要使用 URL 加密，以避免任何特殊字符引起的问题。因此实际的 URL 看起来如下：
+
+`fileRef=fs%3A%2F%2F2021%2F03%2F12%2F2266c97c-cf23-c202-481d-04d972e185b4.jpg%3Fname%3Dcat-via-direct-request.jpg`
+====
+
+如果文件存在，返回体会包含文件：
+
+[source, http request]
+.Response: 200 - OK
+----
+Content-Disposition: inline; filename="cat-via-direct-content-type.jpg" // <1>
+Content-Type: image/jpeg // <2>
+
+> ./cat-via-direct-content-type.jpg // <3>
+----
+<1> `Content-Disposition` 响应头包含文件名和下载后如何处理文件的信息（`inline` 或 `attachment`）。
+<2> `Content-Type` 响应头包含文件的 content type。
+<3> `> ./cat-via-direct-content-type.jpg` 表示文件的二进制数据（_这里省略了实际的二进制内容_）。
+
+可以通过 `attachment` 请求参数控制 `Content-Disposition` 响应头的内容。如果参数设置为 `true`，则响应头 `Content-Disposition` 设置为 `attachment`，其他情况则为 `inline`。
+
+[source, http request]
+.attachment 请求参数
+----
+GET http://localhost:8080/rest
+            /files
+            ?fileRef=<your-file-ref>
+            &attachment=true
+----
+
+可以通过 `Content-Disposition: inline` 下载的文件类型扩展名列表在 xref:app-properties.adoc#jmix.rest.inline-enabled-file-extensions[jmix.rest.inline-enabled-file-extensions] 应用程序属性设置。
+
+NOTE: 如需下载文件，用户的角色需要包含 `rest.fileDownload.enabled` xref:security:resource-roles.adoc#specific-policy[特殊策略]。
+
+[[referencing-files-from-entities]]
+== 实体中引用文件
+
+文件上传至 Jmix 应用程序之后，可以将文件与实体属性关联。
+
+首先，<<uploading-files,上传文件>> 至 Jmix 应用程序。在上传的返回体中，有类似 `fs://2021/03/12/2266c97c-cf23-c202-481d-04d972e185b4.jpg?name=cat-via-direct-request.jpg` 的文件引用。在创建/更新实体时，可以使用该引用将实体与文件进行关联。
+
+下面示例中，`Product` 实体使用文件引用保存产品图片。
+
+[source,java]
+.Product.java
+----
+@JmixEntity
+@Table(name = "RSTEX11_PRODUCT")
+@Entity(name = "rstex11_Product")
+public class Product {
+
+    @PropertyDatatype("fileRef")
+    @Column(name = "IMAGE")
+    private FileRef image;
+
+    //...
+}
+----
+
+当使用创建实体 API 创建一个 Product 时，需要传入之前收到的文件引用作为 `image` 属性的值：
+
+[source, http request]
+.创建带有文件引用的 Product 请求
+----
+POST http://localhost:8080/rest
+            /entities
+            /rstex11_Product
+            ?responseFetchPlan=_local
+
+{
+  "name": "Product with Image",
+  "price":100,
+  "image": "fs://2021/03/13/f623e8ab-524e-51ed-1a9f-b1c1369239e3.jpg?name=cat.jpg"
+}
+----
+
+[source,json]
+.Response: 201 - Created
+----
+{
+  "id": "ea6f1b3c-0e74-c90b-b009-9f58ac964034",
+  "image": "fs://2021/03/13/f623e8ab-524e-51ed-1a9f-b1c1369239e3.jpg?name=cat.jpg",
+  "price": 100.00,
+  "name": "Product with Image"
+}
+----
