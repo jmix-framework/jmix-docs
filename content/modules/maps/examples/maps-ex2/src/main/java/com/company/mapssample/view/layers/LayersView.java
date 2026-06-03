@@ -4,7 +4,7 @@ package com.company.mapssample.view.layers;
 import com.company.mapssample.view.main.MainView;
 
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.streams.DownloadHandler;
 import io.jmix.flowui.view.*;
 import io.jmix.mapsflowui.component.model.feature.MarkerFeature;
 import io.jmix.mapsflowui.component.model.source.ImageStaticSource;
@@ -33,8 +33,8 @@ public class LayersView extends StandardView {
     protected void onInit(final InitEvent event) {
         // end::onInit[]
         // tag::programmaticMap[]
-        programmaticSource.setResource(new StreamResource("map.png",
-                () -> this.getClass().getResourceAsStream("/META-INF/resources/maps/map.png")));
+        programmaticSource.setDownloadHandler(
+                DownloadHandler.forClassResource(getClass(),"/META-INF/resources/maps/map.png"));
         // end::programmaticMap[]
         // tag::mapwithvector[]
         vectorSource.addFeature(new MarkerFeature(createPoint(0, 0)));// <1>

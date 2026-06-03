@@ -1,10 +1,12 @@
 package com.company.mapssample;
 
 import com.google.common.base.Strings;
+import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import io.jmix.mapsflowui.component.projection.GeoMapProjectionRegistration;
 import io.jmix.mapsflowui.component.projection.ProjectionRegistration;
 import org.slf4j.LoggerFactory;
@@ -13,7 +15,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
@@ -25,6 +27,7 @@ import javax.sql.DataSource;
 @Theme(value = "maps-ex2")
 @PWA(name = "Maps Ex2", shortName = "Maps Ex2")
 @SpringBootApplication
+@StyleSheet(Lumo.UTILITY_STYLESHEET)
 public class MapsEx2Application implements AppShellConfigurator {
 
     @Autowired
