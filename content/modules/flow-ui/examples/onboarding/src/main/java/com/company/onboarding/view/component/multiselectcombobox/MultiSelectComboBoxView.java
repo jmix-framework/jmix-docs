@@ -3,8 +3,6 @@ package com.company.onboarding.view.component.multiselectcombobox;
 
 import com.company.onboarding.entity.Hobby;
 import com.company.onboarding.view.main.MainView;
-
-import com.vaadin.flow.component.shared.HasClientValidation;
 import com.vaadin.flow.data.provider.Query;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.DataManager;

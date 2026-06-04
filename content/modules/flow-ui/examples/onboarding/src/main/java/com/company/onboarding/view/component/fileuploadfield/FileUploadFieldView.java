@@ -24,7 +24,7 @@ public class FileUploadFieldView extends StandardView {
     // tag::FileUploadSucceededEvent[]
     @Subscribe("fileUploadField")
     public void onFileUploadFieldFileUploadSucceeded(
-            final FileUploadSucceededEvent<FileUploadField> event) {
+            final FileUploadSucceededEvent<FileUploadField, byte[]> event) {
         // Access the uploaded file information:
         String fileName = event.getFileName();
         byte[] fileContent = event.getSource().getValue();

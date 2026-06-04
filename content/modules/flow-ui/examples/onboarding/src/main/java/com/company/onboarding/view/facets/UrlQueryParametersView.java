@@ -1,12 +1,8 @@
 package com.company.onboarding.view.facets;
 
 import com.company.onboarding.entity.Department;
-
 import com.company.onboarding.view.main.MainView;
-
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.sun.jna.platform.win32.Advapi32Util;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
@@ -18,7 +14,6 @@ import io.jmix.flowui.view.*;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 @Route(value = "url-query-parameters", layout = MainView.class)
 @ViewController("UrlQueryParametersView")

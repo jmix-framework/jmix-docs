@@ -7,9 +7,9 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 @Configuration
 public class DemoSecurityConfiguration extends FlowuiVaadinWebSecurity {
 
-    @Override
-    protected void configure(WebSecurity web) throws Exception {
-        web.ignoring().requestMatchers("/images/**");
-        super.configure(web);
-    }
+//    @Override
+//    protected void configure(WebSecurity web) throws Exception {
+//        web.ignoring().requestMatchers("/images/**");
+//        super.configure(web);
+//    }
 }
