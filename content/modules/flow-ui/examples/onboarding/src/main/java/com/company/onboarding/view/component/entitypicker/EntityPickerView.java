@@ -43,7 +43,7 @@ public class EntityPickerView extends StandardView {
         // end::addAction[]
         // tag::addCustomAction[]
         departmentEntityPicker.addAction(new BaseAction("showManager")
-                .withIcon(VaadinIcon.QUESTION_CIRCLE)
+                .withIcon(VaadinIcon.QUESTION_CIRCLE.create())
                 .withHandler(e -> {
                     Department department = departmentEntityPicker.getValue();
                     if (department != null)

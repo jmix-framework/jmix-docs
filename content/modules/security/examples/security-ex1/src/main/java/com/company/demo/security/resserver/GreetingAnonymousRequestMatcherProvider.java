@@ -2,7 +2,7 @@ package com.company.demo.security.resserver;
 
 import io.jmix.securityresourceserver.requestmatcher.AnonymousRequestMatcherProvider;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +12,7 @@ public class GreetingAnonymousRequestMatcherProvider implements AnonymousRequest
 
     @Override
     public RequestMatcher getAnonymousRequestMatcher() {
-        return new AntPathRequestMatcher("/greeting/public/**", HttpMethod.GET.name());
+        return PathPatternRequestMatcher.pathPattern(HttpMethod.GET, "/greeting/public/**");
     }
 }
 //end::whole-class[]

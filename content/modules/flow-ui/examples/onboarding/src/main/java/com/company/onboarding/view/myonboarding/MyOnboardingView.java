@@ -78,9 +78,10 @@ public class MyOnboardingView extends StandardView {
 
         DataGridHelper.setDataGridColumnPosition(stepsDataGrid, checkboxColumn, 0);
 
-        stepsDataGrid.getColumnByKey("dueDate")
-                .setClassNameGenerator(userStep ->
-                        isOverdue(userStep) ? "overdue-step" : null);
+        // todo replace with partNameGenerator
+//        stepsDataGrid.getColumnByKey("dueDate")
+//                .setClassNameGenerator(userStep ->
+//                        isOverdue(userStep) ? "overdue-step" : null);
 
     }
 

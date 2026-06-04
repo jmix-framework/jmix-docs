@@ -2,9 +2,11 @@ package com.company.notificationsex1;
 
 import com.google.common.base.Strings;
 import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import io.jmix.notifications.NotificationType;
 import io.jmix.notifications.NotificationTypesRepository;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.ContextRefreshedEvent;
@@ -27,6 +29,7 @@ import javax.sql.DataSource;
 @Theme(value = "notifications-ex1")
 @PWA(name = "Notifications Ex1", shortName = "Notifications Ex1")
 @SpringBootApplication
+@StyleSheet(Lumo.UTILITY_STYLESHEET)
 public class NotificationsEx1Application implements AppShellConfigurator {
 
     @Autowired

@@ -13,6 +13,8 @@ import io.jmix.flowui.kit.component.upload.event.*;
 import io.jmix.flowui.upload.TemporaryStorage;
 import io.jmix.flowui.view.*;
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
@@ -21,12 +23,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
-import static org.reflections.Reflections.log;
-
 @Route(value = "FileStorageUploadView", layout = MainView.class)
 @ViewController("FileStorageUploadView")
 @ViewDescriptor("file-storage-upload-view.xml")
 public class FileStorageUploadView extends StandardView {
+
+    private static final Logger log = LoggerFactory.getLogger(FileStorageUploadView.class);
+
     // tag::autowired[]
     @Autowired
     private TemporaryStorage temporaryStorage;
@@ -39,7 +42,7 @@ public class FileStorageUploadView extends StandardView {
     // tag::SucceededEvent[]
     @Subscribe("manuallyControlledField")
     public void onManuallyControlledFieldFileUploadSucceeded(
-            final FileUploadSucceededEvent<FileStorageUploadField> event) {
+            final FileUploadSucceededEvent<FileStorageUploadField, FileRef> event) {
         Receiver receiver = event.getReceiver();
         if (receiver instanceof FileTemporaryStorageBuffer) {
             UUID fileId = ((FileTemporaryStorageBuffer) receiver)
@@ -71,7 +74,7 @@ public class FileStorageUploadView extends StandardView {
 // tag::FileUploadSucceededEvent[]
     @Subscribe("fileRefField")
     public void onFileRefFieldFileUploadSucceeded(
-            final FileUploadSucceededEvent<FileStorageUploadField> event) {
+            final FileUploadSucceededEvent<FileStorageUploadField, FileRef> event) {
         if (event.getReceiver() instanceof FileTemporaryStorageBuffer buffer) {
             UUID fileId = buffer.getFileData().getFileInfo().getId();
             log.info("FileId: " + fileId);

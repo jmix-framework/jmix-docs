@@ -11,6 +11,8 @@ import io.jmix.flowui.kit.component.loginform.JmixLoginI18n;
 import io.jmix.flowui.view.*;
 import io.jmix.securityflowui.authentication.AuthDetails;
 import io.jmix.securityflowui.authentication.LoginViewSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -18,12 +20,12 @@ import org.springframework.security.authentication.LockedException;
 
 import java.util.Locale;
 
-import static org.reflections.Reflections.log;
-
 @Route(value = "LoginFormView", layout = MainView.class)
 @ViewController("LoginFormView")
 @ViewDescriptor("login-form-view.xml")
 public class LoginFormView extends StandardView {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginFormView.class);
 
     @Autowired
     private LoginViewSupport loginViewSupport;
