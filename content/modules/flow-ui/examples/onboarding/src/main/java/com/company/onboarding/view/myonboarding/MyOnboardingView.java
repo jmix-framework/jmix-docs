@@ -31,7 +31,7 @@ import java.time.LocalDate;
 @ViewController("MyOnboardingView")
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
-@DialogMode(width = "50em", height = "40em")
+@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT)
 public class MyOnboardingView extends StandardView {
 // end::annotations[]
 

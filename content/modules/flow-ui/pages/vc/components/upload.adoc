@@ -34,8 +34,8 @@ xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
 xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
 xref:vc/common-attributes.adoc#minHeight[minHeight] -
 xref:vc/common-attributes.adoc#minWidth[minWidth] -
-<<receiverFqn,receiverFqn>> -
-<<receiverType,receiverType>> -
+<<uploadHandlerFqn,uploadHandlerFqn>> -
+<<uploadHandlerType,uploadHandlerType>> -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadIcon[uploadIcon] -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadText[uploadText] -
 xref:vc/common-attributes.adoc#visible[visible] -
@@ -49,8 +49,7 @@ xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
 <<FinishedEvent,FinishedEvent>> -
 <<ProgressUpdateEvent,ProgressUpdateEvent>> -
 <<StartedEvent,StartedEvent>> -
-<<SucceededEvent,SucceededEvent>> -
-<<receiver,receiver>>
+<<UploadSucceededEvent,UploadSucceededEvent>>
 |Elements
 |xref:icons/custom-icons.adoc[uploadIcon] -
 xref:icons/custom-icons.adoc[dropLabelIcon]
@@ -111,37 +110,13 @@ image::visual-components/components/upload-drag-drop.png[align="center", width="
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;FileRejectedEvent]
 ----
 
-[[receivers]]
-== Обработчики файлов
-
-Атрибут `receiverFqn` задает полное имя Java-класса, который будет обрабатывать загруженные файлы. Этот класс должен реализовывать интерфейс `Receiver`.
-
-NOTE: Если обработчик не реализует интерфейс `MultiFileReceiver`, то загрузка будет автоматически настроена на прием только одного файла.
-
-Атрибут `receiverType` определяет тип обработчика, используемого для обработки загруженных файлов. Он определяет, как загруженные файлы будут обрабатываться и храниться. Доступные значения:
-
-* `MemoryBuffer`
-+
-Обрабатывает загрузку одного файла за раз. Записывает данные файла в буфер в памяти. Использование `MemoryBuffer` автоматически настраивает компонент так, чтобы можно было выбрать только один файл.
-* `MultiFileMemoryBuffer`
-+
-Обрабатывает загрузку нескольких файлов одновременно. Записывает данные файлов в набор буферов в памяти.
-* `FileTemporaryStorageBuffer`
-+
-Обрабатывает загрузку одного файла за раз. Сохраняет файл во xref:files:file-storage.adoc[временное хранилище]. Использование `FileTemporaryStorageBuffer` автоматически настраивает компонент так, чтобы можно было выбрать только один файл.
-* `MultiFileTemporaryStorageBuffer`
-+
-Обрабатывает загрузку нескольких файлов одновременно. Для каждого файла он сохраняет его во временное хранилище.
-
-Тип обработчика по умолчанию - `MemoryBuffer`.
-
 == Атрибуты
 
 В Jmix есть множество xref:vc/common-attributes.adoc[общих атрибутов], которые выполняют одну и ту же функцию для всех компонентов.
 
 Ниже приведены атрибуты, специфичные для `upload`:
 
-[cols="1h,5,1", grid=rows, frame=none]
+[cols="1h,4a,1", grid=rows, frame=none]
 |===
 |*Название*
 |*Описание*
@@ -158,12 +133,19 @@ NOTE: Если обработчик не реализует интерфейс `
 |[[maxFiles]]maxFiles
 |Задает максимальное количество файлов для загрузки. Смотрите <<file-count,Лимит файлов>>.
 |unlimited
-|[[receiverFqn]]receiverFqn
-|Устанавливает реализацию обработчика, которая должна использоваться для этого компонента `upload`. Смотрите <<receivers,Обработчики файлов>>.
+|[[uploadHandlerFqn]]uploadHandlerFqn
+|Задает полное имя класса пользовательской реализации обработчика загрузки для этого компонента `upload`. Класс должен реализовывать интерфейс Vaadin `UploadHandler`. Пример значения:
+
+* `com.company.app.upload.CustomUploadHandler`
+
 |
-|[[receiverType]]receiverType
-|Задает тип реализации `Receiver`. Смотрите <<receivers,Обработчики файлов>>.
-|`MemoryBuffer`
+|[[uploadHandlerType]]uploadHandlerType
+|Задает тип встроенного обработчика загрузки. Возможные значения:
+
+* `IN_MEMORY` - сохраняет загруженные данные в памяти с помощью `InMemoryUploadHandler`. В `UploadSucceededEvent<V>` загруженные данные доступны как `byte[]`.
+* `FILE_TEMPORARY_STORAGE` - сохраняет загруженные файлы во xref:files:uploading-files.adoc#using-temporary-storage[временное хранилище].
+
+|`IN_MEMORY`
 |===
 
 == Обработчики
@@ -174,29 +156,32 @@ NOTE: Если обработчик не реализует интерфейс `
 
 include::../handler-generation-tip.adoc[]
 
-[cols="1h,6", grid=rows, frame=none]
+[cols="1h,6a", grid=rows, frame=none]
 |===
 |*Название*
 |*Описание*
 |[[AllFinishedEvent]]AllFinishedEvent
 |Событие `com.vaadin.flow.component.upload.AllFinishedEvent` отправляется, когда `upload` обработал все файлы в очереди загрузки, независимо от того, были ли все операции приема успешными или нет.
 |[[FailedEvent]]FailedEvent
-|Событие `com.vaadin.flow.component.upload.FailedEvent` отправляется, когда загрузка принята, но прием был прерван по какой-либо причине.
+|Событие `com.vaadin.flow.component.upload.FailedEvent` отправляется, когда `upload` принимает файл, но прием по какой-либо причине прерывается. В Java-коде используйте `addUploadFailedListener()`.
 |[[FileRejectedEvent]]FileRejectedEvent
 |Событие `com.vaadin.flow.component.upload.FileRejectedEvent` отправляется, когда выбранный для загрузки файл не соответствует ограничениям, заданным для загрузки, например, xref:flow-ui:vc/components/fileStorageUploadField.adoc#maxFileSize[ограничение размера файла] или <<maxFiles,ограничение количества файлов>>. Смотрите <<file-count,Лимит файлов>>.
 |[[FinishedEvent]]FinishedEvent
-|Событие `com.vaadin.flow.component.upload.FinishedEvent` отправляется, когда `upload` получает файл, независимо от того, была ли операция приема успешной или завершилась с ошибкой. Если вы хотите различать эти два случая, используйте <<SucceededEvent,SucceededEvent>> или <<FailedEvent,FailedEvent>>, которые являются подклассами `FinishedEvent`.
+|Событие `com.vaadin.flow.component.upload.FinishedEvent` отправляется, когда `upload` получает файл, независимо от того, была ли операция приема успешной или завершилась ошибкой. В Java-коде используйте `addUploadFinishedListener()`.
 |[[ProgressUpdateEvent]]ProgressUpdateEvent
-|Событие `com.vaadin.flow.component.upload.ProgressUpdateEvent` отправляется для отслеживания прогресса загрузки.
+|Событие `com.vaadin.flow.component.upload.ProgressUpdateEvent` отправляется для отслеживания хода загрузки. В Java-коде используйте `addUploadProgressListener()`.
 |[[StartedEvent]]StartedEvent
-|Событие `com.vaadin.flow.component.upload.StartedEvent` отправляется, когда загрузка запускается для приема.
-|[[SucceededEvent]]SucceededEvent
-|Событие `com.vaadin.flow.component.upload.SucceededEvent` отправляется, когда загрузка успешно завершена.
-Наш демонстрационный проект Samples содержит https://demo.jmix.ru/ui-samples/sample/upload[пример использования^] `MultiFileMemoryBuffer` для управления несколькими файлами в `com.vaadin.flow.component.upload.SucceededEvent`.
-|[[receiver]]receiver
-|Устанавливает реализацию обработчика, которая должна использоваться для этого компонента `upload`. Смотрите атрибуты <<receiverFqn,receiverFqn>> и <<receiverType,receiverType>>.
+|Событие `com.vaadin.flow.component.upload.StartedEvent` отправляется, когда `upload` начинает прием файла. В Java-коде используйте `addUploadStartedListener()` или подпишитесь на событие компонента в контроллере экрана.
+|[[UploadSucceededEvent]]UploadSucceededEvent
+|Событие `io.jmix.flowui.component.upload.UploadSucceededEvent<V>` отправляется при успешной загрузке через `upload`. Событие предоставляет загруженные данные через `getData()`. В контроллере экрана Jmix подпишитесь на это событие с помощью `@Subscribe("upload")`. В Java-коде также можно использовать `addUploadSucceededListener()`.
+
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;UploadSucceededEvent]
+----
 |===
 
 == Смотрите также
 
-Смотрите {vaadin-docs}/components/upload[документацию Vaadin^] для получения дополнительной информации.
+Дополнительную информацию смотрите в {vaadin-docs}/components/upload[документации Vaadin^].
