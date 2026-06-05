@@ -12,30 +12,14 @@ To gain a deep understanding of how endpoint security works, read the relevant s
 
 Spring Security uses special {spring-security-doc}/servlet/architecture.html#servlet-securityfilterchain[SecurityFilterChain^] beans to determine which URLs should be protected. Each `SecurityFilterChain` bean is configured by the {spring-security-doc}/servlet/configuration/java.html#jc-httpsecurity[HttpSecurity^] builder. An application can have multiple `SecurityFilterChain` beans declared. In this case, it is extremely important to indicate their correct order. See the {spring-security-doc}/servlet/configuration/java.html#_multiple_httpsecurity_instances[Multiple HttpSecurity Instances^] section of the Spring Security documentation for how to configure multiple `HttpSecurity` objects.
 
-Each Jmix application by default contains a security configuration that extends the {vaadin-docs}/security/enabling-security#security-configuration-class[VaadinWebSecurity^] class. This configuration sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grants access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always invoked last. The <<custom-endpoints-security>> section below explains how to define your own `SecurityFilterChain` to protect custom endpoints.
-
-// todo restore
-// The <<static-public-resources>> section explains how to completely bypass Spring Security for some URLs.
+Each Jmix application by default contains a security configuration that sets up access to internal Vaadin endpoints and delegates all requests authorization to Jmix and Vaadin mechanisms (grants access to views using view controller annotation or by analyzing user's resource roles). `SecurityFilterChain` created by this configuration always has the lowest priority and is always invoked last. The <<static-public-resources>> and <<custom-endpoints-security>> sections below explain how to define your own `SecurityFilterChain` to serve public resources and protect custom endpoints.
 
 Add-ons like xref:oidc:index.adoc[OpenID Connect] or xref:authorization-server:index.adoc[Authorization Server] bring their own `SecurityFilterChain` beans that protect authorization or resource server endpoints. These beans are always invoked before the one from the UI module. See the <<token-based-authentication>> section below for how to protect API endpoints when using these add-ons.
 
-// todo restore
-// [[static-public-resources]]
-// == Static Public Resources
-//
-// To completely ignore Spring Security rules for static public resources, create a configuration class extending `FlowuiVaadinWebSecurity` and register your public URL patterns with the `ignoring()` method of `WebSecurity`:
-//
-// [source,java,indent=0]
-// ----
-// include::example$/security-ex1/src/main/java/com/company/demo/security/DemoSecurityConfiguration.java[]
-// ----
-//
-// The example configuration above gives public access to all files located inside the `src/main/resources/public/images` directory of your project (see how to serve static content in the https://docs.spring.io/spring-boot/docs/current/reference/html/web.html#web.servlet.spring-mvc.static-content[Spring Boot documentation^]).
+[[static-public-resources]]
+== Static Public Resources
 
-[[custom-endpoints-security]]
-== Custom Endpoints Security
-
-To define custom security rules for endpoints, declare a new `SecurityFilterChain` bean. It is important that the order of this bean must be less than the order of `SecurityFilterChain` beans provided by Jmix framework.
+To define custom security rules for public resources, declare a new `SecurityFilterChain` bean. It is important that the order of this bean must be lower than the order of `SecurityFilterChain` beans provided by Jmix framework.
 
 You can find order value constants used by Jmix in the `JmixSecurityFilterChainOrder` interface. The rule of thumb is to use the `JmixSecurityFilterChainOrder.CUSTOM`, `JmixSecurityFilterChainOrder.CUSTOM - 10` and similar values for your security filter chains.
 
@@ -43,10 +27,24 @@ A simple `SecurityFilterChain` bean definition may look as follows:
 
 [source,java,indent=0]
 ----
-include::example$/security-ex1/src/main/java/com/company/demo/security/api/SimplePublicSecurityConfiguration.java[tags=public-filter-chain]
+include::example$/security-ex1/src/main/java/com/company/demo/security/api/SimplePublicSecurityConfiguration.java[tags=whole-class]
 ----
 
-The configuration above grants access to all requests that match the `/public-api/**` pattern.
+The configuration above grants access to all resources that match the `/public/**` pattern.
+
+To completely ignore Spring Security rules for static public resources, define a `WebSecurityCustomizer` bean and register your public URL patterns with the `ignoring()` method of `WebSecurity`:
+
+[source,java,indent=0]
+----
+include::example$/security-ex1/src/main/java/com/company/demo/security/IgnoringSecurityConfiguration.java[]
+----
+
+The configuration above gives public access to all files located inside the `src/main/resources/static/images` directory of your project
+
+TIP: See how to serve static content in the https://docs.spring.io/spring-boot/docs/current/reference/html/web.html#web.servlet.spring-mvc.static-content[Spring Boot documentation^].
+
+[[custom-endpoints-security]]
+== Custom Endpoints Security
 
 [[public-endpoints-example]]
 === Public Endpoints
@@ -64,7 +62,7 @@ Public access can be configured using the following configuration:
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/AnonymousControllerSecurityConfiguration.java[tags=whole-class]
 ----
-<1> `JmixSecurityFilterChainOrder.CUSTOM` order is less than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
+<1> `JmixSecurityFilterChainOrder.CUSTOM` order is lower than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
 <2> {spring-security-doc}/servlet/authorization/authorize-http-requests.html#security-matchers[securityMatcher()^] is used to determine whether a given `HttpSecurity` should be applied to the request. The request matcher from the example will match requests with URLs that follow the pattern `/greeting/**`. Requests for other URLs will be processed by a default security filter chain from Jmix UI module.
 <3> `permitAll()` instruction grants access to endpoints.
 <4> Disables CSRF for POST requests.
@@ -88,7 +86,7 @@ Requests with URLs matching the `pass:[/api/**]` pattern should be protected wit
 ----
 include::example$/security-ex1/src/main/java/com/company/demo/security/api/BasicControllerSecurityConfiguration.java[tags=whole-class]
 ----
-<1> `JmixSecurityFilterChainOrder.CUSTOM` order is less than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
+<1> `JmixSecurityFilterChainOrder.CUSTOM` order is lower than any other Jmix security filter chain order, so your filter chain will be used before any filter chain from Jmix.
 <2> Security matcher indicates that the HttpSecurity will only be applied for `pass:[/api/**]` requests.
 <3> If the request is selected by security matcher then we can provide further rules. All requests for `pass:[/api/public/**]` must be permitted without authentication.
 <4> All requests that don't match the `pass:[/api/public/**]` pattern defined above must be authenticated.
