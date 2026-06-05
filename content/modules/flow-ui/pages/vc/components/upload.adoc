@@ -34,8 +34,8 @@ xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
 xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
 xref:vc/common-attributes.adoc#minHeight[minHeight] -
 xref:vc/common-attributes.adoc#minWidth[minWidth] -
-<<receiverFqn,receiverFqn>> -
-<<receiverType,receiverType>> -
+<<uploadHandlerFqn,uploadHandlerFqn>> -
+<<uploadHandlerType,uploadHandlerType>> -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadIcon[uploadIcon] -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadText[uploadText] -
 xref:vc/common-attributes.adoc#visible[visible] -
@@ -49,8 +49,7 @@ xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
 <<FinishedEvent,FinishedEvent>> -
 <<ProgressUpdateEvent,ProgressUpdateEvent>> -
 <<StartedEvent,StartedEvent>> -
-<<SucceededEvent,SucceededEvent>> -
-<<receiver,receiver>>
+<<UploadSucceededEvent,UploadSucceededEvent>>
 |Elements
 |xref:icons/custom-icons.adoc[uploadIcon] -
 xref:icons/custom-icons.adoc[dropLabelIcon]
@@ -111,37 +110,13 @@ Exceptions that arise aren’t shown in the UI by default. Use <<FileRejectedEve
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;FileRejectedEvent]
 ----
 
-[[receivers]]
-== Receivers
-
-The `receiverFqn` attribute specifies the fully qualified name of the Java class that will handle the uploaded files. This class must implement the `Receiver` interface.
-
-NOTE: If the receiver doesn't implement `MultiFileReceiver` then the `upload` will be automatically set to only accept one file.
-
-The `receiverType` attribute specifies the type of receiver used for handling uploaded files. It determines how the uploaded files will be processed and stored. Possible values are:
-
-* `MemoryBuffer`
-+
-Handles a single file upload at once. Writes the file data into an in-memory buffer. Using `MemoryBuffer` automatically configures the component so that only a single file can be selected.
-* `MultiFileMemoryBuffer`
-+
-Handles multiple file uploads at once. Writes the file data into a set of in-memory buffers.
-* `FileTemporaryStorageBuffer`
-+
-Handles a single file upload at once. Saves a file to the xref:files:file-storage.adoc[temporary storage]. Using `FileTemporaryStorageBuffer` automatically configures the component so that only a single file can be selected.
-* `MultiFileTemporaryStorageBuffer`
-+
-Handles multiple file uploads at once. For each, it saves a file to the xref:files:file-storage.adoc[temporary storage].
-
-The default receive type is `MemoryBuffer`.
-
 == Attributes
 
 xref:vc/common-attributes.adoc[Common attributes] serve the same purpose for all components.
 
 The following attributes are specific to `upload`:
 
-[cols="1h,5,1", grid=rows, frame=none]
+[cols="1h,4a,1", grid=rows, frame=none]
 |===
 |*Name*
 |*Description*
@@ -158,12 +133,19 @@ The following attributes are specific to `upload`:
 |[[maxFiles]]maxFiles
 |Specifies the maximum number of files to upload. See <<file-count,File Count>>.
 |unlimited
-|[[receiverFqn]]receiverFqn
-|Sets the receiver implementation that should be used for this `upload` component. See <<receiver,Receivers>>.
+|[[uploadHandlerFqn]]uploadHandlerFqn
+|Sets the fully qualified name of a custom upload handler implementation for this `upload` component. The class must implement Vaadin's `UploadHandler` interface. Example value:
+
+* `com.company.app.upload.CustomUploadHandler`
+
 |
-|[[receiverType]]receiverType
-|Specifies the type of the `Receiver` implementations. See <<receiver,Receivers>>.
-|`MemoryBuffer`
+|[[uploadHandlerType]]uploadHandlerType
+|Specifies the type of the built-in upload handler. Possible values are:
+
+* `IN_MEMORY` – Stores uploaded data in memory using `InMemoryUploadHandler`. In `UploadSucceededEvent<V>`, the uploaded data is available as `byte[]`.
+* `FILE_TEMPORARY_STORAGE` Stores uploaded files in the xref:files:uploading-files.adoc#using-temporary-storage[temporary storage].
+
+|`IN_MEMORY`
 |===
 
 == Handlers
@@ -174,26 +156,30 @@ The following handlers are specific to `upload`.
 
 include::../handler-generation-tip.adoc[]
 
-[cols="1h,6", grid=rows, frame=none]
+[cols="1h,6a", grid=rows, frame=none]
 |===
 |*Name*
 |*Description*
 |[[AllFinishedEvent]]AllFinishedEvent
 |`com.vaadin.flow.component.upload.AllFinishedEvent` is sent when `upload` has processed all the files in its upload queue, regardless of whether all the receptions were successful or not.
 |[[FailedEvent]]FailedEvent
-|`com.vaadin.flow.component.upload.FailedEvent` is sent when `upload` is received, but the reception is interrupted for some reason.
+|`com.vaadin.flow.component.upload.FailedEvent` is sent when `upload` is received, but the reception is interrupted for some reason. Use `addUploadFailedListener()` in Java code.
 |[[FileRejectedEvent]]FileRejectedEvent
 |`com.vaadin.flow.component.upload.FileRejectedEvent` is sent when the file selected for upload doesn't meet the constraints specified on `upload`, for example, xref:flow-ui:vc/components/fileStorageUploadField.adoc#maxFileSize[file size limit] or <<maxFiles,file count limit>>. See <<file-count,File Count>>.
 |[[FinishedEvent]]FinishedEvent
-|`com.vaadin.flow.component.upload.FinishedEvent` is sent when `upload` receives a file, regardless of whether the reception was successful or failed. If you wish to distinguish between the two cases, use either <<SucceededEvent,SucceededEvent>> or <<FailedEvent,FailedEvent>>, which are both subclasses of `FinishedEvent`.
+|`com.vaadin.flow.component.upload.FinishedEvent` is sent when `upload` receives a file, regardless of whether the reception was successful or failed. Use `addUploadFinishedListener()` in Java code.
 |[[ProgressUpdateEvent]]ProgressUpdateEvent
-|`com.vaadin.flow.component.upload.ProgressUpdateEvent` is sent to track progress of upload.
+|`com.vaadin.flow.component.upload.ProgressUpdateEvent` is sent to track progress of upload. Use `addUploadProgressListener()` in Java code.
 |[[StartedEvent]]StartedEvent
-|`com.vaadin.flow.component.upload.StartedEvent` is sent when `upload` is started to receive.
-|[[SucceededEvent]]SucceededEvent
-|`com.vaadin.flow.component.upload.SucceededEvent` is sent when `upload` is received successfully. Our Samples demo application includes an https://demo.jmix.io/ui-samples/sample/upload[example^] that utilizes a `MultiFileMemoryBuffer` to manage multiple files in `com.vaadin.flow.component.upload.SucceededEvent`.
-|[[receiver]]receiver
-|Sets the receiver implementation that should be used for this `upload` component. See the <<receiverFqn,receiverFqn>> and <<receiverType,receiverType>> attributes.
+|`com.vaadin.flow.component.upload.StartedEvent` is sent when `upload` is started to receive. Use `addUploadStartedListener()` in Java code or subscribe to the component event in a view controller.
+|[[UploadSucceededEvent]]UploadSucceededEvent
+|`io.jmix.flowui.component.upload.UploadSucceededEvent<V>` is sent when `upload` is received successfully. The event provides uploaded data through `getData()`. In a Jmix view controller, subscribe to this event with `@Subscribe("upload")`. You can also use `addUploadSucceededListener()` in Java code.
+
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;UploadSucceededEvent]
+----
 |===
 
 == See Also
