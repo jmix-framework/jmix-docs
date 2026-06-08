@@ -2,16 +2,9 @@ package com.company.onboarding.component;
 
 // tag::js-component[]
 import com.vaadin.flow.component.*;
-import com.vaadin.flow.component.dependency.CssImport;
-import com.vaadin.flow.component.dependency.JsModule;
-import com.vaadin.flow.component.dependency.NpmPackage;
 import com.vaadin.flow.shared.Registration;
 
-@Tag("demo-slider") // <1>
-@NpmPackage(value = "jquery", version = "1.9.1") // <2>
-@NpmPackage(value = "jquery-ui", version = "1.13.2")
-@CssImport("jquery-ui/dist/themes/base/jquery-ui.css")
-@JsModule("./src/component/slider/slider.js") // <3>
+@Tag("div")
 public class Slider extends Component implements HasSize {
 
     private static final String VALUE_PROPERTY = "value";
@@ -19,6 +12,7 @@ public class Slider extends Component implements HasSize {
     private static final String MAX_PROPERTY = "max";
 
     public Slider() {
+        getElement().setText("Slider is temporarily disabled");
     }
 
     public int getMin() {
