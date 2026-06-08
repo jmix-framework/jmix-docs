@@ -2,16 +2,15 @@ package com.company.onboarding.component;
 
 // tag::web-component[]
 import com.vaadin.flow.component.*;
-import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.shared.HasTooltip;
 import com.vaadin.flow.shared.Registration;
 
-@Tag("theme-toggle") // <1>
-@JsModule("./src/component/theme-toggle/theme-toggle.js") // <2>
+@Tag("div")
 public class ThemeToggle extends Component implements ClickNotifier<ThemeToggle>,
         Focusable<ThemeToggle>, HasTheme, HasEnabled, HasSize, HasStyle, HasTooltip, HasAriaLabel { // <3>
 
     public ThemeToggle() {
+        getElement().setText("Theme toggle is temporarily disabled");
     }
 
     public Registration addThemeChangeListener(ComponentEventListener<ThemeToggleThemeChangedEvent> listener) {
