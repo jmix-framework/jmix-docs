@@ -1,0 +1,952 @@
+= YAML Reference
+
+The dynamic model is serialized as YAML under a `model:` root key. This page documents the schema in full: every field, its type, whether it is required, its default value, and the rules that govern it. For task-oriented guidance, see xref:dyn-model:defining-model.adoc[] and xref:dyn-model:views.adoc[].
+
+[[model]]
+== Model
+
+The `model` root contains these top-level fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `basePackage`
+| string
+| no
+| Java package for generated dynamic entity, enum, and view classes. If omitted or blank, the effective value is the last Jmix module base package plus `.dynmod`. The field is omitted on serialization when it equals the default.
+
+| `enumerations`
+| list
+| no
+| Dynamic enum definitions. Missing or `null` becomes an empty list.
+
+| `entities`
+| list
+| no
+| Static entity extensions and dynamic entity definitions. Missing or `null` becomes an empty list.
+|===
+
+[[names-and-resolution]]
+=== Names and Resolution
+
+Entity definitions are matched by Jmix entity name:
+
+* If an entity with `name` already exists in metadata, the definition extends that static entity with dynamic attributes, validation, uniqueness, or view overrides.
+* If no metadata entity exists, Dynamic Model creates a dynamic entity with the same Jmix entity name and a generated Java class named `<effective basePackage>.<name>`.
+
+Use Java-like names for dynamic entities, attributes, enum classes, and enum values. Generated database identifiers are normalized automatically:
+
+* camel case is split to upper underscore names, for example `loyaltyLevel` becomes `LOYALTY_LEVEL`;
+* unsupported characters are replaced with underscores;
+* reserved words receive a trailing underscore, for example `user` becomes `USER_`;
+* identifiers exceeding the DBMS limit are shortened with an 8-character hash.
+
+[[localization-values]]
+=== Localization Values
+
+Most captions use a plain locale-to-message map:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=messages-map]
+----
+
+Some fields are *localized values* and accept either a plain string:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=localized-string]
+----
+
+or a locale map:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=localized-map]
+----
+
+Locale keys must be non-blank and map to strings. At runtime, the exact locale is preferred, then the language-only locale, then the first map value.
+
+[[enumerations]]
+== Enumerations
+
+Dynamic enumerations are declared in `model.enumerations`:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum]
+----
+
+Enum fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| yes
+| Short class name or fully qualified class name. Short names are resolved against `basePackage`.
+
+| `values`
+| list
+| yes
+| Must contain at least one value.
+
+| `messages`
+| map
+| no
+| Captions for the enum class.
+|===
+
+Enum value fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| yes
+| Java enum constant name.
+
+| `id`
+| string
+| yes
+| Stored enum ID. All IDs in one dynamic enum must be homogeneous: either all parse as 32-bit integers or all are non-integer strings.
+
+| `messages`
+| map
+| no
+| Captions for this enum value.
+|===
+
+Dynamic enums implement `EnumClass<Integer>` when all IDs are integer strings, otherwise `EnumClass<String>`.
+
+Attribute references to enums use the `enumeration` field:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum-attr]
+----
+
+Static enums are also supported if the class implements `EnumClass`. Use a fully qualified class name, or a short name when the enum class is in `basePackage`. Enum DB mapping supports both integer IDs and string IDs.
+
+[[entities]]
+== Entities
+
+Entity definitions are declared in `model.entities`:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-decl]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| yes
+| Jmix entity name. An existing metadata name means a static entity extension; otherwise a dynamic entity is created.
+
+| `store`
+| string
+| no
+| Physical JDBC store for dynamic entities. Blank and `main` are serialized as omitted. Static entity definitions may declare a store only if it matches the entity metadata store. An existing dynamic entity store cannot be changed.
+
+| `attributes`
+| list
+| no
+| Dynamic attributes. Missing or `null` becomes an empty list.
+
+| `uniqueConstraints`
+| list
+| no
+| Named entity-level unique constraints.
+
+| `views`
+| list
+| no
+| Entity-owned Flow UI views.
+
+| `resourceRoles`
+| object
+| no
+| Entity CRUD role grants. Supported only for dynamic entities.
+
+| `validation`
+| object
+| no
+| Entity-level validation constraints.
+
+| `messages`
+| map
+| no
+| Entity captions.
+|===
+
+Dynamic entity tables use the configurable xref:dyn-model:app-properties.adoc#jmix.dynmodel.dynamic-entity-table-prefix[jmix.dynmodel.dynamic-entity-table-prefix] prefix, default `DYN_`. Static entity dynamic attributes are stored in side tables using xref:dyn-model:app-properties.adoc#jmix.dynmodel.static-entity-table-prefix[jmix.dynmodel.static-entity-table-prefix], default `DYN_`. Static side tables are created in the same physical store as the static owner entity.
+
+[[attributes]]
+== Attributes
+
+Every attribute must define exactly one kind:
+
+* datatype: `javaClass`;
+* reference: `entityName`;
+* enum: `enumeration`.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-attr]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| yes
+| Attribute name.
+
+| `javaClass`
+| string
+| kind
+| Java class for datatype attributes. See <<javaclass,supported values>> below.
+
+| `entityName`
+| string
+| kind
+| Target Jmix entity name for references and collections.
+
+| `enumeration`
+| string
+| kind
+| Dynamic or static enum name. Short names are resolved through `basePackage`.
+
+| `length`
+| integer
+| no
+| Length for strings, URI values, byte arrays, and string-ID enums.
+
+| `lob`
+| boolean
+| no
+| LOB metadata and DB type. Supported only for `java.lang.String` and `byte[]` attributes.
+
+| `required`
+| boolean
+| no
+| Adds mandatory metadata and a default-group `NotNull` validation rule. Does not create a DB `NOT NULL` constraint.
+
+| `unique`
+| boolean
+| no
+| Shorthand for a single-attribute unique constraint named `<attributeName>Unique`.
+
+| `instanceName`
+| boolean
+| no
+| Marks the attribute as an instance-name property. If several attributes are marked, the first one is used and later ones are ignored with a warning.
+
+| `collection`
+| boolean
+| no
+| Makes an `entityName` reference an ordered composition list.
+
+| `calculated`
+| object
+| no
+| Makes the attribute read-only and non-persistent.
+
+| `validation`
+| object
+| no
+| Attribute-level constraints. Not allowed on calculated attributes.
+
+| `resourceRoles`
+| object
+| no
+| Attribute view/modify grants.
+
+| `messages`
+| map
+| no
+| Attribute captions.
+|===
+
+[[javaclass]]
+=== Supported javaClass Values
+
+Persistent datatype attributes are mapped to SQL types by the framework. Use these values when writing YAML manually:
+
+[cols="2,2,3",options="header"]
+|===
+| YAML value | Java type | Default SQL mapping
+
+| `java.lang.String`
+| `String`
+| `varchar(255)`; `length` overrides size
+
+| `java.net.URI`
+| `URI`
+| `varchar(1024)`; `length` overrides size
+
+| `[B`
+| `byte[]`
+| `varbinary(255)`; `length` overrides size
+
+| `java.lang.Boolean` or `boolean`
+| `Boolean`
+| `boolean`
+
+| `java.lang.Character` or `char`
+| `Character`
+| `char(1)`
+
+| `java.lang.Integer` or `int`
+| `Integer`
+| `integer`
+
+| `java.lang.Long` or `long`
+| `Long`
+| `bigint`
+
+| `java.lang.Short` or `short`
+| `Short`
+| `smallint`
+
+| `java.lang.Double` or `double`
+| `Double`
+| `double`
+
+| `java.lang.Float` or `float`
+| `Float`
+| `real`
+
+| `java.math.BigDecimal`
+| `BigDecimal`
+| `decimal(38, 18)`
+
+| `java.math.BigInteger`
+| `BigInteger`
+| `decimal(38, 0)`
+
+| `java.time.LocalDate`
+| `LocalDate`
+| `date`
+
+| `java.time.LocalTime`
+| `LocalTime`
+| `time`
+
+| `java.time.LocalDateTime`
+| `LocalDateTime`
+| `timestamp`
+
+| `java.time.OffsetTime`
+| `OffsetTime`
+| `time with time zone`
+
+| `java.time.OffsetDateTime`
+| `OffsetDateTime`
+| `timestamp with time zone`
+
+| `java.util.UUID`
+| `UUID`
+| DB-specific UUID type
+|===
+
+Notes:
+
+* The serializer stores Java `Class#getName()` values. For a byte array this is `[B`; copy the serialized value if unsure.
+* Other Java classes are not supported by Dynamic Model storage unless DB type mapping is extended.
+
+DB-specific deviations:
+
+[cols="1,1,1,1,1,1",options="header"]
+|===
+| Type | HSQLDB / H2 | PostgreSQL | MySQL / MariaDB | SQL Server | Oracle
+
+| `UUID`
+| `uuid`
+| `uuid`
+| `char(32)`
+| `uniqueidentifier`
+| `char(32)`
+
+| `String`
+| `varchar(n)`
+| `varchar(n)`
+| `varchar(n)`
+| `nvarchar(n)`
+| `varchar2(n)`
+
+| `byte[]`
+| `varbinary(n)`
+| `bytea`
+| `varbinary(n)`
+| `varbinary(n)`
+| `raw(min(n, 2000))`
+
+| `Boolean`
+| `boolean`
+| `boolean`
+| `bit`
+| `bit`
+| `char(1)`
+
+| `OffsetTime`
+| `time with time zone`
+| `time with time zone`
+| `time` stored in UTC
+| `datetimeoffset`
+| `timestamp with time zone`
+
+| `OffsetDateTime`
+| `timestamp with time zone`
+| `timestamp with time zone`
+| `datetime` stored in UTC
+| `datetimeoffset`
+| `timestamp with time zone`
+
+| `String` + `lob: true`
+| `clob`
+| `text`
+| `longtext`
+| `nvarchar(max)`
+| `clob`
+
+| `byte[]` + `lob: true`
+| `blob`
+| `bytea`
+| `longblob`
+| `varbinary(max)`
+| `blob`
+|===
+
+[[references]]
+=== References
+
+Single-valued references use `entityName`:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
+----
+
+Rules:
+
+* The target must resolve to a dynamic entity declared in the model or to an existing static entity.
+* Dynamic references store the target primary key value.
+* Static targets with composite primary keys are not supported.
+* Owner and target must be in the same physical store.
+
+[[collections]]
+=== Collections
+
+Collection attributes are ordered composition lists:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=collection-attr]
+----
+
+Rules:
+
+* `entityName` is required.
+* The target must be a dynamic entity.
+* `javaClass`, `enumeration`, `lob`, and `instanceName` are not supported.
+* Collections cannot participate in unique constraints.
+* Owner and target must be in the same physical store.
+* Static owners with composite primary keys are not supported.
+
+Dynamic Model creates internal child properties for the inverse owner reference and order column. They are not written to YAML.
+
+[[calculated-attributes]]
+=== Calculated Attributes
+
+Calculated attributes are read-only, non-persistent properties evaluated on access:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=calculated-attr]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `evaluator`
+| string
+| no
+| Evaluator name returned by a `DynamicCalculatedAttributeEvaluator` bean from `getName()`. If omitted or blank, xref:dyn-model:app-properties.adoc#jmix.dynmodel.calculated-attributes.default-evaluator[jmix.dynmodel.calculated-attributes.default-evaluator] is used, then `spel`.
+
+| `expression`
+| string
+| yes
+| Evaluator-specific expression. The built-in `spel` evaluator uses a restricted `SimpleEvaluationContext`.
+
+| `dependsOn`
+| list
+| no
+| Immediate property names to load with the calculated attribute. Dotted paths are rejected. Missing or `null` becomes an empty list.
+|===
+
+Rules:
+
+* A calculated attribute must declare exactly one result type using `javaClass` or `enumeration`.
+* `entityName`, `collection`, `required`, `validation`, and uniqueness are not supported.
+* `lob: true` is only a UI metadata hint and still requires `javaClass` to be `java.lang.String` or `byte[]`.
+* Dependencies must exist on the same entity, either in the current model or in existing metadata.
+* Cycles between calculated attributes in one entity are rejected.
+* Changing an existing stored attribute to calculated, or an existing calculated attribute to stored, is not supported. Changing the calculated result type is also not supported.
+
+The built-in SpEL evaluator allows metadata-aware property reads and registered `DynamicCalculatedAttributeFunction` functions. It does not expose Spring beans, `T(...)`, constructors, arbitrary method calls, reflection, classloader access, or infrastructure APIs.
+
+[[attribute-validation]]
+== Attribute Validation
+
+Attribute validation is declared under `attributes[].validation.constraints`:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-validation]
+----
+
+Constraint fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `annotation`
+| string
+| yes
+| Constraint alias. See supported aliases below.
+
+| `parameters`
+| map
+| no
+| YAML scalar/list/object values. Parameter names depend on the constraint. Missing becomes an empty map.
+
+| `groups`
+| list
+| no
+| Group aliases or fully qualified validation group class names. Missing means `Default`.
+
+| `message`
+| localized value
+| no
+| Plain string or locale map.
+|===
+
+Supported groups:
+
+* `Default`;
+* `UiComponentChecks`;
+* `UiCrossFieldChecks`;
+* `RestApiChecks`;
+* fully qualified class names resolvable by `Class.forName()`.
+
+Supported attribute constraints:
+
+[cols="1,2,3",options="header"]
+|===
+| Alias | Applies to | Parameters
+
+| `NotNull`
+| any attribute
+| none
+
+| `NotEmpty`
+| strings, collections, arrays
+| none
+
+| `NotBlank`
+| strings
+| none
+
+| `Size`
+| strings, collections, arrays
+| `min` optional, default `0`; `max` optional, default `Integer.MAX_VALUE`
+
+| `Length`
+| strings
+| `min` optional, default `0`; `max` optional, default `Integer.MAX_VALUE`
+
+| `Min`
+| numeric
+| `value`
+
+| `Max`
+| numeric
+| `value`
+
+| `DecimalMin`
+| numeric
+| `value`; `inclusive` optional boolean, default `true`
+
+| `DecimalMax`
+| numeric
+| `value`; `inclusive` optional boolean, default `true`
+
+| `Digits`
+| numeric
+| `integer`; `fraction`
+
+| `Positive`
+| numeric
+| none
+
+| `PositiveOrZero`
+| numeric
+| none
+
+| `Negative`
+| numeric
+| none
+
+| `NegativeOrZero`
+| numeric
+| none
+
+| `Past`
+| date/time
+| none
+
+| `PastOrPresent`
+| date/time
+| none
+
+| `Future`
+| date/time
+| none
+
+| `FutureOrPresent`
+| date/time
+| none
+
+| `Pattern`
+| strings
+| `regexp`
+
+| `Email`
+| strings
+| none
+
+| `AssertTrue`
+| booleans
+| none
+
+| `AssertFalse`
+| booleans
+| none
+|===
+
+Validation uses Bean Validation null semantics: `null` is valid unless the rule is `NotNull`, `NotEmpty`, `NotBlank`, `AssertTrue`, or `AssertFalse`.
+
+`required: true` is equivalent to mandatory UI metadata plus a default-group `NotNull` rule. Validation metadata does not create DB constraints.
+
+[[entity-validation]]
+== Entity Validation
+
+Entity-level validation is declared under `entities[].validation.constraints`:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-validation]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| no
+| Constraint name for diagnostics.
+
+| `target`
+| string
+| yes
+| Must be `entity`.
+
+| `type`
+| string
+| yes
+| `expression` or `bean`.
+
+| `evaluator`
+| string
+| expression
+| Built-in expression evaluator is `spel`. Blank also resolves to `spel`.
+
+| `expression`
+| string
+| expression
+| Must evaluate to `true` for valid entities.
+
+| `validator`
+| string
+| bean
+| Name returned by a `DynamicModelConstraintValidator` bean.
+
+| `attributes`
+| list
+| no
+| Participating attribute names. Each name must exist in the model or metadata.
+
+| `path`
+| string
+| no
+| Violation property path. Blank means a bean-level violation.
+
+| `groups`
+| list
+| no
+| Same group aliases as attribute validation.
+
+| `message`
+| localized value
+| no
+| Plain string or locale map.
+|===
+
+Expression constraints use the same restricted SpEL property access approach as calculated attributes. Bean constraints delegate to application `DynamicModelConstraintValidator` beans.
+
+[[unique-constraints]]
+== Unique Constraints
+
+Single-attribute uniqueness:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=single-unique]
+----
+
+Composite uniqueness:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=composite-unique]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| yes
+| Logical constraint name. Must be non-blank and unique within the entity. The physical DB name is generated from the table name plus this value.
+
+| `attributes`
+| list
+| yes
+| At least one direct dynamic attribute. Duplicate names are rejected.
+
+| `message`
+| localized value
+| no
+| Violation message.
+|===
+
+Rules:
+
+* `attributes[].unique: true` is normalized to a named entity-level constraint before comparison and DDL planning.
+* Only direct persistent single-valued dynamic attributes can participate.
+* Calculated attributes, collections, and LOB attributes are rejected.
+* Static soft-deletable owners are not supported.
+* Applying a new unique constraint fails if existing rows already contain duplicates.
+* Nullable uniqueness follows the target DBMS behavior.
+
+[[resource-roles]]
+== Resource Roles
+
+Dynamic `resourceRoles` declarations create additive resource policies at runtime. Omitted declarations do not grant access. Roles listed in xref:dyn-model:app-properties.adoc#jmix.dynmodel.security.full-access-roles[jmix.dynmodel.security.full-access-roles] grant full access to all dynamic model resources; the default is `system-full-access`.
+
+Role codes must be non-blank. Missing role codes are logged and do not grant access.
+
+Entity-level CRUD grants are supported only for dynamic entities:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-security]
+----
+
+Attribute grants are supported on dynamic attributes of both static and dynamic entities:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-security]
+----
+
+View and menu grants are lists:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view]
+----
+
+[[views]]
+== Views
+
+Views are declared under `entities[].views`.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view]
+----
+
+View fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `type`
+| string
+| dynamic entities
+| `list` or `detail`. Case-insensitive during deserialization. Required for dynamic entity views. Static entity views can infer it from the registered base view.
+
+| `viewId`
+| string
+| yes
+| Unique view ID. Dynamic and static view declarations should set it explicitly.
+
+| `viewRoute`
+| string
+| no
+| Dynamic entity route segment. Defaults to a slug made from `viewId`; detail views append `/:id`. Static entity views do not support this field.
+
+| `viewTitle`
+| localized value
+| no
+| Dynamic entity view title. Static entity views do not support this field.
+
+| `templateParams`
+| map
+| no
+| Dynamic entity template parameters. Static entity views do not support this field.
+
+| `resourceRoles`
+| list
+| no
+| Role codes that can open the view. Static entity views do not support this field.
+
+| `menuItem`
+| object
+| no
+| Dynamic entity menu item. Static entity views do not support this field.
+
+| `descriptor`
+| object
+| static entities
+| Descriptor declaration. Dynamic entity views can omit it to use the default template. Static entity views must provide `descriptor.source`.
+
+| `lookupComponentId`
+| string
+| no
+| Dynamic list view lookup component ID. Default is `dataGrid`. Static entity views do not support this field.
+
+| `editedEntityContainerId`
+| string
+| no
+| Dynamic detail view edited entity container ID. Default is `entityDc`. Static entity views do not support this field.
+|===
+
+=== Dynamic Entity Views
+
+Rules:
+
+* `type` must be `list` or `detail`.
+* `viewId` must be set explicitly and must be unique.
+* If `viewRoute` is omitted, it is generated from `viewId` by lowercasing and replacing non-alphanumeric sequences with `-`.
+* Detail routes automatically append `/:id`; therefore `viewRoute` itself must not end with `/:id`.
+* The first declared list view becomes the primary list view for the dynamic entity. The first declared detail view becomes the primary detail view.
+* `descriptor` may be omitted, use `template: "default"`, use a custom template resource path, or provide literal `source`.
+* If `descriptor.source` is used, it must be valid XML with root `<view xmlns="http://jmix.io/schema/flowui/view">`.
+* Explicit list descriptors must contain the lookup component ID, default `dataGrid`.
+* Explicit detail descriptors must contain the edited entity container ID, default `entityDc`.
+
+Default templates are:
+
+* `io/jmix/flowui/view/template/list-view.ftl` for list views;
+* `io/jmix/flowui/view/template/detail-template.ftl` for detail views.
+
+`templateParams` is a YAML object passed to descriptor template rendering. Dynamic Model does not define a fixed schema for it; supported keys depend on the selected template. For example, a template can consume list-of-string property filters:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=template-params]
+----
+
+=== Static Entity View Overrides
+
+Static entity view declarations override the XML descriptor of an already registered view:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-view-override]
+----
+
+Rules:
+
+* `viewId` is required and must reference a registered static view.
+* `type` may be omitted; it is inferred from the controller class.
+* Only `descriptor.source` is supported.
+* `descriptor.template`, `viewRoute`, `viewTitle`, `templateParams`, `resourceRoles`, `menuItem`, `lookupComponentId`, and `editedEntityContainerId` are rejected.
+* The generated controller subclasses the current registered controller and preserves its route.
+
+=== Descriptor
+
+`descriptor` must contain exactly one of:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=descriptor-template]
+----
+
+or:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=descriptor-source]
+----
+
+[[menu]]
+=== Menu
+
+`menuItem` fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `parentMenu`
+| string
+| yes
+| Existing or new parent menu ID. If not found, a root menu with this ID is created.
+
+| `insertBefore`
+| string
+| no
+| Insert before a sibling menu ID when found; otherwise append.
+
+| `title`
+| localized value
+| no
+| Defaults to the view title when omitted.
+
+| `resourceRoles`
+| list
+| no
+| Role codes that can access the menu item.
+|===
+
+Detail view menu items receive the route parameter `id=new`.

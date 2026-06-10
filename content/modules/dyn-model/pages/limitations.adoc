@@ -1,0 +1,51 @@
+= Limitations
+
+This section describes the current limitations and constraints of the Dynamic Model add-on. See xref:dyn-model:concepts.adoc[] for an explanation of the terms used below.
+
+[[storage]]
+== Storage and Data Stores
+
+* The side tables that store dynamic attributes of a static entity are always created in the same data store as the owning static entity.
+* Only JPA-based data stores are supported: main and additional ones with `JpaDataStore` type.
+* Dynamic references and dynamic collections are allowed only between entities that belong to the same data store.
+
+[[ids]]
+== Identifier Constraints
+
+* Dynamic reference attributes do not support composite identifiers: the target entity must have a simple ID.
+* Dynamic collection attributes are not supported for static owners that have a composite identifier.
+
+[[collections]]
+== Collections
+
+Dynamic collection attributes are currently supported as ordered `List` compositions only.
+
+[[queries]]
+== Query Support
+
+Dynamic filtering and sorting in the database do not support every kind of condition.
+
+* For both static-root and dynamic-root loads, the following are not supported:
+** Date/time macro conditions.
+** Conditions over collection-valued dynamic attribute paths.
+** Filtering and sorting by calculated attributes (they are computed on access and not stored in the database).
+
+* For dynamic-root loads (where the queried entity is a dynamic entity), the following are additionally not supported:
+** JPQL conditions.
+** Collection-member operations.
+
+[[admin-ui]]
+== Admin UI Model Editing
+
+The Admin UI preserves the semantics of the Dynamic Model configuration, but converting the model to and from the graphical editor does not preserve the original YAML formatting, comments, anchors, aliases, or key ordering of the `model` section.
+
+Arbitrary nested object values, such as validation `parameters` and view `templateParams`, are edited as raw YAML fragments. This keeps their value types intact but does not provide a typed graphical editor for such nested objects.
+
+[[apply-atomicity]]
+== Apply Atomicity Scope
+
+Publication of the new metadata is atomic, and destructive cleanup of removed metadata and schema objects is deferred until the previous model generation is no longer in use by in-flight work. However, additive work performed before publication is not transactional and is not rolled back if the apply fails:
+
+* A failed apply may leave additive tables, columns, or unique constraints in the database. They contain no data and are never populated until a published model generation references them. They are reused on the next apply.
+* A failed apply may leave generated entity and enum classes loaded in memory for the lifetime of the JVM. This has no impact on the database or on correctness and is overwritten by the next successful apply.
+* Dynamic view deployment runs after metadata publication, not as part of the atomic apply. View declarations are validated before the apply, but if the deployment fails afterwards, the new model generation is already live while some dynamic views may be missing or stale. Re-applying the model recovers the views.

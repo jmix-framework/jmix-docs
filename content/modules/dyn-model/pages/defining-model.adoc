@@ -1,0 +1,156 @@
+= Defining the Model
+
+The *Dynamic model* -> *Dynamic model settings* view provides an admin UI for editing the dynamic model. You add entities, attributes, enumerations, and other elements through the visual editor, then *Apply* the changes to validate them and publish a new model version.
+
+Each topic below shows the YAML that the editor produces for the corresponding element — this is the same definition you can view and edit directly in the editor's YAML view.
+
+See xref:dyn-model:concepts.adoc[] for how applying a model works and how versions are managed, and xref:dyn-model:yaml-reference.adoc[] for the full reference of every element.
+
+[[model-editor]]
+== Using the Model Editor
+
+Open the *Dynamic model settings* view. The *Visual* editor presents the current model as a structure of linked tables with entities, attributes, enumerations, views. You can add and edit elements using dialogs.
+
+You can switch to the *Code* presentation at any time to inspect or edit the raw YAML definition directly; the two presentations stay in sync.
+
+When the model is ready, click *Apply*. The framework compares the edited model with the currently active one and opens the intermediate *Dynamic model changes* view, which shows what will be applied before anything is committed. Under *Model migrations* it lists each individual change — such as creating an entity, adding or removing an attribute, or adding a unique constraint. If any views are affected, they are listed under *Changed views*.
+
+Review the list and click *Apply changes* to confirm. The model is validated and, if valid, the changes are applied and published as a new model version that becomes active immediately. Closing the *Dynamic model changes* view without applying discards the pending changes and leaves the active model unchanged.
+
+[[extending-static-entities]]
+== Extending Static Entities
+
+To add dynamic attributes to an entity that already exists in your application (a static entity such as `Customer`), select that entity in the editor and add attributes to it. The dynamic attributes are stored separately from the entity's own table and become available alongside the static attributes at runtime.
+
+The example below adds a `taxId` string attribute to `Customer`, with length `20`, a required flag, uniqueness, and a validation rule:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-attr]
+----
+
+[[dynamic-entities]]
+== Defining Dynamic Entities
+
+A dynamic entity is a brand-new entity that exists only at runtime — it has no Java class or table in your source code. To create one, add an entity in the editor whose name does not match any existing entity, then define its attributes and, optionally, its views. See xref:dyn-model:views.adoc[] for generating views and menu items for dynamic entities.
+
+The example below defines the `LoyaltyLevel` dynamic entity with several attributes, validation constraints, and a couple of generated views:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-entity]
+----
+
+[[attributes]]
+== Attributes
+
+Every attribute is one of the following kinds, distinguished by which field it defines: a datatype attribute, a reference attribute, a collection attribute, or an enumeration attribute.
+
+=== Datatype Attributes
+
+A datatype attribute holds a simple value such as a string, number, date, or boolean. You define it by selecting its type, which is stored as a `javaClass`. For string and byte-array attributes you can also set a `length` and mark them as large objects with `lob`. The `taxId` attribute shown in <<extending-static-entities>> is a datatype attribute.
+
+For the full list of supported types, see xref:dyn-model:yaml-reference.adoc#javaclass[supported types].
+
+=== Reference Attributes
+
+A reference attribute is a single-valued link to another entity. You select the target entity, and at runtime the attribute stores a reference to one instance of it.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
+----
+
+=== Collection Attributes
+
+A collection attribute holds an ordered list of child instances (a composition). The target entity must be a dynamic entity. Mark the attribute as a collection in the editor to make a reference hold multiple ordered values:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=collection-attr]
+----
+
+=== Enumeration Attributes
+
+An enumeration attribute stores one of the values of a dynamic enumeration. You select the enumeration that the attribute refers to:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum-attr]
+----
+
+[[enumerations]]
+== Enumerations
+
+A dynamic enumeration defines a fixed set of named values that can then be used by enumeration attributes. Add an enumeration in the editor, give it a name, and define its values with their stored ids and captions.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum]
+----
+
+All value ids within one enumeration must be of the same kind: either all integer ids (as in the example above) or all string ids.
+
+[[calculated-attributes]]
+== Calculated Attributes
+
+A calculated attribute is read-only and is computed on access from an expression rather than stored. You write the expression in {spring-framework-doc}/core/expressions.html[Spring Expression Language (SpEL)] and list the attributes it `dependsOn` so they are loaded together with it.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=calculated-attr]
+----
+
+Because their values are not stored in the database, calculated attributes cannot be used for filtering or sorting at the database level.
+
+[[validation]]
+== Validation
+
+You can attach validation constraints to an attribute to restrict the values it accepts. Each constraint has a type (such as `Pattern`, `Size`, or `DecimalMax`), optional parameters, and an optional message.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-validation]
+----
+
+Entity-level validation is also supported, allowing a constraint to span several attributes of an entity. See xref:dyn-model:yaml-reference.adoc[] for the full list of constraints and for entity-level validation.
+
+[[unique-constraints]]
+== Unique Constraints
+
+To require that an attribute's value is unique across all instances, mark it as unique. This is a shorthand for a single-attribute unique constraint:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=single-unique]
+----
+
+To require that a combination of several attributes is unique, define a composite unique constraint on the entity:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=composite-unique]
+----
+
+Uniqueness is enforced by database constraints. It is not supported for soft-deletable static entities.
+
+[[security]]
+== Security
+
+You can restrict access to dynamic entities and attributes using resource roles. Grants are additive — listing a role grants it the corresponding access, and access that is not granted is denied. The referenced roles must already exist in the application; the examples below use illustrative `employee` and `manager` roles.
+
+At the entity level, you grant `read`, `create`, `update`, and `delete` access. This is supported for dynamic entities:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-security]
+----
+
+At the attribute level, you grant `view` and `modify` access:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-security]
+----
+
+For more about resource roles, see xref:security:resource-roles.adoc[resource roles].
