@@ -119,37 +119,89 @@ TIP: The xref:flow-ui:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] facet
 // include::example$/ex1/src/main/java/ui/ex1/screen/data/ShowCities.java[tags=show]
 // ----
 
-[[custom-sorting]]
-== Custom Sorting
+[[sorting]]
+[[sorting]]
+== Sorting
 
-Sorting of UI tables by entity attributes is performed by `CollectionContainerSorter` which is set for a xref:flow-ui:data/collection-container.adoc[CollectionContainer]. The standard implementation sorts data in memory if it fits in one page of loaded data, otherwise it sends a new request to the database with the appropriate "order by" clause. The "order by" clause is created by the `JpqlSortExpressionProvider` bean.
+UI components that are bound to a collection, such as xref:flow-ui:vc/components/dataGrid.adoc[dataGrid], use the sort order defined by the underlying xref:flow-ui:data/collection-container.adoc[CollectionContainer]. Jmix handles both in-memory sorting and JPQL-based sorting using default behavior and provides extension points for customization.
 
-Some entity attributes can require a special implementation of sorting. Below we explain how to customize sorting on a simple example: suppose there is the `Department` entity with a `num` attribute of type `String`, but we know that the attribute actually stores only numeric values. So we want the sort order to be `1`, `2`, `3`, `10`, `11`. With the default behavior, the order would be `1`, `10`, `11`, `2`, `3`.
+[[default-sorting-behavior]]
+=== Default Behavior
 
-First, create a subclass of the `CollectionContainerSorter` class for sorting in memory:
+Sorting works as follows:
+
+. The visual component invokes the `Sorter` associated with the collection container.
+. The framework obtains this sorter from `CollectionContainerSortManager`.
+. If no provider returns a sorter, the manager uses `SorterFactory` to create a standard `CollectionContainerSorter` or `CollectionPropertyContainerSorter`.
+
+The standard sorter sorts data in memory when the container has no loader, or when only the first page is loaded and the number of loaded items is less than the page size. Otherwise, it reloads the data from the database with the requested sort. See <<jpql-sort-expressions,Customizing JPQL Sort Expressions>> for details on JPQL sorting.
+
+[[custom-in-memory-sorting]]
+=== Custom In-Memory Sorting
+
+Some entity attributes can require custom sorting logic. For example, the `Department` entity may have a `num` attribute of type `String`, while the stored values represent numbers. Sorting it as a string would produce `1`, `10`, `11`, `2`, `3`, while sorting it numerically gives the more natural order: `1`, `2`, `3`, `10`, `11`.
+
+To customize in-memory sorting for this particular entity:
+
+. Create a subclass of `CollectionContainerSorter` (alternatively, provide a completely custom `Sorter` implementation):
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[tags=custom-collection-container-sorter]
+----
+. Create a bean that implements `CollectionContainerSortProvider` and returns the custom sorter only for supported containers:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSortProvider.java[tags=custom-collection-container-sort-provider]
+----
+. Bind the container to a table component such as xref:flow-ui:vc/components/dataGrid.adoc[DataGrid]. When the user sorts the table, the framework uses the sorter returned for the current container.
+
+NOTE: This approach customizes in-memory sorting. If the container is backed by a loader and sorting should work when data is reloaded from the database, also configure <<jpql-sort-expressions,JPQL sort expressions>>.
+
+[[jpql-sort-expressions]]
+=== Custom JPQL Sort Expressions
+
+When a container is backed by a data loader, sorting is translated to JPQL. To customize the generated JPQL sort expressions, register a bean that implements `JpqlSortExpressionSupplier`.
+
+Return a JPQL sort expression if the supplier supports the property, or `null` to let the next supplier handle it:
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[]
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionSupplier.java[tags=custom-sort-expression-supplier]
 ----
 
-Create the sorter in the required view:
+A supplier can implement the following methods:
 
-[source,java,indent=0]
+* `getDatatypeSortExpression(SortExpressionContext context)`
+* `getLobSortExpression(SortExpressionContext context)`
+
+[[multiple-sorting-providers]]
+=== Multiple Sorting Providers
+
+Jmix supports multiple sorting providers for both in-memory sorting and JPQL sort expressions and resolves them in Spring order:
+
+* For in-memory sorting, you can register multiple beans that implement `CollectionContainerSortProvider`. If no provider returns a sorter, it falls back to the framework default – `SorterFactory`.
+
+* For JPQL sort expressions, you can register multiple beans that implement `JpqlSortExpressionSupplier`. If no supplier supports the property, it falls back to the framework default – `JpqlSortExpressionProvider`.
+
+For example, an add-on can contribute one provider and the application can contribute another:
+
+[source,java]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=custom-sort]
+@Component
+@Order(100)
+public class AddonSortProvider implements CollectionContainerSortProvider {
+    ...
+}
+
+@Component
+@Order(200)
+public class AppSortProvider implements CollectionContainerSortProvider {
+    ...
+}
 ----
 
-If your sorter defines some global behavior, create your own factory that instantiates sorters system-wide:
+In this example, `AddonSortProvider` is checked first because it has a lower order value.
 
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSorterFactory.java[]
-----
-
-Also, you can create own implementation of `JpqlSortExpressionProvider` for sorting at the database level:
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionProvider.java[]
-----
+TIP: A bean with low precedence can act as an application-wide fallback while still allowing more specific beans to override it.
