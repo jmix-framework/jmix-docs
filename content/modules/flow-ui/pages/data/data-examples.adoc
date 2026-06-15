@@ -119,37 +119,89 @@ TIP: Фасет xref:flow-ui:facets/dataLoadCoordinator.adoc[DataLoadCoordinator
 // include::example$/ex1/src/main/java/ui/ex1/screen/data/ShowCities.java[tags=show]
 // ----
 
-[[custom-sorting]]
-== Специализированная сортировка
+[[sorting]]
+[[sorting]]
+== Сортировка
 
-Сортировка таблиц по атрибутам сущности в UI производится объектом типа `CollectionContainerSorter`, который устанавливается для xref:flow-ui:data/collection-container.adoc[CollectionContainer]. Стандартная реализация сортирует данные в памяти, если загруженный список умещается на одной странице, или посылает запрос с соответствующим "order by" в базу данных. Выражение "order by" формируется бином `JpqlSortExpressionProvider`.
+Визуальные компоненты, привязанные к коллекции, например xref:flow-ui:vc/components/dataGrid.adoc[dataGrid], используют порядок сортировки, определенный в связанном xref:flow-ui:data/collection-container.adoc[CollectionContainer]. Jmix поддерживает как сортировку в памяти, так и сортировку на основе JPQL со стандартным поведением и предоставляет точки расширения для кастомизации.
 
-Некоторые атрибуты могут потребовать специальной реализации сортировки. Ниже рассматривается простой пример: предположим, в сущности `Department` есть атрибут `num` типа `String`, но на самом деле атрибут хранит только числовые значения. Поэтому необходимо иметь порядок сортировки для чисел: `1`, `2`, `3`, `10`, `11`. Стандартный механизм сортировки в данном случае выдаст порядок `1`, `10`, `11`, `2`, `3`.
+[[default-sorting-behavior]]
+=== Стандартное поведение
 
-Сначала создайте наследника класса `CollectionContainerSorter` для сортировки в памяти:
+Сортировка работает следующим образом:
+
+. Визуальный компонент вызывает `Sorter`, связанный с контейнером коллекции.
+. Фреймворк получает этот сортировщик через `CollectionContainerSortManager`.
+. Если ни один провайдер не вернул сортировщик, менеджер использует `SorterFactory` для создания стандартного `CollectionContainerSorter` или `CollectionPropertyContainerSorter`.
+
+Стандартный сортировщик сортирует данные в памяти, если у контейнера нет загрузчика или если загружена только первая страница и количество загруженных элементов меньше размера страницы. В противном случае он повторно загружает данные из базы данных с запрошенной сортировкой. Подробности о JPQL-сортировке см. в разделе <<jpql-sort-expressions,Кастомизация выражений сортировки JPQL>>.
+
+[[custom-in-memory-sorting]]
+=== Кастомизация сортировки в памяти
+
+Некоторым атрибутам сущностей может потребоваться особая логика сортировки. Например, у сущности `Department` может быть атрибут `num` типа `String`, хотя фактически в нем хранятся числовые значения. При сортировке как строк получится порядок `1`, `10`, `11`, `2`, `3`, а при числовой сортировке - более естественный порядок: `1`, `2`, `3`, `10`, `11`.
+
+Чтобы настроить сортировку в памяти для этой сущности:
+
+. Создайте подкласс `CollectionContainerSorter` (или предоставьте полностью собственную реализацию `Sorter`):
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[tags=custom-collection-container-sorter]
+----
+. Создайте бин, реализующий `CollectionContainerSortProvider`, который возвращает пользовательский сортировщик только для поддерживаемых контейнеров:
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSortProvider.java[tags=custom-collection-container-sort-provider]
+----
+. Привяжите контейнер к табличному компоненту, например xref:flow-ui:vc/components/dataGrid.adoc[DataGrid]. Когда пользователь запускает сортировку таблицы, фреймворк использует сортировщик, возвращенный для текущего контейнера.
+
+NOTE: Этот подход настраивает сортировку в памяти. Если контейнер использует загрузчик и сортировка должна работать при повторной загрузке данных из базы, дополнительно настройте <<jpql-sort-expressions,выражения сортировки JPQL>>.
+
+[[jpql-sort-expressions]]
+=== Кастомизация выражений сортировки JPQL
+
+Если контейнер использует загрузчик данных, сортировка преобразуется в JPQL. Чтобы настроить генерируемые выражения сортировки JPQL, зарегистрируйте бин, реализующий `JpqlSortExpressionSupplier`.
+
+Если атрибут поддерживается, верните выражение сортировки JPQL, иначе верните `null`, чтобы обработку продолжил следующий поставщик:
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[]
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionSupplier.java[tags=custom-sort-expression-supplier]
 ----
 
-Создайте сортировщик в нужном экране:
+Поставщик может реализовать следующие методы:
 
-[source,java,indent=0]
+* `getDatatypeSortExpression(SortExpressionContext context)`
+* `getLobSortExpression(SortExpressionContext context)`
+
+[[multiple-sorting-providers]]
+=== Несколько провайдеров сортировки
+
+Jmix поддерживает несколько провайдеров сортировки как для сортировки в памяти, так и для выражений сортировки JPQL, и обрабатывает их в порядке Spring:
+
+* Для сортировки в памяти можно зарегистрировать несколько бинов, реализующих `CollectionContainerSortProvider`. Если ни один провайдер не вернет сортировщик, будет использован стандартный `SorterFactory`.
+
+* Для выражений сортировки JPQL можно зарегистрировать несколько бинов, реализующих `JpqlSortExpressionSupplier`. Если ни один поставщик не поддерживает свойство, будет использован стандартный `JpqlSortExpressionProvider`.
+
+Например, дополнение может предоставить один провайдер, а приложение - другой:
+
+[source,java]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=custom-sort]
+@Component
+@Order(100)
+public class AddonSortProvider implements CollectionContainerSortProvider {
+    ...
+}
+
+@Component
+@Order(200)
+public class AppSortProvider implements CollectionContainerSortProvider {
+    ...
+}
 ----
 
-Если же специализированная сортировка должна являться глобальной, то создайте собственную фабрику, которая будет инстанциировать сортировщик для всей системы:
+В этом примере `AddonSortProvider` проверяется первым, потому что у него ниже приоритет.
 
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSorterFactory.java[]
-----
-
-Кроме того, можно создать собственную реализацию `JpqlSortExpressionProvider` для сортировки на уровне базы данных:
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionProvider.java[]
-----
+TIP: Бин с низким приоритетом может выступать в роли стандартного для всего приложения, при этом более специфичные бины все равно смогут его переопределить.
