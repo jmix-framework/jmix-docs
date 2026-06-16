@@ -176,6 +176,40 @@ include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSort
 * `getDatatypeSortExpression(SortExpressionContext context)`
 * `getLobSortExpression(SortExpressionContext context)`
 
+[[expression-order]]
+==== ExpressionOrder
+
+Используйте `Sort.ExpressionOrder`, когда сортировку нельзя выразить через путь к атрибуту сущности и вместо этого нужно использовать выражение JPQL.
+
+В отличие от обычного `Sort.Order`, который сортирует по атрибуту сущности, например `name` или `customer.name`, `ExpressionOrder` использует указанное выражение JPQL непосредственно в `ORDER BY`. Это полезно, когда сортировка зависит от функции, преобразования типа или другого пользовательского выражения.
+
+Например, выражение JPQL может быть таким:
+
+* `function('calc_total_sum', \{E}.id)`
+* `length(\{E}.firstName)`
+* `\{E}.firstName`
+
+Следующий пример сортирует подразделения по длине атрибута `name`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-expression-order-view.xml[tags=expression-order-view]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentExpressionOrderView.java[tags=expression-order]
+----
+<1> `Sort.ExpressionOrder.asc("length(\{E}.name)")` добавляет выражение JPQL напрямую в сортировку и использует псевдоним `\{E}` для корневой сущности из запроса.
+<2> После настройки сортировки загрузчик выполняется явно.
+
+`ExpressionOrder` не разрешает `MetaPropertyPath` и обходит `JpqlSortExpressionSupplier` и стандартный `JpqlSortExpressionProvider` фреймворка. Поэтому корректное выражение сортировки JPQL необходимо задать самостоятельно.
+
+[NOTE]
+====
+Если запрос возвращает `KeyValueEntity`, псевдоним `\{E}` в `ExpressionOrder` не поддерживается. Используйте тот же псевдоним, что и в запросе. Например, для `select e.name, e.startTime, e.endTime from CarService e` используйте `length(e.name)`.
+====
+
 [[multiple-sorting-providers]]
 === Несколько провайдеров сортировки
 

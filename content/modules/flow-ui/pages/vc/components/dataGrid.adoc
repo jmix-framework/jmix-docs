@@ -572,8 +572,9 @@ image::visual-components/components/data-grid-items-details.png[align="center", 
 [[sorting]]
 == Сортировка
 
-Любой столбец таблицы может использоваться для сортировки отображаемых данных. При нажатии на заголовок столбца в таблице активируется специальный индикатор, который показывает текущий столбец сортировки и направление сортировки (по возрастанию или убыванию).
+TIP: В этом разделе показана кастомизация сортировки для отдельного компонента `dataGrid`. О кастомизации сортировки для всего приложения см. xref:flow-ui:data/data-examples.adoc#sorting[Сортировка].
 
+Любой столбец таблицы может использоваться для сортировки отображаемых данных. При нажатии на заголовок столбца в таблице активируется специальный индикатор, который показывает текущий столбец сортировки и направление сортировки (по возрастанию или убыванию).
 Последующие нажатия на тот же заголовок будут переключать направление сортировки на противоположное.
 
 [NOTE]
@@ -601,6 +602,57 @@ image::visual-components/components/data-grid-items-details.png[align="center", 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=multiSort]
+----
+
+[[column-comparator]]
+=== Компаратор столбца
+
+Используйте `DataGridColumn#setComparator()` для определения пользовательской логики сортировки конкретного столбца, когда сортировка выполняется в памяти. Сортировка в памяти используется, если у контейнера нет загрузчика, либо если загружена только первая страница и количество загруженных элементов меньше размера страницы.
+
+В следующем примере атрибут `Department.num` сортируется как число, хотя тип этого атрибута - `String`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=comparator-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=in-memory-comparator]
+----
+
+[[sort-builder-delegate]]
+=== Делегат сортировки
+
+Если таблица повторно загружает данные из базы данных, настройте делегат сортировки. Делегат получает инструкции по сортировке от таблицы и возвращает объект `DataGridSort`, что позволяет в одном месте переопределить сортировку в памяти, сортировку в базе данных или обе сразу.
+
+Следующий пример настраивает сортировку так, чтобы значения `Department.num` сравнивались как числа, а не как строки:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-bound-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-bound-property]
+----
+<1> Если таблица повторно загружает данные из базы данных, в `ORDER BY` добавляется выражение `CAST(\{E}.num BIGINT)`, поэтому база данных также выполняет числовую, а не лексикографическую сортировку.
+<2> Если таблица сортирует данные в памяти, компаратор преобразует `num` в `Integer` и сравнивает числовые значения.
+
+[[sorting-computed-column]]
+==== Сортировка вычисляемого столбца
+
+Делегат сортировки также полезен для столбцов, которые не привязаны к атрибуту сущности. В следующем примере столбец `fullName` формируется из `firstName` и `lastName`, а делегат сортировки сопоставляет этот синтетический столбец и с выражениями JPQL, и с компаратором для сортировки в памяти:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-computed-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-computed-column;full-name-renderer]
 ----
 
 [[aggregating]]
