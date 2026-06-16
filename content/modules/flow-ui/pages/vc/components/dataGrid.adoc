@@ -566,6 +566,8 @@ The <<detailsVisibleOnClick, detailsVisibleOnClick>> attribute allows you to con
 [[sorting]]
 == Sorting
 
+TIP: This section demonstrates sorting customization for individual `dataGrid` component. For application-wide sorting customization, see xref:flow-ui:data/data-examples.adoc#sorting[Sorting].
+
 Any column can be used for sorting the data displayed. Clicking on the column header activates a special control in the grid that shows which column is currently being sorted and the sorting direction (ascending or descending). Each subsequent click on the same header will toggle the sorting direction.
 
 [NOTE]
@@ -584,13 +586,64 @@ As a result, the sorting order can differ from the visible order of enum values 
 </div>
 ++++
 
-It is also possible to sort by multiple columns simultaneously. When sorting by multiple columns, the first selected column determines the primary sorting criterion, the second column sets the secondary criterion, and so on. You can configure it using <<multiSort, multiSort>>, <<multiSortOnShiftClickOnly, multiSortOnShiftClickOnly>>, and <<multiSortPriority, multiSortPriority>> attributes.
+It is possible to sort by multiple columns simultaneously. When sorting by multiple columns, the first selected column determines the primary sorting criterion, the second column sets the secondary criterion, and so on. You can configure it using <<multiSort, multiSort>>, <<multiSortOnShiftClickOnly, multiSortOnShiftClickOnly>>, and <<multiSortPriority, multiSortPriority>> attributes.
 
 For example:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=multiSort]
+----
+
+[[column-comparator]]
+=== Column Comparator
+
+Use `DataGridColumn#setComparator()` to define custom sorting logic for a specific column when sorting is performed in memory. In-memory sorting is used when the container has no loader, or when only the first page is loaded and the number of loaded items is less than the page size.
+
+The following example sorts the `Department.num` attribute as numbers even though the attribute type is `String`:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=comparator-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=in-memory-comparator]
+----
+
+[[sort-builder-delegate]]
+=== Sort Builder Delegate
+
+If the grid reloads data from the database, configure Sort Builder Delegate. The delegate receives sorting instructions from the grid and returns a `DataGridSort` object, allowing you to override in-memory sorting, database sorting, or both in one place.
+
+The following example customizes sorting so that `Department.num` values are compared as numbers, not strings:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-bound-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-bound-property]
+----
+<1> If the grid reloads data from the database, the `CAST(\{E}.num BIGINT)` expression is added to `ORDER BY`, so the database also sorts numerically instead of lexicographically.
+<2> If the grid sorts in memory, the comparator converts `num` to `Integer` and compares numeric values.
+
+[[sorting-computed-column]]
+==== Sorting a Computed Column
+
+Sort Builder Delegate is also useful for columns that are not bound to an entity property. In the example below, the `fullName` column is rendered from `firstName` and `lastName`, and the sort builder delegate maps this synthetic column to both JPQL expressions and an in-memory comparator:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-computed-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-computed-column;full-name-renderer]
 ----
 
 [[aggregating]]

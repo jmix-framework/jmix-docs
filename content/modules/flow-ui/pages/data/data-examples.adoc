@@ -176,6 +176,40 @@ A supplier can implement the following methods:
 * `getDatatypeSortExpression(SortExpressionContext context)`
 * `getLobSortExpression(SortExpressionContext context)`
 
+[[expression-order]]
+==== ExpressionOrder
+
+Use `Sort.ExpressionOrder` when sorting cannot be expressed as an entity attribute path and should be based on a JPQL expression instead.
+
+Unlike regular `Sort.Order`, which sorts by an entity attribute such as `name` or `customer.name`, `ExpressionOrder` uses the given JPQL expression directly in `ORDER BY`. This is useful when sorting depends on a function, type conversion, or another custom expression.
+
+For example, the JPQL expression can be:
+
+* `function('calc_total_sum', \{E}.id)`
+* `length(\{E}.firstName)`
+* `\{E}.firstName`
+
+The following example sorts departments by the length of the `name` attribute:
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-expression-order-view.xml[tags=expression-order-view]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentExpressionOrderView.java[tags=expression-order]
+----
+<1> `Sort.ExpressionOrder.asc("length(\{E}.name)")` adds the JPQL expression directly to sorting and uses the `\{E}` alias of the root entity from the query.
+<2> After the sort is configured, the loader is executed explicitly.
+
+`ExpressionOrder` does not resolve `MetaPropertyPath` and bypasses `JpqlSortExpressionSupplier` and the framework default `JpqlSortExpressionProvider`. Therefore, you must provide a valid JPQL sort expression yourself.
+
+[NOTE]
+====
+When the query returns `KeyValueEntity`, the `\{E}` alias is not supported in `ExpressionOrder`. Use the same alias as in the query. For example, for `select e.name, e.startTime, e.endTime from CarService e`, use `length(e.name)`.
+====
+
 [[multiple-sorting-providers]]
 === Multiple Sorting Providers
 
