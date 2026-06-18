@@ -265,20 +265,92 @@ The following application properties affect the filter behavior:
 
 == Creating Filter Programmatically
 
-This section provides an example of `genericFilter` configuration created programmatically.
+You can create and configure a `genericFilter` in Java using the fluent builder API, which has two entry points:
+
+* `filterComponentBuilder()` creates filter components – `propertyFilter`, `jpqlFilter`, and `groupFilter`.
+* `runtimeConfigurationBuilder()` assembles a <<run-time-configuration, run-time configuration>> from those components and registers it with the filter.
+
+The builder performs all the required initialization internally (condition modification delegation, parameter name and value component generation), so a programmatically built component behaves exactly like one declared in XML. The owning `genericFilter` must have a `DataLoader`; otherwise the builder methods throw `IllegalStateException`.
+
+The following example creates a `genericFilter`, builds a property condition, and registers a configuration:
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;programmaticFilter]
 ----
 
 <1> Creates `genericFilter` using the `uiComponents` factory.
-<2> Adds a design-time configuration. The method takes two parameters: configuration id and configuration name.
-<3> Creates a `PropertyFilter` instance and set its properties.
-<4> Generates a component for this filter based on metaClass, property, and operation.
-<5> Adds the filter to configuration. `LogicalFilterComponent` is the root element of the configuration.
-<6> Puts `genericFilter` on the view inside the `vbox` layout. That layout is declared in the view descriptor and injected to the controller.
-<7> Sets a current configuration.
+<2> Puts `genericFilter` on the view inside the `vbox` layout declared in the view descriptor and injected into the controller.
+<3> Builds a `PropertyFilter` with `filterComponentBuilder()`.
+<4> Registers a run-time configuration with `runtimeConfigurationBuilder()` and adds the filter to it.
+<5> Activates the configuration immediately. This is not the persistent default-configuration marker; it simply makes the configuration current.
+<6> Builds and registers the configuration. Each builder instance is single-use.
+
+=== Building Filter Components
+
+`filterComponentBuilder()` returns a dedicated builder for each component type. All builders are single-use and produce a ready-to-add component.
+
+==== Property Filter
+
+`propertyFilter()` filters by an entity attribute, including nested references — `property()` accepts a path such as `customer.city.name`. The value editor is generated automatically from the attribute type. The operation is fixed unless you call `operationEditable(true)`, which lets the user change it at runtime; `operationTextVisible(false)` hides the operation label shown next to the field. A value passed to `defaultValue()` pre-fills the field.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFilter]
+----
+
+==== JPQL Filter — Checkbox
+
+`jpqlFilter()` (no argument) creates a *void* filter: a checkbox that toggles a fixed `WHERE` clause on and off. Its value type is `Boolean`, so `defaultValue(true)` makes the condition active by default.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=voidJpqlFilter]
+----
+
+==== JPQL Filter — Typed
+
+`jpqlFilter(Class)` creates a *typed* filter: the value the user enters is bound to a query parameter, and its editor matches the given `Class`. Write the condition in `where()` using `{E}` as the entity alias and a named parameter, then declare its name with `parameterName()`. Add `join()` to extend the `FROM` clause, or `hasInExpression(true)` when the value is a collection (an `in` condition).
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=typedJpqlFilter]
+----
+
+==== Group Filter
+
+`groupFilter()` combines conditions under a single logical operation — `AND` (the default) or `OR`. A group is itself a filter component, so groups can be nested to express complex boolean logic. Add children with `add()` or `addAll()`.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=groupFilter]
+----
+
+=== Building a Run-time Configuration
+
+`runtimeConfigurationBuilder()` creates a <<run-time-configuration, run-time configuration>> and registers it with the filter.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=runtimeConfiguration]
+----
+
+<1> Adds a component with a typed default value; the value type is checked at compile time. Use `add(component)` without a default, or `addAll(components...)` to add several at once.
+<2> Adds the group built above.
+<3> Activates the configuration immediately. This is not the persistent default-configuration marker.
+<4> Allows the user to delete this configuration. By default, configurations created with the builder are protected from user deletion.
+
+Keep in mind:
+
+* Each builder instance is single-use — calling `build()` or `buildAndRegister()` twice throws `IllegalStateException`.
+* The configuration `id` must be unique within the filter.
+* The owning `genericFilter` must have a `DataLoader`.
+
+NOTE: The builder creates a `RunTimeConfiguration`. There is no builder for a `DesignTimeConfiguration`. To create configurations programmatically at a lower level, use `addConfiguration(id, name)` (which returns a `DesignTimeConfiguration`) and create and add the filter components directly, or build a `RunTimeConfiguration` and register it with `addConfiguration(configuration)`. This is the lower-level approach that the builder API replaces.
+
+TIP: For runnable examples of every builder feature, see the *GenericFilter* section of the https://demo.jmix.io/ui-samples[UI samples^].
+
+NOTE: The builder API is `@Experimental` and may change in a future minor release.
 
 [[theme-variants]]
 == Theme Variants
