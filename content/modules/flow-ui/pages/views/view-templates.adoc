@@ -1,0 +1,193 @@
+= Runtime View Templates
+
+CAUTION: Runtime view templates are currently in the experimental state. The API and the built-in templates can change significantly in the next Jmix release.
+
+Runtime view templates let you generate standard list and detail views from templates declared on entity metadata instead of creating them manually at design time. You annotate an entity class with xref:#list-view-template[@ListViewTemplate] and/or xref:#detail-view-template[@DetailViewTemplate], and the framework generates the corresponding views, routes, and menu items when the application starts.
+
+This is useful for quickly exposing entities in the UI – for example, lookup or reference data – without writing view classes and XML descriptors for each of them. The generated views are registered just like regular views: they participate in xref:views/opening-views.adoc#view-inference-conventions[view inference], can be opened by id or route, and can serve as primary list and detail views for the entity.
+
+[[getting-started]]
+== Getting Started
+
+To generate a list and a detail view for an entity, annotate its class:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Product.java[tags=class]
+----
+
+With these two annotations, the framework generates at startup:
+
+* a list view with the id `Product.list`, displaying a xref:vc/components/dataGrid.adoc[dataGrid] with the entity properties, a xref:vc/components/genericFilter.adoc[genericFilter], pagination, and *Create*, *Edit*, *Remove* actions;
+* a detail view with the id `Product.detail`, displaying a xref:vc/layouts/formLayout.adoc[formLayout] with editable fields for the entity properties;
+* a menu item under the `application` menu that opens the list view.
+
+The views use the xref:#built-in-templates[built-in templates], which decide what to render based on the entity's properties. No XML descriptors or view classes are created in your project.
+
+[[list-view-template]]
+== @ListViewTemplate
+
+`@ListViewTemplate` declares a generated list view for the annotated entity:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=list]
+----
+
+In addition to the xref:#common-attributes[common attributes], it supports:
+
+* `lookupComponentId` – the id of the component used as the xref:views/view-annotations.adoc#lookup-component[lookup component]. Defaults to `dataGrid`.
+
+[[detail-view-template]]
+== @DetailViewTemplate
+
+`@DetailViewTemplate` declares a generated detail view for the annotated entity:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=detail]
+----
+
+In addition to the xref:#common-attributes[common attributes], it supports:
+
+* `editedEntityContainerId` – the id of the data container holding the edited entity, see xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer]. Defaults to `entityDc`.
+
+[[common-attributes]]
+== Common Attributes
+
+Both annotations share the following attributes:
+
+[cols="1,3"]
+|===
+|Attribute |Description
+
+|`path`
+|Resource path to a Freemarker XML descriptor template. If omitted, the corresponding xref:#built-in-templates[built-in template] is used.
+
+|`templateParams`
+|A JSON object with additional parameters passed to the template. See xref:#built-in-templates[Built-in Templates] for the parameters the built-in templates support.
+
+|`parentMenu`
+|The id of the parent menu item for the generated menu item. If empty, no menu item is created. If it points to a missing menu item, a new root menu item is created automatically.
+
+|`viewId`
+|The id of the generated view.
+
+|`viewRoute`
+|The route path of the generated view.
+
+|`viewTitle`
+|The page title of the generated view.
+|===
+
+[[defaults]]
+=== Default Values
+
+When the optional attributes are omitted, the framework derives them from the entity name `<entityName>`:
+
+[cols="1,1,1"]
+|===
+| |`@ListViewTemplate` |`@DetailViewTemplate`
+
+|`viewId`
+|`<entityName>.list`
+|`<entityName>.detail`
+
+|`viewTitle`
+|`<entityName> list`
+|`<entityName>`
+|===
+
+[[routing]]
+=== Routing
+
+The route is resolved from `viewRoute` as follows:
+
+* For a list view, `viewRoute` is used as-is.
+* For a detail view, `viewRoute` is treated as a base route and always becomes `.../:id`.
+* If `viewRoute` is empty, it is derived from `viewId`.
+
+In the `Supplier` example above, the list view route is `suppliers` and the detail view route is `suppliers/:id`.
+
+[[built-in-templates]]
+== Built-in Templates
+
+When `path` is not specified, the framework uses built-in templates that generate the view content from the entity's properties:
+
+* the list view template renders a `dataGrid` with a column per property, a `genericFilter`, pagination, and list actions;
+* the detail view template renders a `formLayout` with a field per property.
+
+The built-in templates are located at:
+
+* `io/jmix/flowui/view/template/list-view.ftl`
+* `io/jmix/flowui/view/template/detail-view.ftl`
+
+[[property-filtering]]
+=== Property Filtering
+
+By default, the built-in templates include direct single-value properties and exclude:
+
+* system properties;
+* properties annotated as secret;
+* id, version, and generated properties;
+* audit and soft-deletion properties.
+
+Built-in property filtering supports only direct single-value datatype, enum, association, and composition properties. It does not support collection-valued datatype properties, embedded properties, or dotted property paths such as `customer.name`.
+
+You can adjust the set of displayed properties using two keys in `templateParams`:
+
+* `includeProperties` – restores excluded but supported direct properties;
+* `excludeProperties` – removes properties; it is applied last and takes precedence over `includeProperties`.
+
+In the `Supplier` example, the `createdBy` and `createdDate` audit properties are restored, while `internalNote` is excluded:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=list]
+----
+
+[[composition-collections]]
+== Composition Collections
+
+If an entity used in a `@DetailViewTemplate` has composition `*-to-many` properties, the generated detail view renders a xref:vc/layouts/tabSheet.adoc[tabSheet] instead of a single form:
+
+* the first *General* tab holds the form with the single-value fields;
+* each composition collection gets its own tab with a `dataGrid` providing *Create*, *Edit*, and *Remove* actions.
+
+The *Create* and *Edit* actions open the line entity's own detail view in a dialog, so line entities are expected to also carry `@DetailViewTemplate`. The inverse attribute of a composition collection – the child's reference back to the parent – is excluded by default both from the master's columns and from the line entity's detail form. You can restore it with `includeProperties`.
+
+The example below defines a master entity with a composition collection and the corresponding line entity:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Invoice.java[tags=class;composition]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/InvoiceItem.java[tags=class]
+----
+
+Only composition collections are supported. Association collections, element collections, and embedded attributes are not rendered.
+
+Entities without composition collections render a plain `formLayout`.
+
+[[custom-templates]]
+== Custom Templates
+
+To fully control the generated view content, provide your own Freemarker template in the `path` attribute. The template is a `.ftl` file located on the classpath that produces a standard view XML descriptor.
+
+The following variables are available in the template model:
+
+* `entityMetaClass` – the `MetaClass` of the annotated entity;
+* `viewTitle` – the resolved view title;
+* `templateHelper` – a helper that returns the filtered properties (`getProperties`) and composition collection properties (`getCollectionProperties`);
+* `componentXmlFactory` – a factory that produces the XML fragment for a property's edit component;
+* all keys from `templateParams`, including `includeProperties` and `excludeProperties`.
+
+You can use the <<built-in-templates,built-in templates>> as a starting point.
+
+[[menu]]
+== Menu Integration
+
+If the `parentMenu` attribute of `@ListViewTemplate` or `@DetailViewTemplate` is set, a menu item that opens the generated view is appended to the specified parent menu after the standard XML menu definitions are loaded. If `parentMenu` is empty, no menu item is created. If it points to a missing menu item, a new root menu item is created automatically.
