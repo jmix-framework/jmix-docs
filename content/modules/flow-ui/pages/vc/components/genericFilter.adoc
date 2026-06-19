@@ -87,7 +87,7 @@ Possible condition types are as follows:
 +
 * *Predefined conditions* -- conditions specified at design-time by the developer in the <<conditions-element,conditions>> element.
 +
-* *Configurations* -- existing filter configurations. They can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<run-time-configuration,run-time>>.
+* *Configurations* -- existing filter configurations. They can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<runtime-configuration,runtime>>.
 
 Once a condition is added, it appears in the conditions panel. When a condition is no longer needed, it can be removed by clicking image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] next to it.
 
@@ -203,7 +203,7 @@ Conditions of the group are shown in the tree view. Use the following actions to
 
 Configuration is a set of conditions saved for later use. It can include conditions of any type as well as another configuration.
 
-Configurations can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<run-time-configuration,run-time>>.
+Configurations can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<runtime-configuration,runtime>>.
 
 [[design-time-configuration]]
 === Design-time Configuration
@@ -222,22 +222,22 @@ include::example$onboarding/src/main/resources/com/company/onboarding/view/compo
 
 TIP: To add a design-time configuration in Jmix Studio, select the `genericFilter` component in the view descriptor or in the *Jmix UI* structure panel, then use xref:studio:view-designer.adoc#component-inspector-add-button[Add] -> *Configurations* -> *Design-time configuration* menu item of the *Component Inspector* panel.
 
-A design-time configuration does not allow any user customizations at runtime and cannot be removed by the user. However, users can create an identical run-time configuration based on the design-time configuration and modify its parameters. This can be done with the image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Copy* menu action.
+A design-time configuration does not allow any user customizations at runtime and cannot be removed by the user. However, users can create an identical runtime configuration based on the design-time configuration and modify its parameters. This can be done with the image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Copy* menu action.
 
 When the application is running, design-time configurations are displayed in the drop-down menu [<<refresh-drop-down-menu, 4>>] among other configurations.
 
 image::flow-ui:visual-components/components/generic-filter-design-time-items.png[align="center", width="440"]
 
-[[run-time-configuration]]
-=== Run-time Configuration
+[[runtime-configuration]]
+=== Runtime Configuration
 
 Configurations can be created at runtime in the *Configuration editor*. To open the editor, use image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit* menu item.
 
-NOTE: To create, edit, or remove a run-time configuration, the user needs to be granted with `ui.genericfilter.modifyConfiguration` security permission.
+NOTE: To create, edit, or remove a runtime configuration, the user needs to be granted with `ui.genericfilter.modifyConfiguration` security permission.
 
 image::flow-ui:visual-components/components/generic-filter-run-time-configuration.png[align="center", width="1026"]
 
-To create a run-time configuration:
+To create a runtime configuration:
 
 * Specify a configuration name. This name is displayed in the drop-down menu [<<refresh-drop-down-menu, 4>>] and configuration editors.
 [[avaialable-for-all-users]]
@@ -263,22 +263,101 @@ The following application properties affect the filter behavior:
 * xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
 * xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
 
+[[creating-filter-programmatically]]
 == Creating Filter Programmatically
 
-This section provides an example of `genericFilter` configuration created programmatically.
+You can create and configure a `genericFilter` in Java using the fluent builder API, which has two entry points:
+
+* `filterComponentBuilder()` creates filter components – `propertyFilter`, `jpqlFilter`, and `groupFilter`.
+* `runtimeConfigurationBuilder()` assembles a <<runtime-configuration, runtime configuration>> from those components and registers it with the filter.
+
+The builder performs all the required initialization internally (condition modification delegation, parameter name and value component generation), so a programmatically built component behaves exactly like one declared in XML. The owning `genericFilter` must have a `DataLoader`; otherwise the builder methods throw `IllegalStateException`.
+
+IMPORTANT: The builder API is currently experimental and may change in a future Jmix release.
+
+The following example creates a `genericFilter`, builds a property condition, and registers a configuration:
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;programmaticFilter]
 ----
 
 <1> Creates `genericFilter` using the `uiComponents` factory.
-<2> Adds a design-time configuration. The method takes two parameters: configuration id and configuration name.
-<3> Creates a `PropertyFilter` instance and set its properties.
-<4> Generates a component for this filter based on metaClass, property, and operation.
-<5> Adds the filter to configuration. `LogicalFilterComponent` is the root element of the configuration.
-<6> Puts `genericFilter` on the view inside the `vbox` layout. That layout is declared in the view descriptor and injected to the controller.
-<7> Sets a current configuration.
+<2> Puts `genericFilter` on the view inside the `vbox` layout declared in the view descriptor and injected into the controller.
+<3> Builds a `PropertyFilter` with `filterComponentBuilder()`.
+<4> Registers a runtime configuration with `runtimeConfigurationBuilder()` and adds the filter to it.
+<5> Activates the configuration immediately. This is not the persistent default-configuration marker; it simply makes the configuration current.
+<6> Builds and registers the configuration. Each builder instance is single-use.
+
+[[building-filter-components]]
+=== Building Filter Components
+
+`filterComponentBuilder()` returns a dedicated builder for each component type. All builders are single-use and produce a ready-to-add component.
+
+[[property-filter]]
+==== Property Filter
+
+`propertyFilter()` filters by an entity attribute, including nested references — `property()` accepts a path such as `customer.city.name`. The value editor is generated automatically from the attribute type. The operation is fixed unless you call `operationEditable(true)`, which lets the user change it at runtime; `operationTextVisible(false)` hides the operation label shown next to the field. A value passed to `defaultValue()` pre-fills the field.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFilter]
+----
+
+[[jpql-filter-checkbox]]
+==== JPQL Filter (Checkbox)
+
+`jpqlFilter()` (no argument) creates a *void* filter: a checkbox that toggles a fixed `WHERE` clause on and off. Its value type is `Boolean`, so `defaultValue(true)` makes the condition active by default.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=voidJpqlFilter]
+----
+
+[[jpql-filter-typed]]
+==== JPQL Filter (Typed)
+
+`jpqlFilter(Class)` creates a *typed* filter: the value the user enters is bound to a query parameter, and its editor matches the given `Class`. Write the condition in `where()` using `\{E}` as the entity alias and a named parameter, then declare its name with `parameterName()`. Add `join()` to extend the `FROM` clause, or `hasInExpression(true)` when the value is a collection (an `in` condition).
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=typedJpqlFilter]
+----
+
+[[group-filter]]
+==== Group Filter
+
+`groupFilter()` combines conditions under a single logical operation — `AND` (the default) or `OR`. A group is itself a filter component, so groups can be nested to express complex boolean logic. Add children with `add()` or `addAll()`.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=groupFilter]
+----
+
+[[building-runtime-configuration]]
+=== Building Runtime Configuration
+
+`runtimeConfigurationBuilder()` creates a <<runtime-configuration, runtime configuration>> and registers it with the filter.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=runtimeConfiguration]
+----
+
+<1> Adds a component with a typed default value; the value type is checked at compile time. Use `add(component)` without a default, or `addAll(components...)` to add several at once.
+<2> Adds the group built above.
+<3> Activates the configuration immediately. This is not the persistent default-configuration marker.
+<4> Allows the user to delete this configuration. By default, configurations created with the builder are protected from user deletion.
+
+Keep in mind:
+
+* Each builder instance is single-use — calling `build()` or `buildAndRegister()` twice throws `IllegalStateException`.
+* The configuration `id` must be unique within the filter.
+* The owning `genericFilter` must have a `DataLoader`.
+
+NOTE: The builder creates a `RunTimeConfiguration`. There is no builder for a `DesignTimeConfiguration`. To create configurations programmatically at a lower level, use `addConfiguration(id, name)` (which returns a `DesignTimeConfiguration`) and create and add the filter components directly, or build a `RunTimeConfiguration` and register it with `addConfiguration(configuration)`. This is the lower-level approach that the builder API replaces.
+
+TIP: For runnable examples of every builder feature, see the *GenericFilter* section of the https://demo.jmix.io/ui-samples[UI samples^].
 
 [[theme-variants]]
 == Theme Variants
@@ -426,9 +505,9 @@ Defines the list of actions for filter management. The framework provides the fo
 * *Save* -- saves changes to current configuration. Implemented by `FilterSaveAction` (`type="genericFilter_save"` in XML).
 * *Save with values* -- saves changes to current configuration along with the values in the condition fields [<<condition-field, 5>>] as their default values.
 * *Save as* -- saves current configuration under a different name. Implemented by `FilterSaveAsAction` (`type="genericFilter_saveAs"` in XML).
-* *Edit* -- opens editor for current <<run-time-configuration, run-time>> configuration. Disable for <<design-time-configuration, design-time>> configurations. Implemented by `FilterEditAction` (`type="genericFilter_edit" in XML).
-* *Remove* -- removes current <<run-time-configuration, run-time>> configuration. Disabled for <<design-time-configuration, design-time>> configurations. Implemented by `FilterRemoveAction` (`type="genericFilter_remove" in XML).
-* *Copy* -- creates a <<run-time-configuration, run-time>> copy for the current configuration. Implemented by `FilterCopyAction` (`type="genericFilter_copy" in XML).
+* *Edit* -- opens editor for current <<runtime-configuration, runtime>> configuration. Disable for <<design-time-configuration, design-time>> configurations. Implemented by `FilterEditAction` (`type="genericFilter_edit" in XML).
+* *Remove* -- removes current <<runtime-configuration, runtime>> configuration. Disabled for <<design-time-configuration, design-time>> configurations. Implemented by `FilterRemoveAction` (`type="genericFilter_remove" in XML).
+* *Copy* -- creates a <<runtime-configuration, runtime>> copy for the current configuration. Implemented by `FilterCopyAction` (`type="genericFilter_copy" in XML).
 * *Clear values* -- clears the values in the condition fields [<<condition-field, 5>>]. Implemented by `FilterClearValuesAction` (`type="genericFilter_clearValues" in XML).
 * *Add* -- adds a condition to the current configuration. Implemented by `FilterAddConditionAction` (`type="genericFilter_addCondition" in XML).
 * *Reset* -- resets  Implemented by `FilterResetAction` (`type="genericFilter_reset" in XML).
