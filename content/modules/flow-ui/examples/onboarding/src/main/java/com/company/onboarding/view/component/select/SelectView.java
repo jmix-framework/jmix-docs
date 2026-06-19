@@ -97,13 +97,13 @@ public class SelectView extends StandardView {
 
     // end::itemLabelGenerator[]
     // tag::renderer[]
-    @Supply(to = "selectWithRenderer", subject = "renderer")
+    @Supply(to = "selectWithRenderer", subject = "renderer") // <1>
     private ComponentRenderer<Button, Department> selectWithRendererRenderer() {
-        return new ComponentRenderer<>(department -> {
-            Button button = uiComponents.create(Button.class);
-            button.setText(department.getName());
+        return new ComponentRenderer<>(item -> { // <2>
+            Button button = uiComponents.create(Button.class); // <3>
+            button.setText(item.getName());
             button.setIcon(VaadinIcon.DESKTOP.create());
-            return button;
+            return button; // <4>
         });
     }
     // end::renderer[]
