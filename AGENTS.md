@@ -91,16 +91,21 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 When asked to translate to Russian, translate the words:
 
 - add-on -> дополнение
+- builder -> билдер
 - detail view -> экран деталей
 - endpoint -> эндпойнт
 - entity -> сущность
 - fetch plan -> фетч-план
 - inject -> инжектировать
 - list view -> экран списка
+- release -> релиз
 - resource role -> ресурсная роль
 - row-level role -> роль уровня строк 
 - view -> экран
-- Do not translate "changelog".
+
+Do not translate:
+- changelog
+- fluent API
 
 Always keep AsciiDoc formatting.
 
@@ -108,3 +113,4 @@ Always keep AsciiDoc formatting.
 
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
+- Use bold text only for UI elements. Don't use bold for emphasis.
