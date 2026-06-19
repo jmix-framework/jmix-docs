@@ -7,12 +7,12 @@ import com.company.onboarding.view.main.MainView;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.metamodel.model.MetaPropertyPath;
-import io.jmix.core.querycondition.PropertyConditionUtils;
 import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.component.genericfilter.GenericFilter;
-import io.jmix.flowui.component.genericfilter.configuration.DesignTimeConfiguration;
+import io.jmix.flowui.component.jpqlfilter.JpqlFilter;
+import io.jmix.flowui.component.logicalfilter.GroupFilter;
+import io.jmix.flowui.component.logicalfilter.LogicalFilterComponent;
 import io.jmix.flowui.component.propertyfilter.PropertyFilter;
-import io.jmix.flowui.component.propertyfilter.SingleFilterSupport;
 import io.jmix.flowui.model.CollectionLoader;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,12 +40,6 @@ public class GenericFilterView extends StandardView {
 
     // end::CollectionLoader[]
 
-    // tag::SingleFilterSupport[]
-    @Autowired
-    private SingleFilterSupport singleFilterSupport;
-
-    // end::SingleFilterSupport[]
-
     // tag::propertyFiltersPredicate[]
     @Install(to = "genericFilter", subject = "propertyFiltersPredicate")
     private boolean genericFilterPropertyFiltersPredicate(final MetaPropertyPath metaPropertyPath) {
@@ -60,32 +54,70 @@ public class GenericFilterView extends StandardView {
         genericFilter.setId("programmaticFilter");
         genericFilter.setDataLoader(customerDl);
         genericFilter.loadConfigurationsAndApplyDefault();
+        programmaticFilterBox.add(genericFilter); // <2>
 
-        DesignTimeConfiguration javaDefaultConfiguration =
-                genericFilter.addConfiguration("javaDefaultConfiguration",
-                        "Default configuration"); // <2>
+        PropertyFilter<Integer> agePropertyFilter = genericFilter.filterComponentBuilder() // <3>
+                .<Integer>propertyFilter()
+                .property("age")
+                .operation(PropertyFilter.Operation.LESS_OR_EQUAL)
+                .operationEditable(true)
+                .build();
 
-        PropertyFilter<Integer> agePropertyFilter =
-                uiComponents.create(PropertyFilter.class); // <3>
-
-        agePropertyFilter.setConditionModificationDelegated(true);
-        agePropertyFilter.setDataLoader(customerDl);
-        agePropertyFilter.setProperty("age");
-        agePropertyFilter.setOperation(PropertyFilter.Operation.LESS_OR_EQUAL);
-        agePropertyFilter.setOperationEditable(true);
-        agePropertyFilter.setParameterName(PropertyConditionUtils
-                .generateParameterName(agePropertyFilter.getProperty()));
-        agePropertyFilter.setValueComponent(singleFilterSupport.generateValueComponent(
-                customerDl.getContainer().getEntityMetaClass(),
-                agePropertyFilter.getProperty(),
-                agePropertyFilter.getOperation())); // <4>
-
-        javaDefaultConfiguration.getRootLogicalFilterComponent().add(agePropertyFilter); // <5>
-
-        programmaticFilterBox.add(genericFilter); // <6>
-
-        genericFilter.setCurrentConfiguration(javaDefaultConfiguration); // <7>
+        genericFilter.runtimeConfigurationBuilder() // <4>
+                .id("javaConfiguration")
+                .name("Default configuration")
+                .add(agePropertyFilter)
+                .makeCurrent() // <5>
+                .buildAndRegister(); // <6>
     }
     // end::programmaticFilter[]
+
+    private void builderExamples(GenericFilter genericFilter) {
+        // tag::propertyFilter[]
+        PropertyFilter<Integer> ageFilter = genericFilter.filterComponentBuilder()
+                .<Integer>propertyFilter()
+                .property("age")
+                .operation(PropertyFilter.Operation.GREATER_OR_EQUAL)
+                .operationEditable(true)
+                .build();
+        // end::propertyFilter[]
+
+        // tag::voidJpqlFilter[]
+        JpqlFilter<Boolean> hasRewardPoints = genericFilter.filterComponentBuilder()
+                .jpqlFilter()
+                .where("{E}.rewardPoints > 0")
+                .label("Has reward points")
+                .defaultValue(true)
+                .build();
+        // end::voidJpqlFilter[]
+
+        // tag::typedJpqlFilter[]
+        JpqlFilter<Integer> minAge = genericFilter.filterComponentBuilder()
+                .jpqlFilter(Integer.class)
+                .where("{E}.age >= :minAge")
+                .parameterName("minAge")
+                .label("Minimum age")
+                .build();
+        // end::typedJpqlFilter[]
+
+        // tag::groupFilter[]
+        GroupFilter orGroup = genericFilter.filterComponentBuilder()
+                .groupFilter()
+                .operation(LogicalFilterComponent.Operation.OR)
+                .addAll(hasRewardPoints, minAge)
+                .build();
+        // end::groupFilter[]
+
+        // tag::runtimeConfiguration[]
+        genericFilter.runtimeConfigurationBuilder()
+                .id("dynamicConfiguration")
+                .name("Dynamic configuration")
+                .add(ageFilter, 18) // <1>
+                .add(orGroup) // <2>
+                .makeCurrent() // <3>
+                .allowDeletion() // <4>
+                .buildAndRegister();
+        // end::runtimeConfiguration[]
+    }
 
 }

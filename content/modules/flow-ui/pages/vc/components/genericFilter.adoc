@@ -87,7 +87,7 @@ image::flow-ui:visual-components/components/generic-filter-add-condition-dialog.
 +
 * *Predefined conditions* - условия, заданные разработчиком во время разработки в элементе <<conditions-element,conditions>>.
 +
-* *Configurations* - существующие конфигурации фильтра. Они могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<run-time-configuration,выполнения>>.
+* *Configurations* - существующие конфигурации фильтра. Они могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<runtime-configuration,выполнения>>.
 
 После добавления условие появляется на панели условий. Если условие больше не нужно, его можно удалить, нажав на значок image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] рядом с ним.
 
@@ -204,7 +204,7 @@ image::flow-ui:visual-components/components/generic-filter-group-condition-edito
 
 Конфигурация - это набор условий, сохраненный для последующего использования. Он может включать условия любого типа, а также другие конфигурации.
 
-Конфигурации могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<run-time-configuration,выполнения>>.
+Конфигурации могут быть созданы либо разработчиком во время <<design-time-configuration,разработки>>, либо пользователем во время <<runtime-configuration,выполнения>>.
 
 [[design-time-configuration]]
 === Конфигурация времени разработки
@@ -229,7 +229,7 @@ TIP: Чтобы добавить конфигурацию времени раз�
 
 image::flow-ui:visual-components/components/generic-filter-design-time-items.png[align="center", width="440"]
 
-[[run-time-configuration]]
+[[runtime-configuration]]
 === Конфигурация времени выполнения
 
 Конфигурации могут быть созданы во время выполнения в редакторе конфигураций *Configuration*. Чтобы открыть редактор, используйте пункт меню image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit*.
@@ -264,22 +264,101 @@ image::flow-ui:visual-components/components/generic-filter-run-time-configuratio
 * xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
 * xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
 
+[[creating-filter-programmatically]]
 == Создание фильтра программно
 
-В этом разделе приведен пример конфигурации `genericFilter`, созданной программно.
+Вы можете создавать и настраивать `genericFilter` в Java с помощью fluent builder API, у которого есть две точки входа:
+
+* `filterComponentBuilder()` создаёт компоненты фильтра – `propertyFilter`, `jpqlFilter` и `groupFilter`.
+* `runtimeConfigurationBuilder()` собирает <<runtime-configuration, конфигурацию времени выполнения>> из этих компонентов и регистрирует её в фильтре.
+
+Билдер выполняет всю необходимую инициализацию внутри (делегирование модификации условий, генерацию имени параметра и компонента значения), поэтому программно созданный компонент ведёт себя точно так же, как объявленный в XML. У владеющего им `genericFilter` должен быть `DataLoader`, иначе методы билдера выбрасывают `IllegalStateException`.
+
+CAUTION: В настоящее время fluent builder API является экспериментальным и может измениться в будущем релизе Jmix.
+
+Следующий пример создаёт `genericFilter`, строит условие по свойству и регистрирует конфигурацию:
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;programmaticFilter]
 ----
 
-<1> Создает `genericFilter`, используя фабрику `uiComponents`.
-<2> Добавляет конфигурацию времени разработки. Метод принимает два параметра: `id` конфигурации и название конфигурации.
-<3> Создает экземпляр `PropertyFilter` и устанавливает его свойства.
-<4> Генерирует компонент для этого фильтра на основе `metaClass`, `property` и `operation`.
-<5> Добавляет фильтр в конфигурацию. `LogicalFilterComponent` является корневым элементом конфигурации.
-<6> Помещает `genericFilter` в экран внутри компоновщика `vbox`. Этот компоновщик объявлен в дескрипторе экрана и внедрен в контроллер.
-<7> Устанавливает текущую конфигурацию.
+<1> Создаёт `genericFilter` с помощью фабрики `uiComponents`.
+<2> Помещает `genericFilter` на экран внутрь контейнера `vbox`, объявленного в дескрипторе экрана и инжектированного в контроллер.
+<3> Строит `PropertyFilter` с помощью `filterComponentBuilder()`.
+<4> Регистрирует конфигурацию времени выполнения с помощью `runtimeConfigurationBuilder()` и добавляет в неё фильтр.
+<5> Немедленно активирует конфигурацию. Это не постоянный маркер конфигурации по умолчанию, он просто делает конфигурацию текущей.
+<6> Строит и регистрирует конфигурацию. Каждый экземпляр билдера одноразовый.
+
+[[building-filter-components]]
+=== Создание компонентов фильтра
+
+`filterComponentBuilder()` возвращает отдельный билдер для каждого типа компонента. Все билдеры одноразовые и создают готовый к добавлению компонент.
+
+[[property-filter]]
+==== Property Filter
+
+`propertyFilter()` фильтрует по атрибуту сущности, включая вложенные ссылки — `property()` принимает путь вида `customer.city.name`. Редактор значения генерируется автоматически на основе типа атрибута. Операция фиксирована, если вы не вызовете `operationEditable(true)`, что позволяет пользователю изменять её во время выполнения; `operationTextVisible(false)` скрывает метку операции, отображаемую рядом с полем. Значение, переданное в `defaultValue()`, предзаполняет поле.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFilter]
+----
+
+[[jpql-filter-checkbox]]
+==== JPQL Filter (Checkbox)
+
+`jpqlFilter()` (без аргумента) создаёт void-фильтр: флажок, который включает и выключает фиксированное условие `WHERE`. Его тип значения — `Boolean`, поэтому `defaultValue(true)` делает условие активным по умолчанию.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=voidJpqlFilter]
+----
+
+[[jpql-filter-typed]]
+==== JPQL Filter (Typed)
+
+`jpqlFilter(Class)` создаёт типизированный фильтр: значение, вводимое пользователем, привязывается к параметру запроса, а его редактор соответствует указанному `Class`. Напишите условие в `where()`, используя `\{E}` в качестве псевдонима сущности и именованный параметр, затем объявите его имя с помощью `parameterName()`. Добавьте `join()`, чтобы расширить часть `FROM`, или `hasInExpression(true)`, когда значение является коллекцией (условие `in`).
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=typedJpqlFilter]
+----
+
+[[group-filter]]
+==== Group Filter
+
+`groupFilter()` объединяет условия под одной логической операцией — `AND` (по умолчанию) или `OR`. Группа сама является компонентом фильтра, поэтому группы можно вкладывать друг в друга для выражения сложной булевой логики. Добавляйте дочерние элементы с помощью `add()` или `addAll()`.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=groupFilter]
+----
+
+[[building-runtime-configuration]]
+=== Создание конфигурации времени выполнения
+
+`runtimeConfigurationBuilder()` создаёт <<runtime-configuration, конфигурацию времени выполнения>> и регистрирует её в фильтре.
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=runtimeConfiguration]
+----
+
+<1> Добавляет компонент с типизированным значением по умолчанию; тип значения проверяется во время компиляции. Используйте `add(component)` без значения по умолчанию или `addAll(components...)`, чтобы добавить несколько сразу.
+<2> Добавляет группу, построенную выше.
+<3> Немедленно активирует конфигурацию. Это не постоянный маркер конфигурации по умолчанию.
+<4> Позволяет пользователю удалить эту конфигурацию. По умолчанию конфигурации, созданные с помощью билдера, защищены от удаления пользователем.
+
+Учтите:
+
+* Каждый экземпляр билдера одноразовый — повторный вызов `build()` или `buildAndRegister()` выбрасывает `IllegalStateException`.
+* `id` конфигурации должен быть уникальным в пределах фильтра.
+* У владеющего ею `genericFilter` должен быть `DataLoader`.
+
+NOTE: Билдер создаёт `RunTimeConfiguration`. Билдера для `DesignTimeConfiguration` не существует. Чтобы создавать конфигурации программно на более низком уровне, используйте `addConfiguration(id, name)` (который возвращает `DesignTimeConfiguration`) и создавайте и добавляйте компоненты фильтра напрямую, либо постройте `RunTimeConfiguration` и зарегистрируйте её с помощью `addConfiguration(configuration)`. Это более низкоуровневый подход, который заменяет API билдеров.
+
+TIP: Готовые к запуску примеры всех возможностей билдера см. в разделе *GenericFilter* в https://demo.jmix.io/ui-samples[UI Samples^].
 
 [[theme-variants]]
 == Варианты темы
@@ -427,9 +506,9 @@ xref:vc/components/tooltip.adoc[tooltip]
 * *Save* - сохраняет изменения в текущей конфигурации. Реализовано с помощью `FilterSaveAction` (`type="genericFilter_save"` в XML).
 * *Save with values* - сохраняет изменения в текущей конфигурации вместе со значениями в полях условий [<<condition-field, 5>>] в качестве значений по умолчанию.
 * *Save as* - сохраняет текущую конфигурацию под другим именем. Реализовано с помощью `FilterSaveAsAction` (`type="genericFilter_saveAs"` в XML).
-* *Edit* - открывает редактор для текущей <<run-time-configuration,конфигурации времени выполнения>>. Отключено для <<design-time-configuration,конфигураций времени разработки>>. Реализовано с помощью `FilterEditAction` (`type="genericFilter_edit"` в XML).
-* *Remove* - удаляет текущую конфигурацию <<run-time-configuration,времени выполнения>>. Отключено для конфигураций <<design-time-configuration,времени разработки>>. Реализовано с помощью `FilterRemoveAction` (`type="genericFilter_remove"` в XML).
-* *Copy* - создает копию <<run-time-configuration,времени выполнения>> для текущей конфигурации. Реализовано с помощью `FilterCopyAction` (`type="genericFilter_copy"` в XML).
+* *Edit* - открывает редактор для текущей <<runtime-configuration,конфигурации времени выполнения>>. Отключено для <<design-time-configuration,конфигураций времени разработки>>. Реализовано с помощью `FilterEditAction` (`type="genericFilter_edit"` в XML).
+* *Remove* - удаляет текущую конфигурацию <<runtime-configuration,времени выполнения>>. Отключено для конфигураций <<design-time-configuration,времени разработки>>. Реализовано с помощью `FilterRemoveAction` (`type="genericFilter_remove"` в XML).
+* *Copy* - создает копию <<runtime-configuration,времени выполнения>> для текущей конфигурации. Реализовано с помощью `FilterCopyAction` (`type="genericFilter_copy"` в XML).
 * *Clear values* - очищает значения в полях условий [<<condition-field, 5>>]. Реализовано с помощью `FilterClearValuesAction` (`type="genericFilter_clearValues"` в XML).
 * *Add* - добавляет условие в текущую конфигурацию. Реализовано с помощью `FilterAddConditionAction` (`type="genericFilter_addCondition"` в XML).
 * *Reset* - сбрасывает. Реализовано с помощью `FilterResetAction` (`type="genericFilter_reset"` в XML).
