@@ -1,0 +1,150 @@
+= Пользовательский интерфейс
+
+`jmix-aitools-flowui-starter` предоставляет полноценный UI чата с готовыми экранами, переиспользуемыми фрагментами, которые можно встраивать в собственные экраны, и вспомогательными сервисами. Доступ к UI определяется <<roles,ролью пользователя чата>>.
+
+[[views]]
+== Экраны
+
+Дополнение регистрирует два экрана из коробки.
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|Экран |Описание
+
+|`AiChatHubView`
+|Все чаты: экран с полем ввода сообщений, недавними чатами пользователя и историей, сгруппированной по датам и доступной для поиска. Автоматически добавляется в главное меню.
+
+|`AiChatView`
+|Экран отдельного чата. Открывается со стартового экрана при выборе из недавних чатов или при старте нового чата.
+|===
+
+Поскольку дополнение добавляет пункт меню для `AiChatHubView`, пользователи с ролью чата получают точку входа без дополнительной настройки. Пункт меню добавляется через механизм xref:flow-ui:menu-config.adoc[composite menu].
+
+[[fragments]]
+== Фрагменты
+
+Если встроенные экраны не подходят под вашу компоновку, UI чата можно встроить в собственные экраны с помощью фрагментов. Добавьте фрагмент в дескриптор экрана с помощью элемента `<fragment>` и укажите его класс.
+
+[[ai-chat-hub-fragment]]
+=== AiChatHubFragment
+
+`io.jmix.aitoolsflowui.view.chathub.AiChatHubFragment` — автономный центр чатов, используемый `AiChatHubView`. Добавьте его в любой экран, чтобы получить поле ввода, недавние чаты и историю в одном компоненте:
+
+[source, xml, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/resources/com/company/onboarding/view/assistant/assistant-view.xml[tags=embed-hub]
+----
+
+Его публичный API:
+
+* `setRecentChatsCount(int)` — переопределяет число недавних чатов, отображаемых рядом с полем ввода. Если значение не задано, используется свойство приложения xref:ai-tools:properties.adoc#jmix.aitools.ui.chat-hub-recent-chats-count[`jmix.aitools.ui.chat-hub-recent-chats-count`].
+* `setMarkIconSupplier(SerializableSupplier<Component>)` — заменяет фирменную иконку, отображаемую на стартовом экране чатов и на карточках чатов.
+
+[[ai-chat-fragment]]
+=== AiChatFragment
+
+`io.jmix.aitoolsflowui.view.chat.AiChatFragment` — панель чата, используемая `AiChatView`. Она содержит строку заголовка, ленту сообщений и поле ввода, все это привязано к одному чату. Встройте ее и свяжите с чатом программно:
+
+[source, xml, indent=0]
+----
+<fragment id="chatFragment"
+          class="io.jmix.aitoolsflowui.view.chat.AiChatFragment"/>
+----
+
+[source, java, indent=0]
+----
+@ViewComponent
+private AiChatFragment chatFragment;
+
+@Autowired
+private AiConversationService conversationService;
+
+@Subscribe
+public void onInit(final InitEvent event) {
+    AiConversation conversation = conversationService.create();
+    chatFragment.setConversation(conversation);
+}
+----
+
+Основные методы:
+
+* `setConversation(AiConversation)` / `setConversationId(UUID)` — привязывает панель к чату.
+* `sendMessage(String)` — программно отправляет сообщение пользователя.
+* `setReadOnly(boolean)` — скрывает поле ввода и кнопку редактирования заголовка.
+* `setMessageInputEnabled(boolean)` / `focusMessageInput()` — управляет полем ввода.
+* `isAwaitingResponse()` — показывает, генерируется ли сейчас ответ.
+* `setAiAvatarIconSupplier(SerializableSupplier<Component>)` — настраивает аватар ассистента.
+
+[[ai-chat-input-fragment]]
+=== AiChatInputFragment
+
+`io.jmix.aitoolsflowui.view.input.AiChatInputFragment` — переиспользуемый редактор сообщений: текстовая область и кнопка отправки. Нажмите Enter, чтобы отправить сообщение. Нажмите Shift+Enter, чтобы вставить перевод строки. Он используется внутри двух фрагментов выше, а также может быть встроен отдельно при создании собственного макета чата. Для настройки используйте `setSubmitHandler(Consumer<String>)`, `setPlaceholder(String)`, `setInputEnabled(boolean)`, `focus()` и `clear()`.
+
+[[services]]
+== Сервисы
+
+Работу UI обеспечивают три сервиса. Они работают с UI-моделями `AiConversation` и `AiChatMessage` и неявно ограничены текущим пользователем.
+
+[cols="1,3a", grid=rows, frame=none]
+|===
+|Сервис |Назначение
+
+|`AiChatService`
+|Генерирует ответ ассистента на сообщение пользователя.
+
+* `processMessage(message)` — возвращает ответ.
+* `processMessage(message, statusCallback)` — то же самое, но дополнительно сообщает о ходе выполнения через `Consumer<AiToolStatusUpdate>`.
+* `isAvailable()` — может ли сервис формировать ответы, то есть настроена ли модель.
+
+|`AiConversationService`
+|Управляет чатами текущего пользователя.
+
+* `loadConversations()` — загружает чаты пользователя, начиная с самых новых.
+* `loadConversation(id)` — загружает один чат по идентификатору.
+* `create()` — создает новый чат.
+* `save(conversation)` — сохраняет чат.
+* `remove(conversation)` — удаляет чат и его сообщения.
+
+|`AiChatMessageService`
+|Управляет сообщениями чата.
+
+* `createMessage(...)` — добавляет сообщение заданного типа.
+* `loadMessages(conversation)` — загружает все сообщения, начиная с самых старых.
+* `loadLatestMessage(...)` — загружает последнее сообщение, при необходимости с фильтрацией по типу.
+|===
+
+[[persistence]]
+=== Сохранение данных и временные заглушки
+
+То, где эти сервисы хранят данные, зависит от подключенного стартера:
+
+* При использовании `jmix-aitools-flowui-data-starter` сервисы работают через JPA-сущности, а чаты и сообщения сохраняются в базе данных.
+* Если подключен только `jmix-aitools-flowui-starter`, сервисы представляют собой заглушки без функциональности. `AiChatService.isAvailable()` возвращает `false`, ничего не сохраняется, и чат фактически отключен. Это позволяет отобразить UI до того, как будет настроено сохранение данных.
+
+Чтобы использовать чат с нестандартным хранилищем, предоставьте собственные бины, реализующие `AiChatService`, `AiConversationService` и `AiChatMessageService`, вместо подключения data-стартера.
+
+[[icon-provider]]
+=== Поставщик иконок
+
+Фирменная иконка, отображаемая в центре чатов, и аватар ассистента предоставляются бином `AiIconProvider`. Замените этот бин, чтобы глобально изменить иконки дополнения, либо переопределите их для конкретного фрагмента с помощью методов настройки поставщика иконок, показанных выше.
+
+[[roles]]
+== Роль безопасности
+
+Дополнение предоставляет одну предопределенную xref:security:resource-roles.adoc[ресурсную роль].
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|Name |`AI Tools: chat user`
+|Code |`aitools-chat-user`
+|Scope |UI
+|===
+
+Она предоставляет конечному пользователю доступ к чату: стартовому экрану чатов и экрану чата, а также управление собственными чатами и сообщениями, включая создание, продолжение, переименование и удаление чатов. В частности, роль предоставляет:
+
+* доступ на просмотр к `AiChatHubView` и `AiChatView`, а также к пункту меню стартового экрана чатов
+* полный доступ к собственным чатам пользователя и доступ на создание/чтение их сообщений
+
+Назначьте эту роль всем пользователям, которые должны иметь возможность пользоваться ассистентом. Как назначать роли пользователям, см. в xref:security:users.adoc[].
+
+NOTE: Эта роль предоставляет доступ только к UI чата. Она не расширяет доступ к данным. Когда ассистент загружает бизнес-данные через предопределенные xref:ai-tools:tools.adoc#data-loading[инструменты Data Load], запросы выполняются с учетом собственных прав текущего пользователя на xref:security:index.adoc[доступ к данным], поэтому роль не позволяет читать ничего сверх уже доступного пользователю. Любые пользовательские инструменты, которые вы добавляете, должны самостоятельно обеспечивать контроль доступа.
