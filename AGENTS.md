@@ -90,3 +90,4 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
+- Use bold text only for UI elements. Don't use bold for emphasis.

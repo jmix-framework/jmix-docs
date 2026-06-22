@@ -14,6 +14,7 @@ public class SliderLoader extends AbstractComponentLoader<Slider> {
     public void loadComponent() {
         loadInteger(element, "min", resultComponent::setMin); // <1>
         loadInteger(element, "max", resultComponent::setMax);
+        loadInteger(element, "value", resultComponent::setValue);
 
         componentLoader().loadSizeAttributes(resultComponent, element); // <2>
     }
