@@ -1,16 +1,21 @@
 = Tools
 
-The assistant never accesses the database or external systems directly — it works through tools. The add-on ships predefined tools that load the application's data, and lets you contribute your own tools or override the predefined ones. All tools run on the server, under the current user's xref:security:index.adoc[data access] permissions.
+The assistant never accesses the database or external systems directly — it works through tools that run on the server. The add-on ships a set of predefined tools, and lets you contribute your own or override the predefined ones.
+
+[[predefined]]
+== Predefined Tools
+
+The assistant comes with predefined tools that it calls to act on the user's behalf. They are grouped by purpose, and each group is described in its own section below. At the moment the add-on provides one group — the <<data-loading,Data Load tools>>.
 
 [[data-loading]]
-== Loading Data with the Predefined Tools
+== Data Load Tools
 
-The predefined tools let the assistant answer questions about the application's data.
+The Data Load tools let the assistant answer questions about the application's data.
 
 [[data-load-flow]]
 === The Data-Load Flow
 
-The predefined tools implement a natural-language data-load flow. When a user asks for data, the assistant typically goes through the following steps:
+The Data Load tools implement a natural-language data-load flow. When a user asks for data, the assistant typically goes through the following steps:
 
 . Discover — list the entities available to the user and inspect the relevant ones (attributes, relationships, enums).
 . Generate — produce a read-only JPQL query with named parameters for the request.
@@ -46,14 +51,14 @@ These three tools are bound together by the `DataLoadAiTool` marker interface, s
 
 By default, the assistant can see every JPA entity of the application except framework entities (the `io.jmix` packages are excluded) and system-level entities. You narrow or widen this set with the `jmix.aitools.dataload.*` properties.
 
-For example, to expose only the application's own entities:
+For example, to hide a specific entity from the assistant and cap the default number of rows per query:
 
 [source, properties, indent=0]
 ----
 include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
 ----
 
-The inclusion and exclusion rules are evaluated per entity, with explicit includes taking precedence over excludes. See the full list of options in xref:ai-tools:properties.adoc#dataload[Data-load properties], including how to cap the number of rows a single query may return.
+The inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities; the `include-*` properties are additive, adding entities to the default set — including ones hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. See the full list of options in xref:ai-tools:properties.adoc#dataload[Data-load properties], including how to cap the number of rows a single query may return.
 
 NOTE: Filtering by configuration only changes which entities are offered to the model. Regardless of configuration, every query is still executed under the current user's xref:security:index.adoc[data access] permissions: a query over an entity the user cannot read is rejected, and attributes the user cannot read are dropped from the result. A user can never read data they are not allowed to see.
 
@@ -91,7 +96,7 @@ include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/Onboardin
 
 The method parameters become the tool's input schema. Annotate them with `@ToolParam` to add descriptions. The return value is sent back to the model as the tool result.
 
-NOTE: Declaring `@Tool` methods requires Spring AI's model API on the application classpath. When you add a Spring AI model starter (see xref:ai-tools:getting-started.adoc#configure-model[Connecting a Model]) it is already there; otherwise add `org.springframework.ai:spring-ai-model` explicitly.
+NOTE: Declaring `@Tool` methods requires Spring AI's model API on the application classpath. The Spring AI model starter you add in xref:ai-tools:getting-started.adoc#configure-model[Connecting a Model] already provides it.
 
 [[registry]]
 === AiToolRegistry
