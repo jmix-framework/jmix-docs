@@ -21,13 +21,13 @@ public class CustomOpenSearchSearchStrategy extends AbstractOpenSearchStrategy {
     }
 
     @Override
-    public void configureRequest(SearchRequestContext<SearchRequest.Builder> requestContext) {
-        queryConfigurer.configureRequest( // <3>
+    public void configureRequest(SearchRequestContext<SearchRequest.Builder> requestContext) { // <3>
+        queryConfigurer.configureRequest( // <4>
                 requestContext,
-                (queryBuilder, scope) -> // <4>
+                (queryBuilder, scope) -> // <5>
                         queryBuilder.multiMatch(multiMatchQueryBuilder ->
                                 multiMatchQueryBuilder
-                                        .fields(scope.getFieldList()) // <5>
+                                        .fields(scope.getFieldList()) // <6>
                                         .query(requestContext.getSearchContext().getEscapedSearchText())
                                         .operator(Operator.Or)
                         )
