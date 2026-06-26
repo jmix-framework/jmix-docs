@@ -1,0 +1,41 @@
+= Programmatic API
+
+You can also use the assistant from your own code, without the chat UI. This is useful for background processing, custom views, or integration with existing business logic.
+
+[[assistant-service]]
+== AiAssistantService
+
+`io.jmix.aitools.service.AiAssistantService` is the main programmatic entry point. It is stateless, does not persist chat history, and exposes every registered tool to the model. Inject it and send a message:
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/SupportAssistant.java[tags=assistant-service]
+----
+<1> `send` blocks until the full reply is produced and returns it.
+
+For incremental output, use `stream(String)`, which returns a `reactor.core.publisher.Flux<String>` that emits the reply in chunks.
+
+[[data-load-service]]
+== AiDataLoadService
+
+`io.jmix.aitools.dataload.AiDataLoadService` is a specialized entry point for data loading. In addition to the conversational `send` and `stream` methods, it provides:
+
+* `loadData(String userText)` – generates a JPQL query for the request, runs it, and returns a structured `EntityDataLoadResult`.
+
+`EntityDataLoadResult` exposes the full outcome of the load through the following fields:
+
+* `query` — the LLM-generated query, before any repair;
+* `validationResult` — the validation outcome;
+* `rows` — the fetched rows, each a `Map` keyed by result-property name;
+* `hasMore` — whether more rows are available beyond the returned page;
+* `executed` — whether the query actually ran;
+* `executionError` — the error message when it did not.
+
+Use this service when you need the data itself rather than a natural-language answer.
+
+[[system-prompt]]
+== Customizing the System Prompt
+
+The system prompt used by `AiAssistantService` is supplied by the `AiAssistantSystemPromptProvider` bean. The default implementation loads a bundled template that introduces the assistant and the tool usage rules. To use your own prompt, register a bean that implements `AiAssistantSystemPromptProvider` and returns your template.
+
+NOTE: The default `AiAssistantSystemPromptProvider` is registered only if the application does not already define a bean of that type. If you provide your own implementation, it automatically takes precedence.
