@@ -1,55 +1,55 @@
 = Tools
 
-The assistant never accesses the database or external systems directly — it works through tools that run on the server. The add-on ships a set of predefined tools, and lets you contribute your own or override the predefined ones.
+The assistant does not access the database or external systems directly. Instead, it works through server-side tools. The add-on includes a set of predefined tools, and you can contribute your own or override the predefined ones.
 
 [[predefined]]
 == Predefined Tools
 
-The assistant comes with predefined tools that it calls to act on the user's behalf. They are grouped by purpose, and each group is described in its own section below. At the moment the add-on provides one group — the <<data-loading,Data Load tools>>.
+The assistant comes with predefined tools that it can call on the user's behalf. They are grouped by purpose, and each group is described in its own section below. At the moment, the add-on provides one group: <<data-loading,Data Load tools>>.
 
 [[data-loading]]
 == Data Load Tools
 
-The Data Load tools let the assistant answer questions about the application's data.
+The Data Load tools let the assistant answer questions about application data.
 
 [[data-load-flow]]
 === The Data-Load Flow
 
-The Data Load tools implement a natural-language data-load flow. When a user asks for data, the assistant typically goes through the following steps:
+The Data Load tools implement a natural-language data loading flow. When a user asks for data, the assistant typically goes through the following steps:
 
-. Discover — list the entities available to the user and inspect the relevant ones (attributes, relationships, enums).
-. Generate — produce a read-only JPQL query with named parameters for the request.
-. Validate — check the query against the domain model and a set of rules (read-only, syntax, known entities and attributes, supported date/time constructs, pagination).
-. Repair — if validation fails, ask the model to fix the query and validate again, up to a configurable number of attempts.
-. Execute — run the query through `DataManager`, enforcing entity and attribute permissions, and return a page of rows.
+. Discover – list the entities available to the user and inspect the relevant ones, including attributes, relationships, and enums.
+. Generate – produce a read-only JPQL query with named parameters for the request.
+. Validate – check the query against the domain model and a set of rules, including read-only access, syntax, known entities and attributes, supported date/time constructs, and pagination.
+. Repair – if validation fails, ask the model to fix the query and validate it again, up to a configurable number of attempts.
+. Execute – run the query through `DataManager`, enforce entity and attribute permissions, and return a page of rows.
 
-All steps run on the server. The query is always a read-only `SELECT`: write operations and native SQL escapes are rejected during validation, and execution additionally enforces the current user's read permissions. A query over an entity the user cannot read is rejected, while attributes the user cannot read are omitted from the returned rows — the same way a data grid hides columns bound to attributes the user is not allowed to read. Either way, the user never receives data they are not allowed to see.
+All steps run on the server. The query is always a read-only `SELECT`. Write operations and native SQL escapes are rejected during validation, and execution also enforces the current user's read permissions. A query over an entity the user cannot read is rejected, while attributes the user cannot read are omitted from the returned rows, just as a data grid hides columns bound to unreadable attributes. In both cases, the user never receives data they are not allowed to see.
 
 [[available-tools]]
 === Available Tools
 
-The flow is exposed to the model as three tools. The tool name is the identifier the model uses to call the tool; it is also the name you reference when <<overriding,overriding>> a tool.
+The flow is exposed to the model as three tools. The tool name is the identifier the model uses to call the tool. It is also the name you reference when <<overriding,overriding>> a tool.
 
 [cols="1,3", grid=rows, frame=none]
 |===
 |Tool name |What it does
 
 |[[aitls_getAvailableEntities]]`aitls_getAvailableEntities`
-|Returns compact metadata for every entity currently available to the user: entity name, localized names, and property names. Entities hidden by application filtering or security are not returned. The assistant uses it to explore the data model and to get correct entity names for follow-up calls.
+|Returns compact metadata for every entity currently available to the user: entity name, localized names, and property names. Entities hidden by application filtering or security are not returned. The assistant uses this tool to explore the data model and obtain the correct entity names for follow-up calls.
 
 |[[aitls_getDomainModelForEntities]]`aitls_getDomainModelForEntities`
-|Returns detailed metadata for the requested entities: exact attribute names, relationships for joins, property types and constraints, and enum value mappings. The assistant must call it for the entities it intends to query before generating a query.
+|Returns detailed metadata for the requested entities: exact attribute names, relationships for joins, property types and constraints, and enum value mappings. The assistant must call this tool for the entities it intends to query before it generates a query.
 
 |[[aitls_executeQuery]]`aitls_executeQuery`
-|Validates, repairs if needed, and executes a read-only JPQL query, returning the resulting rows. Parameters are passed as a structured request (query text, named parameters, result column names, paging). The result reports the rows, whether more rows are available, and any validation or execution error.
+|Validates, repairs if needed, and runs a read-only JPQL query, returning the resulting rows. Parameters are passed as a structured request containing query text, named parameters, result column names, and paging information. The result reports the rows, whether more rows are available, and any validation or execution error.
 |===
 
-These three tools are bound together by the `DataLoadAiTool` marker interface, so the registry can collect them as a group (see <<registry>>).
+These three tools are bound together by the `DataLoadAiTool` marker interface, so the registry can collect them as a group. See <<registry>>.
 
 [[exposed-model]]
 === Controlling the Exposed Model
 
-By default, the assistant can see every JPA entity of the application except framework entities (the `io.jmix` packages are excluded) and system-level entities. You narrow or widen this set with the `jmix.aitools.dataload.*` properties.
+By default, the assistant can see every JPA entity in the application except framework entities, because the `io.jmix` packages are excluded, and system-level entities. You can narrow or widen this set with the `jmix.aitools.dataload.*` properties.
 
 For example, to hide a specific entity from the assistant and cap the default number of rows per query:
 
@@ -58,97 +58,97 @@ For example, to hide a specific entity from the assistant and cap the default nu
 include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
 ----
 
-The inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities; the `include-*` properties are additive, adding entities to the default set — including ones hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. See the full list of options in xref:ai-tools:properties.adoc#dataload[Data-load properties], including how to cap the number of rows a single query may return.
+Inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities. The `include-*` properties are additive and add entities to the default set, including entities hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. See xref:ai-tools:properties.adoc#dataload[Data-load properties] for the full list of options, including how to cap the number of rows that a single query can return.
 
-NOTE: Filtering by configuration only changes which entities are offered to the model. Regardless of configuration, every query is still executed under the current user's xref:security:index.adoc[data access] permissions: a query over an entity the user cannot read is rejected, and attributes the user cannot read are dropped from the result. A user can never read data they are not allowed to see.
+NOTE: Filtering by configuration changes only which entities are offered to the model. Regardless of configuration, every query still runs under the current user's xref:security:index.adoc[data access] permissions. A query over an entity the user cannot read is rejected, and attributes the user cannot read are removed from the result. A user can never read data they are not allowed to see.
 
 [[available-entity-filter]]
 === Customizing Availability
 
-The set of entities offered to the model is resolved through an `AvailableEntityFilter` bean. The default implementation hides entities the current user has no read access to. To change this behavior — for instance, to apply your own visibility rules — register your own bean implementing `io.jmix.aitools.dataload.introspection.AvailableEntityFilter`.
+The set of entities offered to the model is resolved through an `AvailableEntityFilter` bean. The default implementation hides entities for which the current user has no read access. To change this behavior, for example to apply your own visibility rules, register your own bean that implements `io.jmix.aitools.dataload.introspection.AvailableEntityFilter`.
 
-The configured entities and their metadata are served by the `AvailableEntityService` bean, which you can also use from your own tools (see the <<overriding,override example>>).
+The configured entities and their metadata are served by the `AvailableEntityService` bean, which you can also use from your own tools. See the <<overriding,override example>>.
 
 [[custom-tools]]
 == Custom Tools and the Registry
 
-Beyond the predefined tools, you can contribute your own tools to the assistant and override the ones the add-on provides.
+Beyond the predefined tools, you can contribute your own tools to the assistant and override the tools provided by the add-on.
 
 [[defining-a-tool]]
 === Defining a Tool
 
 A tool is a Spring bean that:
 
-* implements the `io.jmix.aitools.tool.JmixAiTool` marker interface, and
-* declares one or more methods annotated with Spring AI's `@Tool` annotation.
+* implements the `io.jmix.aitools.tool.JmixAiTool` marker interface
+* declares one or more methods annotated with Spring AI's `@Tool` annotation
 
-The add-on discovers all such beans at startup, collects their `@Tool` methods and makes them available to the assistant. The following bean adds a tool that returns the catalog of onboarding steps:
+The add-on discovers all such beans at startup, collects their `@Tool` methods, and makes them available to the assistant. The following bean adds a tool that returns the catalog of onboarding steps:
 
 [source, java, indent=0]
 ----
 include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/OnboardingTools.java[tags=custom-tool]
 ----
 <1> Implementing `JmixAiTool` marks the bean as a source of tools.
-<2> The `@Tool` `name` and `description` are what the model sees; the description should explain when and how to use the tool.
-<3> A `ToolContext` parameter is supplied by the framework and is not exposed to the model. It is needed only to publish status updates (see <<status-updates>>).
-<4> Publishes an in-flight status update before the long-running work.
-<5> Loads the `Step` entities through `DataManager`, under the current user's data-access permissions.
+<2> The `@Tool` `name` and `description` are what the model sees. The description should explain when and how to use the tool.
+<3> A `ToolContext` parameter is supplied by the framework and is not exposed to the model. It is required only to publish status updates. See <<status-updates>>.
+<4> Publishes an in-progress status update before the long-running work starts.
+<5> Loads the `Step` entities through `DataManager` under the current user's data access permissions.
 
 The method parameters become the tool's input schema. Annotate them with `@ToolParam` to add descriptions. The return value is sent back to the model as the tool result.
 
-NOTE: Declaring `@Tool` methods requires Spring AI's model API on the application classpath. The Spring AI model starter you add in xref:ai-tools:getting-started.adoc#configure-model[Connecting a Model] already provides it.
+NOTE: Declaring `@Tool` methods requires Spring AI's model API on the application classpath. The Spring AI model starter that you add in xref:ai-tools:getting-started.adoc#configure-model[Connecting a Model] already provides it.
 
 [[registry]]
 === AiToolRegistry
 
-`io.jmix.aitools.tool.AiToolRegistry` is the central registry of all tools available in the application. It is built once at startup from every `JmixAiTool` bean, after applying override resolution. Its methods:
+`io.jmix.aitools.tool.AiToolRegistry` is the central registry of all tools available in the application. It is built once at startup from every `JmixAiTool` bean, after override resolution is applied. Its methods are:
 
 [cols="1,3", grid=rows, frame=none]
 |===
 |Method |Description
 
 |`getAll()`
-|Returns all resolved tools, in registration order.
+|Returns all resolved tools in registration order.
 
 |`findByName(String name)`
-|Returns the tool registered under the given name, or empty.
+|Returns the tool registered under the given name, or an empty result.
 
 |`findByMarker(Class<? extends JmixAiTool> marker)`
-|Returns the tools whose source bean implements the given marker sub-interface of `JmixAiTool` (for example `DataLoadAiTool.class`).
+|Returns the tools whose source bean implements the given marker sub-interface of `JmixAiTool`, for example `DataLoadAiTool.class`.
 
 |`getAllCallbacks()`
 |Returns the Spring AI `ToolCallback` objects of all resolved tools, ready to pass to a `ChatClient`.
 |===
 
-The assistant passes `getAllCallbacks()` to the model, so any tool you contribute becomes available automatically — there is nothing else to register.
+The assistant passes `getAllCallbacks()` to the model, so any tool you contribute becomes available automatically. Nothing else must be registered.
 
 [[overriding]]
 === Overriding a Predefined Tool
 
-To replace a tool that already exists — including a predefined one — annotate your `@Tool` method with `@ToolOverride`, passing the name of the tool you replace. The method must still carry `@Tool` and be declared on a `JmixAiTool` bean.
+To replace an existing tool, including a predefined one, annotate your `@Tool` method with `@ToolOverride` and pass the name of the tool you want to replace. The method must still carry `@Tool` and be declared on a `JmixAiTool` bean.
 
-The following bean overrides <<aitls_getAvailableEntities,`aitls_getAvailableEntities`>> to return the available entities ordered by their localized name:
+The following bean overrides <<aitls_getAvailableEntities,`aitls_getAvailableEntities`>> and returns the available entities ordered by their localized name:
 
 [source, java, indent=0]
 ----
 include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/SortedEntitiesTool.java[tags=tool-override]
 ----
-<1> Implementing `DataLoadAiTool` keeps the override in the data-load tool group; for a tool unrelated to data loading, implement `JmixAiTool` directly.
-<2> `@ToolOverride` names the tool being replaced. The override is exposed under that name — the override method's own `@Tool` name is irrelevant.
-<3> The default `AvailableEntityService` is reused, so the override still honors entity filtering and security and only changes the ordering.
+<1> Implementing `DataLoadAiTool` keeps the override in the data-load tool group. For a tool unrelated to data loading, implement `JmixAiTool` directly.
+<2> `@ToolOverride` names the tool being replaced. The override is exposed under that name, so the override method's own `@Tool` name is irrelevant.
+<3> The default `AvailableEntityService` is reused, so the override still honors entity filtering and security and changes only the ordering.
 
 How override resolution works:
 
-* When several `@Tool` methods produce the same tool name, the one annotated with `@ToolOverride` wins and the original is excluded from the registry.
-* The override inherits the marker interfaces of the tool it replaces, so registry lookups by marker keep working.
-* If the named tool does not exist, a warning is logged and the override is registered as a regular new tool under its own `@Tool` name. This fails with an exception if that name is already taken by another tool, to avoid silently replacing an unrelated tool.
+* When several `@Tool` methods produce the same tool name, the one annotated with `@ToolOverride` wins and the original tool is excluded from the registry.
+* The override inherits the marker interfaces of the tool it replaces, so registry lookups by marker continue to work.
+* If the named tool does not exist, a warning is logged and the override is registered as a regular new tool under its own `@Tool` name. This fails with an exception if that name is already used by another tool, to avoid silently replacing an unrelated tool.
 
 [[status-updates]]
 === Publishing Status Updates
 
-Long-running tools can surface progress to the UI through the `io.jmix.aitools.tool.AiToolStatusPublisher` bean, shown in the <<defining-a-tool,example above>>. It implements a two-phase contract:
+Long-running tools can surface progress to the UI through the `io.jmix.aitools.tool.AiToolStatusPublisher` bean shown in the <<defining-a-tool,example above>>. It implements a two-phase contract:
 
-* `update(message, toolContext)` — the step has started; the UI shows an in-flight indicator.
-* `complete(message, snippet, toolContext)` — the step finished; the UI folds the result snippet into the same entry. The `message` must match the one passed to `update`.
+* `update(message, toolContext)` – the step has started, and the UI shows an in-progress indicator.
+* `complete(message, snippet, toolContext)` – the step has finished, and the UI folds the result snippet into the same entry. The `message` must match the one passed to `update`.
 
-Both methods take the tool method's `ToolContext`. When the tool is invoked outside the chat UI (for example through the xref:ai-tools:programmatic-api.adoc[programmatic API]), no status callback is present and the methods are silent no-ops, so it is always safe to call them.
+Both methods take the tool method's `ToolContext`. When the tool is invoked outside the chat UI, for example through the xref:ai-tools:programmatic-api.adoc[programmatic API], no status callback is present and the methods are silent no-ops, so it is always safe to call them.
