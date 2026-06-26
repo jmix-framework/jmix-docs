@@ -7,9 +7,9 @@ import org.springframework.lang.Nullable;
 
 public enum Room implements EnumClass<String> {
 
-    SENIOR("senior"),
-    JUNIOR("junior"),
-    MIDDLE("middle");
+    SMALL("small"),
+    MEDIUM("medium"),
+    LARGE("large");
 
     private final String id;
 
