@@ -1,50 +1,40 @@
 // tag::web-component[]
-import {html, LitElement} from 'lit';
-import {PolylitMixin} from '@vaadin/component-base/src/polylit-mixin.js';
+import {html} from 'lit';
+import {Button} from '@vaadin/button';
 import {defineCustomElement} from '@vaadin/component-base/src/define.js';
-import {ElementMixin} from '@vaadin/component-base/src/element-mixin.js';
-import {TooltipController} from "@vaadin/component-base/src/tooltip-controller";
-import {css, ThemableMixin} from '@vaadin/vaadin-themable-mixin/vaadin-themable-mixin.js';
-import {buttonStyles} from '@vaadin/button/src/vaadin-button-core-styles.js';
-import {button as buttonLumoStyles} from '@vaadin/button/theme/lumo/vaadin-button-styles.js';
-import {ButtonMixin} from '@vaadin/button/src/vaadin-button-mixin.js';
 
-const themeToggleStyles = css`
-    :host {
-        background: transparent;
-        color: var(--lumo-text-color);
-        min-width: var(--lumo-button-size);
-        padding-left: calc(var(--lumo-button-size) / 4);
-        padding-right: calc(var(--lumo-button-size) / 4);
-    }
-`;
-
-class ThemeToggle extends ButtonMixin(ElementMixin(ThemableMixin(PolylitMixin(LitElement)))) { // <1>
+export class ThemeToggle extends Button { // <1>
 
     static get is() {
         return 'theme-toggle'; // <2>
     }
 
-    static get styles() { // <3>
-        return [buttonStyles, buttonLumoStyles, themeToggleStyles];
-    }
-
-    render() { // <4>
+    static get template() { // <3>
         return html`
             <div class="vaadin-button-container">
-                <vaadin-icon icon="vaadin:adjust"></vaadin-icon>
+                <span part="prefix" aria-hidden="true">
+                    <slot name="prefix"></slot>
+                </span>
+                <span part="label">
+                    <slot></slot>
+                </span>
             </div>
 
             <slot name="tooltip"></slot>
         `;
     }
 
-    static get properties() { // <5>
+    static get properties() { // <4>
         return {
             ariaLabel: {
                 type: String,
                 value: 'Theme toggle',
                 reflectToAttribute: true,
+            },
+            storageKey: {
+                type: String,
+                value: 'jmix.flowui.theme',
+                observer: '_onStorageKeyChanged'
             }
         };
     }
@@ -52,16 +42,16 @@ class ThemeToggle extends ButtonMixin(ElementMixin(ThemableMixin(PolylitMixin(Li
     constructor() {
         super();
 
-        this._storageKey = "app-theme";
         this.addEventListener('click', () => this.toggleTheme());
+        this.addEventListener('click', () => {
+            const customEvent = new CustomEvent('theme-changed', {detail: {value: this.getCurrentTheme()}});
+            this.dispatchEvent(customEvent); // <5>
+        });
     }
 
     /** @protected */
     ready() {
         super.ready();
-
-        this._tooltipController = new TooltipController(this); // <6>
-        this.addController(this._tooltipController);
         this.applyStorageTheme();
     }
 
@@ -74,28 +64,33 @@ class ThemeToggle extends ButtonMixin(ElementMixin(ThemableMixin(PolylitMixin(Li
     }
 
     getStorageTheme() {
-        return localStorage.getItem(this._storageKey);
+        return localStorage.getItem(this.storageKey);
     }
 
     getCurrentTheme() {
-        return document.documentElement.getAttribute("theme");
+        return document.documentElement.getAttribute('theme');
     }
 
     toggleTheme() {
         const theme = this.getCurrentTheme();
-        this.applyTheme(theme === "dark" ? "" : "dark");
+        this.applyTheme(theme === 'dark' ? '' : 'dark');
     }
 
     applyTheme(theme) {
-        document.documentElement.setAttribute("theme", theme);
-        localStorage.setItem(this._storageKey, theme);
+        document.documentElement.setAttribute('theme', theme);
+        localStorage.setItem(this.storageKey, theme);
+    }
 
-        const customEvent = new CustomEvent('theme-changed', {detail: {value: theme}});
-        this.dispatchEvent(customEvent); // <7>
+    /** @protected */
+    _onStorageKeyChanged(storageKey, oldStorageKey) {
+        const theme = localStorage.getItem(oldStorageKey);
+        localStorage.removeItem(oldStorageKey);
+
+        if (theme) {
+            localStorage.setItem(storageKey, theme);
+        }
     }
 }
 
-defineCustomElement(ThemeToggle); // <8>
-
-export {ThemeToggle};
+defineCustomElement(ThemeToggle); // <6>
 // end::web-component[]

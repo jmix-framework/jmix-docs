@@ -72,6 +72,21 @@ The following major dependencies have been updated:
 * EclipseLink 5.0
 * Flowable 8.0
 
+[[spring-boot-4]]
+=== Common Spring Boot 4 Migration Notes
+
+* Rename Jackson packages: `com.fasterxml.jackson.databind` -> `tools.jackson.databind`
+
+* Nullability annotations of `org.springframework.lang` package are now deprecated. Replace them with `org.jspecify.annotations`, for example:
+** `org.springframework.lang.Nullable` -> `org.jspecify.annotations.Nullable`
+** `org.springframework.lang.NonNullApi` -> `org.jspecify.annotations.NullMarked`
+
+See the following resources for more information:
+
+* https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide[Spring Boot 4.0 Migration Guide^]
+* https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md[Jackson 3 Migration Guide^]
+* https://docs.spring.io/spring-framework/reference/core/null-safety.html#null-safety-guidelines-jspecify[Spring Framework / Null-safety / JSpecify^]
+
 [[new-features]]
 == New Features and Improvements
 
@@ -82,7 +97,7 @@ The following major dependencies have been updated:
 
 * *Do not generate Liquibase drop changesets for unmapped tables* option has been added to the *Data Store Properties* dialog.
 
-* Inherited attributes can now be displayed in the entity designer.
+* Inherited attributes can now be displayed in the xref:studio:entity-designer.adoc[entity designer].
 
 * If the xref:multitenancy:index.adoc[] add-on is included in the project, the new *Has Tenant ID* trait allows you to add a `@TenantId` attribute to an entity.
 
@@ -106,6 +121,15 @@ The new xref:dyn-model:index.adoc[Dynamic Model] add-on lets you extend the data
 === AI Tools Add-on
 
 The new xref:ai-tools:index.adoc[AI Tools] add-on brings an LLM-powered assistant to Jmix applications. It provides a ready-to-use chat UI, a programmatic API, predefined tools for natural-language data access, and extension points for adding custom tools.
+[[aura-theme]]
+
+=== Aura Theme
+
+With the upgrade to Vaadin 25, Jmix applications now support the new Aura theme. The existing Lumo theme remains available. When creating a project in Studio, you can choose the theme you want to use.
+
+:figure-caption!:
+.Dynamic Model add-on with Aura theme
+image::aura-theme.png[width = 776]
 
 [[markdown-editor]]
 === MarkdownEditor Component
@@ -150,6 +174,35 @@ Built-in templates render a `dataGrid` for list views and a `formLayout` for det
 
 The new xref:flow-ui:vc/components/genericFilter.adoc#creating-filter-programmatically[genericFilter fluent builder API] provides a concise way to configure a filter in Java. Use `filterComponentBuilder()` to create `propertyFilter`, `jpqlFilter`, and `groupFilter` components, and `runtimeConfigurationBuilder()` to assemble and register a run-time configuration. The builder performs the component initialization — data loader wiring, parameter-name and value-component generation, condition delegation — that previously had to be written explicitly through the low-level API.
 
+[[disabling-unsafe-runtime-features]]
+=== Disabling Unsafe Runtime Features
+
+New application properties let you turn off runtime features that can execute arbitrary code or expose internal information and therefore may be unsafe in production. All properties default to `true`, so the current behavior is preserved unless a property is explicitly turned off.
+
+The xref:ROOT:app-properties.adoc#jmix.core.unsafe-runtime-features-enabled[jmix.core.unsafe-runtime-features-enabled] property is a global kill switch: when it is `false`, all the guarded features below are disabled regardless of their own properties. Each feature can also be turned off individually:
+
+* xref:ROOT:app-properties.adoc#jmix.core.hot-deploy-enabled[jmix.core.hot-deploy-enabled] – loading classes from the file system by Hot Deploy.
+* xref:ROOT:app-properties.adoc#jmix.core.trigger-files-enabled[jmix.core.trigger-files-enabled] – bean invocation through trigger files.
+* xref:security:row-level-roles.adoc#jmix.security.data.groovy-enabled[jmix.security.data.groovy-enabled] – Groovy execution in predicate row-level policies.
+* xref:dyn-attr:dynattr-api.adoc#jmix.dynattr.ui.groovy-enabled[jmix.dynattr.ui.groovy-enabled] – Groovy execution in dynamic attribute scripts.
+* xref:reports:configuration.adoc#jmix.reports.groovy-enabled[jmix.reports.groovy-enabled] – Groovy execution in reports.
+* xref:jmx-console:index.adoc#jmix.jmxconsole.write-and-invoke-enabled[jmix.jmxconsole.write-and-invoke-enabled] – write and invoke operations in the JMX console.
+* xref:data-tools:data-model.adoc#jmix.datatools.data-model-diagram.public-server-enabled[jmix.datatools.data-model-diagram.public-server-enabled] – sending the data model to the public PlantUML server.
+
+See https://github.com/jmix-framework/jmix/issues/5287[#5287^] for more information.
+
+[[password-change-at-next-login]]
+=== Password Change at Next Login
+
+It is now possible to require users to change their password at the next login. You can use this when creating a new user or when assigning a temporary password with the standard *Reset Password* action.
+
+Learn more in xref:security:users.adoc#password-change-at-next-login[Password Change at Next Login].
+
+[[message-template-preview]]
+=== Message Template Preview
+
+The xref:message-templates:message-templates.adoc[Message Templates] add-on now lets users validate templates directly in the UI before using them. The new *Preview* action helps check rendering with actual parameter values, and exposes FreeMarker or missing-parameter problems earlier.
+
 [[breaking-changes]]
 == Breaking Changes
 
@@ -163,6 +216,35 @@ When migrating to Jmix 3.0, applications that serve custom static resources must
 . The `VaadinWebSecurity` class has been removed in Vaadin 25. The `FlowuiVaadinWebSecurity` class exists, but doesn't extend the Vaadin's class anymore. If you have overridden `VaadinWebSecurity` methods like `configure(WebSecurity web)`, rewrite your configuration using `SecurityFilterChain` or `WebSecurityCustomizer` beans as described in the xref:security:custom-endpoints.adoc[] section.
 
 See https://vaadin.com/docs/v25/upgrading#security-configuration-changes[Vaadin security configuration migration docs^] for more information.
+
+[[application-settings-tenant-id]]
+=== TENANT_ID Column in Application Settings
+
+The `AppSettingsEntity` base class of the Application Settings add-on now has `tenantId` attribute to support multitenancy (see https://github.com/jmix-framework/jmix/issues/5144[#5144^]). If you have application entities extending this base class, you need to create the `TENANT_ID` column for this attribute in your database.
+
+Use the *Data Store* -> *Main* -> *Generate Liquibase Changelog* action, or, if you don't have a subscription, create a new changelog using the *Data Stores* -> *Main* -> *New* -> *Liquibase Changelog* action and add a changeset like this (replace `MY_SETTINGS` with your settings table):
+
+[source,xml]
+----
+<changeSet author="sample" id="1">
+    <addColumn tableName="MY_SETTINGS">
+        <column name="TENANT_ID" type="VARCHAR(255)"/>
+    </addColumn>
+</changeSet>
+----
+
+See xref:studio:data-stores.adoc#data-store-actions[Data Store Actions] for more information about data store actions in Studio.
+
+[[jasperreports-dependencies]]
+=== JasperReports Dependencies
+
+The xref:reports:index.adoc[] add-on does not bring JasperReports dependencies transitively anymore. If you use xref:reports:creation/templates.adoc#template_jasper[JasperReports templates], add the following dependencies to your `build.gradle` explicitly:
+
+[source,groovy,indent=0]
+----
+include::reports:example$reports-onboarding/build.gradle[tags=jasper-dependencies]
+----
+
 
 [[overlays-breaking-changes]]
 === Overlays
@@ -204,17 +286,17 @@ The xref:flow-ui:vc/components/upload.adoc[upload] component API has changed:
 `@DialogMode.modal()` is deprecated. Use xref:flow-ui:views/opening-views.adoc#dialog-parameters[modality()] instead.
 
 [[theme-variants-breaking-changes]]
-=== Theme Variants
+=== Theme Variants Changes
 
-* Theme variant support now depends on the active theme and may apply to Lumo, Aura, or both. Information about supported variants is provided in the *Theme Variants* section of each component. For an example, see xref:flow-ui:vc/components/markdownEditor.adoc#theme-variants[markdownEditor Theme Variants].
+Theme variants were updated, with some removed, some added, and a few changing in behavior:
 
-* A number of existing variants were removed, and new ones were introduced:
+* `align-start` and `align-end` were added for field components.
+* `always-float-label` is no longer available for field components.
+* `contained` and `outlined` are no longer available for button components.
+* `icon-on-top` must now be applied to nested `tab` elements in xref:flow-ui:vc/components/tabs.adoc[tabs] and xref:flow-ui:vc/layouts/tabSheet.adoc[tabSheet].
+* `dropdown-indicators` is used internally by xref:flow-ui:vc/components/dropdownButton.adoc#theme-variants[dropdownButton] to display the dropdown indicator. In Lumo, use the `icon` theme name when you want to hide these indicators.
 
-** `contained` and `outlined` are no longer available for button components.
-** `always-float-label` is no longer available for field components.
-** `align-start` and `align-end` were added for field components.
-** `icon-on-top` must now be applied to nested `tab` elements in xref:flow-ui:vc/components/tabs.adoc[tabs] and xref:flow-ui:vc/layouts/tabSheet.adoc[tabSheet].
-** `dropdown-indicators` is used internally by xref:flow-ui:vc/components/dropdownButton.adoc#theme-variants[dropdownButton] to display the dropdown indicator. In Lumo, use the `icon` theme name when you want to hide these indicators.
+Theme variants support now depends on the application theme. Some available only for Lumo, some only for <<aura-theme, Aura>>, and most work with both themes. Supported variants are listed in each component's *Theme Variants* section. See xref:flow-ui:vc/components/markdownEditor.adoc#theme-variants[markdownEditor Theme Variants] for an example.
 
 [[loadFromRepositoryDelegate]]
 === loadFromRepositoryDelegate
@@ -306,6 +388,36 @@ Getter return types changed in the following properties:
 
 See https://github.com/jmix-framework/jmix/issues/5262[#5262^] for more information.
 
+[[openapi-client-generator-configuration]]
+=== OpenAPI Client Generator Configuration
+
+If you use xref:studio:openapi-client.adoc[], update the configuration in `build.gradle` as follows:
+
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'org.openapi.generator' version '7.23.0'
+}
+
+dependencies {
+    // ...
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.10'
+}
+
+tasks.register('openApiGeneratePetclinic', GenerateTask) {
+    inputSpec = layout.projectDirectory.file("src/main/resources/petclinic-openapi.yml")
+    outputDir = layout.buildDirectory.dir("generated/openapi/petclinic")
+    // ...
+    configOptions.set([
+            useRuntimeException: "true",
+            useJakartaEe       : "true",
+            useSpringBoot4     : "true",
+            useJackson3        : "true"
+    ])
+}
+----
+
 [[removed-orphan-timer-metrics]]
 === Removed Orphan Timer Metrics
 
@@ -324,18 +436,6 @@ implementation 'com.thoughtworks.xstream:xstream:1.4.21'
 ----
 
 See https://github.com/jmix-framework/jmix/issues/5337[#5337^] for more information.
-
-[[spring-boot-4]]
-=== Common Spring Boot 4 Migration Notes
-
-* Rename Jackson packages: `com.fasterxml.jackson.databind` -> `tools.jackson.databind`
-
-* Nullability annotations of `org.springframework.lang` package are now deprecated. Replace them with `org.jspecify.annotations`, for example:
-** `org.springframework.lang.Nullable` -> `org.jspecify.annotations.Nullable`
-** `org.springframework.lang.NonNullApi` -> `org.jspecify.annotations.NullMarked`
-
-
-See also https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide[Spring Boot 4.0 Migration Guide].
 
 [[changelog]]
 == Changelog
