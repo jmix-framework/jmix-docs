@@ -58,45 +58,45 @@ public interface CustomerIndexDefinition {
     // end::predicate[]
 
     // tag::text-config[]
-//    @ManualMappingDefinition
-//    default MappingDefinition mappingMethod(AutoMappingStrategy autoMappingStrategy,
-//                                      SimplePropertyValueExtractor simplePropertyValueExtractor) {
-//        return MappingDefinition.builder()
-//                .addStaticAttributesGroup(
-//                        StaticAttributesGroupConfiguration.builder()
-//                                .includeProperties("*")
-//                                .excludeProperties("firstName", "lastName") // <1>
-//                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
-//                                .build()
-//                )
-//                .addStaticAttributesGroup(
-//                        StaticAttributesGroupConfiguration.builder()
-//                                .includeProperties("firstName") // <2>
-//                                .withFieldMappingStrategy(autoMappingStrategy) // <3>
-//                                .withFieldConfiguration( // <4>
-//                                        "{\n" +
-//                                                "    \"type\": \"text\",\n" +
-//                                                "    \"analyzer\": \"standard\",\n" +
-//                                                "    \"boost\": 2\n" +
-//                                                "}"
-//                                )
-//                                .build()
-//                )
-//                .addStaticAttributesGroup(
-//                        StaticAttributesGroupConfiguration.builder()
-//                                .includeProperties("lastName")
-//                                .withFieldConfiguration( // <5>
-//                                        "{\n" +
-//                                                "    \"type\": \"text\",\n" +
-//                                                "    \"analyzer\": \"english\"\n" +
-//                                                "}"
-//                                )
-//                                .withPropertyValueExtractor(simplePropertyValueExtractor) // <6>
-//                                .withOrder(1) // <7>
-//                                .build()
-//                )
-//                .build();
-//    }
+    @ManualMappingDefinition
+    default MappingDefinition mappingMethod(AutoMappingStrategy autoMappingStrategy,
+                                      SimplePropertyValueExtractor simplePropertyValueExtractor) {
+        return MappingDefinition.builder()
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("*")
+                                .excludeProperties("firstName", "lastName") // <1>
+                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
+                                .build()
+                )
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("firstName") // <2>
+                                .withFieldMappingStrategy(autoMappingStrategy) // <3>
+                                .withFieldConfiguration( // <4>
+                                        "{\n" +
+                                                "    \"type\": \"text\",\n" +
+                                                "    \"analyzer\": \"standard\",\n" +
+                                                "    \"boost\": 2\n" +
+                                                "}"
+                                )
+                                .build()
+                )
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("lastName")
+                                .withFieldConfiguration( // <5>
+                                        "{\n" +
+                                                "    \"type\": \"text\",\n" +
+                                                "    \"analyzer\": \"english\"\n" +
+                                                "}"
+                                )
+                                .withPropertyValueExtractor(simplePropertyValueExtractor) // <6>
+                                .withOrder(1) // <7>
+                                .build()
+                )
+                .build();
+    }
 // end::text-config[]
     // tag::interface[]
 }

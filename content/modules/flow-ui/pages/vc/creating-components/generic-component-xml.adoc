@@ -8,19 +8,41 @@
 
 The `component` XML element enables you to create any UI component by specifying its fully qualified class name (FQN). Component properties are defined using nested `property` elements, similar to action configuration.
 
-For example, you can define a `Button` component this way:
+== Usage Example
+
+The simplest use case is defining a regular component instance directly in XML:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/customcomponent/genericcomponent/generic-component-view.xml[tags=button-component-xml]
 ----
 
-Here is an example of defining a custom component:
+The framework instantiates the component class and applies the declared properties through matching setter methods. In this example,
+the `text` property maps to `setText()`, and the `ICON` property parser converts `ARCHIVE` to an icon instance for `setIcon()`.
+
+You can also subscribe to the generic component in the view controller the same way as for standard declarative components:
+
+[source,java,indent=0]
+----
+@Autowired
+protected Notifications notifications;
+
+@Subscribe(id = "button", subject = "clickListener")
+public void onButtonClick(ClickEvent<JmixButton> event) {
+    notifications.show("Saved!");
+}
+----
+
+The same mechanism can be used for a custom component with setters that accept converted values:
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/customcomponent/genericcomponent/generic-component-view.xml[tags=test-component-xml]
 ----
+
+In this example, the `TestComponent` class defines setters for `stringsList`, `stringsSet`, `stringsArray`,
+`strings`, and `dataContainer`. Jmix converts the string values from XML and resolves the `productsDc`
+data container before invoking the matching setters.
 
 [[property-configuration]]
 == Property Configuration
@@ -30,11 +52,14 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/cust
 ** `text` → `setText()`
 ** `dataLoader` → `setDataLoader()`
 
-* The framework searches for the first method with the matching `name` and a single input parameter to set the value.
+* The framework searches for a method with the matching `name` and a single input parameter to set the value.
 +
 NOTE: If multiple methods share the same name, there is no guarantee that the intended one will be used to set the value.
 
 * The found method's input parameter type is used to convert the string value from the `value` attribute into the actual value.
++
+Built-in conversion supports `String`, `Class`, boolean and numeric types, enums, `List`, `Set`, and arrays.
+Varargs setters also work because they are handled as array parameters. Collection and array items are split by spaces or commas before conversion.
 
 * The `type` attribute indicates that string value must be converted by one of the pluggable `PropertyParser` beans:
 +

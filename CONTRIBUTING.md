@@ -1,6 +1,6 @@
 # Contributing to Jmix Guides
 
-Thank you for your interest in contributing to the Jmix documentation! This guide will walk you through the process of creating and integrating a new example project for Jmix guides. We’ll use the jmix-petclinic-2 repository as the base example to help you set up, adapt, and publish a new project within the Jmix framework.
+Thank you for your interest in contributing to the Jmix documentation! This guide will walk you through the process of creating and integrating a new example project for Jmix guides. We’ll use the jmix-petclinic repository as the base example to help you set up, adapt, and publish a new project within the Jmix framework.
 
 ## Guide Contribution
 
@@ -20,10 +20,10 @@ export GUIDE_NAME=business-logic
 
 #### Step 1: Clone the Base Repository
 
-Clone the base jmix-petclinic-2 repository to your local machine:
+Clone the base jmix-petclinic repository to your local machine:
 
 ```bash
-git clone git@github.com:jmix-framework/jmix-petclinic-2.git
+git clone git@github.com:jmix-framework/jmix-petclinic.git
 ```
 
 This repository provides a template with existing configurations that simplify the setup for new examples.
@@ -33,7 +33,7 @@ This repository provides a template with existing configurations that simplify t
 Make a copy of the cloned repository, renaming it according to the topic you’re covering:
 
 ```bash
-cp -R jmix-petclinic-2 jmix-$GUIDE_NAME-sample
+cp -R jmix-petclinic jmix-$GUIDE_NAME-sample
 ```
 
 Follow the jmix-topic-name-sample naming pattern to keep repository names consistent.
@@ -52,10 +52,10 @@ Point your local repository to the new GitHub repository:
 git remote set-url origin git@github.com:jmix-framework/jmix-$GUIDE_NAME-sample.git
 ```
 
-Then add the original jmix-petclinic-2 repository as the upstream remote, so you can easily pull updates from it:
+Then add the original jmix-petclinic repository as the upstream remote, so you can easily pull updates from it:
 
 ```bash
-git remote add upstream git@github.com:jmix-framework/jmix-petclinic-2.git
+git remote add upstream git@github.com:jmix-framework/jmix-petclinic.git
 ```
 
 You can confirm your remote configuration via:
@@ -78,7 +78,7 @@ Now you’re ready to develop your example! Add the custom business logic, confi
 
 #### Step 6: Keep Up with Upstream Changes
 
-Occasionally, update your example with any new changes from the jmix-petclinic-2 upstream repository to stay consistent with base improvements:
+Occasionally, update your example with any new changes from the jmix-petclinic upstream repository to stay consistent with base improvements:
 
 ```bash
 git fetch upstream

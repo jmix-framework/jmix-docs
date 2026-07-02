@@ -11,6 +11,23 @@ import org.springframework.context.annotation.Configuration;
 // tag::component-registration-configuration[]
 @Configuration
 public class ComponentRegistrationConfiguration {
+    // tag::slider-registration[]
+    @Bean
+    public ComponentRegistration slider() {
+        return ComponentRegistrationBuilder.create(Slider.class)
+                .withComponentLoader("slider", SliderLoader.class)
+                .build();
+    }
+    // end::slider-registration[]
+
+    // tag::theme-toggle-registration[]
+    @Bean
+    public ComponentRegistration themeToggle() {
+        return ComponentRegistrationBuilder.create(ThemeToggle.class)
+                .withComponentLoader("themeToggle", ThemeToggleLoader.class)
+                .build();
+    }
+    // end::theme-toggle-registration[]
     // tag::date-picker-registration[]
     @Bean
     public ComponentRegistration datePicker() {
