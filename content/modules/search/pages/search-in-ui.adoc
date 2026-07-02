@@ -62,21 +62,28 @@ include::example$/search-ex1/src/main/resources/application.properties[tags=defa
 [[custom-search-strategies]]
 ==== Пользовательские стратегии поиска
 
-Дополнительно вы можете создать пользовательскую стратегию поиска. Для этой цели вам нужно создать новый Spring-бин, реализующий один из специфичных для платформы интерфейсов:
+Дополнительно вы можете создать пользовательскую стратегию поиска. Создайте Spring бин, который наследуется от одного из платформенных базовых классов:
 
-* `OpenSearchSearchStrategy` - если вы используете OpenSearch.
-* `ElasticsearchSearchStrategy` - если вы используете Elasticsearch.
+* `AbstractOpenSearchStrategy` - если используется OpenSearch.
+* `AbstractElasticSearchStrategy` - если используется Elasticsearch.
 
-Затем вам нужно реализовать 2 метода:
-
-* `String getName()` - должен возвращать уникальное имя стратегии.
-
-* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - настройте ваш поисковый запрос, используя предоставленный builder, в соответствии с вашими требованиями.
+Реализуйте методы `getName()` и `configureRequest(SearchRequestContext)`:
 
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
 ----
+<1> The base class is initialized with the platform-specific query configurer (`OpenSearchQueryConfigurer` or `ElasticSearchQueryConfigurer`), available as the `queryConfigurer` field.
+<2> `getName()` returns a unique strategy name used to select the strategy.
+<3> `configureRequest(SearchRequestContext)` is the method the search engine invokes for the strategy — implement it to build the search request.
+<4> Build the query through `queryConfigurer.configureRequest()`. The configurer resolves the search scope - the target indexes and the fields the current user is permitted to read - and applies security policies.
+<5> The lambda receives the platform-specific query builder and the resolved `IndexSearchRequestScope`.
+<6> Use `scope.getFieldList()` to search only the permitted fields.
+
+[NOTE]
+====
+Always build the query through `queryConfigurer`. If you configure the request builder directly (for example, with `fields("*")`), the search scope is not resolved and xref:security:resource-roles.adoc#entity-attribute-policy[attribute policies] are not applied, which can make the search return no results.
+====
 
 После этого вы можете назначить вашу пользовательскую стратегию компоненту xref:search-field-component.adoc[SearchField] или xref:full-text-filter-component.adoc[FullTextFilter], используя имя стратегии.
 
