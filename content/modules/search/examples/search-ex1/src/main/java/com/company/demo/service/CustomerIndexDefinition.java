@@ -29,14 +29,42 @@ public interface CustomerIndexDefinition {
 
     // tag::manual-mapping[]
     @ManualMappingDefinition // <1>
-    default MappingDefinition mapping(FilePropertyValueExtractor filePropertyValueExtractor) { // <2>
+    default MappingDefinition mapping(FilePropertyValueExtractor filePropertyValueExtractor, // <2>
+                                      AutoMappingStrategy autoMappingStrategy,
+                                      SimplePropertyValueExtractor simplePropertyValueExtractor) {
         return MappingDefinition.builder()
                 .addStaticAttributesGroup(
                         StaticAttributesGroupConfiguration.builder()
                                 .includeProperties("*") // <3>
-                                .excludeProperties("hobby", "maritalStatus") // <4>
+                                .excludeProperties("hobby", "maritalStatus", "firstName", "lastName") // <4>
                                 .withFieldMappingStrategyClass(AutoMappingStrategy.class) // <5>
                                 .withPropertyValueExtractor(filePropertyValueExtractor) // <6>
+                                .build()
+                )
+                .addStaticAttributesGroup( // <7>
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("firstName")
+                                .withFieldMappingStrategy(autoMappingStrategy) // <8>
+                                .withFieldConfiguration( // <9>
+                                        "{\n" +
+                                                "    \"type\": \"text\",\n" +
+                                                "    \"analyzer\": \"standard\",\n" +
+                                                "    \"boost\": 2\n" +
+                                                "}"
+                                )
+                                .build()
+                )
+                .addStaticAttributesGroup(
+                        StaticAttributesGroupConfiguration.builder()
+                                .includeProperties("lastName")
+                                .withFieldConfiguration( // <10>
+                                        "{\n" +
+                                                "    \"type\": \"text\",\n" +
+                                                "    \"analyzer\": \"english\"\n" +
+                                                "}"
+                                )
+                                .withPropertyValueExtractor(simplePropertyValueExtractor) // <11>
+                                .withOrder(1) // <12>
                                 .build()
                 )
                 .build();
@@ -56,48 +84,6 @@ public interface CustomerIndexDefinition {
         };
     }
     // end::predicate[]
-
-    // tag::text-config[]
-    @ManualMappingDefinition
-    default MappingDefinition mappingMethod(AutoMappingStrategy autoMappingStrategy,
-                                      SimplePropertyValueExtractor simplePropertyValueExtractor) {
-        return MappingDefinition.builder()
-                .addStaticAttributesGroup(
-                        StaticAttributesGroupConfiguration.builder()
-                                .includeProperties("*")
-                                .excludeProperties("firstName", "lastName") // <1>
-                                .withFieldMappingStrategyClass(AutoMappingStrategy.class)
-                                .build()
-                )
-                .addStaticAttributesGroup(
-                        StaticAttributesGroupConfiguration.builder()
-                                .includeProperties("firstName") // <2>
-                                .withFieldMappingStrategy(autoMappingStrategy) // <3>
-                                .withFieldConfiguration( // <4>
-                                        "{\n" +
-                                                "    \"type\": \"text\",\n" +
-                                                "    \"analyzer\": \"standard\",\n" +
-                                                "    \"boost\": 2\n" +
-                                                "}"
-                                )
-                                .build()
-                )
-                .addStaticAttributesGroup(
-                        StaticAttributesGroupConfiguration.builder()
-                                .includeProperties("lastName")
-                                .withFieldConfiguration( // <5>
-                                        "{\n" +
-                                                "    \"type\": \"text\",\n" +
-                                                "    \"analyzer\": \"english\"\n" +
-                                                "}"
-                                )
-                                .withPropertyValueExtractor(simplePropertyValueExtractor) // <6>
-                                .withOrder(1) // <7>
-                                .build()
-                )
-                .build();
-    }
-// end::text-config[]
     // tag::interface[]
 }
 // end::interface[]
