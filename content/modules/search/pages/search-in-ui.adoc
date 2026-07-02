@@ -62,21 +62,28 @@ include::example$/search-ex1/src/main/resources/application.properties[tags=defa
 [[custom-search-strategies]]
 === Custom Search Strategies
 
-Additionally, you can create a custom search strategy. For that purpose, you need to create a new Spring bean implementing one of the platform-specific interfaces:
+Additionally, you can create a custom search strategy. Create a Spring bean that extends one of the platform-specific base classes:
 
-* `OpenSearchSearchStrategy` - if you use OpenSearch.
-* `ElasticsearchSearchStrategy` - if you use Elasticsearch.
+* `AbstractOpenSearchStrategy` - if you use OpenSearch.
+* `AbstractElasticSearchStrategy` - if you use Elasticsearch.
 
-Then you need to implement 2 methods:
-
-* `String getName()` - should return a unique strategy name.
-
-* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - configure your search request using the provided builder according to your requirements.
+Implement `getName()` and `configureRequest(SearchRequestContext)`:
 
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
 ----
+<1> The base class is initialized with the platform-specific query configurer (`OpenSearchQueryConfigurer` or `ElasticSearchQueryConfigurer`), available as the `queryConfigurer` field.
+<2> `getName()` returns a unique strategy name used to select the strategy.
+<3> `configureRequest(SearchRequestContext)` is the method the search engine invokes for the strategy — implement it to build the search request.
+<4> Build the query through `queryConfigurer.configureRequest()`. The configurer resolves the search scope - the target indexes and the fields the current user is permitted to read - and applies security policies.
+<5> The lambda receives the platform-specific query builder and the resolved `IndexSearchRequestScope`.
+<6> Use `scope.getFieldList()` to search only the permitted fields.
+
+[NOTE]
+====
+Always build the query through `queryConfigurer`. If you configure the request builder directly (for example, with `fields("*")`), the search scope is not resolved and xref:security:resource-roles.adoc#entity-attribute-policy[attribute policies] are not applied, which can make the search return no results.
+====
 
 After that, you can assign your custom strategy to the xref:search-field-component.adoc[SearchField] or xref:full-text-filter-component.adoc[FullTextFilter] component using the strategy name.
 

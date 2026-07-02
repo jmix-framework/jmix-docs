@@ -72,6 +72,23 @@ The following major dependencies have been updated:
 * EclipseLink 5.0
 * Flowable 8.0
 
+[[spring-boot-4]]
+=== Common Spring Boot 4 Migration Notes
+
+* Rename Jackson packages: `com.fasterxml.jackson.databind` -> `tools.jackson.databind`
+
+* Nullability annotations of `org.springframework.lang` package are now deprecated. Replace them with `org.jspecify.annotations`, for example:
+** `org.springframework.lang.Nullable` -> `org.jspecify.annotations.Nullable`
+** `org.springframework.lang.NonNullApi` -> `org.jspecify.annotations.NullMarked`
+
+* For distributed tracing, switch to the `spring-boot-starter-opentelemetry` starter and update the OTLP export properties. See xref:features:observability.adoc#tracing[Observability / Tracing] for the updated setup.
+
+See the following resources for more information:
+
+* https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide[Spring Boot 4.0 Migration Guide^]
+* https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md[Jackson 3 Migration Guide^]
+* https://docs.spring.io/spring-framework/reference/core/null-safety.html#null-safety-guidelines-jspecify[Spring Framework / Null-safety / JSpecify^]
+
 [[new-features]]
 == New Features and Improvements
 
@@ -84,9 +101,11 @@ The following major dependencies have been updated:
 
 * Inherited attributes can now be displayed in the xref:studio:entity-designer.adoc[entity designer].
 
-* If the xref:multitenancy:index.adoc[] add-on is included in the project, the new *Has Tenant ID* trait allows you to add a `@TenantId` attribute to an entity.
+* Studio now helps you create xref:data-access:custom-update-services.adoc[custom update services] and use them in views. When you create a JPA entity, select the *Create Update Service* checkbox in the *New JPA Entity* dialog to generate a service class. Later, when you create a view for an entity that has an update service, select the *Use Update Service* checkbox in the *Create Jmix View* dialog to delegate saving and removing to that service automatically.
 
-* xref:search:index.adoc[Search] index definitions and xref:quartz:index.adoc[Quartz] jobs are displayed in the *Jmix* tool window and can be quickly created from templates.
+* If the xref:multitenancy:index.adoc[] add-on is included in the project, the new xref:data-model:entities.adoc#tenant-id-trait[Has Tenant ID] trait allows you to add a `@TenantId` attribute to an entity.
+
+* xref:search:index-definitions.adoc#creating-index-definition[Search] index definitions and xref:quartz:index.adoc[Quartz] jobs are displayed in the *Jmix* tool window and can be quickly created from templates.
 
 * Main Jmix features are now available in the context menu of the *Project* tool window:
 ** *Jmix Project Properties*
@@ -102,7 +121,12 @@ The following major dependencies have been updated:
 
 The new xref:dyn-model:index.adoc[Dynamic Model] add-on lets you extend the data model of a running application without changing source code or restarting: you can add attributes to existing entities and define entirely new entities backed by dedicated database tables. The model is edited in a graphical admin UI, stored as a versioned definition, and can include runtime UI such as views and menu items, along with validation, uniqueness, and security based on resource roles.
 
+[[ai-tools]]
+=== AI Tools Add-on
+
+The new xref:ai-tools:index.adoc[AI Tools] add-on brings an LLM-powered assistant to Jmix applications. It provides a ready-to-use chat UI, a programmatic API, predefined tools for natural-language data access, and extension points for adding custom tools.
 [[aura-theme]]
+
 === Aura Theme
 
 With the upgrade to Vaadin 25, Jmix applications now support the new Aura theme. The existing Lumo theme remains available. When creating a project in Studio, you can choose the theme you want to use.
@@ -214,6 +238,17 @@ Use the *Data Store* -> *Main* -> *Generate Liquibase Changelog* action, or, if 
 ----
 
 See xref:studio:data-stores.adoc#data-store-actions[Data Store Actions] for more information about data store actions in Studio.
+
+[[jasperreports-dependencies]]
+=== JasperReports Dependencies
+
+The xref:reports:index.adoc[] add-on does not bring JasperReports dependencies transitively anymore. If you use xref:reports:creation/templates.adoc#template_jasper[JasperReports templates], add the following dependencies to your `build.gradle` explicitly:
+
+[source,groovy,indent=0]
+----
+include::reports:example$reports-onboarding/build.gradle[tags=jasper-dependencies]
+----
+
 
 [[overlays-breaking-changes]]
 === Overlays
@@ -357,6 +392,49 @@ Getter return types changed in the following properties:
 
 See https://github.com/jmix-framework/jmix/issues/5262[#5262^] for more information.
 
+[[search-api]]
+=== Search API
+
+The search strategy API and helper classes deprecated in 2.7 have been removed:
+
+* The `configureRequest(SearchRequest.Builder, SearchContext)` method of `ElasticsearchSearchStrategy` / `OpenSearchSearchStrategy`. Implement `configureRequest(SearchRequestContext)` instead and build the query through the platform-specific `ElasticSearchQueryConfigurer` / `OpenSearchQueryConfigurer`.
+
+* The `SearchUtils` class. Use `SearchRequestScopeProvider`, `SearchFieldsProvider`, and `SearchSecurityDecorator` instead.
+
+If you implemented a custom search strategy, migrate it to the new API: see xref:search:search-in-ui.adoc#custom-search-strategies[Custom Search Strategies].
+
+See https://github.com/jmix-framework/jmix/issues/4866[#4866^] for more information.
+
+[[openapi-client-generator-configuration]]
+=== OpenAPI Client Generator Configuration
+
+If you use xref:studio:openapi-client.adoc[], update the configuration in `build.gradle` as follows:
+
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'org.openapi.generator' version '7.23.0'
+}
+
+dependencies {
+    // ...
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.10'
+}
+
+tasks.register('openApiGeneratePetclinic', GenerateTask) {
+    inputSpec = layout.projectDirectory.file("src/main/resources/petclinic-openapi.yml")
+    outputDir = layout.buildDirectory.dir("generated/openapi/petclinic")
+    // ...
+    configOptions.set([
+            useRuntimeException: "true",
+            useJakartaEe       : "true",
+            useSpringBoot4     : "true",
+            useJackson3        : "true"
+    ])
+}
+----
+
 [[removed-orphan-timer-metrics]]
 === Removed Orphan Timer Metrics
 
@@ -375,18 +453,6 @@ implementation 'com.thoughtworks.xstream:xstream:1.4.21'
 ----
 
 See https://github.com/jmix-framework/jmix/issues/5337[#5337^] for more information.
-
-[[spring-boot-4]]
-=== Common Spring Boot 4 Migration Notes
-
-* Rename Jackson packages: `com.fasterxml.jackson.databind` -> `tools.jackson.databind`
-
-* Nullability annotations of `org.springframework.lang` package are now deprecated. Replace them with `org.jspecify.annotations`, for example:
-** `org.springframework.lang.Nullable` -> `org.jspecify.annotations.Nullable`
-** `org.springframework.lang.NonNullApi` -> `org.jspecify.annotations.NullMarked`
-
-
-See also https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide[Spring Boot 4.0 Migration Guide].
 
 [[changelog]]
 == Changelog

@@ -1,0 +1,92 @@
+= Custom Update Services
+
+A common way to encapsulate business logic that runs when an entity is saved or removed is to put it into a service and call the service from your code. The execution flow is sequential and easy to read and debug. This works well when you call the service yourself, but the framework's generic mechanisms – such as xref:rest:index.adoc[generic REST], the xref:data-tools:entity-inspector.adoc[entity inspector], and the xref:bpm:bpmn/jmix-entity-data-task.adoc[BPM entity data task] – save and remove entities through xref:data-manager.adoc[DataManager] and don't know about your service.
+
+Custom update services solve this problem. By implementing the `SaveDelegate` and `RemoveDelegate` interfaces, a service registers itself as the handler for save and remove operations of a particular entity type. The generic framework mechanisms then call your service instead of `DataManager`, so your business logic runs consistently regardless of where the operation originates.
+
+This is an alternative to using xref:entity-events.adoc[entity events] for save/remove logic. Compared to event listeners, an update service keeps the whole flow in one place and executes it sequentially, which is easier to follow than a chain of listeners. Simple cross-cutting concerns like auditing or sending notifications are still a good fit for entity events.
+
+CAUTION: This feature is experimental. The `SaveDelegate` and `RemoveDelegate` interfaces are marked as `@Experimental` and may change in future releases.
+
+[[delegate-interfaces]]
+== Save and Remove Delegates
+
+The framework provides two interfaces in the `io.jmix.core` package:
+
+* `SaveDelegate<E>` declares the method called instead of `DataManager` when an entity of type `E` is saved:
++
+[source,java,indent=0]
+----
+E save(E entity, SaveContext saveContext);
+----
+
+* `RemoveDelegate<E>` declares the method called instead of `DataManager` when an entity of type `E` is removed:
++
+[source,java,indent=0]
+----
+void remove(E entity);
+----
+
+A custom service that handles updates of a certain entity implements one or both of these interfaces parameterized with the entity class. The framework resolves the appropriate service by the entity type, so there must be at most one bean implementing `SaveDelegate` (and one implementing `RemoveDelegate`) per entity class.
+
+If no service is registered for an entity type, the generic mechanisms save and remove it through `DataManager` as usual.
+
+[[creating-update-service]]
+== Creating an Update Service
+
+Let's create a service that handles saving and removing of the `Order` entity. When an order is saved, it recalculates the order's total amount from its lines and, for a new order, increments the number of orders of the related customer. When an order is removed, it decrements that number.
+
+To store the number of orders, the `Customer` entity has an additional attribute:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/entity/Customer.java[tags=orders-count]
+----
+
+The service implements both `SaveDelegate<Order>` and `RemoveDelegate<Order>`:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=class]
+----
+<1> The `save()` method is called both explicitly from your own code and implicitly by the framework's generic mechanisms.
+<2> Business logic that updates the entity state before saving.
+<3> Use `EntityStates` to apply logic only for new instances.
+<4> Persist the entity. Here we pass the incoming `saveContext` to `DataManager` so that the order and its composition lines are saved together. You could also save through a xref:data-repositories.adoc[data repository].
+<5> The `remove()` method is called both explicitly from your code and implicitly by the framework.
+
+The business logic methods recalculate the amount and maintain the customer's orders count:
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=calculate-total]
+----
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=orders-count]
+----
+
+A few points to note:
+
+* Annotate the `save()` and `remove()` methods with `@Transactional` so that all data store operations run in a single xref:transactions.adoc[transaction].
+* A related entity that you intend to change (the `Customer` in this example) should be reloaded inside the service, because the instance referenced by the saved entity can be stale.
+* The service uses a xref:data-repositories.adoc[data repository] to load and save the related `Customer`, but you can use `DataManager` directly as well.
+
+[[using-in-code]]
+== Using Update Services in Your Code
+
+After the service is created, the generic framework mechanisms (generic REST, entity inspector, BPM entity data task) automatically route save and remove operations of the `Order` entity to it.
+
+In your own code, you should consistently use the service to save and remove entities for which it is defined, instead of calling `DataManager` or a data repository directly. Otherwise, the business logic encapsulated in the service will be bypassed.
+
+In views, wire the service to the data components through the standard save and remove delegate handlers, the same way as for xref:data-repositories.adoc[data repositories].
+
+Studio helps you create update services and use them in views. When you create a JPA entity, select the *Create Update Service* checkbox in the *New JPA Entity* dialog to generate a service class implementing `SaveDelegate` and `RemoveDelegate`. Its delegate methods call either `DataManager` or a data repository, if one is also created. Later, when you create a view for an entity that has an update service, select the *Use Update Service* checkbox in the *Create Jmix View* dialog to delegate saving and removing to that service automatically.
+
+[[limitations]]
+== Limitations
+
+* Load operations are not delegated. The framework delegates only save and remove operations to custom services. If you need to run logic when an entity is loaded – for example, to initialize non-persistent attributes – use an `EntityLoadingEvent` listener as described in xref:entity-events.adoc[]. Loading also stays under your control in your own code: use a query, a data repository, or any service method to load entities.
+
+* Consistency is your responsibility. The framework cannot enforce that application code always goes through the service. Make sure that everywhere in your code, the entity's service is used for its save and remove operations rather than `DataManager` or a data repository directly.

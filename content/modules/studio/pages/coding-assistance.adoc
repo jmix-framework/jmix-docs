@@ -93,12 +93,15 @@ Inspections::
 ** The xref:data-model:entities.adoc[entity] with the same table name is unique in the xref:data-model:data-stores.adoc[data store].
 ** Check for the presence of the xref:data-model:entities.adoc#instance-name[@InstanceName] annotation.
 ** Detect incorrect using of `LAZY` fetch type for datatype fields , and `@OneToOne`, `@OneToMany`, `@ManyToMany` and `@ManyToOne` with the `EAGER` fetch type.
+** Detect collection field initializers in `@OneToMany` and `@ManyToMany` attributes that can cause performance issues. Studio suggests replacing regular collection initializers with `NotInstantiatedList` or `NotInstantiatedSet`.
 ** Check for the presence of the JPA annotations for every entity field.
 ** Check that the entity and enumeration classes and attributes have localized messages.
 ** Check that persistent enumeration attributes are declared according to Jmix conventions - by using identifier type.
 ** Check for the duplicates of the `@Version` annotation.
 ** Check for embeddable attributes that are not marked with the `@Embedded` annotation.
 ** Check for the presence of a primary key attribute of the entity.
+** Detect entities with the UUID trait that do not use `@JmixGeneratedValue` for their identifier. Studio warns about a possible constant `hashCode()` problem.
+** Detect `@Lob` entity attributes annotated with `@Basic(fetch = FetchType.LAZY)`. In Jmix, lazy loading is not applied to basic attributes and such fields are forced to `EAGER`; Studio suggests removing the annotation and excluding the LOB attribute from fetch plans where it is not needed.
 
 Quick-Fixes and Intentions::
 
@@ -125,6 +128,8 @@ They should reference the existing data container in the current view or in one 
 ** Search for conflicting `width`, `height`, and `expand` attribute values in the XML descriptor.
 
 ** Check the `hierarchyProperty` attribute. This attribute should be of the same type as an entity in the data container.
+
+** Detect list views where a collection container uses the `_base` fetch plan while the view uses only a small subset of loaded local attributes. Studio suggests defining an explicit fetch plan to reduce unnecessary database load.
 
 * *Fetch Plans*
 
@@ -157,8 +162,13 @@ Reports if the injected field does not have a generic type, like `DataGrid` inst
 *** Installation point must be a method with a `void` return type and a single, `FunctionalInterface` type parameter.
 *** Unable to find specified UI component.
 
+** Detect `DataManager` and data repository load calls inside grid column renderers in Java and Kotlin view controllers. Such calls can cause performance issues because renderers are executed repeatedly for grid rows.
+
+** Detect grids with more than three `ComponentRenderer` columns. Too many component renderers can affect grid performance because each rendered cell creates server-side components.
+
 ** Highlight suspicious assignments to fields that are assumed to be injected by the container.
 ** Check that GUI components are created by using `ComponentsFactory.createComponent()`.
+** Detect `DataManager.save()` calls whose result is not assigned or otherwise used. Studio suggests using `DataManager.saveWithoutReload()` to avoid unnecessary entity reloading.
 
 Quick-Fixes and Intentions::
 
@@ -188,6 +198,7 @@ Inspections::
 ** Check duplicate name field in resource roles.
 ** Check the existence of a view in a project.
 ** Check entity attribute policy in resource roles.
+** Detect `DataManager.load()` calls inside row-level predicates. Such calls can cause performance issues because predicates can be evaluated many times while checking access to entity instances.
 
 * *Beans and Services*
 
