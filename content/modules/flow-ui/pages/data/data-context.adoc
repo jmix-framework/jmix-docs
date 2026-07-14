@@ -21,6 +21,8 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 
 xref:data/data-loaders.adoc[Загрузчики данных], определенные в XML, автоматически помещают загруженные сущности в `DataContext`, если у них нет атрибута `readOnly="true"`. По умолчанию загрузчики данных в xref:views/view-classes.adoc#standard-list-view[экранах списков сущностей], создаваемых Studio, включают этот атрибут. Поэтому, если вам нужно отслеживать изменения и сохранять измененные сущности в экранах списков, удалите атрибут `readOnly="true"` у соответствующих загрузчиков.
 
+Если элемент `<data>` сам имеет атрибут `readOnly="true"`, экран получает пустую реализацию `DataContext`: `merge()` возвращает переданный экземпляр без изменений, ничего не отслеживается, а `save()` ничего не делает, кроме записи сообщения в журнал. Если вы добавите редактируемые UI-компоненты к такому экрану, изменения не сохраняются.
+
 CAUTION: Если связанная сущность не включена в xref:data-access:fetching.adoc#fetch-plan[фетч-план] экрана, а вместо этого загружается xref:data-access:fetching.adoc#lazy-loading[лениво], она не помещается в `DataContext` экрана и поэтому ее изменения не отслеживаются. Убедитесь что все сущности, редактируемые в экране загружаются жадно путем включения их в фетч-план.
 
 [[obtaining-data-context]]
@@ -56,6 +58,15 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 
 Дополнительные примеры явного использования `DataContext` приведены в руководстве xref:data-modeling-composition-guide:index.adoc[].
 
+[[removing-and-evicting]]
+== Удаление и исключение сущностей
+
+* `remove(entity)` регистрирует сущность для удаления и останавливает отслеживание. Сущность удаляется из хранилища данных при следующем `save()`. Контекст также удаляет экземпляр из всех отслеживаемых to-many коллекций.
+* `evict(entity)` (исключение) просто останавливает отслеживание сущности без регистрации удаления. Используйте его, когда сущность была сохранена или удалена другими способами, и контекст должен забыть о ней.
+* `evictModified()` исключает все сущности, зарегистрированные как измененные или удаленные; `clear()` исключает вообще все.
+
+NOTE: Когда экран деталей сохраняется в родительский `DataContext`, ничего не записывается в базу данных: модифицированные сущности сливаются в родительский контекст и сохраняются только когда корневой экран сохраняется. Удаленные сущности регистрируются на удаление в родительском контексте.
+
 [[data-context-events]]
 == События и обработчики
 
@@ -76,6 +87,8 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 Обработчик `saveDelegate` должен возвращать `Set` сохраненных экземпляров. Если это невозможно, верните исходные экземпляры из `saveContext.getEntitiesToSave()` или просто пустой `Set`. Не возвращайте удаленные экземпляры. Возвращенные экземпляры будут помещены обратно в `DataContext`, и экран продолжит работу с обновленным состоянием.
 
 См. раздел xref:data/entities-in-ui.adoc[] для дополнительной информации о сохранении сущностей с использованием кастомных сервисов.
+
+CAUTION: Экземпляры в `saveContext.getEntitiesToSave()` являются копиями, созданными `DataContext`, а не экземплярами, с которыми работает ваш экран. В частности, объект, возвращаемый `getEditedEntity()` — это не объект, переданный делегату сохранения. Если вашему делегату нужно изменить и сохранить сам редактируемый экземпляр, сначала скопируйте его, используя `io.jmix.core.Copier`, как описано в разделе xref:data/entities-in-ui.adoc[], в противном случае неудачное сохранение может оставить редактируемый экземпляр с несоответствующей версией оптимистичной блокировки.
 
 [[change-event]]
 === ChangeEvent
@@ -117,3 +130,34 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/departmen
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=post-save-event]
 ----
+
+[[implementation-details]]
+== Детали реализации
+
+Сущность отслеживается целиком: контекст фиксирует, что сущность изменена, а не какие атрибуты изменились. Установка атрибута обратно на его исходное значение не сбрасывает флаг изменения. Используйте `hasChanges()`, чтобы проверить, содержит ли контекст измененные или удаленные сущности, и `setModified(сущность, false)`, чтобы вручную сбросить флаг для конкретной сущности.
+
+Когда `merge()` получает экземпляр, чей идентификатор уже существует в контексте, входящее состояние выигрывает: загруженные атрибуты значения переданного экземпляра копируются в отслеживаемый экземпляр. Такие изменения считаются результатом загрузки более свежего состояния из базы данных, поэтому они не помечают отслеживаемый экземпляр как изменённый.
+
+CAUTION: Контекст не может различить свежезагруженный экземпляр от устаревшей копии сущности, которую вы уже редактировали. Если вы объедините устаревшую копию сущности (например, выбранную в экране поиска и загруженную с другим фетч-планом), ее значения атрибутов перезапишут несохраненные изменения на отслеживаемом экземпляре без какого-либо предупреждения. Загружайте сущности прямо перед их объединением и избегайте хранения копий сущностей, которые редактируются.
+
+// todo Uncomment for 3.1
+// [[debugging-data-context]]
+// == Debugging DataContext
+//
+// To understand why a view reports unsaved changes or why an attribute value unexpectedly changed after a merge, enable the diagnostics log category at DEBUG level:
+//
+// [source,properties]
+// ----
+// logging.level.io.jmix.flowui.datacontext.diagnostics = DEBUG
+// ----
+//
+// The context then logs every change it detects with its origin, for example:
+//
+// ----
+// Customer-a1b2... property 'name' changed: 'Alice' -> 'Bob' (origin: user)
+// Order-c3d4... property 'customer' changed: 'Customer-a1b2...' -> 'Customer-e5f6...' (origin: merge) - OVERWRITES modified instance, unsaved changes may be lost
+// Order-c3d4... marked modified: collection property changed
+// merge() called on a read-only DataContext (<data readOnly="true">): entities are NOT tracked and save() will do nothing
+// ----
+//
+// `origin: user` lines explain what makes the context dirty. `origin: merge` lines show state copied by `merge()` — they do not mark entities as modified, but an `OVERWRITES modified instance` warning indicates that merging a stale copy has replaced unsaved changes.
