@@ -14,9 +14,10 @@ import com.vaadin.flow.shared.Registration;
 @JsModule("./src/component/slider/slider.js") // <3>
 public class Slider extends Component implements HasSize {
 
-    private static final String VALUE_PROPERTY = "value";
-    private static final String MIN_PROPERTY = "min";
-    private static final String MAX_PROPERTY = "max";
+    public static final String VALUE_PROPERTY = "value";
+    public static final String MIN_PROPERTY = "min";
+    public static final String MAX_PROPERTY = "max";
+    public static final String SLIDE_CHANGED_EVENT = "custom-slide-changed";
 
     public Slider() {
     }
@@ -37,7 +38,7 @@ public class Slider extends Component implements HasSize {
         getElement().setProperty(MAX_PROPERTY, max);
     }
 
-    @Synchronize("custom-slide-changed") // <4>
+    @Synchronize(property = VALUE_PROPERTY, value = SLIDE_CHANGED_EVENT) // <4>
     public int getValue() {
         return getElement().getProperty(VALUE_PROPERTY, 0);
     }
@@ -51,7 +52,7 @@ public class Slider extends Component implements HasSize {
         return addListener(SlideChangedEvent.class, listener);
     }
 
-    @DomEvent("custom-slide-changed") // <1>
+    @DomEvent(SLIDE_CHANGED_EVENT) // <1>
     public static class SlideChangedEvent extends ComponentEvent<Slider> {
 
         protected int value;

@@ -127,23 +127,6 @@ jmix.core.use-user-info-for-observation=true
 
 `jmix.core.use-user-info-for-observation` 属性默认启用。如果用户或租户数据不允许加入观察，可以禁用。
 
-== 链路追踪
-
-链路追踪显示请求或操作在应用程序中的流转过程。它有助于识别延迟、故障以及组件之间的依赖关系。当多个服务或基础设施层参与请求处理时，链路追踪尤其有用。
-
-在典型的链路追踪设置中，应用程序会为重要操作创建跨度（span），跨服务边界传播跟踪上下文，并将跟踪数据发送到后端进行存储和分析。跟踪标识符也可以添加到日志中，以便将日志记录与跟踪关联起来。
-
-Jmix 使用 Micrometer 观测 API 为框架操作创建跨度。内置的链路追踪涵盖以下领域：
-
-* 数据访问操作，如加载、计数和保存
-* UI 视图生命周期事件
-* UI fragment 生命周期事件
-* UI 动作执行
-
-Jmix 还可以用当前用户和租户上下文来丰富观测数据。
-
-要启用 Jmix 链路追踪，请设置以下属性：
-
 .跨度名称和属性
 [cols="1,2,3"]
 |===
@@ -175,29 +158,28 @@ Jmix 还可以用当前用户和租户上下文来丰富观测数据。
 * `jmix.user.username`
 * 在 xref:multitenancy:index.adoc[多租户] 设置中的 `jmix.user.tenantId`
 
-对于跨服务边界的分布式追踪，请将 Micrometer 追踪桥接器和导出器添加到应用程序中。然后 Spring Boot Actuator 会配置一个 `ObservationRegistry` bean 并将其与追踪进行关联。Jmix 应用程序的设置是：
+对于跨服务边界的分布式追踪，请将 OpenTelemetry starter 添加到应用程序中。从 Spring Boot 4 开始，建议使用 `spring-boot-starter-opentelemetry` 集成 OpenTelemetry：其中打包了 Micrometer trace bridge 以及 OTLP exporter，并将它们织入了 Spring Boot 的可观测基础架构。Spring Boot Actuator 会配置一个 `ObservationRegistry` bean 并将其与追踪进行关联。Jmix 应用程序的设置是：
 
 [source,groovy]
 .build.gradle
 ----
 implementation 'org.springframework.boot:spring-boot-starter-actuator'
-implementation 'io.micrometer:micrometer-tracing-bridge-otel'
-implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
 ----
 
 [source,properties]
 .application.properties
 ----
 management.tracing.sampling.probability=0.1
-management.otlp.tracing.export.enabled=true
-management.otlp.tracing.endpoint=http://localhost:4318/v1/traces
+management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:4318/v1/traces
 ----
 
 当应用程序进行出站 HTTP 调用时，请使用自动配置的 `RestTemplateBuilder` 或 `RestClient.Builder` 构建客户端，以便自动将追踪头添加到请求中。
 
 更多信息，请参阅：
 
-* {spring-boot-doc}/reference/actuator/tracing.html[Spring Boot Tracing^]
-* {spring-boot-doc}/reference/actuator/observability.html[Spring Boot Observability^]
-* https://docs.micrometer.io/micrometer/reference/observation.html[Micrometer Observation^]
-* https://docs.micrometer.io/tracing/reference/index.html[Micrometer Tracing^]
+* {spring-boot-doc}/reference/actuator/tracing.html[Spring Boot 跟踪^]
+* {spring-boot-doc}/reference/actuator/observability.html[Spring Boot 可观测性^]
+* https://spring.io/blog/2025/11/18/opentelemetry-with-spring-boot[OpenTelemetry 与 Spring Boot^]
+* https://docs.micrometer.io/micrometer/reference/observation.html[Micrometer 观测^]
+* https://docs.micrometer.io/tracing/reference/index.html[Micrometer 跟踪^]

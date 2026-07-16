@@ -30,15 +30,15 @@ public class CustomGroupingView extends StandardView {
             items.addGroupPropertyDescriptor( // <1>
                     new BaseGroupPropertyDescriptor<Customer>("fullName",
                             context -> context.getItem().getFirstName() + " " + context.getItem().getLastName())
-                            .withSortProperties(List.of("firstName", "lastName")));
+                            .withSortProperties(List.of("firstName", "lastName"))); // <2>
 
-            customersGroupDataGrid.groupByKeys("fullName"); // <2>
+            customersGroupDataGrid.groupByKeys("fullName"); // <3>
         }
     }
     // end::custom-grouping[]
 
     // tag::renderer[]
-    @Supply(to = "customersGroupDataGrid.fullName", subject = "renderer") // <3>
+    @Supply(to = "customersGroupDataGrid.fullName", subject = "renderer") // <4>
     protected Renderer<Customer> supplyRendererToFullNameColumn() {
         return new TextRenderer<>(item -> item.getFirstName() + " " + item.getLastName());
     }

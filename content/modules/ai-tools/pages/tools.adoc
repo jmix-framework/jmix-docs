@@ -1,0 +1,154 @@
+= 工具
+
+助手不直接访问数据库或外部系统。相反，它是通过服务端提供的工具访问。该扩展组件包含一组预定义工具，并且可以添加自定义工具或覆盖预定义的工具。
+
+[[predefined]]
+== 预定义工具
+
+组件中自带预定义工具，可以代表用户调用。工具按用途分组，每个组在下面各自的章节中描述。目前，该扩展组件仅提供一个分组：<<data-loading,数据加载工具>>。
+
+[[data-loading]]
+== 数据加载工具
+
+数据加载工具支持助手回答有关应用程序数据的问题。
+
+[[data-load-flow]]
+=== 数据加载流程
+
+数据加载工具实现了一个基于自然语言的数据加载流。当用户请求数据时，助手通常会执行以下步骤：
+
+. 发现 – 列出可供用户使用的实体并检查相关实体，包括属性、实体关系和枚举。
+. 生成 – 为请求生成带有命名参数的只读 JPQL 查询语句。
+. 验证 – 根据领域模型和一组规则检查查询语句，包括只读访问、语法、已知实体和属性、支持的日期/时间结构以及分页。
+. 修复 – 如果验证失败，要求模型修复查询并再次验证，直至达到配置的最大尝试次数。
+. 执行 – 通过 `DataManager` 运行查询，强制执行实体和属性权限，并返回一页行。
+
+所有步骤都在服务端运行。查询语句始终是只读的 `SELECT`。写操作和原生 SQL 转义在验证期间会被拒绝，执行查询语句时也会强制使用当前用户的读取权限。查询用户无法读取的实体会被拒绝，而用户无法读取的属性会从返回的数据中省略，就像数据网格隐藏不可读属性的列一样。在这两种情况下，用户都不会收到他们无权查看的数据。
+
+[[available-tools]]
+=== 可用工具
+
+该流程以三个工具的形式开放给模型。模型使用工具名称作为标识符来用于调用工具。当需要 <<overriding,覆盖>> 工具时，也引用该名称。
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|工具名称 |功能
+
+|[[aitls_getAvailableEntities]]`aitls_getAvailableEntities`
+|返回当前用户可用的每个实体的压缩元数据：实体名称、本地化名称和属性名称。这里不会返回通过应用程序过滤或安全机制进行隐藏的实体。助手使用此工具来探索数据模型，并为后续调用获取正确的实体名称。
+
+|[[aitls_getDomainModelForEntities]]`aitls_getDomainModelForEntities`
+|返回请求实体的详细元数据：精确的属性名称、用于连接的关联关系、属性类型和约束以及枚举值映射。助手在生成查询语句之前必须为计划查询的实体调用该工具。
+
+|[[aitls_executeQuery]]`aitls_executeQuery`
+|验证、必要时修复并运行只读 JPQL 查询语句，返回结果行。查询参数作为结构化请求传递，包含查询文本、命名参数、结果列名和分页信息。返回的结果中包含获取的行数、是否还有更多行以及任何验证或执行错误。
+|===
+
+这三个工具通过 `DataLoadAiTool` 标记接口进行绑定，在工具注册时，可以将它们作为一个组收集。请参见 <<registry>>。
+
+[[exposed-model]]
+=== 控制数据模型的访问
+
+默认情况下，助手可以看到应用程序中除框架实体（因为 `io.jmix` 包被排除）和系统级实体之外的每个 JPA 实体。可以使用 `jmix.aitools.dataload.*` 属性缩小或扩大该集合。
+
+例如，要对助手隐藏特定实体并限制每个查询的默认行数：
+
+[source, properties, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
+----
+
+包含和排除规则按每个实体进行评估。`+exclude-*+` 属性隐藏实体。`+include-*+` 属性是增量性质的属性，会将实体添加到默认集合中，包括默认隐藏的实体，例如框架或系统级实体。`exclude-entities` 仍然优先于任何包含规则。完整的选项列表（包括如何限制单个查询可以返回的行数）请参见 xref:ai-tools:properties.adoc#dataload[数据加载配置]。
+
+NOTE: 通过配置进行过滤只会改变提供给模型的实体类型。无论配置如何，每个查询语句仍然在当前用户的 xref:security:index.adoc[数据访问] 权限下运行。对用户无法读取的实体的查询语句会被拒绝，并且从结果中移除用户无法读取的属性。用户永远无法读取他们无权查看的数据。
+
+[[available-entity-filter]]
+=== 自定义可用性
+
+提供给模型的实体集合通过 `AvailableEntityFilter` bean 解析。默认实现会隐藏当前用户没有读取权限的实体。如需更改此行为，例如使用自定义的可见性规则，需要注册一个实现 `io.jmix.aitools.dataload.introspection.AvailableEntityFilter` 的 bean。
+
+实体及其元数据由 `AvailableEntityService` bean 提供，在自定义的工具中也可以使用这个 bean。请参见 <<overriding,覆盖示例>>。
+
+[[custom-tools]]
+== 自定义工具与注册表
+
+除了预定义工具之外，还可以为助手添加自定义的工具，或覆盖扩展组件提供的工具。
+
+[[defining-a-tool]]
+=== 定义工具
+
+工具是一个 Spring bean：
+
+* 实现 `io.jmix.aitools.tool.JmixAiTool` 标记接口
+* 声明一个或多个使用 Spring AI 的 `@Tool` 注解的方法
+
+扩展组件在启动时发现所有这种类型的 bean，收集其中的 `@Tool` 方法，并让助手可以使用。下面的 bean 添加了一个返回 onboarding 步骤的工具：
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/OnboardingTools.java[tags=custom-tool]
+----
+<1> 实现 `JmixAiTool`，将 bean 标记为工具来源。
+<2> `@Tool` 的 `name` 和 `description` 是语言模型看到的内容。描述中需要说明工具该如何使用。
+<3> `ToolContext` 参数由框架提供，不会开放给模型。仅用于发布状态更新。请参见 <<status-updates>>。
+<4> 在运行长时间的工作之前发布状态更新。
+<5> 在当前用户的数据访问权限下通过 `DataManager` 加载 `Step` 实体。
+
+方法参数作为工具的输入结构（input schema）。使用 `@ToolParam` 为参数添加描述。返回值作为工具的结果发送回模型。
+
+NOTE: 声明 `@Tool` 方法需要应用程序类路径上有 Spring AI 的模型 API。在 xref:ai-tools:getting-started.adoc#configure-model[连接模型] 中添加的 Spring AI 模型 starter 已经提供。
+
+[[registry]]
+=== AiToolRegistry
+
+`io.jmix.aitools.tool.AiToolRegistry` 是应用程序中所有工具的中央注册表。在启动时使用所有的 `JmixAiTool` bean（包括覆盖预定义工具的 bean）构建一次。其方法有：
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|方法 |描述
+
+|`getAll()`
+|按注册顺序返回所有已解析的工具。
+
+|`findByName(String name)`
+|返回指定名称下注册的工具，如果不存在则返回空结果。
+
+|`findByMarker(Class<? extends JmixAiTool> marker)`
+|返回实现了特定的 `JmixAiTool` 子标记接口的工具 bean，例如 `DataLoadAiTool.class`。
+
+|`getAllCallbacks()`
+|返回所有已解析工具的 Spring AI `ToolCallback` 对象，下一步传递给 `ChatClient`。
+|===
+
+助手将 `getAllCallbacks()` 传递给模型，因此自定义添加的任何工具都会自动可用。无需注册其他任何内容。
+
+[[overriding]]
+=== 覆盖预定义工具
+
+如需替换已有工具（包括预定义工具），需要在 `@Tool` 方法上使用 `@ToolOverride` 注解 ，并传递覆盖的工具的名称。该方法仍然必须带有 `@Tool` 并在一个 `JmixAiTool` bean 内声明。
+
+以下 bean 覆盖了 <<aitls_getAvailableEntities,`aitls_getAvailableEntities`>>，并按本地化名称排序返回可用实体：
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/SortedEntitiesTool.java[tags=tool-override]
+----
+<1> 实现 `DataLoadAiTool` 使覆盖的工具仍然在数据加载工具组中。对于与数据加载无关的工具，则可以直接实现 `JmixAiTool`。
+<2> `@ToolOverride` 指定被覆盖的工具名称。覆盖之后会以该名称开放给模型，因此覆盖方法自身的 `@Tool` 名称无关紧要。
+<3> 复用默认的 `AvailableEntityService`，覆盖后的工具仍然遵循实体过滤和安全性，并且只更改排序。
+
+覆盖解析的工作原理：
+
+* 当多个 `@Tool` 方法产生相同的工具名称时，带有 `@ToolOverride` 注解的方法胜出，原始工具从注册表中排除。
+* 覆盖后的新工具仍然继承它替换的工具的标记接口，因此按标记查找注册表中的工具仍然可用。
+* 如果指定需要覆盖的工具不存在，会打印警告日志，并且新工具会以其自身的 `@Tool` 名称注册为正常工具。如果该名称已被其他工具使用，则会抛出异常，以避免替换不相关的其他工具。
+
+[[status-updates]]
+=== 发布状态更新
+
+长时间运行的工具可以通过上面 <<defining-a-tool,示例>> 中显示的 `io.jmix.aitools.tool.AiToolStatusPublisher` bean 向 UI 呈现进度。实现了一个两阶段的 contract：
+
+* `update(message, toolContext)` – 步骤已开始，UI 显示进行中的提示符。
+* `complete(message, snippet, toolContext)` – 步骤已完成，UI 将结果片段折叠到同一条目中。`message` 必须与传递给 `update` 的 message 匹配。
+
+两个方法都接受工具方法的 `ToolContext`。当工具在聊天 UI 之外被调用时（例如通过 xref:ai-tools:programmatic-api.adoc[编程式 API]），不存在状态回调，这些方法会静默地不执行任何操作，因此可以安全地调用这些方法。

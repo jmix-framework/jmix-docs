@@ -35,6 +35,11 @@ public class Customer {
     @Column(name = "GRADE")
     private String grade;
 
+    // tag::orders-count[]
+    @Column(name = "ORDERS_COUNT")
+    private Integer ordersCount;
+    // end::orders-count[]
+
     // tag::encryption[]
     @Column(name = "ENCRYPTED_DATA")
     @Lob
@@ -59,6 +64,14 @@ public class Customer {
 
     public void setEncryptedData(String encryptedData) {
         this.encryptedData = encryptedData;
+    }
+
+    public Integer getOrdersCount() {
+        return ordersCount;
+    }
+
+    public void setOrdersCount(Integer ordersCount) {
+        this.ordersCount = ordersCount;
     }
 
     public CustomerGrade getGrade() {

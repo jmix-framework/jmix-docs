@@ -1,0 +1,156 @@
+= 定义模型
+
+*Dynamic model* -> *Dynamic model settings* 视图提供了编辑动态模型的管理 UI。可以通过可视化编辑器添加实体、属性、枚举和其他元素，然后 *Apply* 变更，验证通过后发布新的模型版本。
+
+下面的每个小节都展示了编辑器为对应元素生成的 YAML — 与在编辑器的 YAML 视图中直接查看和编辑的内容相同。
+
+关于动态模型的工作原理以及版本如何管理，请参见 xref:dyn-model:concepts.adoc[]；关于 YAML 元素的完整定义，请参见 xref:dyn-model:yaml-reference.adoc[]。
+
+[[model-editor]]
+== 使用模型编辑器
+
+打开 *Dynamic model settings* 视图。*Visual* 编辑器将当前模型呈现为由实体、属性、枚举、视图组成的连接表结构。可以使用对话框添加和编辑元素。
+
+还可以随时切换到 *Code* 展现方式，直接检查或编辑原始的 YAML 定义；两种展现方式保持同步。
+
+模型准备好后，点击 *Apply*。框架会将编辑后的模型与当前激活的模型进行比较，并打开 *Dynamic model changes* 视图，该视图用于在提交前显示将要应用的新内容。在 *Model migrations* 下列出每个单独的改动 — 例如创建实体、添加或删除属性、或添加唯一约束。如果有任何视图的变更，会列在 *Changed views* 下。
+
+检查完列表的改动后，点击 *Apply changes* 确认。模型将进行验证，如果没问题，则变更生效并发布为新的模型版本。如果直接关闭 *Dynamic model changes* 视图，将丢弃待处理的变更，系统中激活的模型保持不变。
+
+[[extending-static-entities]]
+== 扩展静态实体
+
+如需为应用程序中已存在的实体（例如 `Customer` 这样的静态实体）添加动态属性，在编辑器中选择该实体并向其添加属性。动态属性与实体自身的表分开存储，并在运行时与静态属性一样可用。
+
+下面的示例中，为 `Customer` 添加了一个 `taxId` 字符串属性，长度为 `20`，带有必填标志、唯一性和验证规则：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-attr]
+----
+
+[[dynamic-entities]]
+== 定义动态实体
+
+动态实体是一个全新的实体，仅在运行时存在 — 即，在源代码中没有 Java 类或表。创建时，请在编辑器中添加一个与已有实体名称不同的新实体，然后定义其属性，并定义其视图（可选）。有关如何为动态实体生成视图和菜单项，请参见 xref:dyn-model:views.adoc[]。
+
+下面的示例定义了 `LoyaltyLevel` 动态实体，包含多个属性、验证约束以及几个生成的视图：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-entity]
+----
+
+[[attributes]]
+== 属性
+
+属性的不同类型由其定义的字段区分：数据类型属性、引用属性、集合属性或枚举属性。
+
+=== 数据类型属性
+
+数据类型属性保存一个简单值，例如字符串、数字、日期或布尔值。通过选择类型进行定义，该类型存储为 `javaClass`。对于字符串和字节数组属性，还可以设置 `length` 并使用 `lob` 标记为对象存储。<<extending-static-entities>> 中显示的 `taxId` 属性就是一个数据类型属性。
+
+有关支持类型的完整列表，请参见 xref:dyn-model:yaml-reference.adoc#javaclass[支持的类型]。
+
+=== 引用属性
+
+引用属性是关联另一个实体的单值链接属性。选择目标实体，在运行时该属性存储为关联实体实例的引用。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
+----
+
+=== 集合属性
+
+集合属性保存子实例的有序列表（组合）。目标实体必须是动态实体。在编辑器中将属性标记为集合，保存多个实体引用的有序值：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=collection-attr]
+----
+
+=== 枚举属性
+
+枚举属性存储动态枚举的一个值。选择该属性所使用的枚举：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum-attr]
+----
+
+[[enumerations]]
+== 枚举
+
+动态枚举定义了一组固定的命名值，可由枚举属性使用。在编辑器中添加枚举，为其命名，并使用 id 和名称定义值。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum]
+----
+
+一个枚举中的所有值 id 必须是同一种类型：要么全部是整型 id（如上例所示），要么全是字符串 id。
+
+[[calculated-attributes]]
+== 计算型属性
+
+计算型属性是只读的，在访问时根据表达式计算而非存储。使用 {spring-framework-doc}/core/expressions.html[Spring Expression Language (SpEL)] 编写表达式，并列出该属性 `dependsOn` 的属性，以便共同加载。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=calculated-attr]
+----
+
+由于计算属性的值不存储在数据库中，计算型属性不能用于数据库级别的过滤或排序。
+
+[[validation]]
+== 验证
+
+可以为属性添加验证约束以限制其值的范围。每个约束都有一个类型（例如 `Pattern`、`Size` 或 `DecimalMax`）、参数（可选）和消息（可选）。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-validation]
+----
+
+还支持实体级别的验证，实体级别的约束可以跨越多个属性。有关约束的完整列表和实体级别验证，请参见 xref:dyn-model:yaml-reference.adoc[]。
+
+[[unique-constraints]]
+== 唯一约束
+
+如果要求属性值在所有实例中唯一，请将其标记为唯一。这是单属性唯一约束的简写形式：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=single-unique]
+----
+
+如果要求多个属性的组合唯一，需要在实体上定义复合唯一约束：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=composite-unique]
+----
+
+唯一性由数据库约束强制执行。对于可软删除的静态实体，不支持唯一约束。
+
+[[security]]
+== 安全
+
+可以使用资源角色限制对动态实体和属性的访问。授权是累加性质的 — 列出某个角色即授予其相应的访问权限，未授予的权限将被拒绝。使用的角色必须已存在于应用程序中；下面的示例使用了 `employee` 和 `manager` 角色。
+
+在实体级别，授予 `read`、`create`、`update` 和 `delete` 访问权限。动态实体支持此功能：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-security]
+----
+
+在属性级别，授予 `view` 和 `modify` 访问权限：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-security]
+----
+
+有关资源角色的更多信息，请参见 xref:security:resource-roles.adoc[]。

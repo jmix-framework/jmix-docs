@@ -1,0 +1,92 @@
+= 自定义更新服务
+
+如果需要封装一个在实体保存或删除时运行的业务逻辑，最常见方式是将其放入某个服务中，并从代码中调用该服务。执行流程是顺序的，易于阅读和调试。当开发者自己调用服务时，这种方式效果很好，但框架中的通用机制（如 xref:rest:index.adoc[通用 REST]、xref:data-tools:entity-inspector.adoc[实体探查] 和 xref:bpm:bpmn/jmix-entity-data-task.adoc[BPM 实体数据任务] 等）通过 xref:data-manager.adoc[DataManager] 保存和删除实体，并不知道开发者自己写的服务。
+
+自定义更新服务解决了这个问题。通过实现 `SaveDelegate` 和 `RemoveDelegate` 接口，服务将自身注册为特定实体类型的保存和删除操作的处理方法。然后，框架的通用机制会调用这个服务而不是 `DataManager`，因此无论操作源自何处，需要运行的业务逻辑都能一致地运行。
+
+这是通过 xref:entity-events.adoc[实体事件] 实现保存/删除逻辑的一个替代方案。与事件监听器相比，更新服务将整个流程代码放于一处并按顺序执行，这比监听器更容易跟踪。但是实体事件仍然适合像审计或发送通知这样的简单切面需求。
+
+CAUTION: 此功能为实验性功能。`SaveDelegate` 和 `RemoveDelegate` 接口被标记为 `@Experimental`，可能在后续版本中发生变更。
+
+[[delegate-interfaces]]
+== 保存代理与删除代理
+
+框架在 `io.jmix.core` 包中提供了两个接口：
+
+* `SaveDelegate<E>` 声明了在保存 `E` 类型的实体时，替换 `DataManager` 而被调用的方法：
++
+[source,java,indent=0]
+----
+E save(E entity, SaveContext saveContext);
+----
+
+* `RemoveDelegate<E>` 声明了在删除 `E` 类型的实体时，替换 `DataManager` 而被调用的方法：
++
+[source,java,indent=0]
+----
+void remove(E entity);
+----
+
+对特定实体更新的自定义服务需要实现一个或两个接口，并以实体类作为参数类型。框架根据实体类型解析相应的服务，因此每个实体类最多只能有一个实现 `SaveDelegate` 的 bean（以及一个实现 `RemoveDelegate` 的 bean）。
+
+如果某个实体类型没有注册任何服务，框架的通用机制将依然通过 `DataManager` 保存和删除它。
+
+[[creating-update-service]]
+== 创建更新服务
+
+我们创建一个处理 `Order` 实体保存和删除的服务。当保存订单时，会根据订单行重新计算订单总额，并且对于新订单，会增加关联客户的订单数量。当删除订单时，会减少订单数量。
+
+为了存储订单数量，`Customer` 实体有一个附加的属性：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/entity/Customer.java[tags=orders-count]
+----
+
+该服务同时实现了 `SaveDelegate<Order>` 和 `RemoveDelegate<Order>`：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=class]
+----
+<1> `save()` 方法既可以被自己的代码显式调用，也会被框架的通用机制隐式调用。
+<2> 在保存之前更新实体状态的业务逻辑。
+<3> 使用 `EntityStates` 仅对新实例有效的逻辑。
+<4> 持久化实体。这里我们将传入的 `saveContext` 传递给 `DataManager`，以便订单及其组合行一起保存。也可以通过 xref:data-repositories.adoc[data repository] 进行保存。
+<5> `remove()` 方法既会被自定义的代码显式调用，也会被框架隐式调用。
+
+业务逻辑方法重新计算金额并维护客户的订单数量：
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=calculate-total]
+----
+
+[source,java,indent=0]
+----
+include::example$/data-access-ex1/src/main/java/com/company/demo/bean/OrderUpdateService.java[tags=orders-count]
+----
+
+需要注意的几点：
+
+* 为 `save()` 和 `remove()` 方法添加 `@Transactional` 注解，以便所有数据存储操作在单个 xref:transactions.adoc[事务] 中运行。
+* 计划更改的关联实体（本例中的 `Customer`）需要在服务内部重新加载，因为被保存实体引用的实例可能是过期的。
+* 该服务使用 xref:data-repositories.adoc[data repository] 来加载和保存相关的 `Customer`，但也可以直接使用 `DataManager`。
+
+[[using-in-code]]
+== 在代码中使用更新服务
+
+创建服务后，框架的通用机制（通用 REST、实体检查器、BPM 实体数据任务）会自动使用该服务对 `Order` 实体进行保存和删除。
+
+在自定义的代码中，为了保持一致性，也应该使用该服务来保存和删除相应的实体，而不是直接调用 `DataManager` 或 data repository。否则，服务中封装的业务逻辑将无法执行。
+
+在视图中，通过标准的保存和删除的代理方法将服务与数据组件关联，方式与 xref:data-repositories.adoc[使用 data repository] 相同。
+
+Studio 支持创建更新服务并在视图中使用。当创建 JPA 实体时，在 *New JPA Entity* 对话框中勾选 *Create Update Service*，生成实现 `SaveDelegate` 和 `RemoveDelegate` 的服务类。其代理方法会调用 `DataManager` 或 data repository（如果也创建了的话）。之后为具有更新服务的实体创建视图时，在 *Create Jmix View* 对话框中勾选 *Use Update Service*，则可以将保存和删除操作自动代理给该服务。
+
+[[limitations]]
+== 局限性
+
+* 无法代理数据的加载操作。框架仅支持保存和删除操作的自定义代理。如果需要在加载实体时运行逻辑（例如初始化非持久化属性），请使用 `EntityLoadingEvent` 监听器，如 xref:entity-events.adoc[] 中所述。
+
+* 数据的一致性由开发者负责。框架无法强制应用程序的所有代码始终使用该服务。请确保在代码的任何地方，对该实体的保存和删除操作都使用实体的服务，而不是直接使用 `DataManager` 或 data repository。

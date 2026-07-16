@@ -1,0 +1,150 @@
+= 用户界面
+
+`jmix-aitools-flowui-starter` 提供了一个完整的聊天 UI，包含开箱即用的视图、可嵌入到自定义视图中的 fragment，以及相关的支撑服务。对 UI 的访问权限由 <<roles,聊天用户角色>> 控制。
+
+[[views]]
+== 视图
+
+扩展组件默认注册了两个视图。
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|视图 |描述
+
+|`AiChatHubView`
+|聊天中心：一个带有消息编辑器、用户最近对话以及支持搜索的按日期分组聊天历史的视图。会自动添加到主菜单中。
+
+|`AiChatView`
+|单对话视图。在聊天中心选定对话时打开，或者在没有选定对话时打开以开始新聊天。
+|===
+
+由于扩展组件为 `AiChatHubView` 配置了一个菜单项，具有聊天角色的用户无需任何额外配置即可访问。该菜单项通过 xref:flow-ui:menu-config.adoc[组合菜单] 的机制添加。
+
+[[fragments]]
+== Fragments
+
+当预置的视图无法满足自定义视图的要求时，还可以使用 fragment 将聊天 UI 嵌入到自己的视图中。使用 `<fragment>` 元素将 fragment 添加到视图 XML 描述中。
+
+[[ai-chat-hub-fragment]]
+=== AiChatHubFragment
+
+`io.jmix.aitoolsflowui.view.chathub.AiChatHubFragment` 是一个独立的聊天中心，在 `AiChatHubView` 中使用。在任意视图添加该 fragment 即可获得编辑器、最近聊天和历史记录：
+
+[source, xml, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/resources/com/company/onboarding/view/assistant/assistant-view.xml[tags=embed-hub]
+----
+
+其公共 API：
+
+* `setRecentChatsCount(int)` – 设置编辑器旁边显示的最近聊天数。如果未设置，该值来自 xref:ai-tools:properties.adoc#jmix.aitools.ui.chat-hub-recent-chats-count[`jmix.aitools.ui.chat-hub-recent-chats-count`] 应用程序属性。
+* `setMarkIconSupplier(SerializableSupplier<Component>)` – 替换在中心和对话卡片上显示的品牌标记图标。
+
+[[ai-chat-fragment]]
+=== AiChatFragment
+
+`io.jmix.aitoolsflowui.view.chat.AiChatFragment` 是一个对话面板，在 `AiChatView` 中使用。包含在一个对话内显示标题行、消息时间线和编辑器。在视图中使用并以编程方式绑定一个对话：
+
+[source, xml, indent=0]
+----
+<fragment id="chatFragment"
+          class="io.jmix.aitoolsflowui.view.chat.AiChatFragment"/>
+----
+
+[source, java, indent=0]
+----
+@ViewComponent
+private AiChatFragment chatFragment;
+
+@Autowired
+private AiConversationService conversationService;
+
+@Subscribe
+public void onInit(final InitEvent event) {
+    AiConversation conversation = conversationService.create();
+    chatFragment.setConversation(conversation);
+}
+----
+
+关键方法：
+
+* `setConversation(AiConversation)` / `setConversationId(UUID)` – 将面板绑定到特定对话。
+* `sendMessage(String)` – 以编程方式发送用户消息。
+* `setReadOnly(boolean)` – 隐藏编辑器和标题编辑按钮。
+* `setMessageInputEnabled(boolean)` / `focusMessageInput()` – 控制编辑器的只读和获取焦点。
+* `isAwaitingResponse()` – 设置当前是否正在生成回复。
+* `setAiAvatarIconSupplier(SerializableSupplier<Component>)` – 自定义助手头像。
+
+[[ai-chat-input-fragment]]
+=== AiChatInputFragment
+
+`io.jmix.aitoolsflowui.view.input.AiChatInputFragment` 是可复用的消息编辑器：一个文本域加上一个发送按钮。按 Enter 键提交消息。按 Shift+Enter 插入换行。用于上述两个 fragment 中，当构建自定义聊天布局时，可以单独使用。通过 `setSubmitHandler(Consumer<String>)`、`setPlaceholder(String)`、`setInputEnabled(boolean)`、`focus()` 和 `clear()` 进行配置。
+
+[[services]]
+== 服务
+
+UI 有三个支撑服务。这些服务操作 UI 模型 `AiConversation` 和 `AiChatMessage`，服务的作用域隐式的限制在当前用户。
+
+[cols="1,3a", grid=rows, frame=none]
+|===
+|服务 |职责
+
+|`AiChatService`
+|生成助手对用户消息的回复。
+
+* `processMessage(message)` – 返回回复内容。
+* `processMessage(message, statusCallback)` – 与上一个方法相同，但通过 `Consumer<AiToolStatusUpdate>` 报告进度。
+* `isAvailable()` – 是否能够生成回复，即，是否配置了模型。
+
+|`AiConversationService`
+|管理当前用户的对话。
+
+* `loadConversations()` – 加载用户的对话，最新的在前。
+* `loadConversation(id)` – 按 ID 加载一个对话。
+* `create()` – 创建新对话。
+* `save(conversation)` – 持久化对话。
+* `remove(conversation)` – 删除对话及其消息。
+
+|`AiChatMessageService`
+|管理对话的消息。
+
+* `createMessage(...)` – 添加指定类型的消息。
+* `loadMessages(conversation)` – 加载所有消息，最旧的在前。
+* `loadLatestMessage(...)` – 加载最近的消息，可选择按类型过滤。
+|===
+
+[[persistence]]
+=== 持久化与空实现
+
+这些服务存储数据的位置取决于使用哪个 starter：
+
+* 使用 `jmix-aitools-flowui-data-starter` 时，服务由 JPA 实体支持，对话和消息存储在数据库中。
+* 仅使用 `jmix-aitools-flowui-starter` 时，服务是空操作桩代码。`AiChatService.isAvailable()` 返回 `false`，不会持久化任何内容，聊天实际上被禁用。这个可以支持在持久化准备好之前先做 UI 设计。
+
+如需使用非默认存储的聊天，请不要添加 starter，并提供自定义实现的 `AiChatService`、`AiConversationService` 和 `AiChatMessageService`。
+
+[[icon-provider]]
+=== 图标 provider
+
+聊天中心显示的品牌图标和助手头像由 `AiIconProvider` bean 提供。替换此 bean 可全局更改扩展组件的图标，或者使用 fragment 的方法在替换局部的图标。
+
+[[roles]]
+== 安全角色
+
+扩展组件提供了一个预定义的 xref:security:resource-roles.adoc[资源角色]。
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|名称 |`AI Tools: chat user`
+|代码 |`aitools-chat-user`
+|作用域 |UI
+|===
+
+授予最终用户访问聊天 UI 的权限：聊天中心和对话视图，以及可以管理这些用户自己的对话和消息，包括开始、继续、重命名和删除聊天。具体来说，该角色授予：
+
+* 对 `AiChatHubView` 和 `AiChatView` 以及聊天中心菜单项的查看权限
+* 对用户自己聊天记录的完全访问权限，以及对其消息的创建/读取权限
+
+将此角色分配给每个需要使用助手的用户。有关如何为用户分配角色，请参见 xref:security:users.adoc[]。
+
+NOTE: 该角色仅授予对聊天 UI 的访问权限，不会扩大数据访问权限。当助手通过预定义的 xref:ai-tools:tools.adoc#data-loading[数据加载工具] 加载业务数据时，查询语句会在当前用户自身的 xref:security:index.adoc[数据访问] 权限下运行，因此该角色不会让用户读取他们原本无法读取的任何内容。开发者在添加任何自定义工具时，都需要负责自定义访问控制。

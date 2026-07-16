@@ -1,27 +1,36 @@
 package com.company.demo.service;
 
-import io.jmix.search.searching.SearchContext;
-import io.jmix.searchopensearch.searching.strategy.OpenSearchSearchStrategy;
+import io.jmix.search.searching.SearchRequestContext;
+import io.jmix.searchopensearch.searching.strategy.OpenSearchQueryConfigurer;
+import io.jmix.searchopensearch.searching.strategy.impl.AbstractOpenSearchStrategy;
+import org.opensearch.client.opensearch._types.query_dsl.Operator;
 import org.opensearch.client.opensearch.core.SearchRequest;
 import org.springframework.stereotype.Component;
 
 // tag::strategy[]
 @Component
-public class CustomOpenSearchSearchStrategy implements OpenSearchSearchStrategy {
+public class CustomOpenSearchSearchStrategy extends AbstractOpenSearchStrategy {
 
-    @Override
-    public String getName() {
-        return "CustomStrategy";
+    public CustomOpenSearchSearchStrategy(OpenSearchQueryConfigurer queryConfigurer) {
+        super(queryConfigurer); // <1>
     }
 
     @Override
-    public void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext) {
-        //configure your request
-        requestBuilder.query(queryBuilder ->
-                queryBuilder.multiMatch(multiMatchQueryBuilder ->
-                        multiMatchQueryBuilder.fields("*")
-                                .query(searchContext.getSearchText())
-                )
+    public String getName() {
+        return "CustomStrategy"; // <2>
+    }
+
+    @Override
+    public void configureRequest(SearchRequestContext<SearchRequest.Builder> requestContext) { // <3>
+        queryConfigurer.configureRequest( // <4>
+                requestContext,
+                (queryBuilder, scope) -> // <5>
+                        queryBuilder.multiMatch(multiMatchQueryBuilder ->
+                                multiMatchQueryBuilder
+                                        .fields(scope.getFieldList()) // <6>
+                                        .query(requestContext.getSearchContext().getEscapedSearchText())
+                                        .operator(Operator.Or)
+                        )
         );
     }
 }

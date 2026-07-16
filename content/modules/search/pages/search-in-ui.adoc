@@ -62,21 +62,28 @@ include::example$/search-ex1/src/main/resources/application.properties[tags=defa
 [[custom-search-strategies]]
 === 自定义搜索策略
 
-另外，也可以创建自己的搜索策略。为此，首先创建一个实现下列接口之一的 Spring bean：
+另外，也可以创建自己的搜索策略。创建一个 Spring bean，继承自平台中的下列特定基类：
 
-* `OpenSearchSearchStrategy` - 如果使用 OpenSearch。
-* `ElasticsearchSearchStrategy` - 如果使用 Elasticsearch。
+* `AbstractOpenSearchStrategy` - 如果使用 OpenSearch。
+* `AbstractElasticSearchStrategy` - 如果使用 Elasticsearch。
 
-然后需要实现两个方法：
-
-* `String getName()` - 返回策略的唯一名称。
-
-* `void configureRequest(SearchRequest.Builder requestBuilder, SearchContext searchContext)` - 根据需要使用传入的 builder 配置所需的搜索请求。
+实现 `getName()` 和 `configureRequest(SearchRequestContext)`：
 
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/CustomOpenSearchSearchStrategy.java[tags=strategy]
 ----
+<1> 基类使用平台特定的查询配置器（`OpenSearchQueryConfigurer` 或 `ElasticSearchQueryConfigurer`）进行初始化，通过 `queryConfigurer` 字段使用。
+<2> `getName()` 返回策略的唯一名称。
+<3> `configureRequest(SearchRequestContext)` 是搜索引擎为该策略调用的方法，实现该方法以构建搜索请求。
+<4> 通过 `queryConfigurer.configureRequest()` 构建查询。配置器会解析搜索范围（包括目标索引以及当前用户允许读取的字段）并使用安全策略。
+<5> lambda 方法接收平台的特定查询构建器和已解析的 `IndexSearchRequestScope`。
+<6> 使用 `scope.getFieldList()` 仅搜索有权限读取的字段。
+
+[NOTE]
+====
+构建查询时，请务必使用 `queryConfigurer`。如果直接配置请求 builder（例如使用 `fields("*")`），则不会解析搜索范围，并且不会应用 xref:security:resource-roles.adoc#entity-attribute-policy[属性策略]，可能导致搜索返回空结果。
+====
 
 然后，可以在 xref:search-field-component.adoc[SearchField] 或 xref:full-text-filter-component.adoc[FullTextFilter] 组件使用策略名称设置策略。
 

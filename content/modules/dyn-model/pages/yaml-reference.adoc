@@ -1,0 +1,952 @@
+= YAML 参考
+
+动态模型以 YAML 格式进行序列化，根键为 `model:`。本节介绍该文件的结构：每个字段、类型、是否必填、默认值以及适用规则。有关如何定义模型和页面，请参考 xref:dyn-model:defining-model.adoc[] 和 xref:dyn-model:views.adoc[]。
+
+[[model]]
+== 模型
+
+`model` 根节点包含以下顶层字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `basePackage`
+| string
+| 否
+| 配置生成的动态实体、枚举和视图类的 Java 包。如果省略或为空，有效值为最后一个 Jmix 模块基础包加上 `.dynmod`。使用默认值时，序列化时会省略该字段。
+
+| `enumerations`
+| list
+| 否
+| 动态枚举定义。缺失或 `null` 则为空列表。
+
+| `entities`
+| list
+| 否
+| 静态实体扩展和动态实体定义。缺失或 `null` 则为空列表。
+|===
+
+[[names-and-resolution]]
+=== 名称与解析
+
+实体定义按 Jmix 实体名称匹配：
+
+* 如果元数据中已存在该 `name` 的实体，则该定义使用动态属性、验证、唯一性或视图覆盖来扩展该静态实体。
+* 如果元数据中不存在该实体，动态模型将创建一个具有相同 Jmix 实体名称的动态实体，并生成一个名为 `<effective basePackage>.<name>` 的 Java 类。
+
+动态实体、属性、枚举类和枚举值使用类似 Java 的名称。生成的数据库标识符会自动规范化：
+
+* 驼峰命名会被分割为大写加下划线的名称，例如 `loyaltyLevel` 变为 `LOYALTY_LEVEL`；
+* 不支持的字符会被替换为下划线；
+* 保留字会添加尾随下划线，例如 `user` 变为 `USER_`；
+* 超过 DBMS 长度限制的标识符会使用 8 字符哈希进行缩写。
+
+[[localization-values]]
+=== 本地化值
+
+大多数标题使用简单的语言环境和消息的映射：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=messages-map]
+----
+
+某些字段是 *本地化值*，可以接受纯字符串：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=localized-string]
+----
+
+或语言环境映射：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=localized-map]
+----
+
+语言环境键值必须为非空并映射到字符串。运行时，优先匹配精确的语言环境（例如 zh_CN），然后是仅语言的语言环境（例如 zh），最后是映射中的第一个值。
+
+[[enumerations]]
+== 枚举
+
+动态枚举在 `model.enumerations` 中声明：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum]
+----
+
+枚举字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 是
+| 短类名或完全限定类名。短名称会相对于 `basePackage` 解析。
+
+| `values`
+| list
+| 是
+| 必须至少包含一个值。
+
+| `messages`
+| map
+| 否
+| 枚举类的标题。
+|===
+
+枚举值字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 是
+| Java 枚举常量名称。
+
+| `id`
+| string
+| 是
+| 存储的枚举 ID。一个动态枚举中的所有 ID 必须是同质的：要么全部解析为 32 位整数，要么全部是非整数字符串。
+
+| `messages`
+| map
+| 否
+| 此枚举值的标题。
+|===
+
+当所有 ID 都是整数字符串时，动态枚举实现 `EnumClass<Integer>`，否则实现 `EnumClass<String>`。
+
+对枚举属性使用 `enumeration` 字段：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=enum-attr]
+----
+
+如果类实现了 `EnumClass`，也支持静态枚举。使用完全限定类名，或者当枚举类位于 `basePackage` 中时使用短名称。枚举的数据库映射同时支持整数 ID 和字符串 ID。
+
+[[entities]]
+== 实体
+
+实体定义在 `model.entities` 中声明：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-decl]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 是
+| Jmix 实体名称。使用已有的元数据名称表示静态实体扩展；否则将创建动态实体。
+
+| `store`
+| string
+| 否
+| 动态实体的物理 JPA 数据存储。空白和 `main` 在序列化时会被省略。静态实体定义只有在数据存储与实体元数据存储匹配时才可声明。已有动态实体的 store 无法更改。
+
+| `attributes`
+| list
+| 否
+| 动态属性。缺失或 `null` 则为空列表。
+
+| `uniqueConstraints`
+| list
+| 否
+| 实体级唯一命名约束。
+
+| `views`
+| list
+| 否
+| 实体的 UI 视图。
+
+| `resourceRoles`
+| object
+| 否
+| 实体 CRUD 角色授权。仅支持动态实体。
+
+| `validation`
+| object
+| 否
+| 实体级验证约束。
+
+| `messages`
+| map
+| 否
+| 实体标题。
+|===
+
+动态实体表的前缀可配置：xref:dyn-model:app-properties.adoc#jmix.dynmodel.dynamic-entity-table-prefix[jmix.dynmodel.dynamic-entity-table-prefix]，默认为 `DYN_`。静态实体动态属性使用 xref:dyn-model:app-properties.adoc#jmix.dynmodel.static-entity-table-prefix[jmix.dynmodel.static-entity-table-prefix] 前缀存储在侧表中，默认为 `DYN_`。静态侧表在与父实体相同的物理存储中创建。
+
+[[attributes]]
+== 属性
+
+每个属性只能定义下列类型之一：
+
+* 数据类型：`javaClass`；
+* 引用：`entityName`；
+* 枚举：`enumeration`。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-attr]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 是
+| 属性名称。
+
+| `javaClass`
+| string
+| 类型之一
+| 数据类型属性的 Java 类。请参见下面的 <<javaclass,支持的值>>。
+
+| `entityName`
+| string
+| 类型之一
+| 引用和集合的目标 Jmix 实体名称。
+
+| `enumeration`
+| string
+| 类型之一
+| 动态或静态枚举名称。短名称通过 `basePackage` 解析。
+
+| `length`
+| integer
+| 否
+| 字符串、URI 值、字节数组和字符串 ID 枚举的长度。
+
+| `lob`
+| boolean
+| 否
+| LOB 指示符。仅支持 `java.lang.String` 和 `byte[]` 属性。
+
+| `required`
+| boolean
+| 否
+| 添加必填元数据和默认组 `NotNull` 验证规则。不会创建数据库 `NOT NULL` 约束。
+
+| `unique`
+| boolean
+| 否
+| 名为 `<attributeName>Unique` 的单属性唯一约束的简写。
+
+| `instanceName`
+| boolean
+| 否
+| 将该属性标记为实例名称属性。如果标记了多个属性，则使用第一个，后面的会被忽略并发出警告。
+
+| `collection`
+| boolean
+| 否
+| `entityName` 的有序组合列表。
+
+| `calculated`
+| object
+| 否
+| 计算属性，只读且非持久化。
+
+| `validation`
+| object
+| 否
+| 属性级约束。不支持用于计算型属性。
+
+| `resourceRoles`
+| object
+| 否
+| 查看/修改属性的角色。
+
+| `messages`
+| map
+| 否
+| 属性标题。
+|===
+
+[[javaclass]]
+=== 支持的 javaClass 值
+
+框架将可持久化的数据类型映射到 SQL 类型。手动编写 YAML 时使用以下值：
+
+[cols="2,2,3",options="header"]
+|===
+| YAML 值 | Java 类型 | 默认 SQL 映射
+
+| `java.lang.String`
+| `String`
+| `varchar(255)`；`length` 覆盖大小
+
+| `java.net.URI`
+| `URI`
+| `varchar(1024)`；`length` 覆盖大小
+
+| `[B`
+| `byte[]`
+| `varbinary(255)`；`length` 覆盖大小
+
+| `java.lang.Boolean` 或 `boolean`
+| `Boolean`
+| `boolean`
+
+| `java.lang.Character` 或 `char`
+| `Character`
+| `char(1)`
+
+| `java.lang.Integer` 或 `int`
+| `Integer`
+| `integer`
+
+| `java.lang.Long` 或 `long`
+| `Long`
+| `bigint`
+
+| `java.lang.Short` 或 `short`
+| `Short`
+| `smallint`
+
+| `java.lang.Double` 或 `double`
+| `Double`
+| `double`
+
+| `java.lang.Float` 或 `float`
+| `Float`
+| `real`
+
+| `java.math.BigDecimal`
+| `BigDecimal`
+| `decimal(38, 18)`
+
+| `java.math.BigInteger`
+| `BigInteger`
+| `decimal(38, 0)`
+
+| `java.time.LocalDate`
+| `LocalDate`
+| `date`
+
+| `java.time.LocalTime`
+| `LocalTime`
+| `time`
+
+| `java.time.LocalDateTime`
+| `LocalDateTime`
+| `timestamp`
+
+| `java.time.OffsetTime`
+| `OffsetTime`
+| `time with time zone`
+
+| `java.time.OffsetDateTime`
+| `OffsetDateTime`
+| `timestamp with time zone`
+
+| `java.util.UUID`
+| `UUID`
+| DB 特定的 UUID 类型
+|===
+
+注意事项：
+
+* 序列化器存储 Java 的 `Class#getName()` 值。对于字节数组，是 `[B`；如果不确定，请复制序列化后的值。
+* 除非扩展了 DB 类型映射，否则动态模型存储不支持其他 Java 类。
+
+数据库特定差异：
+
+[cols="1,1,1,1,1,1",options="header"]
+|===
+| 类型 | HSQLDB / H2 | PostgreSQL | MySQL / MariaDB | SQL Server | Oracle
+
+| `UUID`
+| `uuid`
+| `uuid`
+| `char(32)`
+| `uniqueidentifier`
+| `char(32)`
+
+| `String`
+| `varchar(n)`
+| `varchar(n)`
+| `varchar(n)`
+| `nvarchar(n)`
+| `varchar2(n)`
+
+| `byte[]`
+| `varbinary(n)`
+| `bytea`
+| `varbinary(n)`
+| `varbinary(n)`
+| `raw(min(n, 2000))`
+
+| `Boolean`
+| `boolean`
+| `boolean`
+| `bit`
+| `bit`
+| `char(1)`
+
+| `OffsetTime`
+| `time with time zone`
+| `time with time zone`
+| `time` 以 UTC 存储
+| `datetimeoffset`
+| `timestamp with time zone`
+
+| `OffsetDateTime`
+| `timestamp with time zone`
+| `timestamp with time zone`
+| `datetime` 以 UTC 存储
+| `datetimeoffset`
+| `timestamp with time zone`
+
+| `String` + `lob: true`
+| `clob`
+| `text`
+| `longtext`
+| `nvarchar(max)`
+| `clob`
+
+| `byte[]` + `lob: true`
+| `blob`
+| `bytea`
+| `longblob`
+| `varbinary(max)`
+| `blob`
+|===
+
+[[references]]
+=== 引用
+
+单值引用使用 `entityName`：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
+----
+
+规则：
+
+* 子类必须解析为模型中声明的动态实体或已有的静态实体。
+* 动态引用存储子类的主键。
+* 不支持具有复合主键的静态子类。
+* 父类和子类必须在同一物理存储中。
+
+[[collections]]
+=== 集合
+
+集合属性是有序组合列表：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=collection-attr]
+----
+
+规则：
+
+* `entityName` 必需。
+* 子类必须是动态实体。
+* 不支持 `javaClass`、`enumeration`、`lob` 和 `instanceName`。
+* 集合不能参与唯一约束。
+* 父类和子类必须在同一物理存储中。
+* 不支持具有复合主键的静态父类。
+
+动态模型会为反向父类引用和排序列创建内部子属性。不会写入 YAML。
+
+[[calculated-attributes]]
+=== 计算属性
+
+计算属性是只读的、非持久化的属性，在访问时计算：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=calculated-attr]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `evaluator`
+| string
+| 否
+| 由 `DynamicCalculatedAttributeEvaluator` bean 从 `getName()` 返回的评估器名称。如果省略或为空，则使用 xref:dyn-model:app-properties.adoc#jmix.dynmodel.calculated-attributes.default-evaluator[jmix.dynmodel.calculated-attributes.default-evaluator] 中的配置，默认使用 `spel`。
+
+| `expression`
+| string
+| 是
+| 评估器的表达式。内置的 `spel` 评估器使用 `SimpleEvaluationContext`。
+
+| `dependsOn`
+| list
+| 否
+| 与计算型属性一起加载的实例属性名称。不能使用点号路径。缺失或 `null` 则为空列表。
+|===
+
+规则：
+
+* 计算型属性必须使用 `javaClass` 或 `enumeration` 声明唯一结果类型。
+* 不支持 `entityName`、`collection`、`required`、`validation` 和唯一性配置。
+* `lob: true` 只是一个 UI 元数据提示，仍然要求 `javaClass` 为 `java.lang.String` 或 `byte[]`。
+* 依赖属性必须存在于同一实体，无论是在当前模型中还是在已有的元数据中。
+* 不支持实体中计算属性之间的循环依赖。
+* 不支持将已有的存储属性改为计算型属性，或将已有的计算型属性改为存储属性。也不支持更改计算属性的结果类型。
+
+内置的 SpEL 评估器支持元数据感知的属性读取，并注册了 `DynamicCalculatedAttributeFunction` 函数。不开放 Spring bean、`T(...)`、构造函数、任意方法调用、反射、类加载器访问或基础架构 API。
+
+[[attribute-validation]]
+== 属性验证
+
+属性验证在 `attributes[].validation.constraints` 中声明：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-validation]
+----
+
+约束字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `annotation`
+| string
+| 是
+| 约束别名。请参见下面的支持别名。
+
+| `parameters`
+| map
+| 否
+| YAML 标量/列表/对象值。参数名称取决于约束。缺失则为空映射。
+
+| `groups`
+| list
+| 否
+| 分组别名或完全限定的验证组类名。缺失表示 `Default`。
+
+| `message`
+| 本地化值
+| 否
+| 纯字符串或语言环境消息映射。
+|===
+
+支持的组：
+
+* `Default`；
+* `UiComponentChecks`；
+* `UiCrossFieldChecks`；
+* `RestApiChecks`；
+* 可通过 `Class.forName()` 解析的完全限定类名。
+
+支持的属性约束：
+
+[cols="1,2,3",options="header"]
+|===
+| 别名 | 适用于 | 参数
+
+| `NotNull`
+| 任意属性
+| 无
+
+| `NotEmpty`
+| 字符串、集合、数组
+| 无
+
+| `NotBlank`
+| 字符串
+| 无
+
+| `Size`
+| 字符串、集合、数组
+| `min` 可选，默认 `0`；`max` 可选，默认 `Integer.MAX_VALUE`
+
+| `Length`
+| 字符串
+| `min` 可选，默认 `0`；`max` 可选，默认 `Integer.MAX_VALUE`
+
+| `Min`
+| 数值
+| `value`
+
+| `Max`
+| 数值
+| `value`
+
+| `DecimalMin`
+| 数值
+| `value`；`inclusive` 可选布尔值，默认 `true`
+
+| `DecimalMax`
+| 数值
+| `value`；`inclusive` 可选布尔值，默认 `true`
+
+| `Digits`
+| 数值
+| `integer`；`fraction`
+
+| `Positive`
+| 数值
+| 无
+
+| `PositiveOrZero`
+| 数值
+| 无
+
+| `Negative`
+| 数值
+| 无
+
+| `NegativeOrZero`
+| 数值
+| 无
+
+| `Past`
+| 日期/时间
+| 无
+
+| `PastOrPresent`
+| 日期/时间
+| 无
+
+| `Future`
+| 日期/时间
+| 无
+
+| `FutureOrPresent`
+| 日期/时间
+| 无
+
+| `Pattern`
+| 字符串
+| `regexp`
+
+| `Email`
+| 字符串
+| 无
+
+| `AssertTrue`
+| 布尔值
+| 无
+
+| `AssertFalse`
+| 布尔值
+| 无
+|===
+
+验证使用 Bean Validation 的空值语义：除非规则是 `NotNull`、`NotEmpty`、`NotBlank`、`AssertTrue` 或 `AssertFalse`，否则 `null` 是有效的。
+
+`required: true` 等同于必填 UI 元数据加上默认组的 `NotNull` 规则。验证元数据不会创建数据库约束。
+
+[[entity-validation]]
+== 实体验证
+
+实体级验证在 `entities[].validation.constraints` 下声明：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-validation]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 否
+| 约束名称。
+
+| `target`
+| string
+| 是
+| 必须为 `entity`。
+
+| `type`
+| string
+| 是
+| `expression` 或 `bean`。
+
+| `evaluator`
+| string
+| expression
+| 内置表达式评估器为 `spel`。空值也解析为 `spel`。
+
+| `expression`
+| string
+| expression
+| 对于有效实体必须评估为 `true`。
+
+| `validator`
+| string
+| bean
+| 由 `DynamicModelConstraintValidator` bean 返回的名称。
+
+| `attributes`
+| list
+| 否
+| 参与的属性名称。每个名称必须存在于模型或元数据中。
+
+| `path`
+| string
+| 否
+| 违规属性路径。空值表示 bean 级违规。
+
+| `groups`
+| list
+| 否
+| 与属性验证相同的组别名。
+
+| `message`
+| localized value
+| 否
+| 纯字符串或语言环境映射。
+|===
+
+表达式约束使用与计算型属性相同的受限 SpEL 属性访问方法。bean 约束委托给应用程序的 `DynamicModelConstraintValidator` bean。
+
+[[unique-constraints]]
+== 唯一约束
+
+单属性唯一性：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=single-unique]
+----
+
+复合唯一性：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=composite-unique]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `name`
+| string
+| 是
+| 逻辑约束名称。必须非空且在实体中唯一。物理 DB 名称由表名加上此值生成。
+
+| `attributes`
+| list
+| 是
+| 至少一个直接动态属性。不能使用重复名称。
+
+| `message`
+| 本地化值
+| 否
+| 违规消息。
+|===
+
+规则：
+
+* `attributes[].unique: true` 在比较和 DDL 计划之前会被规范化为命名的实体级约束。
+* 只支持直接的持久化单值动态属性。
+* 不支持计算型属性、集合和 LOB 属性。
+* 不支持静态软删除父类。
+* 如果现有行已包含重复值，则应用新的唯一约束会失败。
+* 可空的唯一性遵循 DBMS 行为。
+
+[[resource-roles]]
+== 资源角色
+
+动态的 `resourceRoles` 声明会在运行时创建叠加性质的资源策略。如果没有声明则不授予访问权限。在 xref:dyn-model:app-properties.adoc#jmix.dynmodel.security.full-access-roles[jmix.dynmodel.security.full-access-roles] 中列出的角色会授予对所有动态模型资源的完全访问权限；默认为 `system-full-access`。
+
+角色代码必须非空。错误的角色代码会在日志记录且不授予访问权限。
+
+实体级 CRUD 授权仅支持动态实体：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=entity-security]
+----
+
+属性授权支持静态和动态实体的动态属性：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=attr-security]
+----
+
+视图和菜单授权是列表：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view]
+----
+
+[[views]]
+== 视图
+
+视图在 `entities[].views` 下声明。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view]
+----
+
+视图字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `type`
+| string
+| 动态实体的 UI
+| `list` 或 `detail`。反序列化时不区分大小写。动态实体视图必填。静态实体视图可以从已注册的基础视图推断。
+
+| `viewId`
+| string
+| 是
+| 唯一的视图 ID。动态和静态视图声明都必须显式设置。
+
+| `viewRoute`
+| string
+| 否
+| 动态实体路由段。默认从 `viewId` 生成；详情视图附加 `/:id`。静态实体视图不支持此字段。
+
+| `viewTitle`
+| 本地化值
+| 否
+| 动态实体视图标题。静态实体视图不支持此字段。
+
+| `templateParams`
+| map
+| 否
+| 动态实体模板参数。静态实体视图不支持此字段。
+
+| `resourceRoles`
+| list
+| 否
+| 可以打开该视图的角色代码。静态实体视图不支持此字段。
+
+| `menuItem`
+| object
+| 否
+| 动态实体菜单项。静态实体视图不支持此字段。
+
+| `descriptor`
+| object
+| 静态实体
+| XML 描述符声明。动态实体视图可以省略以使用默认模板。静态实体视图必须提供 `descriptor.source`。
+
+| `lookupComponentId`
+| string
+| 否
+| 动态列表视图查找组件 ID。默认为 `dataGrid`。静态实体视图不支持此字段。
+
+| `editedEntityContainerId`
+| string
+| 否
+| 动态详情视图被编辑实体容器 ID。默认为 `entityDc`。静态实体视图不支持此字段。
+|===
+
+=== 动态实体视图
+
+规则：
+
+* `type` 必须为 `list` 或 `detail`。
+* `viewId` 必须显式设置且必须唯一。
+* 如果省略 `viewRoute`，则通过将 `viewId` 小写并将非字母数字序列替换为 `-` 来生成。
+* 详情路由自动添加 `/:id`；因此 `viewRoute` 本身不能以 `/:id` 结尾。
+* 第一个声明的列表视图成为动态实体的主列表视图。第一个声明的详情视图成为主详情视图。
+* `descriptor` 可以省略、使用 `template: "default"`、使用自定义模板资源路径或提供字面 `source`。
+* 如果使用 `descriptor.source`，则内容必须是有效的 XML，根元素为 `<view xmlns="http://jmix.io/schema/flowui/view">`。
+* 显式列表视图的 XML 必须包含查找组件 ID，默认为 `dataGrid`。
+* 显式详情视图的 XML 必须包含被编辑实体容器 ID，默认为 `entityDc`。
+
+默认模板为：
+
+* `io/jmix/flowui/view/template/list-view.ftl` 用于列表视图；
+* `io/jmix/flowui/view/template/detail-template.ftl` 用于详情视图。
+
+`templateParams` 是传递给 XML 模板渲染的 YAML 对象。动态模型组件没有为其定义固定结构；支持的键值取决于所选模板。例如，模板可以使用字符串列表的属性过滤器：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=template-params]
+----
+
+=== 静态实体视图覆盖
+
+静态实体覆盖已注册视图的 XML：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-view-override]
+----
+
+规则：
+
+* `viewId` 是必填的，且必须使用已注册的静态视图 ID。
+* `type` 可以省略；从控制器类推断。
+* 仅支持 `descriptor.source`。
+* 不支持 `descriptor.template`、`viewRoute`、`viewTitle`、`templateParams`、`resourceRoles`、`menuItem`、`lookupComponentId` 和 `editedEntityContainerId`。
+* 生成的控制器继承当前注册的控制器并保留其路由。
+
+=== XML 描述
+
+`descriptor` 必须使用以下配置之一：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=descriptor-template]
+----
+
+或：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=descriptor-source]
+----
+
+[[menu]]
+=== 菜单项
+
+`menuItem` 字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必填 | 说明
+
+| `parentMenu`
+| string
+| 是
+| 已有的或新的父菜单 ID。如果未找到，则使用此 ID 创建根菜单。
+
+| `insertBefore`
+| string
+| 否
+| 如果找到同级菜单 ID，则插入到其前面；否则追加到末尾。
+
+| `title`
+| 本地化值
+| 否
+| 省略时默认为视图标题。
+
+| `resourceRoles`
+| list
+| 否
+| 可以访问该菜单项的角色代码。
+|===
+
+详情视图菜单项接收路由参数 `id=new`。

@@ -93,12 +93,15 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 ** 检查xref:data-model:data-stores.adoc[数据存储] 中具有相同表名 xref:data-model:entities.adoc[实体] 的唯一性。
 ** 检查是否有 xref:data-model:entities.adoc#instance-name[@InstanceName] 注解。
 ** 检查对数据类型字段使用不正确的 `LAZY` 读取类型，以及 `@OneToOne`、`@OneToMany`、`@ManyToMany` 和 `@ManyToOne` 使用 `EAGER` 读取类型。
+** 检测 `@OneToMany` 和 `@ManyToMany` 属性中有可能导致性能问题的集合字段的初始化。Studio 建议使用 `NotInstantiatedList` 或 `NotInstantiatedSet` 替换常规的集合初始化器。
 ** 检查每个实体字段是否有 JPA 注解。
 ** 检查实体和枚举类及其属性是否具有本地化消息。
 ** 检查持久化枚举属性是否根据 Jmix 约定进行声明 - 使用标识符类型。
 ** 检查 `@Version` 注解是否重复。
 ** 检查内部嵌入属性是否没有用 `@Embedded` 注解。
 ** 检查实体是否有主键属性。
+** 检测具有 UUID 特性但不使用 `@JmixGeneratedValue` 作为标识符的实体。Studio 会警告可能导致 `hashCode()` 返回常量问题。
+** 检测使用 `@Basic(fetch = FetchType.LAZY)` 注解的 `@Lob` 实体属性。在 Jmix 中，懒加载不适用于基本属性，此类字段会被强制为 `EAGER`；Studio 建议移除该注解，并在不需要 LOB 属性的 fetch plan 中排除。
 
 快速修复和智能提示::
 
@@ -113,7 +116,8 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 检查::
 
 ** 检查 `dataGrid` 和其他可视化组件中的属性名称和属性路径。
-** 检查 `dataContainer` 和 `itemsContainer` 属性。这些属性应该引用当前视图内的数据容器，或者将当前视图作为 frame 的视图内的数据容器。
+** 检查 `dataContainer` 和 `itemsContainer` 属性。
+这些属性应该引用当前视图内的数据容器，或者将当前视图作为 frame 的视图内的数据容器。
 ** 检查 Jmix 界面描述中的下列内容：
 
 *** `expand` 属性；
@@ -124,6 +128,8 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 ** 在 XML 描述中搜索冲突的 `width`、`height` 和 `expand` 属性值。
 
 ** 检查 `hierarchyProperty` 属性。该属性需要与数据容器中的实体的类型一致。
+
+** 检测列表视图的集合数据容器使用了 `_base` fetch plan，而视图的 UI 中只使用了一小部分本地属性。Studio 会建议显示定义一个 fetch plan 以减少不必要的数据库负荷。
 
 * *Fetch Plans*
 
@@ -140,7 +146,8 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 ** 检查每个 setter 仅有一个关联的装载（install）方法。
 ** 检查视图控制器中注入的组件、操作和数据组件。如果注入字段的类型错误则报错。
 
-** 检查视图控制器中注入的组件。如果注入字段没有设置泛型类型，例如，使用了 `DataGrid` 而非 `DataGrid<MyEntity>`，则提供快速修复。
+** 检查视图控制器中注入的组件。
+如果注入字段没有设置泛型类型，例如，使用了 `DataGrid` 而非 `DataGrid<MyEntity>`，则提供快速修复。
 ** 检查正确实现了事件处理器：
 
 *** 事件处理器必须仅位于视图控制器内。
@@ -155,8 +162,13 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 *** 载入点方法必须是 `void` 返回类型，且只有单一的 `FunctionalInterface` 类型参数。
 *** 无法找到指定的 UI 组件。
 
+** 检测 Java 和 Kotlin 视图控制器中表格列渲染器内部 `DataManager` 和 data repository 的数据加载调用。此类调用可能导致性能问题，因为渲染器会针对表格的每一行重复执行。
+
+** 检测包含超过三个 `ComponentRenderer` 列的表格。过多的组件渲染器会影响表格性能，因为每个渲染的单元格都会创建服务端组件。
+
 ** 高亮可疑的字段赋值，如果此时字段应该使用容器进行注入。
 ** 检查 GUI 组件是否通过 `ComponentsFactory.createComponent()` 创建。
+** 检测 `DataManager.save()` 调用的返回结果没有分配或使用。Studio 建议使用 `DataManager.saveWithoutReload()` 避免不需要的实体加载。
 
 快速修复和智能提示::
 
@@ -168,7 +180,8 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 
 检查::
 
-** 检查使用了 `org.slf4j.Logger` logger，而非 `System.out.println()`、`System.err.println()` 和 `java.lang.ThrowableprintStackTrace()`。
+** 检查使用了 `org.slf4j.Logger` logger，
+而非 `System.out.println()`、`System.err.println()` 和 `java.lang.ThrowableprintStackTrace()`。
 ** 高亮丢失打印异常堆栈信息的 apache-commons 日志。
 
 * *菜单*
@@ -185,6 +198,7 @@ where `event` is an instance of `org.springframework.context.ApplicationEvent`.
 ** 检查资源角色中重复的名称。
 ** 检查项目中是否存在某个视图。
 ** 检查资源角色中的实体属性策略。
+** 检测行级谓词策略中的 `DataManager.load()` 调用。这种调用会导致性能问题，因为在检查实体实例的访问权限时，会多次评估谓词策略。
 
 * *Bean 和服务*
 

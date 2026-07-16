@@ -26,6 +26,7 @@ public class JsComponentView extends StandardView {
         slider.setWidth("20em");
         slider.setMin(10);
         slider.setMax(100);
+        slider.setValue(50);
 
         slider.addValueChangeListener(changedEvent ->
                 notifications.create("New value is : " + changedEvent.getValue())

@@ -17,7 +17,7 @@ public class SimplePublicSecurityConfiguration {
     @Bean
     @Order(JmixSecurityFilterChainOrder.CUSTOM)
     SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
-        http.securityMatcher("/public-api/**")
+        http.securityMatcher("/public/**")
                 .authorizeHttpRequests(authorize ->
                         authorize.anyRequest().permitAll()
                 );

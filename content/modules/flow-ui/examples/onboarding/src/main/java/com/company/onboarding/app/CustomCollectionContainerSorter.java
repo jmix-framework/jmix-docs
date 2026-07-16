@@ -13,6 +13,7 @@ import org.springframework.beans.factory.BeanFactory;
 import java.util.Comparator;
 import java.util.Objects;
 
+// tag::custom-collection-container-sorter[]
 public class CustomCollectionContainerSorter extends CollectionContainerSorter {
 
     public CustomCollectionContainerSorter(CollectionContainer<?> container,
@@ -36,3 +37,4 @@ public class CustomCollectionContainerSorter extends CollectionContainerSorter {
         return super.createComparator(sortOrder, metaClass);
     }
 }
+// end::custom-collection-container-sorter[]

@@ -17,7 +17,7 @@
 
 == 基本用法
 
-`genericFilter` 默认会添加在某些标准视图中，例如实体的 xref:flow-ui:views/views.adoc#standard-list-view[列表视图]。下图是一个典型的过滤器：
+`genericFilter` 默认会添加在某些标准视图中，例如实体的 xref:flow-ui:views/view-classes.adoc#standard-list-view[列表视图]。下图是一个典型的过滤器：
 
 image::flow-ui:visual-components/components/generic-filter-anatomy.png[align="center", width="768"]
 
@@ -41,6 +41,11 @@ include::example$onboarding/src/main/resources/com/company/onboarding/view/compo
 <2> 数据加载器用 JPQL 查询语句加载 `Customer` 的所有实例。
 <3> `genericFilter` 组件通过 `dataLoader` 属性连接至数据加载器。
 <4> 数据通过与数据容器连接的 xref:flow-ui:vc/components/dataGrid.adoc[`dataGrid`] 组件展示。展示的数据会随着过滤器的变化而变化。
+
+[NOTE]
+====
+数据加载器可以有自己的 _基础条件_，在加载器的 `condition` 元素中设置，或通过 `DataLoader.setCondition()` 以编程方式设置。`genericFilter` 不会替换这个条件：配置的条件会与基础条件组合为 `base AND configuration`，包括在切换配置时也是如此。
+====
 
 [[quick-filter-example]]
 == 快速过滤示例
@@ -87,7 +92,7 @@ image::flow-ui:visual-components/components/generic-filter-add-condition-dialog.
 +
 * *Predefined conditions（预定义条件）* -- 是开发者在 XML 描述的 <<conditions-element,conditions>> 元素中定义的条件。
 +
-* *Configurations（过滤器配置）* -- 已有的过滤器配置。可以在 <<design-time-configuration, 设计时>> 由开发者创建或 <<run-time-configuration,运行时>> 由用户创建。
+* *Configurations（过滤器配置）* -- 已有的过滤器配置。可以在 <<design-time-configuration, 设计时>> 由开发者创建或 <<runtime-configuration,运行时>> 由用户创建。
 
 添加的过滤条件会在条件区域显示。可以通过条件旁边的 image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] 删除已选条件。
 
@@ -203,7 +208,7 @@ image::flow-ui:visual-components/components/generic-filter-group-condition-edito
 
 配置（Configuration）是一组预先保存的过滤器条件。可以包含任何类型的条件以及其他配置。
 
-配置可以在 <<design-time-configuration,设计时>> 由开发者创建，或在 <<run-time-configuration,运行时>> 由用户创建。
+配置可以在 <<design-time-configuration,设计时>> 由开发者创建，或在 <<runtime-configuration,运行时>> 由用户创建。
 
 [[design-time-configuration]]
 === 设计时配置
@@ -228,7 +233,7 @@ TIP: 如需在 Jmix Studio 中添加设计时配置，可以在界面 XML 或者
 
 image::flow-ui:visual-components/components/generic-filter-design-time-items.png[align="center", width="440"]
 
-[[run-time-configuration]]
+[[runtime-configuration]]
 === 运行时配置
 
 过滤器配置可以在运行时通过 *Configuration editor（配置编辑器）* 进行创建。点击 image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit* 可以打开编辑器。
@@ -263,22 +268,124 @@ image::flow-ui:visual-components/components/generic-filter-run-time-configuratio
 * xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
 * xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
 
+[[creating-filter-programmatically]]
 == 编程式创建过滤器
 
-下面示例演示如何通过编程的方式创建 `genericFilter` 过滤器配置。
+可以使用 builder 的流式 API 在 Java 中创建和配置 `genericFilter`，该 API 有两个入口点：
+
+* `filterComponentBuilder()` 创建过滤组件 – `propertyFilter`、`jpqlFilter` 和 `groupFilter`。
+* `runtimeConfigurationBuilder()` 用这些组件组装一个 <<runtime-configuration, 运行时配置>>，并将其注册到过滤器中。
+
+Builder 会在内部执行所有必需的初始化（条件修改代理、参数名称和生成值组件），因此以编程方式构建的组件与在 XML 中声明的组件行为完全一致。父 `genericFilter` 必须有一个 `DataLoader`；否则 builder 的方法会抛出 `IllegalStateException`。
+
+CAUTION: Builder API 目前为实验性功能，可能在未来的 Jmix 版本中发生变化。
+
+以下示例创建了一个 `genericFilter`，构建了一个属性条件，并注册了一个配置：
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;SingleFilterSupport;programmaticFilter]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=UiComponents;vbox;CollectionLoader;programmaticFilter]
 ----
 
 <1> 用 `uiComponents` 工厂创建 `genericFilter`。
-<2> 添加设计时配置，方法接收两个参数：配置 id 和配置名称。
-<3> 创建一个 `PropertyFilter` 并设置其属性。
-<4> 通过给定的 metaClass、实体属性和运算符生成过滤器值组件。
-<5> 将过滤器添加至配置中。`LogicalFilterComponent` 是配置的根元素。
-<6> 将 `genericFilter` 放入视图的 `vbox` 布局中。这个布局是在视图描述中声明并注入控制器。
-<7> 设置为当前配置。
+<2> 将 `genericFilter` 放入视图中声明的 `vbox` 内。
+<3> 使用 `filterComponentBuilder()` 构建一个 `PropertyFilter`。
+<4> 使用 `runtimeConfigurationBuilder()` 注册一个运行时配置，并添加过滤器。
+<5> 立即激活该配置。这里并不是将配置持久化为默认配置，而只是将配置设为当前配置。
+<6> 构建并注册配置。每个 builder 实例都是单次使用的。
+
+[[building-filter-components]]
+=== 构建过滤组件
+
+`filterComponentBuilder()` 为每种组件类型返回专用的 builder。所有 builder 都是单次使用的，生成一个可直接添加的组件。
+
+[[property-filter]]
+==== 属性过滤器
+
+`propertyFilter()` 按实体属性进行过滤，包括实体嵌套属性 — `property()` 可以使用属性路径，例如 `customer.city.name`。值编辑器会根据属性类型自动生成。除非调用 `operationEditable(true)`（允许用户在运行时更改操作），否则操作是固定的；`operationTextVisible(false)` 隐藏字段旁边显示的操作标签。传递给 `defaultValue()` 的值会自动设置为组件的默认值。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=propertyFilter]
+----
+
+[[jpql-filter-checkbox]]
+==== JPQL 过滤器（复选框）
+
+`jpqlFilter()`（无参数）创建一个 *void* 过滤器：一个复选框，用于开启或关闭固定的 `WHERE` 子句。其值类型为 `Boolean`，因此 `defaultValue(true)` 使条件默认生效。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=voidJpqlFilter]
+----
+
+[[jpql-filter-typed]]
+==== JPQL Filter（有类型）
+
+`jpqlFilter(Class)` 创建一个 *有类型* 的过滤器：用户输入的值绑定到查询参数，编辑器与给定的 `Class` 匹配。在 `where()` 中使用 `\{E}` 作为实体别名和一个命名参数来编写条件，然后使用 `parameterName()` 声明其名称。添加 `join()` 来扩展 `FROM` 子句，或者当值是一个集合（`in` 条件）时使用 `hasInExpression(true)`。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=typedJpqlFilter]
+----
+
+[[group-filter]]
+==== 分组过滤器
+
+`groupFilter()` 用逻辑操作组合不同条件 — `AND`（默认）或 `OR`。分组本身也是一个过滤组件，因此可以嵌套组来表达复杂的布尔逻辑。使用 `add()` 或 `addAll()` 添加子项。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=groupFilter]
+----
+
+[[building-runtime-configuration]]
+=== 构建运行时配置
+
+`runtimeConfigurationBuilder()` 创建一个 <<runtime-configuration, 运行时配置>>，并将其注册到过滤器中。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/genericfilter/GenericFilterView.java[tags=runtimeConfiguration]
+----
+<1> 添加一个带类型和默认值的组件；值类型在编译时检查。使用不带默认值的 `add(component)`，或使用 `addAll(components...)` 可以一次添加多个。
+<2> 添加上面构建的分组。
+<3> 立即激活配置。不是持久化的默认配置标记。
+<4> 允许用户删除此配置。默认情况下，使用 builder 创建的配置受保护，用户不能删除。
+
+请注意：
+
+* 每个 builder 实例是单次使用的 — 两次调用 `build()` 或 `buildAndRegister()` 会抛出 `IllegalStateException`。
+* 配置的 `id` 在过滤器内必须唯一。
+* 父 `genericFilter` 必须有一个 `DataLoader`。
+
+NOTE: Builder 创建的是一个 `RunTimeConfiguration`。没有用于 `DesignTimeConfiguration` 的 builder。如需在较低级别以编程方式创建配置，请使用 `addConfiguration(id, name)`（返回一个 `DesignTimeConfiguration`）并直接创建和添加过滤组件，或者构建一个 `RunTimeConfiguration` 并使用 `addConfiguration(configuration)` 注册。这是 builder  API 所替代的低级别方法。
+
+TIP: 有关每个 builder 功能的可运行示例，请参见 https://demo.jmix.io/ui-samples[UI 示例^] 中的 *GenericFilter* 部分。
+
+[[theme-variants]]
+== 样式版本
+
+使用 xref:vc/common-attributes.adoc#themeNames[themeNames] 属性设置组件样式。
+
+[cols="1,4,1", options="header"]
+|===
+|样式
+|描述
+|支持的主题
+
+|`filled`
+|为过滤器的 header 使用填充背景样式。
+|Aura, Lumo
+
+|`reverse`
+|将切换指示器放在摘要文本之前。
+|Aura, Lumo
+
+|`small`
+|使过滤器的 header 更紧凑。
+|Aura, Lumo
+|===
 
 == XML 属性
 
@@ -402,9 +509,9 @@ xref:vc/components/tooltip.adoc[tooltip]
 * *Save（保存）* -- 保存当前对过滤器配置的修改。由 `FilterSaveAction` 实现（XML 中 `type="genericFilter_save"`）。
 * *Save with values（带值保存）* -- 保存当前对过滤器配置的修改。，且使用条件字段 [<<condition-field, 5>>] 中的值作为过滤器的默认值。
 * *Save as（另存为）* -- 将当前过滤器配置另存为新名称。由 `FilterSaveAsAction` 实现（XML 中 `type="genericFilter_saveAs"`）。
-* *Edit（编辑）* -- 打开编辑器编辑当前 <<run-time-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterEditAction` 实现（XML 中 `type="genericFilter_edit"`）。
-* *Remove（删除）* -- 删除当前 <<run-time-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterRemoveAction` 实现（XML 中 `type="genericFilter_remove"`）。
-* *Copy（复制）* -- 将当前配置的所有条件复制到一个新的 <<run-time-configuration,运行时>> 配置。由 `FilterCopyAction` 实现（XML 中 `type="genericFilter_copy"`）。
+* *Edit（编辑）* -- 打开编辑器编辑当前 <<runtime-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterEditAction` 实现（XML 中 `type="genericFilter_edit"`）。
+* *Remove（删除）* -- 删除当前 <<runtime-configuration,运行时>> 过滤器配置。对 <<design-time-configuration, 设计时>> 配置禁用。由 `FilterRemoveAction` 实现（XML 中 `type="genericFilter_remove"`）。
+* *Copy（复制）* -- 将当前配置的所有条件复制到一个新的 <<runtime-configuration,运行时>> 配置。由 `FilterCopyAction` 实现（XML 中 `type="genericFilter_copy"`）。
 * *Clear values（清空值）* -- 清空过滤器条件值 [<<condition-field, 5>>]。由 `FilterClearValuesAction` 实现（XML 中 `type="genericFilter_clearValues"`）。
 * *Add（添加）* -- 为当前过滤器配置增加条件。由 `FilterAddConditionAction` 实现（XML 中 `type="genericFilter_addCondition"`）。
 * *Reset（重置）* -- 重置过滤器。由 `FilterResetAction` 实现（XML 中 `type="genericFilter_reset"`）。

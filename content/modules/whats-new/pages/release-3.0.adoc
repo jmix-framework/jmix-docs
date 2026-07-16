@@ -1,0 +1,467 @@
+= 3.0 版本说明
+
+[[upgrade]]
+== 如何升级
+
+[IMPORTANT]
+====
+如需使用 Jmix 3.0 创建新项目或升级现有项目，需要安装 Studio 3.0 或更高版本，因此请先 xref:studio:update.adoc[更新] Jmix Studio 插件。
+
+现在最低支持的 IntelliJ IDEA 版本为 {minimal-idea-version}。
+====
+
+[IMPORTANT]
+====
+Jmix 3.0 需要 Java 21 或 25。在升级到 Jmix 3.0 之前，请将 IDE 项目设置更新为 Java 21 JDK：
+
+* File -> Project Structure -> Project -> SDK
+* Settings -> Build, Execution, Deployment -> Build Tools -> Gradle -> Gradle JVM
+====
+
+关于如何使用 Studio 升级项目，请参阅 xref:studio:project.adoc#upgrading-project[升级项目] 部分。自动迁移程序会对项目进行以下更改：
+
+* 更新 Jmix BOM 的版本，该版本定义所有依赖项的版本。
+* 更新 Jmix Gradle 插件的版本。
+* 将 Gradle wrapper 更新到 9.5.1。
+* 添加依赖：
+** `implementation 'com.vaadin:vaadin-dev'`
+** `testImplementation 'org.springframework.boot:spring-boot-jdbc-test'`
+* 在 `build.gradle` 的 `vaadin` 部分添加 `productionMode = false`。
+* 将 `@Stylesheet(Lumo.UTILITY_STYLESHEET)` 注解添加到应用程序主类。
+* 将 compact 主题声明从 `@JsModule` 迁移到 `@Stylesheet`。
+* 从 `theme.json` 中移除 `lumoImports`。
+* 在 `@PWA` 注解中添加 `offline=false`。
+* 迁移实例加载器的 `@Install loadFromRepositoryDelegate` 签名。
+* 在某些情况下，为 `propertyFilter` 设置 `operationTextVisible` 属性为 false。
+* 迁移 import：
+** `com.vaadin.flow.component.splitlayout.SplitLayout.SplitterDragendEvent`
+** `io.jmix.authserver.service.mapper.JdbcOAuth2AuthorizationServiceObjectMapperCustomizer`
+** `io.jmix.flowui.component.validation.group.UiCrossFieldChecks`
+** `org.springframework.boot.autoconfigure.jdbc.DataSourceProperties`
+** `org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties`
+** `org.springframework.boot.autoconfigure.web.ServerProperties`
+** `org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase`
+* 为每个注入的 `JmixUpload` 添加关于泛型类型的注释。
+* 根据字段类型参数化 `FileUploadSucceededEvent` 的泛型类型：`FileUploadField` 或 `FileStorageUploadField`。
+* 如果设置了 `text` 属性，则移除 `DropdownButton` 的 `icon` 主题名。
+* 移除 `@io.jmix.maps.Geometry` 注解。
+* 在 Kotlin 项目中迁移 `JmixUserDetails` 和 `authorities`。
+* 设置 `jmix.ui.legacy-monitoring-enabled=true`。
+* 如果包含报表扩展组件，则设置 `jmix.reports.use-legacy-date-time-types=true` 和 `jmix.reports.client.show-report-table-view-in-menu=true`。
+* 在 `src/main/resources/vaadin-featureflags.properties` 中设置 `com.vaadin.experimental.themeComponentStyles=true`。
+
+另请参阅升级后可能影响项目的完整 <<breaking-changes,破坏性变更>> 列表。
+
+[IMPORTANT]
+====
+迁移后，在构建和运行应用程序之前，请在终端中执行以下 Gradle 任务：
+
+[source]
+----
+./gradlew clean vaadinClean
+----
+====
+
+[[updated-dependencies]]
+== 更新的依赖
+
+以下主要依赖已更新：
+
+* Spring Boot 4.0
+* Vaadin 25.1
+* EclipseLink 5.0
+* Flowable 8.0
+
+[[spring-boot-4]]
+=== Spring Boot 4 常见迁移说明
+
+* 重命名 Jackson 包：`com.fasterxml.jackson.databind` -> `tools.jackson.databind`
+
+* `org.springframework.lang` 包的空值注解现已弃用。请替换为 `org.jspecify.annotations`，例如：
+** `org.springframework.lang.Nullable` -> `org.jspecify.annotations.Nullable`
+** `org.springframework.lang.NonNullApi` -> `org.jspecify.annotations.NullMarked`
+
+* 对于分布式跟踪，请切换至 `spring-boot-starter-opentelemetry`  starter 并更新 OTLP 导出属性。有关更新后的设置，参阅 xref:features:observability.adoc#tracing[可观测性 / 跟踪]。
+
+更多信息请参见以下资源：
+
+* https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide[Spring Boot 4.0 迁移指南^]
+* https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md[Jackson 3 迁移指南^]
+* https://docs.spring.io/spring-framework/reference/core/null-safety.html#null-safety-guidelines-jspecify[Spring Framework / 空值安全 / JSpecify^]
+
+[[new-features]]
+== 新特性与改进
+
+[[studio-improvements]]
+=== Studio 改进
+
+* *AI Agents Toolkit* 操作现在可从 *Jmix* 工具窗口的 *Settings* 菜单中使用，支持为当前项目自动安装 https://github.com/jmix-framework/jmix-agent-guidelines[Jmix AI Agent 指南^] GitHub 仓库的 agent 技能、指令和 MCP 服务。支持以下 agent：Claude Code CLI、Codex、OpenCode、Junie。
+
+* *Data Store Properties* 对话框中新增了 *Do not generate Liquibase drop changesets for unmapped tables* 选项。
+
+* 现在可以在 xref:studio:entity-designer.adoc[实体设计器] 中显示继承的属性。
+
+* Studio 现在可以创建 xref:data-access:custom-update-services.adoc[] 并在视图中使用。当创建 JPA 实体时，在 *New JPA Entity* 对话框中勾选 *Create Update Service* 以生成服务类。之后，当为具有更新服务的实体创建视图时，在 *Create Jmix View* 对话框中可以勾选 *Use Update Service*，以自动将保存和删除操作全部委托给该服务。
+
+* 如果项目中包含 xref:multitenancy:index.adoc[] 扩展组件，新的 xref:data-model:entities.adoc#tenant-id-trait[Has Tenant ID] 特性支持为实体添加 `@TenantId` 属性。
+
+* xref:search:index-definitions.adoc#creating-index-definition[搜索组件] 的索引定义和 xref:quartz:index.adoc[Quartz] 作业在 *Jmix* 工具窗口中显示，并且可以用模板快速创建。
+
+* 在 *Project* 工具窗口的上下文菜单中可使用 Jmix 的主要功能：
+** *Jmix Project Properties*
+** *Jmix Main Data Store*
+** *Jmix Additional Data Stores*
+** *Jmix Add-ons*
+** *New -> Jmix -> ...*
+
+* Studio 现在可以读取和更新使用 Kotlin DSL（`build.gradle.kts`）编写的构建脚本。
+
+[[dynamic-model]]
+=== 动态模型扩展组件
+
+新的 xref:dyn-model:index.adoc[] 扩展组件支持在不更改源代码或重启的情况下对正在运行的应用程序的数据模型进行扩展：为已有实体添加属性，或者定义由特定数据库表支持的全新实体。模型在图形管理界面中编辑，模型定义按版本保存，并且可以生成运行时 UI（例如视图和菜单项），以及支持基于资源角色的验证、唯一性和安全性。
+
+[[ai-tools]]
+=== AI 工具扩展组件
+
+新的 xref:ai-tools:index.adoc[] 扩展组件支持为 Jmix 应用添加由 LLM 驱动的助手。组件提供一个开箱即用的聊天 UI、编程式 API、可以通过自然语言访问数据的预定义工具，以及用于添加自定义工具的扩展点。
+
+[[aura-theme]]
+=== Aura 主题
+
+随着升级到 Vaadin 25，Jmix 现在支持新的 Aura 主题。已有的 Lumo 主题仍然可用。在 Studio 中创建项目时，可以选择要使用的主题。
+
+:figure-caption!:
+.使用 Aura 主题的动态模型扩展组件
+image::aura-theme.png[width = 776]
+
+[[markdown-editor]]
+=== MarkdownEditor 组件
+
+新的 xref:flow-ui:vc/components/markdownEditor.adoc[markdownEditor] 组件支持用户在单一编辑器中编写和预览 Markdown 内容。组件提供一个格式工具栏、*编辑* 和 *预览* 模式之间的切换、键盘快捷键，以及数据绑定、验证和主题化等标准组件功能。
+
+[[data-grid-detail-renderers]]
+=== DataGrid 和 TreeDataGrid 详情渲染器
+
+xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] 和 xref:flow-ui:vc/components/treeDataGrid.adoc[treeDataGrid] 组件现在提供了两个预定义的 XML 渲染器，可以直接从表格打开实体详情视图：
+
+* xref:flow-ui:vc/components/dataGrid.adoc#detail-link-renderer[`detailLinkRenderer`] 显示一个指向详情视图的链接，
+* xref:flow-ui:vc/components/dataGrid.adoc#detail-button-renderer[`detailButtonRenderer`] 显示一个按钮，通过导航或在对话框中打开详情视图。
+
+使用这两个渲染器可以在 `dataGrid` 或 `treeDataGrid` 中更方便添加 *打开* 或 *编辑* 操作，而无需编写自定义渲染器。
+
+[[application-wide-sorting-customization]]
+=== 应用程序级排序自定义
+
+Jmix Flow UI 为自定义排序行为提供了特定的扩展点。开发人员可以将自定义排序注册为 Spring bean，支持 xref:flow-ui:data/data-examples.adoc#custom-in-memory-sorting[内存中排序] 和 xref:flow-ui:data/data-examples.adoc#jpql-sort-expressions[JPQL 排序表达式]。
+
+因为每个自定义的排序都是独立的 bean，所以应用程序和扩展组件可以提供各自的排序规则，同时保持独立性和可复用性。避免了规则之间的冲突，而且不必修改框架的全局默认值（如 `SorterFactory` 或 `JpqlSortExpressionProvider`）。
+
+详情请参阅 xref:flow-ui:data/data-examples.adoc#sorting[排序]。
+
+[[per-grid-sorting-customization]]
+=== 表格级别的自定义排序
+
+除了应用程序级的自定义排序之外，开发人员现在还可以为特定的 xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] 或 xref:groupdatagrid:groupdatagrid-component.adoc[groupDataGrid] 自定义排序。这些组件可以使用 xref:flow-ui:vc/components/dataGrid.adoc#column-comparator[列比较器] 进行内存排序，或使用 xref:flow-ui:vc/components/dataGrid.adoc#sort-builder-delegate[排序 builder 代理] 将数据映射至自定义比较器或数据库排序表达式。
+
+这种表格独立排序的配置方法。可用于有特定排序需求的视图中。
+
+[[runtime-view-templates]]
+=== 运行时视图模板
+
+新的 xref:flow-ui:views/view-templates.adoc[] 功能支持从实体元数据上声明的模板生成标准列表视图和详情视图，而无需在设计时手动创建。可以在实体类使用 `@ListViewTemplate` 和 `@DetailViewTemplate` 注解，框架会在启动时生成相应的视图、路由和菜单项。
+
+内置模板在列表视图中渲染 `dataGrid`，在详情视图中渲染 `formLayout`，并支持可配置的属性过滤。具有组合集合属性的实体的详情视图会渲染一个 `tabSheet`，每个集合有一个独立的可编辑表格。还可以提供自定义 Freemarker 模板以完全控制生成的视图内容。
+
+[[genericfilter-builder-api]]
+=== GenericFilter builder API
+
+新的 xref:flow-ui:vc/components/genericFilter.adoc#creating-filter-programmatically[genericFilter  流式 builder API] 提供了一种在 Java 中配置过滤器的简洁方式。使用 `filterComponentBuilder()` 创建 `propertyFilter`、`jpqlFilter` 和 `groupFilter` 组件，使用 `runtimeConfigurationBuilder()` 组装和注册运行时配置。这个 builder 会执行组件初始化操作，包括织入数据加载器、生成参数名称和值组件、条件代理，这些以前必须通过低级别 API 显式编写。
+
+[[disabling-unsafe-runtime-features]]
+=== 禁用不安全的运行时功能
+
+新的应用程序属性支持关闭可能执行任意代码或暴露内部信息的运行时功能，这些功能可能在生产环境中导致不安全操作。所有属性默认为 `true`，因此除非显式关闭某个属性，否则当前行为保持不变。
+
+xref:ROOT:app-properties.adoc#jmix.core.unsafe-runtime-features-enabled[jmix.core.unsafe-runtime-features-enabled] 属性是一个全局总开关：当设置为 `false` 时，下面所有功能都会被禁用，无论它们自身的属性如何设置。每个功能也可以单独关闭：
+
+* xref:ROOT:app-properties.adoc#jmix.core.hot-deploy-enabled[jmix.core.hot-deploy-enabled] – 通过热部署从文件系统加载类。
+* xref:ROOT:app-properties.adoc#jmix.core.trigger-files-enabled[jmix.core.trigger-files-enabled] – 通过触发文件调用 bean。
+* xref:security:row-level-roles.adoc#jmix.security.data.groovy-enabled[jmix.security.data.groovy-enabled] – 在谓词行级策略中执行 Groovy。
+* xref:dyn-attr:dynattr-api.adoc#jmix.dynattr.ui.groovy-enabled[jmix.dynattr.ui.groovy-enabled] – 在动态属性脚本中执行 Groovy。
+* xref:reports:configuration.adoc#jmix.reports.groovy-enabled[jmix.reports.groovy-enabled] – 在报表中执行 Groovy。
+* xref:jmx-console:index.adoc#jmix.jmxconsole.write-and-invoke-enabled[jmix.jmxconsole.write-and-invoke-enabled] – JMX 控制台中的写入和调用操作。
+* xref:data-tools:data-model.adoc#jmix.datatools.data-model-diagram.public-server-enabled[jmix.datatools.data-model-diagram.public-server-enabled] – 将数据模型发送到公共 PlantUML 服务器。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5287[GitHub #5287^]。
+
+[[password-change-at-next-login]]
+=== 下次登录时更改密码
+
+现在可以要求用户在下次登录时更改密码。在创建新用户或使用标准 *Reset Password* 操作分配临时密码时，可以使用此功能。
+
+更多信息请参阅 xref:security:users.adoc#password-change-at-next-login[下次登录时更改密码]。
+
+[[message-template-preview]]
+=== 消息模板预览
+
+xref:message-templates:message-templates.adoc[消息模板] 扩展组件现在支持用户在使用前直接在 UI 中对模板进行验证。新的 *Preview* 操作可以帮助检查使用实际参数值的渲染结果，并更早地提示 FreeMarker 或参数缺失问题。
+
+[[breaking-changes]]
+== 破坏性变更
+
+[[security-breaking-changes]]
+=== 安全
+
+. 在 Vaadin 25 中，不匹配已知视图或框架资源请求的默认授权规则从 "authenticated" 更改为 "deny"。因此，登录后不再像 Jmix 2 中那样授予对任意路径的访问权限。自定义静态资源（例如 `++/icons/**++`、`++/images/**++`）现在返回 HTTP 403，除非显式配置路径允许。
++
+迁移到 Jmix 3.0 时，提供自定义静态资源的应用程序必须注册特定的 `SecurityFilterChain` 显式允许这些路径，参考 xref:security:custom-endpoints.adoc[] 部分。
+
+. `VaadinWebSecurity` 类已从 Vaadin 25 中移除。`FlowuiVaadinWebSecurity` 类依然存在，但不再继承 Vaadin 的类。如果重写了 `VaadinWebSecurity` 的方法（如 `configure(WebSecurity web)`），请使用 `SecurityFilterChain` 或 `WebSecurityCustomizer` bean 重写你的配置，参考 xref:security:custom-endpoints.adoc[] 部分。
+
+更多信息请参阅 https://vaadin.com/docs/v25/upgrading#security-configuration-changes[Vaadin 安全配置迁移文档^]。
+
+[[application-settings-tenant-id]]
+=== 应用程序配置中的 TENANT_ID 列
+
+应用程序配置扩展组件的 `AppSettingsEntity` 基类现在具有 `tenantId` 属性以支持多租户（参见 https://github.com/jmix-framework/jmix/issues/5144[GitHub #5144^]）。如果你的应用程序实体扩展了该基类，需要在数据库中为此属性创建 `TENANT_ID` 列。
+
+使用 *Data Store* -> *Main* -> *Generate Liquibase Changelog* 操作，或者，如果没有订阅，使用 *Data Stores* -> *Main* -> *New* -> *Liquibase Changelog* 操作创建新的变更日志，并添加如下变更集（将 `MY_SETTINGS` 替换为你的配置表）：
+
+[source,xml]
+----
+<changeSet author="sample" id="1">
+    <addColumn tableName="MY_SETTINGS">
+        <column name="TENANT_ID" type="VARCHAR(255)"/>
+    </addColumn>
+</changeSet>
+----
+
+有关 Studio 中数据存储操作的更多信息，请参阅 xref:studio:data-stores.adoc#data-store-actions[数据存储操作]。
+
+[[jasperreports-dependencies]]
+=== JasperReports 依赖
+
+xref:reports:index.adoc[] 扩展组件不再传递性地引入 JasperReports 依赖。如果使用 xref:reports:creation/templates.adoc#template_jasper[JasperReports 模板]，需在 `build.gradle` 中显式添加以下依赖：
+
+[source,groovy,indent=0]
+----
+include::reports:example$reports-onboarding/build.gradle[tags=jasper-dependencies]
+----
+
+
+[[overlays-breaking-changes]]
+=== Overlays
+
+Vaadin 25 中 Overlay 的内部机制和样式行为已更改。如果您的应用程序自定义了 overlays，请查阅 https://vaadin.com/docs/v25/upgrading#overlays[Vaadin overlay 升级说明^]。
+
+[[download-api-breaking-changes]]
+=== 下载 API 变更
+
+* `Downloader` bean 现在以 `DownloaderExportHandler` 方式工作，该处理方法实现了 Vaadin 的 https://vaadin.com/docs/v25/flow/advanced/downloads[DownloadHandler API^]。因此，生成的 URL 现在使用 `VAADIN/dynamic/resource/<random_id>` 格式，而不是 `/download/UUID`。以前，`Downloader` bean 创建 `JmixFileDownloader`，并提供 `StreamResource`。`JmixFileDownloader` 将在下一个主要版本中移除，而或者如果 Vaadin 移除了 `StreamResource`，则也可能更早移除。
+
+* `UiComponentUtils#createResource()` 现在返回 `DownloadHandler` 而不是 `StreamResource`。
+
+[[upload-api-breaking-changes]]
+=== 上传 API 变更
+
+* xref:flow-ui:vc/components/fileUploadField.adoc[fileUploadField]、xref:flow-ui:vc/components/fileStorageUploadField.adoc[fileStorageUploadField] 和 xref:webdav:ui-components.adoc#webdav-document-upload-field[WebdavDocumentUploadField] 在内部更新为使用 Vaadin 的 `UploadHandler` API。
+
+* `FileUploadSucceededEvent` 现在提供对上传文件数据的直接访问。为支持此功能，其泛型签名已从 `<FileStorageUploadField>` 更改为 `<FileStorageUploadField, FileInfo>`。请参考 xref:flow-ui:vc/components/fileStorageUploadField.adoc#FileUploadSucceededEvent[示例]。
+
+[[upload-component-api-breaking-changes]]
+=== 上传组件 API
+
+xref:flow-ui:vc/components/upload.adoc[] 组件 API 已变更：
+
+* 该组件现在使用基于 Handler 的配置。请使用 xref:flow-ui:vc/components/upload.adoc#uploadHandlerType[uploadHandlerType] 替代 `receiverType`，使用 xref:flow-ui:vc/components/upload.adoc#uploadHandlerFqn[uploadHandlerFqn] 替代 `receiverFqn`。
+
+* Vaadin 中弃用的监听器方法已替换：
+** `addFailedListener()` -> `addUploadFailedListener()`
+** `addFinishedListener()` -> `addUploadFinishedListener()`
+** `addProgressListener()` -> `addUploadProgressListener()`
+** `addStartedListener()` -> `addUploadStartedListener()`
+
+* `addUploadSucceededListener()` 现在接收 xref:flow-ui:vc/components/upload.adoc#UploadSucceededEvent[UploadSucceededEvent<V>]。
+
+[[dialog-mode-breaking-changes]]
+=== `@DialogMode`
+
+`@DialogMode.modal()` 已弃用。请使用 xref:flow-ui:views/opening-views.adoc#dialog-parameters[modality()] 替代。
+
+[[theme-variants-breaking-changes]]
+=== 主题样式变更
+
+主题样式已更新，部分被移除，部分新增，少数行为发生变化：
+
+* 为字段组件添加了 `align-start` 和 `align-end`。
+* 字段组件不再提供 `always-float-label`。
+* 按钮组件不再提供 `contained` 和 `outlined`。
+* `icon-on-top` 现在必须应用于 xref:flow-ui:vc/components/tabs.adoc[tabs] 和 xref:flow-ui:vc/layouts/tabSheet.adoc[tabSheet] 中嵌套的 `tab` 元素。
+* `dropdown-indicators` 在内部由 xref:flow-ui:vc/components/dropdownButton.adoc#theme-variants[dropdownButton] 使用，显示下拉指示符。在 Lumo 中，如果想隐藏指示符，请使用 `icon` 主题名称。
+
+主题样式支持现在取决于应用程序主题。有些仅适用于 Lumo，有些仅适用于 <<aura-theme, Aura>>，大多数都适用两个主题。支持的主题列在每个组件的 *样式版本* 部分列出。示例请参见 xref:flow-ui:vc/components/markdownEditor.adoc#theme-variants[markdownEditor 样式版本]。
+
+[[loadFromRepositoryDelegate]]
+=== loadFromRepositoryDelegate
+
+`loadFromRepositoryDelegate` 处理方法的签名已变更。现在接受 `JmixDataRepositoryContext` 作为第二个参数。需要将 `FetchPlan` 替换为 `JmixDataRepositoryContext`，例如：
+
+[source,java]
+----
+// 之前
+@Install(to = "customerDl", target = Target.DATA_LOADER, subject = "loadFromRepositoryDelegate")
+private Optional<Customer> loadDelegate(UUID id, FetchPlan fetchPlan) {
+    return repository.findById(id, fetchPlan);
+}
+
+// 之后
+@Install(to = "customerDl", target = Target.DATA_LOADER, subject = "loadFromRepositoryDelegate")
+private Optional<Customer> loadDelegate(UUID id, JmixDataRepositoryContext context) {
+    return repository.findById(id, context.fetchPlan());
+}
+----
+
+Studio 会自动迁移此代码。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5139[Github #5139^]。
+
+[[value-load-context-conditions]]
+=== `ValueLoadContext` 条件
+
+在 `ValueLoadContext` 使用 `PropertyCondition` 时，不要再在属性路径中包含实体别名。Jmix 3.0 现在会自动添加别名，使该行为与常规实体查询的 `LoadContext` 行为保持一致。
+
+[source,java]
+----
+// 之前，作为变通方法有效
+PropertyCondition condition = PropertyCondition.equal("e.username", "admin");
+
+// 现在
+PropertyCondition condition = PropertyCondition.equal("username", "admin");
+----
+
+如果手动保留别名，Jmix 会生成不正确的 JPQL，查询将失败。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/4371[GitHub #4371^]。
+
+[[BaseAction]]
+=== BaseAction
+
+`io.jmix.flowui.kit.action.BaseAction` 和 `io.jmix.flowui.action.SecuredBaseAction` 现在是泛型类。请尽可能将原始用法替换为类型化的操作类，或使用通配符类型，例如：
+
+[source,java]
+----
+// 之前
+BaseAction action = getAction();
+action.addActionPerformedListener(this::onAction);
+
+// 之后
+BaseAction<?> action = getAction();
+action.addActionPerformedListener(this::onAction);
+----
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5218[Github #5218^]。
+
+[[JmixListMenu]]
+=== JmixListMenu
+
+执行 bean 操作的菜单项现在渲染为真正的按钮，而非没有没有导航目标的链接。
+
+* 所有菜单项的基本 CSS 类名从 `jmix-menu-item-link` 更改为 `jmix-menu-item`。
+* Bean 菜单项现在渲染为 vaadin-button，而不是 RouterLink。
+* 自定义的 `jmix-menu-item-link` 样式需要改为使用 `jmix-menu-item`，或在需要时使用菜单项特定的 CSS 类名 `jmix-menu-item-view` 和 `jmix-menu-item-bean`。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5205[GitHub #5205^]。
+
+[[UserManager]]
+=== UserManager
+
+`io.jmix.core.security.UserManager` 接口新增了 `resetPasswords()` 方法。如果你的项目有不同于 `AbstractDatabaseUserRepository` 的实现，则需要实现此方法。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/pull/5323[GitHub #5323^]。
+
+[[enum-backed-configuration-properties]]
+=== 基于枚举的配置属性
+
+以下属性的 getter 返回类型已变更：
+
+* `UiViewProperties.getValidationNotificationType()` → `Notifications.Type`
+* `UiViewProperties.getValidationNotificationPosition()` → `Notification.Position`
+* `GridExportProperties.getDefaultColumnsToExport()` → `ColumnsToExport`
+* `GridExportProperties.getDefaultExportModes()` → `List<ExportMode>`
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5262[GitHub #5262^]。
+
+[[search-api]]
+=== 搜索组件 API
+
+在 2.7 中已弃用的搜索策略 API 和辅助类已被移除：
+
+* `ElasticsearchSearchStrategy` / `OpenSearchSearchStrategy` 的 `configureRequest(SearchRequest.Builder, SearchContext)` 方法。请实现 `configureRequest(SearchRequestContext)` 并通过不同引擎特定的 `ElasticSearchQueryConfigurer` / `OpenSearchQueryConfigurer` 构建查询。
+
+* `SearchUtils` 类。请使用 `SearchRequestScopeProvider`、`SearchFieldsProvider` 和 `SearchSecurityDecorator` 替代。
+
+如果实现了自定义搜索策略，请将其迁移到新 API：请参见 xref:search:search-in-ui.adoc#custom-search-strategies[自定义搜索策略]。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/4866[GitHub #4866^]。
+
+[[openapi-client-generator-configuration]]
+=== OpenAPI 客户端生成器配置
+
+如果了使用 xref:studio:openapi-client.adoc[]，请按如下方式更新 `build.gradle` 中的配置：
+
+[source,groovy]
+----
+plugins {
+    // ...
+    id 'org.openapi.generator' version '7.23.0'
+}
+
+dependencies {
+    // ...
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.10'
+}
+
+tasks.register('openApiGeneratePetclinic', GenerateTask) {
+    inputSpec = layout.projectDirectory.file("src/main/resources/petclinic-openapi.yml")
+    outputDir = layout.buildDirectory.dir("generated/openapi/petclinic")
+    // ...
+    configOptions.set([
+            useRuntimeException: "true",
+            useJakartaEe       : "true",
+            useSpringBoot4     : "true",
+            useJackson3        : "true"
+    ])
+}
+----
+
+[[removed-orphan-timer-metrics]]
+=== 移除孤立的 Timer 指标
+
+`jmix_JavaClassLoader_loadClass_*` 和 `jmix_AnnotationLockDescriptorProvider_loadConfig_*` 系列将从 `/actuator/prometheus` 中移除。任何引用这些的外部仪表盘都必须更新。
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5290[GitHub #5290^]。
+
+[[removed-dependencies]]
+=== 移除的依赖
+
+XStream 已从审计和报表扩展组件的依赖中移除。如果你的项目中有用到，请显式添加：
+
+[source]
+----
+implementation 'com.thoughtworks.xstream:xstream:1.4.21'
+----
+
+更多信息请参见 https://github.com/jmix-framework/jmix/issues/5337[GitHub #5337^]。
+
+[[changelog]]
+== 更新日志
+
+* Jmix Framework 中解决的问题：
+
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A3.0.0[3.0.0^]
+
+* Jmix Studio 中解决的问题：
+
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%203.0.1[3.0.1^]
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%203.0.0,-2.8.*%20Affected%20versions:%20-SNAPSHOT[3.0.0^]

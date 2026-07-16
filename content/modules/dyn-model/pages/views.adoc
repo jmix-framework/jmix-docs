@@ -1,0 +1,49 @@
+= 视图和菜单项
+
+动态模型可以为动态实体生成 UI 视图并添加相应的菜单项，从而对于运行时定义的实体，无需编写任何 Java 或 XML 即可立即在应用程序的 UI 中使用。还支持覆盖静态实体的已有视图，通过这种方式可以显示为这些实体添加的动态属性。
+
+在模型中，视图在实体内声明，位于实体的 `views` 列表下。有关视图字段的完整列表，请参见 xref:dyn-model:yaml-reference.adoc[]；有关数据模型本身如何定义，请参见 xref:dyn-model:defining-model.adoc[]。
+
+[[dynamic-entity-views]]
+== 动态实体的视图
+
+动态实体没有自己的视图，如需通过 UI 查看和编辑，需要声明列表视图和详情视图。每个视图都有一个 `type`，为 `list` 或 `detail`，根据这些声明，框架会自动生成 UI 视图（无需编写视图 XML）。
+
+下面的示例为 `LoyaltyLevel` 动态实体声明了一个 `list` 视图。实体的模型中还声明了一个 `detail` 视图，因此该实体既可以浏览也可以编辑：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view]
+----
+
+动态实体视图的 `descriptor` 控制其布局的生成方式。支持以下方式配置：
+
+* 省略，或 `template: "default"` — 框架使用内置默认模板构建视图，该模板生成标准的列表（带有常规操作的数据网格）或详情（编辑器表单）布局。省略 `descriptor` 与指定默认模板效果相同。
+* `template: "<resource path>"` — 视图使用自定义视图模板资源渲染，而不是默认模板。
+* `source: "<XML>"` — 直接提供视图的 XML 内容。这个方式能完全自定义布局，与手写视图 XML 相同。
+
+最后一种方式将 XML 作为字面量提供是定义任意布局推荐的方式，例如自定义组件、分组或附加操作。XML 必须是有效的 UI 视图；列表视图 XML 必须包含查找组件（默认为 `dataGrid`），详情视图 XML 必须包含被编辑的实体容器（默认为 `entityDc`）。有关更详细的规则和默认值，请参见 xref:dyn-model:yaml-reference.adoc#views[视图 YAML]。
+
+[[menu-items]]
+== 菜单项
+
+动态实体的视图声明中，还可以通过添加 `menuItem` 对象将视图放置到应用程序菜单中。当模型发布成功时，菜单项会与生成的视图一起生效。上面片段中的 `menuItem` 展示了菜单项的典型配置字段：
+
+* `parentMenu` — 放置该项的父菜单的 ID。如果不存在具有此 ID 的菜单，则会使用该 ID 创建一个新的根菜单。
+* `insertBefore` — 可选的同级菜单项 ID；当存在时，新项会插入到该同级之前，否则追加到末尾。
+* `title` — 菜单项标题的本地化值。当省略时，使用视图标题。
+* `resourceRoles` — 指定可以查看该菜单项的角色。
+
+[[overriding-static-views]]
+== 覆盖静态实体视图
+
+为静态实体添加动态属性并不会自动将其放置在该实体已有的视图中。如需将动态属性显示在已存在的视图中，需要在模型中覆盖该视图的描述符。
+
+静态实体视图声明通过 `viewId` 引用已注册的视图，并使用 `descriptor.source` 包含扩展原始 XML（在 `extends` 声明）的代码。在扩展的 XML 中，只需添加所需的组件 — 例如，为新动态属性添加一列。下面的示例扩展了应用程序的 `Customer.list` 视图，并在 `customersDataGrid` 中添加了一个 `taxId` 列：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-view-override]
+----
+
+对于静态实体视图覆盖，仅支持 `descriptor.source`。用于动态实体视图的 template、route、title 和 menu 字段不支持。覆盖仅更改视图的 XML，生成的控制器继承自现有控制器，因此原始路由和视图的现有行为得以保留。

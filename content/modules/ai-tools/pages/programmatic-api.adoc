@@ -1,0 +1,41 @@
+= 编程式 API
+
+在自定义的代码中可以通过编程式使用助手，而无需使用聊天 UI。有助于后台处理、自定义视图或与现有业务逻辑集成。
+
+[[assistant-service]]
+== AiAssistantService
+
+`io.jmix.aitools.service.AiAssistantService` 是主要的编程式入口点。该服务是无状态的，不持久化聊天历史，并将所有已注册的工具开放给模型。注入并发送问题：
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/ai/SupportAssistant.java[tags=assistant-service]
+----
+<1> `send` 会阻塞，直到生成完整回复并返回。
+
+对于增量输出，请使用 `stream(String)`，该方法返回一个 `reactor.core.publisher.Flux<String>`，以 chunk 的形式返回回复。
+
+[[data-load-service]]
+== AiDataLoadService
+
+`io.jmix.aitools.dataload.AiDataLoadService` 是用于数据加载的专用入口点。除了对话式的 `send` 和 `stream` 方法外，还提供：
+
+* `loadData(String userText)` – 为请求生成 JPQL 查询并运行，然后返回结构化的 `EntityDataLoadResult`。
+
+`EntityDataLoadResult` 通过以下字段加载的完整结果：
+
+* `query` — LLM 生成的查询语句（修复前）；
+* `validationResult` — 验证输出；
+* `rows` — 获取的行，每行是一个按结果属性名称和内容的 `Map`；
+* `hasMore` — 是否还有更多行；
+* `executed` — 查询是否实际运行；
+* `executionError` — 错误消息。
+
+当需要的是数据本身而非自然语言答案时，可以使用该服务。
+
+[[system-prompt]]
+== 自定义系统提示词
+
+`AiAssistantService` 使用的系统提示词由 `AiAssistantSystemPromptProvider` bean 提供。默认实现会加载一个介绍助手和工具使用规则的模板。如需使用自定义的提示词，请注册一个实现 `AiAssistantSystemPromptProvider` 并返回提示词模板的 bean。
+
+NOTE: 默认的 `AiAssistantSystemPromptProvider` 仅当应用程序尚未定义该类型的 bean 时才会注册。如果提供了自定义的实现，则自动优先使用。

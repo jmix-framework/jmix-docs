@@ -8,19 +8,41 @@
 
 `component` XML 元素支持通过指定全限定类名（FQN）来创建任意 UI 组件。组件属性使用内部的 `property` 元素定义，类似于操作（action）配置。
 
-例如，可以通过以下方式定义一个 `Button` 组件：
+== 用例
+
+最简便的方式是在 XML 中直接定义一个常规组件的实例：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/customcomponent/genericcomponent/generic-component-view.xml[tags=button-component-xml]
 ----
 
-定义一个自定义组件的示例：
+框架会实例化组件类，并通过匹配的 setter 方法设置声明的属性。在此示例中，
+`text` 属性映射到 `setText()`，而 `ICON` 属性解析器将 `ARCHIVE` 转换为图标实例，传递给 `setIcon()`。
+
+也可以在视图控制器中订阅通用组件的事件，方式与标准声明式组件相同：
+
+[source,java,indent=0]
+----
+@Autowired
+protected Notifications notifications;
+
+@Subscribe(id = "button", subject = "clickListener")
+public void onButtonClick(ClickEvent<JmixButton> event) {
+    notifications.show("Saved!");
+}
+----
+
+同样的机制也可用于接收转换值的 setter 的自定义组件：
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/customcomponent/genericcomponent/generic-component-view.xml[tags=test-component-xml]
 ----
+
+在这个示例中，`TestComponent` 类定义了 `stringsList`、`stringsSet`、`stringsArray`、`strings` 和 `dataContainer` 的 setter。
+Jmix 会将 XML 中提供的值转换为字符串值，并解析 `productsDc` 数据容器，
+然后再调用对应的 setter 方法。
 
 [[property-configuration]]
 == 配置属性
@@ -30,11 +52,14 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/cust
 ** `text` → `setText()`
 ** `dataLoader` → `setDataLoader()`
 
-* 框架会查找第一个 `name` 匹配且只有一个输入参数的方法来设置值。
+* 框架会查找一个与 `name` 属性值匹配且只有一个输入参数的方法来设置值。
 +
 NOTE: 如果多个方法具有相同的名称，则不保证会使用预期的方法来设置值。
 
 * 将用找到的方法的输入参数类型对 `value` 属性中的字符串值进行转换，转换为相同类型的实际值。
++
+内置的转换器支持 `String`、`Class`、布尔值、数字类型、枚举、`List`、`Set` 以及数组。
+可变参数的 setter 也有效，因为是作为数组参数处理。集合和数组条目在转换前按空格或逗号划分。
 
 * `type` 属性表示字符串值必须由某个可插拔的 `PropertyParser` bean 进行转换：
 +

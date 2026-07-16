@@ -28,7 +28,7 @@ import java.time.LocalDate;
 @ViewController("MyOnboardingView")
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
-@DialogMode(width = "50em", height = "40em")
+@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT)
 public class MyOnboardingView extends StandardView {
     // end::annotations[]
     @Autowired
@@ -73,11 +73,6 @@ public class MyOnboardingView extends StandardView {
         }));
 
         stepsDataGrid.setColumnPosition(checkboxColumn, 0);
-
-        stepsDataGrid.getColumnByKey("dueDate")
-                .setClassNameGenerator(userStep ->
-                        isOverdue(userStep) ? "overdue-step" : null);
-
     }
 
     // tag::onBeforeShow[]
@@ -137,8 +132,8 @@ public class MyOnboardingView extends StandardView {
     }
     // end::close-with-discard[]
 
-    @Install(to = "stepsDataGrid", subject = "classNameGenerator")
-    private String stepsDataGridClassNameGenerator(UserStep entity) {
-        return null;
+    @Install(to = "userStepsDataGrid.dueDate", subject = "partNameGenerator")
+    private String userStepsDataGridDueDatePartNameGenerator(final UserStep userStep) {
+        return isOverdue(userStep) ? "overdue-step" : null;
     }
 }

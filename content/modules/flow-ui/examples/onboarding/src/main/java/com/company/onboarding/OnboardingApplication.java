@@ -2,17 +2,20 @@ package com.company.onboarding;
 
 import com.google.common.base.Strings;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.server.PWA;
-import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.aura.Aura;
+import com.vaadin.flow.theme.lumo.Lumo;
+import io.jmix.flowui.theme.aura.JmixAura;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
@@ -26,10 +29,13 @@ import javax.sql.DataSource;
 // tag::main-class-push[]
 @Push
 // end::main-class-push[]
-@Theme(value = "onboarding")
+@StyleSheet(Aura.STYLESHEET)
+@StyleSheet(JmixAura.STYLESHEET)
+@StyleSheet("themes/onboarding-aura/styles.css")
 @PWA(name = "Onboarding", shortName = "Onboarding")
 // tag::main-class[]
 @SpringBootApplication
+@StyleSheet(Lumo.UTILITY_STYLESHEET)
 public class OnboardingApplication implements AppShellConfigurator {
 // end::main-class[]
 

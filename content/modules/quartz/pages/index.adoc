@@ -47,14 +47,16 @@ include::ROOT:single-menu-note.adoc[]
 
 按照下列步骤创建并设定任务计划：
 
-. 创建一个类，实现 `org.quartz.Job` 接口。调度器会执行其 `execute()` 方法。示例：
+. 创建一个类，实现 `org.quartz.Job` 接口。该类可以手动创建，或通过 xref:studio:tool-window.adoc[Jmix 工具窗口] 的 *New -> Advanced -> Quartz Job* 操作创建。
 +
 [source,java,indent=0]
 ----
 include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/SampleJob.java[]
 ----
 +
-在任务类中，可以用 `@Autowired` 注入 Spring bean。
+调度器会调用作业类的 `execute()` 方法。在作业类中，可以使用 `@Autowired` 注入 Spring bean。Studio 在作业类内部通过代码补全提供注入支持。
+
+当项目中至少有一个实现了 `org.quartz.Job` 接口的类时，Studio 会在 *Jmix Tool Window* 的 *Jobs* 部分中显示 Quartz 作业类。作业类也会显示在 *Beans* 部分中。
 
 . 启动应用程序，打开 *Quartz -> Quartz jobs（Quartz 任务）* 界面，并点击 *Create（新建）*。
 +
@@ -71,6 +73,27 @@ include::example$/quartz-ex1/src/main/java/com/company/demo/quartz/SampleJob.jav
 如需修改任务设置，首先选中任务并点击 *Pause（暂停）*。保存修改后，可以点击 *Resume（继续）* 继续任务调度。
 +
 也可以点击 *Execute now（马上执行）* 按钮开始执行任一注册的任务，即便任务此时还没有触发器。该功能方便测试。
+
+[[configure-jobs-programmatically]]
+=== 以编程方式配置作业和触发器
+
+除了在 *Quartz jobs* 视图中创建之外，还可以将 Quartz 作业和触发器注册为 Spring bean。当需要在编程时定义调度任务时，可以用该方法。
+
+在 `@Configuration` 的 Spring 配置类中声明这些 bean。
+
+[source,java,indent=0]
+----
+include::example$/quartz-ex1/src/main/java/com/company/demo/config/QuartzConfiguration.java[tags=quartz-configuration]
+----
+<1> 作业实现类。
+<2> 作业标识符。
+<3> 将触发器与作业关联。
+<4> 显式指定触发器标识符。避免重新部署后创建重复的触发器。
+<5> Cron 调度。
+
+`withIdentity()` 定义作业或触发器的 Quartz 标识符。代码中创建的每个触发器都必须指定标识符。
+
+如果触发器没有显式标识符，Quartz 会生成一个随机标识符。当应用程序使用持久化 Quartz 数据表时，在每次重新部署时都可能创建一个新的触发器，并导致多个触发器按照相同的调度执行同一个作业。
 
 [[authentication]]
 === 任务中的认证

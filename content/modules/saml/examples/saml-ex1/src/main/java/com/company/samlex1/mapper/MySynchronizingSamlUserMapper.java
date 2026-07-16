@@ -5,7 +5,7 @@ import io.jmix.saml.mapper.user.SynchronizingSamlUserMapper;
 import io.jmix.saml.util.SamlAssertionUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.opensaml.saml.saml2.core.Assertion;
-import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -26,7 +26,7 @@ public class MySynchronizingSamlUserMapper extends SynchronizingSamlUserMapper<U
     }
 
     @Override
-    protected void populateUserAttributes(Assertion assertion, OpenSaml4AuthenticationProvider.ResponseToken responseToken, User jmixUser) {
+    protected void populateUserAttributes(Assertion assertion, OpenSaml5AuthenticationProvider.ResponseToken responseToken, User jmixUser) {
         String username = SamlAssertionUtils.getUsername(assertion);
         Map<String, List<Object>> assertionAttributes = SamlAssertionUtils.getAssertionAttributes(assertion);
         String firstNameValue = getStringAttributeValue(assertionAttributes, "FirstName", username);

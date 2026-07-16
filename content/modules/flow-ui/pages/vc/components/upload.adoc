@@ -34,8 +34,8 @@ xref:vc/common-attributes.adoc#maxHeight[maxHeight] -
 xref:vc/common-attributes.adoc#maxWidth[maxWidth] -
 xref:vc/common-attributes.adoc#minHeight[minHeight] -
 xref:vc/common-attributes.adoc#minWidth[minWidth] -
-<<receiverFqn,receiverFqn>> -
-<<receiverType,receiverType>> -
+<<uploadHandlerFqn,uploadHandlerFqn>> -
+<<uploadHandlerType,uploadHandlerType>> -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadIcon[uploadIcon] -
 xref:flow-ui:vc/components/fileStorageUploadField.adoc#uploadText[uploadText] -
 xref:vc/common-attributes.adoc#visible[visible] -
@@ -46,11 +46,11 @@ xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
 xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
 <<FailedEvent,FailedEvent>> -
 <<FileRejectedEvent,FileRejectedEvent>> -
+<<FileRemovedEvent,FileRemovedEvent>> -
 <<FinishedEvent,FinishedEvent>> -
 <<ProgressUpdateEvent,ProgressUpdateEvent>> -
 <<StartedEvent,StartedEvent>> -
-<<SucceededEvent,SucceededEvent>> -
-<<receiver,receiver>>
+<<UploadSucceededEvent,UploadSucceededEvent>>
 |XML 内部元素
 |xref:icons/custom-icons.adoc[uploadIcon] -
 xref:icons/custom-icons.adoc[dropLabelIcon]
@@ -111,37 +111,13 @@ image::visual-components/components/upload-drag-drop.png[align="center", width="
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;FileRejectedEvent]
 ----
 
-[[receivers]]
-== 接收器
-
-`receiverFqn` 属性设置将会处理上传文件的 Java 类的全限定名称。该类必须实现 `Receiver` 接口。
-
-NOTE: 如果接收器未实现 `MultiFileReceiver`，则 `upload` 组件自动设置为仅接受单文件上传。
-
-`receiverType` 属性指定处理上传文件的接收器类型。决定如何处理并存储上传的文件。可以是：
-
-* `MemoryBuffer`
-+
-一次只处理单个文件上传。将文件数据写入内存中。使用 `MemoryBuffer` 时，会自动将组件配置成仅能选择单文件上传。
-* `MultiFileMemoryBuffer`
-+
-处理多个文件上传。将文件数据写入内存中。
-* `FileTemporaryStorageBuffer`
-+
-一次只处理单个文件上传。将文件保存至 xref:files:file-storage.adoc[临时文件存储]。使用 `FileTemporaryStorageBuffer` 时，会自动将组件配置成仅能选择单文件上传。
-* `MultiFileTemporaryStorageBuffer`
-+
-处理多个文件上传。将文件数据写入内存中。将文件保存至 xref:files:file-storage.adoc[临时文件存储]。
-
-默认接收类型为 `MemoryBuffer`。
-
 == XML 属性
 
 xref:vc/common-attributes.adoc[通用属性] 对所有组件都是一样的配置。
 
 下面是 `upload` 的特殊属性：
 
-[cols="1h,5,1", grid=rows, frame=none]
+[cols="1h,4a,1", grid=rows, frame=none]
 |===
 |*名称*
 |*描述*
@@ -158,12 +134,19 @@ xref:vc/common-attributes.adoc[通用属性] 对所有组件都是一样的配�
 |[[maxFiles]]maxFiles
 |设置允许上传的最大文件数量。参阅 <<file-count,文件计数>>
 |无限制
-|[[receiverFqn]]receiverFqn
-|设置 `upload` 组件使用的接收器的实现。参阅 <<receiver,接收器>>。
+|[[uploadHandlerFqn]]uploadHandlerFqn
+|为该 `upload` 组件设置自定义上传处理方法实现的完整限定名称。该类必须实现 Vaadin 的 `UploadHandler` 接口。示例：
+
+* `com.company.app.upload.CustomUploadHandler`
+
 |
-|[[receiverType]]receiverType
-|设置 `Receiver` 接口实现的类型。参阅 <<receiver,接收器>>。
-|`MemoryBuffer`
+|[[uploadHandlerType]]uploadHandlerType
+|指定内置的上传处理方法的类型。支持以下值：
+
+* `IN_MEMORY` – 用 `InMemoryUploadHandler` 将上传的数据保存在内存中。在 `UploadSucceededEvent<V>` 事件中，上传数据的格式是 `byte[]`。
+* `FILE_TEMPORARY_STORAGE` 将上传的文件保存在 xref:files:uploading-files.adoc#using-temporary-storage[临时存储]。
+
+|`IN_MEMORY`
 |===
 
 == 事件和处理器
@@ -174,28 +157,33 @@ xref:vc/common-handlers.adoc[通用事件和处理器] 对所有组件都是一�
 
 include::../handler-generation-tip.adoc[]
 
-[cols="1h,6", grid=rows, frame=none]
+[cols="1h,6a", grid=rows, frame=none]
 |===
 |*名称*
 |*描述*
 |[[AllFinishedEvent]]AllFinishedEvent
 |`com.vaadin.flow.component.upload.AllFinishedEvent` 当 `upload` 组件处理完队列中所有的文件之后发送，无论上传是否成功。
 |[[FailedEvent]]FailedEvent
-|`com.vaadin.flow.component.upload.FailedEvent` 当 `upload` 组件上传的文件被接收但由于某些原因中断时发送。
+|`com.vaadin.flow.component.upload.FailedEvent` 当 `upload` 组件上传的文件被接收但由于某些原因中断时发送。Java 中使用 `addUploadFailedListener()` 方法。
 |[[FileRejectedEvent]]FileRejectedEvent
-|`com.vaadin.flow.component.upload.FileRejectedEvent` 当选择的文件不满足 `upload` 的要求时发送，例如，xref:flow-ui:vc/components/fileStorageUploadField.adoc#maxFileSize[文件大小限制] 或 <<maxFiles,文件数量限制>>。参阅 See <<file-count,文件数量>>。
+|`com.vaadin.flow.component.upload.FileRejectedEvent` 当选择的文件不满足 `upload` 的要求时发送，例如，xref:flow-ui:vc/components/fileStorageUploadField.adoc#maxFileSize[文件大小限制] 或 <<maxFiles,文件数量限制>>。参阅 <<file-count,文件数量>>。
+|[[FileRemovedEvent]]FileRemovedEvent
+|`com.vaadin.flow.component.upload.FileRemovedEvent` 当文件从上传队列移除时发送。
 |[[FinishedEvent]]FinishedEvent
-|`com.vaadin.flow.component.upload.FinishedEvent` 当 `upload` 接收了文件后发送，不论是否成功。如需区别是否成功，请使用 <<SucceededEvent,SucceededEvent>> 或 <<FailedEvent,FailedEvent>>，这两个都是 `FinishedEvent` 的子类。
+|`com.vaadin.flow.component.upload.FinishedEvent` 当 `upload` 接收了文件后发送，不论是否成功。Java 中使用 `addUploadFinishedListener()`。
 |[[ProgressUpdateEvent]]ProgressUpdateEvent
-|`com.vaadin.flow.component.upload.ProgressUpdateEvent` 用于跟踪上传文件的进度。
+|`com.vaadin.flow.component.upload.ProgressUpdateEvent` 用于跟踪上传文件的进度。Java 中使用 `addUploadProgressListener()`。
 |[[StartedEvent]]StartedEvent
-|`com.vaadin.flow.component.upload.StartedEvent` 当 `upload` 开始接收文件时发送。
-|[[SucceededEvent]]SucceededEvent
-|`com.vaadin.flow.component.upload.SucceededEvent` 当 `upload` 成功接收文件时发送。在示例应用程序中，有一个 https://demo.jmix.io/ui-samples/sample/upload[示例^] 是在 `com.vaadin.flow.component.upload.SucceededEvent` 事件中通过 `MultiFileMemoryBuffer` 管理多个文件。
-|[[receiver]]receiver
-|设置 `upload` 组件使用的接收器。<<receiverFqn>> 和 <<receiverType>> 属性。
+|`com.vaadin.flow.component.upload.StartedEvent` 当 `upload` 开始接收文件时发送。Java 中使用 `addUploadStartedListener()`，或在视图控制器中添加组件的事件监听器。
+|[[UploadSucceededEvent]]UploadSucceededEvent
+|`io.jmix.flowui.component.upload.UploadSucceededEvent<V>` 当 `upload` 接收文件成功时发送。事件中通过 `getData()` 提供上传的数据。在 Jmix 视图控制器中，用 `@Subscribe("upload")` 订阅该事件。或者在 Java 中用 `addUploadSucceededListener()`。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/upload/UploadView.java[tags=notifications;UploadSucceededEvent]
+----
 |===
 
 == 参考
 
-{vaadin-docs}/components/upload[Vaadin 文档^]
+https://vaadin.com/docs/v25/components/upload[Vaadin 文档^]

@@ -6,7 +6,7 @@ import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @JmixEntity
@@ -33,28 +33,26 @@ public class Booking {
     @Column(name = "DESCRIPTION")
     @Lob
     private String description;
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "START_DATE", nullable = false)
     @NotNull
-    private Date startDate;
-    @Temporal(TemporalType.TIMESTAMP)
+    private LocalDateTime startDate;
     @Column(name = "END_DATE", nullable = false)
     @NotNull
-    private Date endDate;
+    private LocalDateTime endDate;
 
-    public Date getEndDate() {
+    public LocalDateTime getEndDate() {
         return endDate;
     }
 
-    public void setEndDate(Date endDate) {
+    public void setEndDate(LocalDateTime endDate) {
         this.endDate = endDate;
     }
 
-    public Date getStartDate() {
+    public LocalDateTime getStartDate() {
         return startDate;
     }
 
-    public void setStartDate(Date startDate) {
+    public void setStartDate(LocalDateTime startDate) {
         this.startDate = startDate;
     }
 

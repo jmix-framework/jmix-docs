@@ -119,37 +119,123 @@ TIP: 使用 xref:flow-ui:facets/dataLoadCoordinator.adoc[DataLoadCoordinator] fa
 // include::example$/ex1/src/main/java/ui/ex1/screen/data/ShowCities.java[tags=show]
 // ----
 
-[[custom-sorting]]
-== 自定义排序
+[[sorting]]
+[[sorting]]
+== 排序
 
-UI 表格中按照实体属性排序的功能是通过 `CollectionContainerSorter` 实现的，这个排序器需要设置给 xref:flow-ui:data/collection-container.adoc[CollectionContainer]。标准的实现是，如果数据在一页以内能显示，则在内存做数据排序，否则会使用适当的 "order by" 语句发送一个新的数据库请求。"order by" 语句是由 `JpqlSortExpressionProvider` bean 创建。
+与集合绑定的 UI 组件（例如 xref:flow-ui:vc/components/dataGrid.adoc[dataGrid]）使用底层 xref:flow-ui:data/collection-container.adoc[CollectionContainer] 定义的排序顺序。Jmix 对内存中的排序和基于 JPQL 的排序都使用默认的行为，并提供了自定义排序的扩展点。
 
-有些实体属性需要一个特殊的排序实现。下面我们用个例子解释一下如何自定义排序：假设有 `Department` 实体带有 `String` 类型的 `num` 属性，但是我们知道该属性其实是只保存数字。所以我们希望排序的顺序是 `1, 2, 3, 10, 11`。但是，默认的排序行为会产生这样的结果：`1, 10, 11, 2, 3`。
+[[default-sorting-behavior]]
+=== 默认行为
 
-首先，创建一个 `CollectionContainerSorter` 类的子类，在内存进行排序：
+排序的工作方式如下：
+
+. UI 组件调用与集合容器关联的 `Sorter`。
+. 框架通过 `CollectionContainerSortManager` 获取该排序器。
+. 如果没有 provider 返回排序器，则使用 `SorterFactory` 创建标准的 `CollectionContainerSorter` 或 `CollectionPropertyContainerSorter`。
+
+当数据容器没有加载器时，或者仅加载了第一页且加载的项目数小于页面大小时，标准排序器会在内存中对数据进行排序。否则，会按照需要的排序规则从数据库重新加载数据。有关 JPQL 排序的详细信息，请参见 <<jpql-sort-expressions,自定义 JPQL 排序表达式>>。
+
+[[custom-in-memory-sorting]]
+=== 自定义内存排序
+
+某些实体属性可能需要自定义排序逻辑。例如，`Department` 实体可能有一个类型为 `String` 的 `num` 属性，但存储的值表示数字。将其作为字符串排序会得到 `1`、`10`、`11`、`2`、`3`，而按数字排序则需要给出更自然的顺序：`1`、`2`、`3`、`10`、`11`。
+
+如需为特定实体自定义内存排序：
+
+. 创建 `CollectionContainerSorter` 的子类（或者提供完全自定义的 `Sorter` 实现）：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[tags=custom-collection-container-sorter]
+----
+. 创建一个实现 `CollectionContainerSortProvider` 的 bean，并仅为支持的容器返回自定义排序器：
++
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSortProvider.java[tags=custom-collection-container-sort-provider]
+----
+. 将容器与表格组件（如 xref:flow-ui:vc/components/dataGrid.adoc[DataGrid]）绑定。当用户对表格排序时，框架使用为当前容器返回的排序器。
+
+NOTE: 此方法自定义的是内存排序。如果数据容器有配置加载器，且排序应在从数据库重新加载数据时生效，还需要配置 <<jpql-sort-expressions,JPQL 排序表达式>>。
+
+[[jpql-sort-expressions]]
+=== 自定义 JPQL 排序表达式
+
+当数据容器有配置相应的数据加载器时，排序会被转换为 JPQL。如需自定义生成的 JPQL 排序表达式，请注册一个实现 `JpqlSortExpressionSupplier` 的 bean。
+
+如果 supplier 支持该属性，则返回 JPQL 排序表达式，否则返回 `null` 让下一个 supplier 处理：
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomCollectionContainerSorter.java[]
+include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionSupplier.java[tags=custom-sort-expression-supplier]
 ----
 
-在视图中创建排序器：
+Supplier 可以实现以下方法：
+
+* `getDatatypeSortExpression(SortExpressionContext context)`
+* `getLobSortExpression(SortExpressionContext context)`
+
+[[expression-order]]
+==== ExpressionOrder
+
+当排序无法用实体属性路径表示，而需要基于 JPQL 表达式时，可以使用 `Sort.ExpressionOrder`。
+
+与常规的 `Sort.Order`（按实体属性排序，例如 `name` 或 `customer.name`）不同，`ExpressionOrder` 直接在 `ORDER BY` 中使用给定的 JPQL 表达式。可用于需要依赖函数、类型转换或其他自定义表达式排序时。
+
+例如，JPQL 表达式可以是：
+
+* `function('calc_total_sum', \{E}.id)`
+* `length(\{E}.firstName)`
+* `\{E}.firstName`
+
+以下示例按 `name` 属性的长度对部门进行排序：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/department/department-expression-order-view.xml[tags=expression-order-view]
+----
 
 [source,java,indent=0]
 ----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentListView2.java[tags=custom-sort]
+include::example$/onboarding/src/main/java/com/company/onboarding/view/department/DepartmentExpressionOrderView.java[tags=expression-order]
+----
+<1> `Sort.ExpressionOrder.asc("length(\{E}.name)")` 直接将 JPQL 表达式添加到排序中，并使用查询中根实体的 `\{E}` 别名。
+<2> 配置好排序后，显式执行加载器。
+
+`ExpressionOrder` 不解析 `MetaPropertyPath`，会绕过 `JpqlSortExpressionSupplier` 和框架默认的 `JpqlSortExpressionProvider`。因此，需要开发者提供有效的 JPQL 排序表达式。
+
+[NOTE]
+====
+当查询返回 `KeyValueEntity` 时，`ExpressionOrder` 中不支持 `\{E}` 别名。请使用与查询中相同的别名。例如，对于 `select e.name, e.startTime, e.endTime from CarService e`，使用 `length(e.name)`。
+====
+
+[[multiple-sorting-providers]]
+=== 多个排序 provider
+
+Jmix 支持内存排序和 JPQL 排序表达式的多个排序 provider，并按 Spring 顺序解析：
+
+* 对于内存排序，可以注册多个实现 `CollectionContainerSortProvider` 的 bean。如果没有 provider 返回排序器，则回退到框架默认的 `SorterFactory`。
+
+* 对于 JPQL 排序表达式，可以注册多个实现 `JpqlSortExpressionSupplier` 的 bean。如果没有 supplier 支持该属性，则回退到框架默认的 `JpqlSortExpressionProvider`。
+
+例如，扩展组件可以提供一个 provider，应用程序可以 提供另一个：
+
+[source,java]
+----
+@Component
+@Order(100)
+public class AddonSortProvider implements CollectionContainerSortProvider {
+    ...
+}
+
+@Component
+@Order(200)
+public class AppSortProvider implements CollectionContainerSortProvider {
+    ...
+}
 ----
 
-如果排序器定义了一些全局的行为，则可以创建自定义的工厂在系统级别实例化该排序器：
+此示例中，`AddonSortProvider` 会先使用，因为 order 值更小。
 
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSorterFactory.java[]
-----
-
-最后，为数据库级别的排序创建我们自己定义的 `JpqlSortExpressionProvider` 实现：
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/app/CustomSortExpressionProvider.java[]
-----
+TIP: 低优先级的 bean 可以作为应用程序范围的回退方案，同时也支持使用更具体的 bean 实现进行覆盖。

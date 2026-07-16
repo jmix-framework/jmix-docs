@@ -1,0 +1,193 @@
+= 运行时视图模板
+
+运行时视图模板可以在实体元数据上声明模板，然后应用程序运行时，根据声明的模板生成标准的列表视图和详情视图，而无需在设计时手动创建。可以使用 xref:#list-view-template[@ListViewTemplate] 和/或 xref:#detail-view-template[@DetailViewTemplate] 实体注解，框架会在应用程序启动时生成相应的视图、路由和菜单项。
+
+该方法有助于需要快速在 UI 中操作实体（例如查找数据或引用数据），无需为每个实体编写视图类和 XML。生成的视图与常规视图一样在系统中注册：参与 xref:views/opening-views.adoc#view-inference-conventions[视图推断]，可以通过 id 或路由打开，并且可以作为实体的主列表视图和详情视图。
+
+CAUTION: 运行时视图模板目前处于实验状态。API 和内置模板在下一个 Jmix 版本中可能会有重大变更。
+
+[[getting-started]]
+== 开始使用
+
+如需为实体生成列表视图和详情视图，需要使用注解：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Product.java[tags=class]
+----
+
+有了这两个注解，框架会在启动时生成：
+
+* 一个 id 为 `Product.list` 的列表视图，显示实体的 xref:vc/components/dataGrid.adoc[dataGrid]、一个 xref:vc/components/genericFilter.adoc[genericFilter]、分页以及 *Create*、*Edit*、*Remove* 操作；
+* 一个 id 为 `Product.detail` 的详情视图，显示实体可编辑字段的 xref:vc/layouts/formLayout.adoc[formLayout]；
+* `application` 菜单下打开列表视图的菜单项。
+
+这些视图使用 xref:#built-in-templates[内置模板]，内置模板根据实体属性决定渲染内容。不会在项目中创建静态 XML 或视图类。
+
+[[list-view-template]]
+== @ListViewTemplate
+
+`@ListViewTemplate` 为实体声明生成的列表视图：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=list]
+----
+
+除了 xref:#common-attributes[通用属性] 之外，还支持：
+
+* `lookupComponentId` – 用作 xref:views/view-annotations.adoc#lookup-component[查找组件] 的组件 id。默认为 `dataGrid`。
+
+[[detail-view-template]]
+== @DetailViewTemplate
+
+`@DetailViewTemplate` 为实体声明生成的详情视图：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=detail]
+----
+
+除了 xref:#common-attributes[通用属性] 之外，还支持：
+
+* `editedEntityContainerId` – 包含被编辑实体的数据容器 id，请参见 xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer]。默认为 `entityDc`。
+
+[[common-attributes]]
+== 通用属性
+
+两个注解具有以下相同属性：
+
+[cols="1,3"]
+|===
+|属性 |描述
+
+|`path`
+|指向 Freemarker XML 描述符模板的资源路径。如果省略，则使用对应的 xref:#built-in-templates[内置模板]。
+
+|`templateParams`
+|传递给模板的附加参数的 JSON 对象。关于内置模板支持的参数，请参见 xref:#built-in-templates[内置模板]。
+
+|`parentMenu`
+|生成菜单项的父菜单项 id。如果为空，则不创建菜单项。如果指向不存在的菜单项，则会自动创建新的根菜单项。
+
+|`viewId`
+|生成视图的 id。
+
+|`viewRoute`
+|生成视图的路由路径。
+
+|`viewTitle`
+|生成视图的页面标题。
+|===
+
+[[defaults]]
+=== 默认值
+
+当可选属性省略时，框架会从实体名称 `<entityName>` 推导：
+
+[cols="1,1,1"]
+|===
+| |`@ListViewTemplate` |`@DetailViewTemplate`
+
+|`viewId`
+|`<entityName>.list`
+|`<entityName>.detail`
+
+|`viewTitle`
+|`<entityName> list`
+|`<entityName>`
+|===
+
+[[routing]]
+=== 路由
+
+路由按以下方式从 `viewRoute` 解析：
+
+* 对于列表视图，使用 `viewRoute`。
+* 对于详情视图，将 `viewRoute` 作为基础路由，再添加 `.../:id`。
+* 如果 `viewRoute` 为空，则从 `viewId` 推导。
+
+在上面 `Supplier` 示例中，列表视图路由为 `suppliers`，详情视图路由为 `suppliers/:id`。
+
+[[built-in-templates]]
+== 内置模板
+
+当未指定 `path` 时，框架使用内置模板，从实体属性生成视图内容：
+
+* 列表视图模板渲染一个 `dataGrid`，每个属性一列，外加 `genericFilter`、分页和列表操作；
+* 详情视图模板渲染一个 `formLayout`，每个属性一个字段。
+
+内置模板位于：
+
+* `io/jmix/flowui/view/template/list-view.ftl`
+* `io/jmix/flowui/view/template/detail-view.ftl`
+
+[[property-filtering]]
+=== 属性过滤
+
+默认情况下，内置模板包含实体第一级的单值属性，并排除：
+
+* 系统属性；
+* 注解为 `Secret` 的属性；
+* id、version 和生成的属性；
+* 审计和软删除属性。
+
+内置属性过滤仅支持第一级的单值数据类型、枚举、关联和组合属性。不支持集合值数据类型属性、嵌入式属性或点号路径属性，例如 `customer.name`。
+
+可以使用 `templateParams` 中的两个键值调整需要显示的属性集合：
+
+* `includeProperties` – 恢复被排除但能支持的第一级属性；
+* `excludeProperties` – 移除属性；最后处理，优先级高于 `includeProperties`。
+
+在 `Supplier` 示例中，`createdBy` 和 `createdDate` 审计属性被恢复，而 `internalNote` 被排除：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=list]
+----
+
+[[composition-collections]]
+== 组合集合（Composition Collections）
+
+如果 `@DetailViewTemplate` 中使用的实体具有组合 `*-to-many` 属性，则生成的详情视图会渲染一个 xref:vc/layouts/tabSheet.adoc[tabSheet]：
+
+* 第一个 *General* 标签页包含单值字段的表单；
+* 每个组合集合有自己的标签页，带有一个 `dataGrid`，提供 *Create*、*Edit* 和 *Remove* 操作。
+
+*Create* 和 *Edit* 操作会在对话框中打开子实体自身的详情视图，因此子实体也应当带有 `@DetailViewTemplate`。组合集合的反向属性（子级对父级的引用）在默认情况下会在主表的列和子实体的详情表单中排除。可以使用 `includeProperties` 恢复。
+
+下面的示例定义了一个带有组合集合的主实体和对应的子实体：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Invoice.java[tags=class;composition]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/InvoiceItem.java[tags=class]
+----
+
+仅支持组合集合。不支持关联集合、元素集合和嵌入式属性。
+
+没有组合集合的实体渲染为 `formLayout`。
+
+[[custom-templates]]
+== 自定义模板
+
+如需完全控制生成的视图内容，可以在 `path` 属性中提供自定义的 Freemarker 模板。模板是位于类路径上中的 `.ftl` 文件，用于生成标准的视图 XML。
+
+模板模型中可以使用以下变量：
+
+* `entityMetaClass` – 实体的 `MetaClass`；
+* `viewTitle` – 解析后的视图标题；
+* `templateHelper` – 返回过滤后属性（`getProperties`）和组合集合属性（`getCollectionProperties`）的辅助对象；
+* `componentXmlFactory` – 为属性生成编辑组件 XML 片段的工厂；
+* `templateParams` 中的所有参数，包括 `includeProperties` 和 `excludeProperties`。
+
+可以复制 <<built-in-templates,内置模板>> 作为自定义模板的初始模板。
+
+[[menu]]
+== 菜单集成
+
+如果 `@ListViewTemplate` 或 `@DetailViewTemplate` 的 `parentMenu` 属性已设置，则在加载标准的 XML 菜单定义后，会将生成视图的菜单项追加到指定的父菜单下。如果 `parentMenu` 为空，则不创建菜单项。如果指向不存在的菜单项，则会自动创建新的根菜单项。

@@ -38,7 +38,7 @@ public class FilesView extends StandardView {
 
     //tag::temporary-storage-2[]
     @Subscribe("fileField")
-    public void onFileFieldFileUploadSucceeded(final FileUploadSucceededEvent<FileStorageUploadField> event) {
+    public void onFileFieldFileUploadSucceeded(final FileUploadSucceededEvent<FileStorageUploadField, FileRef> event) {
         if (event.getReceiver() instanceof FileTemporaryStorageBuffer buffer) {
             UUID fileId = buffer.getFileData().getFileInfo().getId();
             File file = temporaryStorage.getFile(fileId); // <1>

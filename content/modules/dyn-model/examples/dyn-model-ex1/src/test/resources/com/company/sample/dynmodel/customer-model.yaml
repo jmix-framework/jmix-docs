@@ -1,0 +1,235 @@
+# tag::model-root[]
+model:
+  basePackage: "com.company.sample.dynmod"
+  # end::model-root[]
+  # tag::enum[]
+  enumerations:
+    - name: "CustomerGrade"
+      messages:
+        en: "Customer grade"
+      values:
+        - name: "PLATINUM"
+          id: "30"
+          messages:
+            en: "Platinum"
+        - name: "GOLD"
+          id: "20"
+          messages:
+            en: "Gold"
+        - name: "BRONZE"
+          id: "10"
+          messages:
+            en: "Bronze"
+    # end::enum[]
+  entities:
+    # tag::static-attr[]
+    - name: "Customer"
+      attributes:
+        - name: "taxId"
+          javaClass: "java.lang.String"
+          length: 20
+          required: true
+          # tag::single-unique[]
+          unique: true
+          # end::single-unique[]
+          # tag::attr-validation[]
+          validation:
+            constraints:
+              - annotation: "Pattern"
+                parameters:
+                  regexp: "^[A-Z0-9-]+$"
+                message:
+                  en: "Tax ID can contain uppercase letters, digits and dashes only"
+          # end::attr-validation[]
+          messages:
+            en: "Tax ID"
+        # end::static-attr[]
+        # tag::attr-security[]
+        - name: "countryCode"
+          javaClass: "java.lang.String"
+          length: 2
+          resourceRoles:
+            view:
+              - "employee"
+              - "manager"
+            modify:
+              - "manager"
+          messages:
+            en: "Country code"
+        # end::attr-security[]
+        # tag::reference-attr[]
+        - name: "loyaltyLevel"
+          entityName: "LoyaltyLevel"
+          messages:
+            en: "Loyalty level"
+        # end::reference-attr[]
+        # tag::collection-attr[]
+        - name: "benefits"
+          entityName: "Benefit"
+          collection: true
+          messages:
+            en: "Benefits"
+        # end::collection-attr[]
+        # tag::enum-attr[]
+        - name: "grade"
+          enumeration: "CustomerGrade" # short name, resolved via base package
+          messages:
+            en: "Grade"
+        # end::enum-attr[]
+      # tag::composite-unique[]
+      uniqueConstraints:
+        - name: "customerCountryTaxIdUnique"
+          attributes:
+            - "countryCode"
+            - "taxId"
+          message:
+            en: "Tax ID must be unique within a country"
+        # end::composite-unique[]
+      views:
+        # tag::static-view-override[]
+        - viewId: "Customer.list"
+          # tag::descriptor-source[]
+          descriptor:
+            source: |
+              <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+              <view xmlns="http://jmix.io/schema/flowui/view"
+                    extends="com/company/sample/view/customer/customer-list-view.xml">
+                  <layout>
+                      <dataGrid id="customersDataGrid">
+                          <columns>
+                              <column property="taxId"/>
+                          </columns>
+                      </dataGrid>
+                  </layout>
+              </view>
+          # end::descriptor-source[]
+        # end::static-view-override[]
+    # tag::dynamic-entity[]
+    - name: "LoyaltyLevel"
+      # tag::entity-security[]
+      resourceRoles:
+        read:
+          - "employee"
+          - "manager"
+        create:
+          - "manager"
+        update:
+          - "manager"
+        delete:
+          - "manager"
+      # end::entity-security[]
+      # tag::messages-map[]
+      messages:
+        en: "Loyalty level"
+        de: "Treuestufe"
+      # end::messages-map[]
+      # tag::entity-validation[]
+      validation:
+        constraints:
+          - name: "discountDescriptionRequired"
+            target: "entity"
+            type: "expression"
+            evaluator: "spel"
+            expression: "discount == null || description != null"
+            attributes:
+              - "discount"
+              - "description"
+            path: "description"
+            groups:
+              - "UiCrossFieldChecks"
+              - "RestApiChecks"
+            message:
+              en: "Description is required when discount is specified"
+      # end::entity-validation[]
+      attributes:
+        - name: "name"
+          javaClass: "java.lang.String"
+          instanceName: true
+          messages:
+            en: "Name"
+        - name: "description"
+          javaClass: "java.lang.String"
+          lob: true
+          messages:
+            en: "Description"
+        # tag::calculated-attr[]
+        - name: "publicSummary"
+          javaClass: "java.lang.String"
+          calculated:
+            evaluator: "spel"
+            expression: "(name ?: '') + ': ' + (description ?: '')"
+            dependsOn:
+              - "name"
+              - "description"
+          messages:
+            en: "Public summary"
+        # end::calculated-attr[]
+        - name: "discount"
+          javaClass: "java.math.BigDecimal"
+          validation:
+            constraints:
+              - annotation: "DecimalMin"
+                parameters:
+                  value: "0"
+              - annotation: "DecimalMax"
+                parameters:
+                  value: "100"
+          messages:
+            en: "Discount"
+      # tag::dynamic-view[]
+      views:
+        - type: "list"
+          viewId: "LoyaltyLevel.list"
+          viewRoute: "loyalty-levels"
+          # tag::localized-map[]
+          viewTitle:
+            en: "Loyalty levels"
+            de: "Treuestufen"
+          # end::localized-map[]
+          # tag::template-params[]
+          templateParams:
+            includeProperties: ["name", "discount"]
+            excludeProperties: ["publicSummary"]
+          # end::template-params[]
+          resourceRoles:
+            - "employee"
+            - "manager"
+          menuItem:
+            parentMenu: "application"
+            insertBefore: "Customer.list"
+            title:
+              en: "Loyalty levels"
+            resourceRoles:
+              - "employee"
+              - "manager"
+          descriptor:
+            template: "default"
+        # end::dynamic-view[]
+        - type: "detail"
+          viewId: "LoyaltyLevel.detail"
+          viewTitle:
+            en: "Loyalty level"
+          # tag::descriptor-template[]
+          descriptor:
+            template: "default"
+          # end::descriptor-template[]
+    # end::dynamic-entity[]
+    # tag::entity-decl[]
+    - name: "Benefit"
+      messages:
+        en: "Benefit"
+      attributes:
+        - name: "name"
+          javaClass: "java.lang.String"
+          instanceName: true
+          messages:
+            en: "Name"
+      views:
+        - type: "detail"
+          viewId: "Benefit.detail"
+          # tag::localized-string[]
+          viewTitle: "Benefit"
+          # end::localized-string[]
+          descriptor:
+            template: "default"
+    # end::entity-decl[]

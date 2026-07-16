@@ -109,6 +109,25 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=dataGrid;usersDc;onInit;setItems]
 ----
 
+[[programmatic-columns]]
+== 编程方式添加列
+
+`addColumn()` 和 `addComponentColumn()` 支持在 Java 中创建列。
+
+`addColumn()` 与渲染器一起使用，例如 <<local-date-renderer,本地日期渲染器>> 中展示的 `LocalDateRenderer`。当单元格需要包含 UI 组件时，请使用 `addComponentColumn()`。
+
+以下示例使用 `addComponentColumn()` 添加一列，用于显示用户的头像：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=import-user;import-data-grid;import-file-storage-locator;import-grid;import-file-ref;import-image;import-ui-components;import-input-stream-download-handler;import-download-handler;import-input-stream;import-download-response;import-span;some-code;uiComponents;usersDtGr;fileStorage;onInit;addComponentColumn]
+----
+<1> 添加一列，用于显示 `image` 组件。
+<2> 使用 `UiComponents` 工厂创建 `Image` 组件实例。
+<3> 创建一个 `DownloadHandler`，用于打开 `User` 实体的 `picture` 属性所指向的文件流。
+<4> 将 `DownloadHandler` 设置为 `Image` 组件的源。
+<5> `addComponentColumn()` 方法返回需要显示的组件。
+
 [[multi-select]]
 == 多选模式
 
@@ -178,7 +197,7 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 <4> 确认编辑的按钮。
 <5> 取消编辑的按钮。
 ====
-// TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/latest/components/grid#inline-editing-java-only[Vaadin documentation^]
+// TIP: Inline editing can be configured programmatically as described in the https://vaadin.com/docs/v25/components/grid#inline-editing-java-only[Vaadin documentation^]
 
 [[double-click-editing]]
 === 双击编辑
@@ -385,94 +404,33 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 [[renderers]]
 == 渲染器
 
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/latest/components/grid/flow/#using-renderers-in-columns" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-渲染器（Renderers）用来为数据网格中的数据实现自定义的展示方式。例如，可以用渲染器：
-
-* 格式化日期或数字。
-* 显示自定义的图标或图片。
-* 创建可交互的元素，比如按钮、链接等。
-* 根据单元格值的不同显示不同的内容。
+渲染器用于自定义列单元格的显示方式。本节介绍 `dataGrid` 的多种列渲染器。通用的渲染器 API，如 `ComponentRenderer`、`LitRenderer` 和 `FragmentRenderer`，在 xref:flow-ui:vc/miscellaneous/renderers.adoc[渲染器] 中介绍。
 
 渲染器可以通过以下几种方式定义：
 
-* *在 XML 中声明式定义*
-+
-XML 中可以使用一些预定义的列渲染器：
+* *在 XML 中声明式定义*：在 `column` 元素内部使用预定义渲染器，例如 `numberRenderer`、`localDateRenderer`、`localDateTimeRenderer`、`detailLinkRenderer` 和 `detailButtonRenderer`。
+* *使用 `@Supply` 注解*：在视图控制器中提供自定义渲染器。
+* *使用 `fragmentRenderer`*：使用基于 fragment 的渲染器机制，详见 xref:flow-ui:vc/miscellaneous/renderers.adoc#fragment-renderer[Fragment 渲染器]。
+* *使用 `addColumn()` 和 `addComponentColumn()`*：在 Java 中创建列并以编程方式配置渲染器。请参见 <<programmatic-columns,编程方式添加列>>。
 
-** `numberRenderer`
-** `localDateRenderer`
-** `localDateTimeRenderer`
-+
-这些渲染器需要传入一个 `format` 字符串。示例：
-+
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
-----
-+
 [TIP]
 ====
-如需通过 Jmix Studio 添加一个渲染器，在视图 XML 或 *Jmix UI* 的结构面板中选中 `column` 元素并点击属性面板中的 xref:studio:view-designer.adoc#component-inspector[Add-><Some>Renderer]。
+如需在 Jmix Studio 中添加渲染器，请在视图的 XML 或 *Jmix UI* 的结构面板中选择 `column` 元素，然后点击 xref:studio:screen-designer.adoc#component-inspector[Add -> Renderer]。
 ====
-
-* *使用 @Supply 注解定义*
-+
-渲染器可以在视图控制器中通过 `@Supply` 注解提供。使用 `@Supply` 注解的方法需要返回一个值，该值传递给“主体”中定义的一个方法。
-+
-[TIP]
-====
-自定义的列渲染器可以用列的 `renderer` 处理方法定义，该方法可以在 Jmix Studio 中通过 `column` 元素属性面板的 *Handlers* 标签页创建。
-====
-+
-[TIP]
-====
-<<column,column>> 元素定义时，可以不使用 <<property,property>> 属性，即不直接绑定实体的某个属性。此时，`column` 元素必须带具有唯一值的 <<key,key>> 属性。
-====
-+
-可以参考 <<text-renderer>> 和 <<component-renderer>> 示例。
-
-[[fragment-renderer]]
-* *使用 FragmentRenderer*
-+
-可以使用内部的 `fragmentRenderer` 元素来渲染条目。有关详细信息，请参阅 xref:flow-ui:vc/miscellaneous/renderers.adoc#fragment-renderer[Fragment 渲染器] 部分。
-
-* *通过 addColumn() 和 addComponentColumn() 方法定义*
-+
-`addColumn()` 和 `addComponentColumn()` 方法可以在数据网格中添加列。
-+
-可以配置新添加的列使用渲染器展示数据。
-+
-下面的示例中，我们添加一列用于展示用户的图片：
-+
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=usersDtGr;fileStorage;onInit;addComponentColumn]
-----
-<1> 添加一列，显示 `image` 组件。
-<2> `Image` 组件的实例使用 `UiComponents` 工厂创建。
-<3> `image` 从给定的 `StreamResource` 获取内容，存储在 `User` 实体的 `picture` 属性中。
-<4> `addComponentColumn()` 方法返回的可视化组件展示在列单元格中。
 
 [[local-date-renderer]]
 === 本地日期渲染器
 
-`LocalDateRenderer` 用于以 `LocalDate` 值的形式展示日期。
-
-在数据网格的 `column` 元素中，支持 `localDateRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 字符串属性。
+在列单元格中渲染 `LocalDate` 值。
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
 ----
 
-`nullRepresentation` 属性用于展示 `null` 值的文本。
+使用 `format` 属性定义输出格式。可选的 `nullRepresentation` 属性可以指定 `null` 值的显示方式。
 
-下面的示例中，在 `addColumn()` 方法使用了 `LocalDateRenderer`：
+对于 Java 代码配置，使用 `addColumn()` 和 `LocalDateRenderer`：
 
 [source,java,indent=0]
 ----
@@ -482,44 +440,80 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 [[local-date-time-renderer]]
 === 本地日期时间渲染器
 
-`LocalDateTimeRenderer` 用于以 `LocalDateTime` 值的形式展示日期。
-
-在数据网格的 `column` 元素中，支持 `localDateTimeRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 字符串属性。
+在列单元格中渲染 `LocalDateTime` 值。
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateTimeRenderer]
 ----
 
-`nullRepresentation` 属性用于展示 `null` 值的文本。
+使用 `format` 属性定义输出格式。可选的 `nullRepresentation` 属性可以指定 `null` 值的显示方式。
 
 [[number-renderer]]
 === 数字渲染器
 
-`NumberRenderer` 用于在单元格中以指定的格式显示数字。
-
-在数据网格的 `column` 元素中，支持 `numberRenderer` 子元素，该元素可以包含一个可选的 `nullRepresentation` 属性和一个必需的 `format` 或 `numberFormat` 字符串属性。
+在列单元格中渲染数字值。
 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=numberFormat]
 ----
 
-`nullRepresentation` 属性用于展示 `null` 值的文本。
+必须配置 `format` 或 `numberFormat` 中的一个。如果两者都未配置，或者两者同时配置，框架会抛出 `GuiDevelopmentException`。可选的 `nullRepresentation` 属性可以指定 `null` 值的显示方式。`numberFormat` 使用 `java.text.DecimalFormat` 语法。
 
-`numberFormat` 属性需按照 `java.text.DecimalFormat` 类规定的格式和语法进行配置。
+[[detail-link-renderer]]
+=== 详情链接渲染器
 
-[NOTE]
-====
-`numberRenderer` 需且仅需定义一个格式，`format` 或 `numberFormat`。如果未定义或两者都定义会抛出 `GuiDevelopmenException` 异常。
-====
+渲染一个链接，用于打开当前实体的详情视图。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=detailLinkRenderer]
+----
+
+支持的属性：
+
+* `viewClass`、`viewId` 用于指定目标视图。渲染器按以下顺序解析视图：`viewClass`、`viewId`、默认详情视图。
+* `text` 设置链接文本。如果省略，渲染器使用列属性的格式化值。
+* `target` 设置链接目标。
+* `classNames`、`css` 用于配置样式。
+
+目标视图必须已注册一个路由，且路由参数恰好为一个，实体实例必须有非空的 id。对于零个或多个路由参数的路由，需要从 Java 代码配置渲染器，并使用 `DetailLinkRenderer.withHrefProvider()` 提供自定义 URL。
+
+[[detail-button-renderer]]
+=== 详情按钮渲染器
+
+渲染一个按钮，用于打开当前实体的详情视图。
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=detailButtonRenderer]
+----
+
+支持的属性：
+
+* `viewClass`、`viewId` 用于指定目标视图。渲染器按以下顺序解析视图：`viewClass`、`viewId`、默认详情视图。
+* `openMode` 控制视图的打开方式：`NAVIGATION`（默认）或 `DIALOG`。
+* `text` 设置按钮文本。如果省略，渲染器使用列属性的格式化值。对于仅含 key 的列，请手动设置该值。
+* `icon` 设置按钮图标。可以通过属性或嵌套的 `icon` 元素来定义。
+* `themeNames`、`classNames`、`css` 用于配置样式。
+
+[[detail-renderers-key-only-columns]]
+=== 仅含 key 的列中的详情渲染器
+
+可以在使用 `key` 而非 `property` 属性的列中使用详情渲染器：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=detailRenderersKeyOnly]
+----
+
+此时，由于没有绑定的属性值，需要手动设置链接或按钮的 `text`。
 
 [[text-renderer]]
 === 文本渲染器
 
-`TextRenderer` 渲染器用于展示文本。
-
-下面的示例中，列展示了一个自定义的文本：
+渲染 Java 代码提供的纯文本。
 
 [source,xml,indent=0]
 ----
@@ -531,10 +525,16 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridView.java[tags=textRenderer]
 ----
 
+该渲染器通常通过 `renderer` 处理方法或 `@Supply` 注解在 Java 代码提供。
+
 [[component-renderer]]
 === 组件渲染器
 
-下面的示例显示如何在列中使用一个自定义的渲染器显示一个复选框：
+在单元格内渲染自定义组件。当单元格需要包含丰富或可交互的内容（复选框、图片、按钮等）时，请使用该渲染器。
+
+NOTE: 参阅 xref:flow-ui:vc/miscellaneous/renderers.adoc#component-renderer[组件渲染器] 了解可用的构造器、通用行为以及性能。
+
+下面的示例根据是否设置了 `completedDate` ，在 `completed` 列中呈现一个只读复选框。
 
 [source,xml,indent=0]
 ----
@@ -565,7 +565,16 @@ image::visual-components/components/data-grid-items-details.png[align="center", 
 [[sorting]]
 == 排序
 
+TIP: 本节演示了针对单个 `dataGrid` 组件的自定义排序。关于应用程序范围的自定义排序，请参见 xref:flow-ui:data/data-examples.adoc#sorting[排序]。
+
 任何列都可用于对数据进行排序。单击列标题可激活表格中的特殊控件，该控件显示当前正在排序的列以及排序的顺序（升序或降序）。随后每次单击同一标题都可以切换排序的顺序。
+
+[NOTE]
+====
+xref:data-model:enumerations.adoc[枚举] 类型的属性按 `id` 的值排序，而不是按 UI 中显示的本地化标签排序。
+
+因此，在 `dataGrid` 中排序的结果可能和看上去不一样，特别是使用了本地化枚举标签时。
+====
 
 [[multiple-sorting]]
 === 多列排序
@@ -583,6 +592,57 @@ image::visual-components/components/data-grid-items-details.png[align="center", 
 [source,xml,indent=0]
 ----
 include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=multiSort]
+----
+
+[[column-comparator]]
+=== 列比较器
+
+使用 `DataGridColumn#setComparator()` 可以自定义列的内存排序逻辑。当数据容器没有加载器，或者仅加载了第一页且加载的条目数小于页面大小时，会使用内存排序。
+
+以下示例将 `Department.num` 属性按数值排序，即使类型为 `String`：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=comparator-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=in-memory-comparator]
+----
+
+[[sort-builder-delegate]]
+=== 排序 Builder 代理
+
+如果表格从数据库重新加载数据，需要配置排序 builder 代理。该代理从表格接收排序指令，并返回一个 `DataGridSort` 对象，支持在同一处代码中覆盖内存排序、数据库排序。
+
+以下示例自定义排序，使 `Department.num` 值按数值而非字符串进行比较：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-bound-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-bound-property]
+----
+<1> 如果表格从数据库重新加载数据，`CAST(\{E}.num BIGINT)` 表达式会被添加到 `ORDER BY` 中，这样数据库也会按数值排序，而非按字典顺序。
+<2> 如果表格在内存中排序，比较器将 `num` 转换为 `Integer` 并比较数值。
+
+[[sorting-computed-column]]
+==== 计算列排序
+
+排序 builder 代理对于未绑定实体属性的列也有效。下面的示例中，`fullName` 列由 `firstName` 和 `lastName` 渲染生成，排序 builder 代理将该合成列映射至 JPQL 表达式和内存比较器：
+
+[source,xml,indent=0]
+----
+include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-sorting-view.xml[tags=sort-builder-computed-grid]
+----
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridSortingView.java[tags=sort-builder-computed-column;full-name-renderer]
 ----
 
 [[aggregating]]
@@ -639,6 +699,43 @@ include::example$/onboarding/src/main/resources/com/company/onboarding/view/comp
 +
 NOTE: 设置该元素会覆盖在视图控制器中通过 `setEmptyStateText(String)` 方法或在 XML 中通过 `emptyStateText` 定义的空状态文字。
 
+[[theme-variants]]
+== 样式版本
+
+使用 xref:vc/common-attributes.adoc#themeNames[themeNames] 属性设置组件的样式。
+
+[cols="1,4,1", options="header"]
+|===
+|样式
+|描述
+|支持的主题
+
+|`column-borders`
+|在列之间添加垂直边框
+|Aura, Lumo
+
+|`compact`
+|减小行高和间距
+|Lumo
+
+|`no-border`
+|移除表格的外边框
+|Aura, Lumo
+
+|`no-row-borders`
+|移除行之间的水平边框
+|Aura, Lumo
+
+|`row-stripes`
+|交替行背景色以提升可读性
+|Aura, Lumo
+
+|`wrap-cell-content`
+|允许单元格内容换行显示，而不是截断
+|Aura, Lumo
+|===
+
+[[attributes]]
 == XML 属性
 
 xref:vc/common-attributes.adoc[通用属性] 对所有组件都是一样的配置。
@@ -800,7 +897,7 @@ include::../handler-generation-tip.adoc[]
 |事件和处理器
 |xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] - <<DataGridColumnVisibilityChangedEvent,DataGridColumnVisibilityChangedEvent>> - xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] - <<partNameGenerator,partNameGenerator>> - <<renderer,renderer>> - <<tooltipGenerator-column,tooltipGenerator>>
 |XML 内部元素
-|<<aggregating,Aggregation>> - <<fragment-renderer,FragmentRenderer>> - <<local-date-renderer,LocalDateRenderer>> - <<local-date-time-renderer,LocalDateTimeRenderer>> - <<number-renderer,NumberRenderer>>
+|<<aggregating,Aggregation>> - xref:flow-ui:vc/miscellaneous/renderers.adoc#fragment-renderer[FragmentRenderer] - <<local-date-renderer,LocalDateRenderer>> - <<local-date-time-renderer,LocalDateTimeRenderer>> - <<number-renderer,NumberRenderer>> - <<detail-link-renderer,DetailLinkRenderer>> - <<detail-button-renderer,DetailButtonRenderer>>
 |===
 
 .属性
@@ -908,4 +1005,4 @@ include::../handler-generation-tip.adoc[]
 
 == 参考
 
-{vaadin-docs}/components/grid[Vaadin 文档^]
+https://vaadin.com/docs/v25/components/grid[Vaadin 文档^]

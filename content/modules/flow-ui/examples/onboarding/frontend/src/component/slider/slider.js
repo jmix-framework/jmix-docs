@@ -1,11 +1,12 @@
 // tag::js-component[]
 import 'jquery/jquery.js'
 import 'jquery-ui/dist/jquery-ui.js'
-import {PolymerElement} from '@polymer/polymer/polymer-element.js';
-import {defineCustomElement} from '@vaadin/component-base/src/define.js';
+import {LitElement} from 'lit';
 import {ElementMixin} from '@vaadin/component-base/src/element-mixin.js';
+import {defineCustomElement} from '@vaadin/component-base/src/define.js';
+import {PolylitMixin} from '@vaadin/component-base/src/polylit-mixin.js';
 
-class Slider extends ElementMixin(PolymerElement) { // <1>
+export class Slider extends ElementMixin(PolylitMixin(LitElement)) { // <1>
 
     static get is() {
         return 'demo-slider'; // <2>
@@ -38,10 +39,15 @@ class Slider extends ElementMixin(PolymerElement) { // <1>
         }
     }
 
+    createRenderRoot() {
+        return this;
+    }
+
     ready() {
         super.ready();
 
-        this._slider = $(this); // <5>
+        let $jQuery = jQuery.noConflict();
+        this._slider = $jQuery(this); // <5>
         this._slider.slider({ // <6>
             min: this.min,
             max: this.max,
@@ -95,6 +101,4 @@ class Slider extends ElementMixin(PolymerElement) { // <1>
 }
 
 defineCustomElement(Slider); // <9>
-
-export {Slider};
 // end::js-component[]

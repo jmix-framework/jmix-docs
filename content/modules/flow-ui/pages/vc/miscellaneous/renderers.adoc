@@ -1,6 +1,8 @@
 = 渲染器
 
-该章节介绍如何自定义 UI 组件的渲染，例如 xref:flow-ui:vc/components/comboBox.adoc[comboBox]、xref:flow-ui:vc/components/dataGrid.adoc[dataGrid]、xref:flow-ui:vc/components/checkboxGroup.adoc[checkboxGroup]、xref:flow-ui:vc/components/select.adoc[select] 以及其他可以使用自定义渲染器的 Jmix 组件。通过自定义渲染器，开发者可以控制这些组件内数据的展示效果，根据需求量身定制所需的 UI。特别适合以下场景：
+该章节介绍 UI 组中可以使用的通用渲染器 API，例如 `ComponentRenderer`、`LitRenderer` 或 `FragmentRenderer`。对于预定义的 XML 渲染器，支持的属性，以及特定组件的示例，请参考对应组件的文档。
+
+渲染器特别适合以下场景：
 
 * *增强的可视化展示*：能够包含纯文本之外的视觉元素，例如图标、图像、进度条或其他元素，使数据更容易理解和吸引人。因此可以提升整体的用户体验和 UI 所表达意思的清晰度。
 +
@@ -13,64 +15,64 @@ image::visual-components/renderer-2.png[align="center",width="184"]
 +
 image::visual-components/renderer-3.png[align="center",width="711"]
 
-总之，Jmix 中的渲染器可以令开发者在默认的 UI 显示之外创建更深一步的定制化显示方式和更友好的界面，从而有效地将数据传达给最终用户。
-
-TIP: 如果需要只需要对数据做简单的格式化（例如，修改日期或数值的显示方式），则可以使用 xref:flow-ui:vc/miscellaneous/formatter.adoc[formatter]。
-
-[[predefined-renderer]]
-== 预定义 XML 渲染器
-
-Jmix 为 xref:flow-ui:vc/components/dataGrid.adoc[DataGrid] 和 xref:flow-ui:vc/components/treeDataGrid.adoc[TreeDataGrid] 中的列提供了预定义的 XML 渲染器，可以简化数据的格式化渲染：
-
-* xref:vc/components/dataGrid.adoc#number-renderer[numberRenderer]
-* xref:vc/components/dataGrid.adoc#local-date-renderer[localDateRenderer]
-* xref:vc/components/dataGrid.adoc#local-date-time-renderer[localDateTimeRenderer]
-
-这些渲染器使用 `format` 字符串属性。示例：
-
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/datagrid/data-grid-view.xml[tags=localDateRenderer]
-----
-
-[TIP]
-====
-如需在 Jmix Studio 中添加渲染器，请在视图 XML 或 *Jmix UI* 结构面板中选择 `column` 元素，并点击属性面板的 xref:studio:screen-designer.adoc#component-inspector[Add-><Some>Renderer] 按钮。
-====
+TIP: 如果只需修改值的显示方式，例如日期或数字的显示方式，可以使用 xref:flow-ui:vc/miscellaneous/formatter.adoc[格式化器]。
 
 [[component-renderer]]
 == 组件渲染器
 
-使用组件渲染器可以在 UI 组件内用其他 UI 组件渲染数据。
+`ComponentRenderer` 使用 UI 组件而非纯文本来渲染内容。可以通过 `setRenderer()` 以编程方式设置，或使用 `@Supply` 从控制器中提供。
 
-组件渲染器使用数据作为输入参数，并生成一个 UI 组件（例如 such as a xref:vc/components/checkbox.adoc[复选框] 或 xref:vc/html-components/image.adoc[图片]）用于展示数据。这个生成的组件会在父组件使用（例如，dataGrid 的列）。当需要使用不仅仅是简单的文本格式来直观地表示数据时，此方法特别有用。
+CAUTION: `ComponentRenderer` 会为渲染的内容创建 UI 组件，渲染大量数据时，可能影响性能。如果只需要渲染类似 HTML 的内容，请使用 <<lit-renderer,LitRenderer>>。
 
-CAUTION: 虽然组件渲染器易于实现，但可能会对性能产生负面影响，尤其在大量数据的情况下，因为需要为每个数据项创建单独的 UI 组件。
+`ComponentRenderer` 可以通过不同方式创建，具体取决于开发者希望如何创建和更新组件。以下示例展示了不同的方法。
 
-创建渲染器可以通过 `setRenderer()` 方法或 `@Supply` 注解。
+[[component-renderer-single-callback]]
+=== 单回调
 
-TIP: 如需通过 *Jmix Studio* 生成 `renderer` 处理方法，选择组件或表格的列，在 *Jmix UI* 属性面板中，切换至 *Handlers* tab，然后双击对应的行。还可以从视图类顶部的 *Generate Handler* 操作生成，或主菜单的 *Code → Generate*（*Alt+Insert* / *Cmd+N*）。
+适合场景：使用单一方法即可从数据项生成新的组件。
 
-下面的示例中，我们在 `dataGrid` 中使用 `checkBox` 渲染一个布尔值。
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/select/SelectView.java[tags=renderer]
+----
+<1> `@Supply` 将渲染器与 `selectWithRenderer` 组件绑定。
+<2> 方法接收当前数据项。
+<3> 组件实例在同一个回调中创建和配置。
+<4> 方法返回当前数据项的组件。
 
-选择 `active` 列，在 *Jmix UI* 属性面板切换至 *Handlers* tab，双击 `renderer` 方法：
+[[component-renderer-separate-creation-binding]]
+=== 分开创建与绑定
 
-image::visual-components/renderer-1.png[align="center",width="862"]
-
-实现 `dataGridCheckboxActiveRenderer` 方法：
+适合场景：当组件的创建和数据绑定需要分开处理时。
 
 [source,java,indent=0]
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=renderer]
 ----
-<1> 用 `UiComponents` 工厂创建 `JmixCheckbox` 组件实例。
-<2> 设置 `checkbox` 为只读模式，防止用户直接修改该属性的值。
-<3> 渲染器返回新创建的只读复选框，将在列单元格中显示。
-<4> Lambda 表达式用于配置复选框的值。使用两个参数：`checkbox` 组件和 `User` 实例，根据 `User` 的 `active` 属性设置组件的值。
+<1> `@Supply` 将渲染器与 `dataGridCheckbox` 的 `active` 列绑定。
+<2> 这个 lambda 方法是 supplier 方法，创建一个 `JmixCheckbox` 组件实例。
+<3> 复选框被设置为只读模式。
+<4> supplier 返回组件实例。
+<5> consumer 方法接收组件和当前项，然后从 `item.getActive()` 获取复选框的值并设置。
 
-image::visual-components/renderer-4.png[align="center",width="662"]
+[[component-renderer-explicit-update]]
+=== 显式更新
 
-Jmix 文档的相关部分提供了各种 UI 组件的自定义渲染示例：
+适合场景：当数据项的更新比之前的示例需要更多的控制时。更新回调可以使用当前的组件实例，或将其替换为一个新的组件。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/component/datagrid/DataGridFeaturesView.java[tags=renderer-update]
+----
+<1> creation 回调创建初始的 `Span` 组件实例。
+<2> 设置初始组件值并配置为当前数据的徽章样式。
+<3> creation 回调返回组件。
+<4> update 回调检查当前数据是否有状态值。
+<5> 如果值缺失，回调更新当前组件实例。
+<6> 当前组件保持不变并返回。
+<7> 如果值存在，回调为该项创建并返回一个新组件。
+
+可在支持 `ComponentRenderer` 的 UI 组件中查看更多示例：
 
 ** xref:flow-ui:vc/components/checkboxGroup.adoc#custom-item-presentation[checkboxGroup]
 ** xref:flow-ui:vc/components/comboBox.adoc#rendering-items[comboBox]
@@ -88,7 +90,7 @@ Jmix 文档的相关部分提供了各种 UI 组件的自定义渲染示例：
 [[lit-renderer]]
 == LitRenderer
 
-`LitRenderer` 渲染器使用 HTML 和 Lit 的数据绑定语法渲染内容，与组件渲染器相比更加轻量。
+`LitRenderer` 使用 HTML 和 Lit 的数据绑定语法，能高效地渲染内容。是组件渲染器的轻量级替代方案，在频繁渲染或更新多个组件时，仍然有良好的性能。
 
 `LitRenderer` 支持定义一个 HTML 模板，并绑定模板中的变量和实体属性：
 
@@ -98,8 +100,6 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 ----
 
 image::visual-components/renderer-5.png[align="center",width="592"]
-
-CAUTION: `LitRenderer` 渲染效率高，非常适合需要频繁更新的高性能应用。Lit 的轻量级设计非常适合具有许多组件或动态内容的应用。
 
 下列 UI 组件可以使用 `LitRenderer`：
 

@@ -2,6 +2,15 @@
 
 搜索的索引是通过 Java 接口定义的，接口中描述哪些实体以及哪些属性需要建立索引。建议为所有需要使用全文搜索的实体创建此类接口。
 
+[[creating-index-definition]]
+== 创建索引定义
+
+索引定义是使用 `@JmixEntitySearchIndex` 注解的 Java 接口。可以手动创建，也可以使用 Studio 创建。
+
+在 Studio xref:studio:tool-window.adoc[Jmix 工具窗口] 的 *Search Indexes* 节点，通过向导创建新的索引定义。
+
+Studio 会将所有带有 `@JmixEntitySearchIndex` 注解的接口在 *Search Indexes* 节点下分组。与特定实体相关的索引定义也会显示在该实体节点下。
+
 [[interface]]
 == 索引定义接口
 
@@ -29,7 +38,7 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/OrderIndexDe
 * 命名无限制。
 * 无参数。
 * 无具体实现。
-* 需要使用 `@AutoMappedField` 注解。
+* 每个方法需要使用一个字段映射的注解：静态属性使用 `@AutoMappedField` 注解，xref:dyn-attr:index.adoc[动态属性] 使用 `@DynamicAttributes` 注解（参阅 xref:search:dyn-attr-support.adoc[]）
 
 [source,java,indent=0]
 ----
@@ -161,6 +170,18 @@ public interface OrderIndexDefinition {
 
 这是 `FileRef` 类型的属性，指向 xref:files:file-storage.adoc[文件存储] 中的文件。文件名和文件内容默认都会用作索引值。如果仅需对文件名建立索引，需要设置 `@AutoMappedField` 的 `indexFileContent` 参数为 `false`：
 
+文件内容索引支持以下文件类型：
+
+* PDF
+* DOC
+* XLS
+* DOCX
+* XLSX
+* ODT
+* ODS
+* RTF
+* TXT
+
 [source,java,indent=0]
 ----
 include::example$/search-ex1/src/main/java/com/company/demo/service/EventIndexDefinition.java[tags=file]
@@ -236,6 +257,11 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/EventIndexDe
 
 数组包含根实体中全部 `EntityA` 实例的全部 `EntityB` 实例的 `name` 属性值。
 
+[[dynamic-attributes]]
+== 动态属性
+
+除了通过 `@AutoMappedField` 映射静态属性之外，该扩展组件还能对实体的 xref:dyn-attr:index.adoc[动态属性] 创建索引，需要在索引定义接口内为方法添加 `@DynamicAttributes` 注解。参阅 xref:search:dyn-attr-support.adoc[] 了解注解的参数、支持的属性类型以及局限性。
+
 [[programmatic-mapping]]
 == 编程式映射
 
@@ -257,29 +283,23 @@ include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerInde
 ----
 <1> `@ManualMappingDefinition` 注解标记的方法使用了手动创建映射定义。
 <2> 为了自定义映射配置，可以传入 Spring bean 作为参数。
-<3> 需要建立索引的属性列表。这里使用 `*` 通配符包含 `Customer` 实体的所有本地属性。
-<4> 不需要建立索引的属性列表。
-<5> 需要用 `FieldMappingStrategy` 的实现类做属性映射。映射策略也可以定义为类的实例，需要用 `withFieldMappingStrategy()` 方法设置，参数为映射策略的实例。
-<6> 显式指定属性值解析器。例如，`FilePropertyValueExtractor` 可用于处理 `FileRef` 类型的属性。
-
-还有一个方式是用文本配置属性映射，示例：
-
-[source,java,indent=0]
-----
-include::example$/search-ex1/src/main/java/com/company/demo/service/CustomerIndexDefinition.java[tags=text-config]
-----
-<1> 排除两个特定属性：`firstName` 和 `lastName`。将由后续元素单独处理以进行微调。
-<2> 仅用于 `firstName` 字段。
-<3> 首先使用自动映射策略（获得最基本的映射）。
-<4> 用包含原生配置的字符串 json 对象定义字段配置。将覆盖和扩展策略生成的配置：
+<3> 需要索引的属性列表。此处 `*` 通配符包含了 `Customer` 实体的所有本地属性。
+<4> 要排除的属性列表。此处排除了 `firstName` 和 `lastName`，将在后续的分组中单独配置以进行微调。
+<5> 用于映射该组属性的 `FieldMappingStrategy` 实现类。该策略也可以通过 `withFieldMappingStrategy()` 方法以实例形式配置。
+<6> 显式的属性值提取器。例如，使用 `FilePropertyValueExtractor` 实例来处理 `FileRef` 类型的属性。
+<7> 第二个组，通过配置原生字段对单个字段进行微调。
+<8> 首先使用自动映射策略配置基础映射。
+<9> 将原生字段配置定义为 JSON 字符串，对策略生成的配置进行扩展和覆盖：
 * `"type": "text"` — 显式指定文本类型。
-* `"analyzer": "standard"` — 使用标准 Elasticsearch 分析器进行分词。
-* `"boost": 2` — 为 firstName 字段赋予双倍权重。名称匹配的文档将在结果中排名更高。
-<5> 完全定义映射，绕过所有策略。该字段将使用 `"english"` 分析器（专用于英语）作为文本进行索引。
-<6> 直接指定配置（`withFieldConfiguration`）时的必填参数。指定使用哪个组件从 `Customer` 实体中提取该属性的值。没有提取器，引擎将不知道如何获得数据。
-<7> 为此映射元素设置顺序。如果元素相互冲突，就必须设置顺序。
+* `"analyzer": "standard"` — 使用标准分析器进行分词。
+* `"boost": 2` — 为 `firstName` 字段赋予双倍搜索权重，使得匹配该名称的文档排名更高。
+<10> 直接定义字段配置，绕过所有策略。`lastName` 字段使用 `"english"` 分析器索引为文本。
+<11> 当仅指定原生配置（无策略）时必需：用于读取属性值以进行索引的提取器。
+<12> 设置此组的顺序。当分组之间可能发生冲突时，顺序值更高的分组优先。
 
-NOTE: 只能有一个编程式映射的方法。如果存在此方法，则会忽略所有的映射注解。
+上面的示例中定义了多个静态属性组，包括 `firstName` 和 `lastName` 的原生字段配置。如需以编程方式同时配置动态属性的索引，请使用 `MappingDefinition.builder().addDynamicAttributesGroup()` 配合 `DynamicAttributesGroupConfiguration` 来添加动态属性分组。详情请参阅 xref:search:dyn-attr-support.adoc#programmatic-index-definition[编程式索引定义]。
+
+NOTE: 索引定义接口中只能有一个方法包含编程式映射。如果存在这样的方法，会忽略接口中所有的字段映射注解。
 
 [[FieldMappingStrategy]]
 === FieldMappingStrategy
