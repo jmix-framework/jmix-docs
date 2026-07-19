@@ -1,287 +1,69 @@
 = Themes
-:page-aliases: themes.adoc, themes/theme_usage.adoc, themes/custom_theme.adoc, themes/theme_addon.adoc
+:page-aliases: themes.adoc, themes/theme_usage.adoc
 
-Themes are used to manage the visual presentation of the application.
+Themes define the visual presentation of the application. A theme includes styles for colors, typography, spacing, component sizes, and other visual properties.
 
-A theme consists of CSS files and other resources like images and fonts.
+Jmix supports the following Vaadin themes:
 
-Jmix provides *jmix-lumo* theme built on top of Vaadin's https://vaadin.com/docs/v25/styling/lumo[Lumo^] theme.
-
-[[applying-theme]]
-== Applying a Theme
-
-The application theme is applied using the `@Theme` annotation with the name of the theme folder as a parameter. The `@Theme` annotation must be placed on the class that implements the `AppShellConfigurator` interface, which is usually the main application class.
-
-[source,java,indent=0]
-----
-@Theme(value = "my-theme")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
-}
-----
-
-A theme variant can be specified as an additional parameter, such as *dark* or *light*.
-
-[source,java,indent=0]
-----
-@Theme(value = "my-theme", variant = "dark")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
-}
-----
-
-NOTE: Themes cannot be switched at runtime. Although a project may have multiple themes, only one can be applied for the UI. However, there are ways to https://vaadin.com/docs/v25/styling/advanced/runtime-theme-switching[switch between variants^] of the same theme and https://vaadin.com/docs/v25/styling/advanced/loading-styles-dynamically[load dynamically additional styles^] on top of a theme.
+* xref:themes/aura.adoc[Aura] is the default theme for new Jmix projects.
+* xref:themes/lumo.adoc[Lumo] is available for applications that need the Lumo look and feel or are migrating from an earlier Jmix version.
 
 [[application-theme]]
-== Application Theme
+== Application Styles
 
-Themes, available to the application, are located inside the `src/main/frontend/themes` folder. Jmix application projects created using Studio have a predefined theme folder with the same name as the project itself.
+The Jmix-specific Aura and Lumo stylesheets are provided by the following dependency:
+
+[source,groovy,indent=0]
+----
+dependencies {
+    implementation 'io.jmix.flowui:jmix-flowui-themes'
+}
+----
+
+This dependency contains styles for Jmix components, standard views, and add-ons, as well as Jmix icons and utility classes. The `@StyleSheet` annotation and the Vaadin Aura and Lumo stylesheets are provided by Vaadin.
+
+Application theme files are static resources located in the `src/main/resources/META-INF/resources/themes` directory. A project created in Studio contains separate directories for Aura and Lumo styles.
 
 For example:
 
-[source]
+[source,text]
 ----
-src
-└── main
-    └── frontend
-        └── themes
-            └── my-project
-                ├── my-project.css
-                ├── styles.css
-                ├── theme.json
-                └── view
-                    ├── login-view.css
-                    ├── main-view-top-menu.css
-                    └── main-view.css
+src/main/resources/META-INF/resources/themes
+├── my-project-aura
+│   ├── my-project.css
+│   ├── styles.css
+│   └── view
+│       ├── login-view.css
+│       ├── main-view-top-menu.css
+│       └── main-view.css
+└── my-project-lumo
+    ├── my-project.css
+    ├── styles.css
+    └── view
+        ├── login-view.css
+        ├── main-view-top-menu.css
+        └── main-view.css
 ----
 
-* `my-project` - the theme folder. Its name is used as the theme name for the <<applying-theme,@Theme>> annotation.
-* `my-project.css` - a stylesheet for custom styles of this theme.
-* `styles.css` - the main stylesheet, which is the entry point to the styles of this theme.
-* `theme.json` - the theme configuration file. By default, it defines *jmix-lumo* as the parent theme.
-* `view` - this folder contains CSS files that define styles for the login and main views provided by the project template.
+The files have the following purpose:
 
-All CSS, including CSS variable values and custom component styles, can be included in the main `styles.css` file. However, by default, this file contains only import directives, with the actual CSS organized into separate files to make it easier to handle:
+* `styles.css` is the entry point for the application styles. The main application class loads this file using `@StyleSheet`.
+* `my-project.css` contains custom application styles. Add your styles to this file.
+* The `view` directory contains styles for the login view and main view created by Studio.
+
+The generated `styles.css` imports the predefined view styles first and the application styles last:
 
 [source,css,indent=0]
-.styles.css
 ----
-@import url('my-project.css');
 @import url('view/main-view.css');
 @import url('view/main-view-top-menu.css');
 @import url('view/login-view.css');
+@import url('my-project.css');
 ----
 
-Place your project's CSS in the `<theme_name>.css` file (in this example, it's `my-project.css`).
+IMPORTANT: In Jmix 2.x projects, application theme files were located in `src/main/frontend/themes` and loaded using the `@Theme` annotation. This approach is deprecated in Vaadin 25. Jmix 3 uses the stylesheet model described above. Files left in the old location may work in development mode but be unavailable in a production build. See xref:themes/migrating-lumo-to-aura.adoc[] for migration instructions.
 
-[TIP]
-====
-Use Vaadin's online https://demo.vaadin.com/lumo-editor/[Lumo theme editor^] to quickly customize the theme of your application.
+[[themes-in-studio]]
+== Themes in Studio
 
-To select the desired appearance of UI-components, use the controls in the right-side panel. Then, click *Download* and insert the generated CSS code, located within the `<style>` tags, into your `<theme_name>.css` file.
-====
-
-[[reusable-theme]]
-== Reusable Theme
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/v25/styling/advanced/multi-app-themes" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-An application theme can be used in multiple applications by packaging it as a JAR dependency.
-
-The theme project's structure looks as follows:
-
-[source]
-----
-src
-└── main
-    └── resources
-        └── META-INF
-            └── resources
-                └── themes
-                    └── cobalt
-                        ├── styles.css
-                        └── theme.json
-----
-
-* `cobalt` - the theme folder, also used as theme name.
-* `styles.css` - the main stylesheet. Can contain custom styles and imports, for example:
-+
-[source,css]
-----
-html {
-    --lumo-border-radius: calc(var(--lumo-size-m) / 2);
-
-    --lumo-primary-color: rgb(0, 85, 166);
-    --lumo-primary-color-50pct: rgba(0, 85, 166, 0.5);
-    --lumo-primary-color-10pct: rgba(0, 85, 166, 0.1);
-    --lumo-primary-text-color: rgb(0, 85, 166);
-}
-----
-* `theme.json` - a theme configuration file. It's recommended to define *jmix-lumo* as the parent theme, so your custom theme includes *jmix-lumo* styles required for proper work of Jmix UI components and views. For example:
-+
-[source,json]
-----
-{
-  "parent": "jmix-lumo",
-  "lumoImports":["typography","color","spacing","badge","utility"]
-}
-----
-
-The `build.gradle` file of the theme add-on project may look as follows:
-
-[source,groovy]
-----
-plugins {
-    id 'java'
-    id 'com.gradle.plugin-publish' version '1.2.1'
-}
-
-group = 'com.company'
-version = '0.0.1-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-    maven {
-        url 'https://global.repo.jmix.io/repository/public'
-    }
-}
-
-dependencies {
-    implementation 'io.jmix.flowui:jmix-flowui-themes:2.4.0' // <1>
-}
-----
-<1> Dependency to `jmix-flowui-themes` that contains *jmix-lumo* theme.
-
-After the theme JAR is added as a dependency to the project, the packaged theme can be used as a standalone theme:
-
-[source,java,indent=0]
-----
-@Theme(value = "cobalt")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
-}
-----
-
-or as a parent for the project's themes, for example:
-
-[source,json,indent=0]
-.theme.json
-----
-{
-  "parent": "cobalt",
-  "lumoImports":["typography","color","spacing","badge","utility"]
-}
-----
-
-In this case, the project's theme will load on top of the base theme, extending it.
-
-.Example of applied custom theme
-image::themes/custom-theme.png[align="center", width="1046"]
-
-[[pluggable-styles]]
-== Pluggable Styles
-
-When developing a xref:modularity:creating-add-ons.adoc[custom add-on], you can create a file with custom styles in the `src/main/resources/META-INF/resources/` directory. To add these styles to the resulting application, define the `jmix.ui.export-styles` property in the `module.properties` file. The value of this property is a path relative to `src/main/resources/META-INF/resources/`, for example, `jmix.ui.export-styles = addon-styles/my-addon-styles.css`:
-
-.my-addon-styles.css
-[source,css]
-----
-.test {
-    color: red;
-}
-----
-
-Custom styles are added as `<style type="text/css">` to the `<head>` element:
-
-[source,html,indent=0]
-----
-<style type="text/css">
-.test {
-    color: red;
-}
-</style>
-----
-
-IMPORTANT: Use this approach only for a small number of styles that cannot be applied to a particular UI component. For example, for CSS utility classes of views inside an add-on.
-
-[[changing-theme-variants-at-runtime]]
-== Changing Theme Variants at Runtime
-
-To switch between theme variants, e.g. *light* and *dark*, the framework provides a static helper class that works in conjunction with the JavaScript file.
-
-The `ThemeUtils` class provides methods for switching theme variants, which effectively means setting the theme variant in https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage[Web Local Storage^] and invoking JavaScript code to apply it.
-
-For example, you can add a xref:flow-ui:vc/components/dropdownButton.adoc[dropdownButton] to the main view and switch between theme variants:
-
-.main-view.xml
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/main/main-view.xml[tags=theme-switcher]
-----
-
-.MainView.java
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/main/MainView.java[tags=theme-switcher]
-----
-
-.ThemeSwitcher component
-image::themes/theme-switcher.png[align="center", width="173"]
-
-The JavaScript file provides code that applies a theme variant to an HTML document depending on the value in the Web Local Storage and subscribes to the https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme[prefers-color-scheme^] to update the theme variant if the user indicates their preference through an operating system setting (e.g., light or dark mode) or the user agent's settings.
-
-You need to import it into the main application class:
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/OnboardingApplication.java[tags=js-file-import;main-class]
-----
-
-[[customize-lumo-theme-variants]]
-== Customizing Component Styles for Theme Variants
-
-When you allow users to switch between light and dark theme variants at runtime (as described above), you may need to define specific styles for each variant to ensure proper contrast and visual appearance.
-
-To apply styles conditionally based on the active theme variant, use the theme attribute on the `html` element in your CSS. When a theme variant is applied, Jmix adds a corresponding theme attribute to the root `html` element.
-
-* For the light variant, the attribute is `theme="light"`.
-* For the dark variant, the attribute is `theme="dark"`.
-
-You can use these selectors in your theme's CSS files (for example, in `my-project.css` or `styles.css`) to override component styles for a specific variant.
-
-Suppose you have a button with the custom style name `my-button` and you want it to have different text colors in light and dark modes.
-
-[source,css]
-----
-/* Default style for light mode */
-vaadin-button.my-button {
-    color: navy;
-}
-
-/* Override for dark mode */
-html[theme='dark'] vaadin-button.my-button {
-    color: lightskyblue;
-}
-----
-
-You can also override Lumo's built-in CSS properties (variables) for specific variants. This provides a way to consistently change the appearance of many components at once.
-
-For example, to change the primary color for the dark variant only:
-
-[source,css]
-----
-html[theme='dark'] {
-    --lumo-primary-color: rgb(100, 200, 255);
-    --lumo-primary-text-color: rgb(100, 200, 255);
-}
-----
-
-[NOTE]
-====
-* Place these variant-specific styles in your theme's main CSS file (for example, `my-project.css`). The `html[theme='dark']` selector will only match when the dark variant is active.
-* Ensure that your styles for the dark variant do not conflict with or unintentionally override styles in the light variant.
-====
+Studio displays application theme files in the *User Interface -> Styles* section of the xref:studio:tool-window.adoc[Jmix Tool Window].
