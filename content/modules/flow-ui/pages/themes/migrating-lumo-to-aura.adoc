@@ -1,0 +1,174 @@
+= Миграция с Lumo на Aura
+
+Приложения Jmix 2 используют Lumo — единственную тему, доступную в этой версии. В Jmix 3 появилась Aura, которая стала темой по умолчанию для новых проектов. Lumo также поддерживается.
+
+При обновлении приложения Jmix 2 можно продолжить использовать Lumo или перенести приложение на Aura. Миграция охватывает различия в пользовательских CSS-свойствах, служебных классах и вариантах темы компонентов. Она также учитывает изменения Vaadin 25: расположение ресурсов темы и способ загрузки таблиц стилей.
+
+Выполняйте миграцию в следующем порядке:
+
+. <<prepare-aura-files>>
+. <<update-the-application-class>>
+. <<rebuild-the-frontend-bundle>>
+. <<replace-utility-classes>>
+. <<replace-theme-properties>>
+. <<review-component-customizations>>
+. <<review-color-scheme-specific-css>>
+. <<remove-old-theme-files>>
+. <<test-the-production-build>>
+
+[[prepare-aura-files]]
+== Подготовка файлов Aura
+
+Создайте каталог темы приложения Aura:
+
+[source,text]
+----
+src/main/resources/META-INF/resources/themes/my-project-aura
+├── my-project.css
+├── styles.css
+└── view
+    ├── login-view.css
+    ├── main-view-top-menu.css
+    └── main-view.css
+----
+
+Возьмите за основу файлы Aura, сгенерированные в новом проекте Jmix 3. В частности, используйте сгенерированные стили Aura для экрана входа и главного экрана, а не копируйте стили Lumo без изменений.
+
+Перенесите правила приложения в `my-project.css`. В `styles.css` поместите `@import url('my-project.css');` после импортов сгенерированных стилей экранов. Тогда правила приложения смогут переопределить сгенерированные стили.
+
+[TIP]
+====
+Сохраняйте старую тему приложения в `src/main/frontend/themes` как образец во время миграции. Не удаляйте ее, пока не перенесете все нужные стили и не завершите проверки ниже.
+====
+
+[[update-the-application-class]]
+== Обновление класса приложения
+
+Удалите аннотацию `@Theme` и ее импорт. Добавьте набор таблиц стилей Aura в основной класс приложения:
+
+[source,java,indent=0]
+----
+@StyleSheet(Aura.STYLESHEET)
+@StyleSheet(JmixAura.STYLESHEET)
+@StyleSheet("themes/my-project-aura/styles.css")
+----
+
+После этого изменения приложение использует Aura. Старый каталог темы больше не активен, но сохраните его как образец для следующих шагов.
+
+[[rebuild-the-frontend-bundle]]
+== Пересборка frontend-бандла
+
+Обновленное приложение может содержать frontend-бандл, созданный до миграции темы. В этом случае приложение загружает стили Aura, но некоторые компоненты еще используют стили Lumo, из-за чего интерфейс выглядит неоднородно.
+
+Очистите сгенерированные frontend-файлы Vaadin:
+
+[source,console]
+----
+./gradlew vaadinClean
+----
+
+Затем запустите приложение в режиме разработки. Vaadin создаст новый бандл разработки с текущими аннотациями таблиц стилей и файлами темы.
+
+[[replace-utility-classes]]
+== Замена служебных классов
+
+Aura не содержит служебные классы Lumo. Замените константы и имена классов `LumoUtility` одним из следующих вариантов:
+
+* Независимыми от темы константами из `io.jmix.flowui.theme.StyleUtility`.
+* Свойствами компонентов или API компонентов.
+* Пользовательскими CSS-классами из стилей приложения Aura.
+
+====
+Например, в главном экране Jmix 2 для расположения `userMenu` используются служебные классы Lumo:
+
+.Jmix 2
+[source,xml]
+----
+<userMenu id="userMenu"
+          themeNames="tertiary"
+          classNames="ms-auto me-m">
+----
+
+Замените их классом, который используют сгенерированные стили главного экрана Aura:
+
+.Jmix 3 with Aura
+[source,xml]
+----
+<userMenu id="userMenu"
+          themeNames="tertiary"
+          classNames="jmix-main-view-user-menu">
+----
+====
+
+[[replace-theme-properties]]
+== Замена свойств темы (Опционально)
+
+Проверьте пользовательские CSS-файлы старой темы. Выполните этот шаг, если в них определены или используются пользовательские CSS-свойства Lumo с префиксом `--lumo-`.
+
+Замените эти пользовательские CSS-свойства свойствами Aura или общими свойствами Vaadin в соответствии с их назначением. Прямая замена есть не для каждого свойства Lumo.
+
+[cols="2,3", options="header"]
+|===
+|Настройка Lumo
+|Подход Aura
+
+|Основной цвет
+|Задайте `--aura-accent-color-light` и `--aura-accent-color-dark`.
+
+|Фон приложения
+|Задайте `--aura-background-color-light` и `--aura-background-color-dark`.
+
+|Семейство и размер шрифта
+|Задайте `--aura-font-family` и `--aura-base-font-size`.
+
+|Радиус границы
+|Задайте `--aura-base-radius` или свойство компонента, например `--vaadin-button-border-radius`.
+
+|Размер компонента
+|Задайте `--aura-base-size` или специфичное для компонента свойство `--vaadin-`.
+|===
+
+Полный список свойств Aura см. в https://vaadin.com/docs/v25/styling/themes/aura[справочнике темы Aura^].
+
+IMPORTANT: Не смешивайте свойства `--lumo-` и `--aura-` в новом CSS. Если правило должно работать с обеими темами, используйте общие свойства `--vaadin-`.
+
+[[review-component-customizations]]
+== Проверка настроек компонентов (Опционально)
+
+Выполните этот шаг, если пользовательские стили приложения содержат CSS-правила для компонентов либо XML-дескрипторы экранов или Java-код настраивают компоненты.
+
+Для каждого настроенного компонента проверьте следующее:
+
+* Варианты темы компонентов. Проверьте в справочнике компонентов UI, какие варианты доступны для компонента и поддерживаются ли они Aura, Lumo или обеими темами.
+* Java-константы с префиксом `LUMO_`. Замените их независимыми от темы аналогами, если они доступны.
+* Правила в старом каталоге `src/main/frontend/themes/<theme>/components`.
++
+Vaadin 25 по умолчанию отключает инжекцию CSS из каталога `src/main/frontend/themes/<theme>/components`. Перенесите эти правила в обычную xref:themes/styling-ui-components.adoc#applying-css-to-components[таблицу стилей приложения]. Используйте xref:themes/styling-ui-components.adoc#styling-all-component-instances[свойства стилей компонентов], xref:themes/styling-ui-components.adoc#shadow-parts[теневые части], доступные через `::part()`, xref:themes/styling-ui-components.adoc#component-states[атрибуты состояния] или другие xref:themes/styling-ui-components.adoc#component-parts[документированные селекторы].
+
+[[review-color-scheme-specific-css]]
+== Проверка CSS для цветовых схем (Опционально)
+
+Выполните этот шаг, если приложение содержит пользовательские стили для цветовых схем.
+
+Проверьте правила на основе `html[theme~='dark']`. Этот селектор работает с механизмом Jmix `ThemeUtils` и с `ColorScheme.Value.DARK`, потому что оба варианта задают атрибут `theme`. Он не работает с системными режимами Vaadin `LIGHT_DARK` и `DARK_LIGHT`, которые используют CSS-свойство `color-scheme`.
+
+Для цветов, которые должны работать во всех режимах, используйте функцию CSS `light-dark()`. См. xref:themes/switching-color-scheme.adoc#writing-color-scheme-aware-css[CSS для цветовых схем].
+
+[[remove-old-theme-files]]
+== Удаление старых файлов темы
+
+После переноса правил приложения, служебных классов, стилей компонентов и цветовых правил можно безопасно удалить старый каталог `src/main/frontend/themes/<theme-name>`.
+
+[[test-the-production-build]]
+== Проверка production-сборки
+
+После перемещения файлов темы проверьте приложение в development и production режимах.
+
+Для развертывания JAR соберите приложение в production режиме:
+
+[source,console]
+----
+./gradlew -Pvaadin.productionMode=true bootJar
+----
+
+Запустите приложение и убедитесь, что стили приложения и все пользовательские стили применены.

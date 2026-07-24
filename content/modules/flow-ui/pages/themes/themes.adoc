@@ -1,288 +1,69 @@
 = Темы
-:page-aliases: themes.adoc, themes/theme_usage.adoc, themes/custom_theme.adoc, themes/theme_addon.adoc
+:page-aliases: themes.adoc, themes/theme_usage.adoc
 
-Темы используются для управления визуальным оформлением приложения.
+Темы определяют внешний вид приложения: цвета, типографику, отступы, размеры компонентов и другие визуальные свойства.
 
-Тема состоит из файлов CSS и других ресурсов, таких как изображения и шрифты.
+Jmix поддерживает следующие темы Vaadin:
 
-Jmix предоставляет тему *jmix-lumo*, построенную на основе темы https://vaadin.com/docs/v25/styling/lumo[Lumo^] Vaadin.
+* xref:themes/aura.adoc[Aura] — тема по умолчанию для новых проектов Jmix.
+* xref:themes/lumo.adoc[Lumo] – доступна для приложений, которым нужен внешний вид Lumo или которые мигрируют с более ранней версии Jmix.
 
-[[applying-theme]]
-== Применение темы
+[[application-theme-files]]
+== Файлы темы приложения
 
-Тема приложения применяется с помощью аннотации `@Theme` с именем папки темы в качестве параметра. Аннотация `@Theme` должна быть размещена на классе, который реализует интерфейс `AppShellConfigurator`, обычно это основной класс приложения.
+Стили Jmix для Aura и Lumo предоставляет следующая зависимость:
 
-[source,java,indent=0]
+[source,groovy,indent=0]
 ----
-@Theme(value = "my-theme")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
+dependencies {
+    implementation 'io.jmix.flowui:jmix-flowui-themes'
 }
 ----
 
-Вариант темы может быть указан в качестве дополнительного параметра, например *dark* или *light*.
+Зависимость содержит стили компонентов Jmix, стандартных экранов и дополнений, а также значки и служебные классы Jmix.
 
-[source,java,indent=0]
-----
-@Theme(value = "my-theme", variant = "dark")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
-}
-----
-
-NOTE: Темы не могут быть переключены во время выполнения. Хотя проект может иметь несколько тем, для UI приложения может быть применена только одна. Однако существуют способы https://vaadin.com/docs/v25/styling/advanced/runtime-theme-switching[переключения между вариантами^] одной и той же темы и https://vaadin.com/docs/v25/styling/advanced/loading-styles-dynamically[динамической загрузки дополнительных стилей^] поверх темы.
-
-[[application-theme]]
-== Тема приложения
-
-Для использования в приложении каталог темы размещается внутри каталога `src/main/frontend/themes`. Проекты Jmix, созданные с помощью Studio, имеют предопределенный каталог темы с таким же именем, как и сам проект.
+Файлы темы приложения — статические ресурсы в каталоге `src/main/resources/META-INF/resources/themes`. В проекте, созданном в Studio, есть отдельные каталоги для стилей Aura и Lumo.
 
 Например:
 
-[source]
+[source,text]
 ----
-src
-└── main
-    └── frontend
-        └── themes
-            └── my-project
-                ├── my-project.css
-                ├── styles.css
-                ├── theme.json
-                └── view
-                    ├── login-view.css
-                    ├── main-view-top-menu.css
-                    └── main-view.css
+src/main/resources/META-INF/resources/themes
+├── my-project-aura
+│   ├── my-project.css
+│   ├── styles.css
+│   └── view
+│       ├── login-view.css
+│       ├── main-view-top-menu.css
+│       └── main-view.css
+└── my-project-lumo
+    ├── my-project.css
+    ├── styles.css
+    └── view
+        ├── login-view.css
+        ├── main-view-top-menu.css
+        └── main-view.css
 ----
 
-* `my-project` - каталог темы. Имя каталога используется в качестве имени темы в аннотации <<applying-theme,@Theme>>.
-* `my-project.css` - файл кастомных стилей данной темы.
-* `styles.css` - основной файл стилей, является точкой входа для стилей данной темы.
-* `theme.json` - файл конфигурации темы. По умолчанию,  определяет *jmix-lumo* в качестве родительской темы.
-* `view` - данный каталог содержит файлы CSS, определяющие стили для главного экрана и экрана логина, предоставляемых шаблоном проекта.
+Назначение файлов:
 
-Весь код CSS, включая значения CSS-переменных и кастомные стили компонентов, может быть включен в основной файл `styles.css`. Однако по умолчанию этот файл содержит только директивы импорта, а фактический CSS организован в отдельные файлы, чтобы упростить поддержку кода:
+* `styles.css` — точка входа для стилей приложения. Основной класс приложения загружает этот файл с помощью `@StyleSheet`.
+* `my-project.css` содержит пользовательские стили приложения. Добавляйте стили в этот файл.
+* Каталог `view` содержит стили экрана входа и главного экрана, созданных Studio.
+
+Сгенерированный `styles.css` сначала импортирует предопределенные стили экранов, а затем стили приложения:
 
 [source,css,indent=0]
-.styles.css
 ----
-@import url('my-project.css');
 @import url('view/main-view.css');
 @import url('view/main-view-top-menu.css');
 @import url('view/login-view.css');
+@import url('my-project.css');
 ----
 
-Размещайте CSS-код вашего проекта в файле `<theme_name>.css` (в данном примере это `my-project.css`).
+IMPORTANT: В проектах Jmix 2.x файлы темы приложения располагались в `src/main/frontend/themes` и загружались с помощью аннотации `@Theme`. Этот подход устарел в Vaadin 25. Jmix 3 использует описанную выше модель таблиц стилей. Файлы в старом расположении могут работать в режиме разработки, но быть недоступными в production-сборке. Инструкции по миграции см. в xref:themes/migrating-lumo-to-aura.adoc[].
 
-[TIP]
-====
-Используйте онлайн-редактор https://demo.vaadin.com/lumo-editor/[Lumo theme editor^] от Vaadin для быстрой настройки темы вашего приложения.
+[[themes-in-studio]]
+== Темы в Studio
 
-Настройте нужный внешний вид UI-компонентов, используя элементы управления в правой панели. Затем нажмите *Download* и вставьте сгенерированный CSS код, расположенный внутри тегов `<style>`, в ваш файл `<theme_name>.css`.
-====
-
-[[reusable-theme]]
-== Переиспользуемая тема
-
-++++
-<div class="jmix-ui-live-demo-container">
-    <a href="https://vaadin.com/docs/v25/styling/advanced/multi-app-themes" class="vaadin-docs-btn" target="_blank">Vaadin</a>
-</div>
-++++
-
-Тема может быть использована в нескольких приложениях путем упаковки ее в виде JAR-зависимости.
-
-Структура проекта c темой выглядит следующим образом:
-
-[source]
-----
-src
-└── main
-    └── resources
-        └── META-INF
-            └── resources
-                └── themes
-                    └── cobalt
-                        ├── styles.css
-                        └── theme.json
-----
-
-* `cobalt` - папка темы, также используется как имя темы
-* `styles.css` - основной файл стилей. Может содержать пользовательские стили и импорты, например:
-+
-[source,css]
-----
-html {
-    --lumo-border-radius: calc(var(--lumo-size-m) / 2);
-
-    --lumo-primary-color: rgb(0, 85, 166);
-    --lumo-primary-color-50pct: rgba(0, 85, 166, 0.5);
-    --lumo-primary-color-10pct: rgba(0, 85, 166, 0.1);
-    --lumo-primary-text-color: rgb(0, 85, 166);
-}
-----
-
-* `theme.json` - файл конфигурации темы. Рекомендуется определить *jmix-lumo* в качестве родительской темы, чтобы ваша пользовательская тема включала стили *jmix-lumo*, необходимые для правильной работы компонентов и экранов Jmix UI. Например:
-+
-[source,json]
-----
-{
-  "parent": "jmix-lumo",
-  "lumoImports":["typography","color","spacing","badge","utility"]
-}
-----
-
-Файл `build.gradle` проекта темы может выглядеть следующим образом:
-
-[source,groovy]
-----
-plugins {
-    id 'java'
-    id 'com.gradle.plugin-publish' version '1.2.1'
-}
-
-group = 'com.company'
-version = '0.0.1-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-    maven {
-        url 'https://global.repo.jmix.io/repository/public'
-    }
-}
-
-dependencies {
-    implementation 'io.jmix.flowui:jmix-flowui-themes:2.3.0' // <1>
-}
-----
-<1> Зависимость `jmix-flowui-themes` содержит тему *jmix-lumo*.
-
-После того, как JAR c темой добавлен в качестве зависимости в проект, упакованную тему можно использовать как самостоятельную тему:
-
-[source,java,indent=0]
-----
-@Theme(value = "cobalt")
-public class MyProjectApplication implements AppShellConfigurator {
-    ...
-}
-----
-
-или как родительскую для тем проекта, например:
-
-[source,json,indent=0]
-.theme.json
-----
-{
-  "parent": "cobalt",
-  "lumoImports":["typography","color","spacing","badge","utility"]
-}
-----
-
-В этом случае тема проекта будет загружаться поверх базовой темы, расширяя ее.
-
-.Пример примененной пользовательской темы
-image::themes/custom-theme.png[align="center", width="1046"]
-
-[[pluggable-styles]]
-== Подключаемые стили
-
-При разработке xref:modularity:creating-add-ons.adoc[собственного дополнения] можно создать файл с пользовательскими стилями в каталоге `src/main/resources/META-INF/resources/`. Чтобы эти стили добавились в результирующее приложение, определите свойство `jmix.ui.export-styles` в файле `module.properties`. Значением этого свойства является путь относительно `src/main/resources/META-INF/resources/`, например, `jmix.ui.export-styles = addon-styles/my-addon-styles.css`.
-
-.my-addon-styles.css
-[source,css]
-----
-.test {
-    color: red;
-}
-----
-
-Пользовательские стили добавляются как `<style type="text/css">` в элемент `<head>`, например:
-
-[source,html,indent=0]
-----
-<style type="text/css">
-.test {
-    color: red;
-}
-</style>
-----
-
-IMPORTANT: Используйте этот подход только для небольшого набора стилей, которые нельзя применить к определенному UI-компоненту. Например, для утилитных CSS-классов для экранов внутри дополнения.
-
-[[changing-theme-variants-at-runtime]]
-== Изменение вариантов темы во время выполнения
-
-Чтобы переключаться между вариантами темы, например, *light* и *dark*, фреймворк предоставляет статический вспомогательный класс, который работает вместе с файлом JavaScript.
-
-Класс `ThemeUtils` предоставляет методы для переключения вариантов темы, что фактически означает установку варианта темы в https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage[Web Local Storage^] и выполнение JavaScript-кода для его применения.
-
-Например, вы можете добавить xref:flow-ui:vc/components/dropdownButton.adoc[dropdownButton] в главный экран и переключаться между вариантами темы:
-
-.main-view.xml
-[source,xml,indent=0]
-----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/main/main-view.xml[tags=theme-switcher]
-----
-
-.MainView.java
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/view/main/MainView.java[tags=theme-switcher]
-----
-
-.Компонент ThemeSwitcher
-image::themes/theme-switcher.png[align="center", width="173"]
-
-Файл JavaScript содержит код, который применяет вариант темы к HTML-документу в зависимости от значения в Web Local Storage и подписывается на https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme[prefers-color-scheme^], чтобы обновить вариант темы, если пользователь укажет свои предпочтения через настройки операционной системы (например, светлый или тёмный режим) или настройки user agent.
-
-Его нужно импортировать в основной класс приложения:
-
-[source,java,indent=0]
-----
-include::example$/onboarding/src/main/java/com/company/onboarding/OnboardingApplication.java[tags=js-file-import;main-class]
-----
-
-[[customize-lumo-theme-variants]]
-== Настройка стилей компонентов для вариантов темы
-
-Когда вы разрешаете пользователям переключаться между светлым и темным вариантами темы во время выполнения (как описано выше), вам может потребоваться определить специфические стили для каждого варианта, чтобы обеспечить правильную контрастность и визуальное восприятие.
-
-Чтобы применять стили условно в зависимости от активного варианта темы, используйте атрибут `theme` на элементе `html` в вашем CSS. Когда вариант темы применяется, Jmix добавляет соответствующий атрибут `theme` к корневому элементу `html`.
-
-* Для светлого варианта атрибут имеет значение `theme="light"`.
-* Для темного варианта атрибут имеет значение `theme="dark"`.
-
-Вы можете использовать эти селекторы в файлах CSS вашей темы (например, в `my-project.css` или `styles.css`), чтобы переопределить стили компонентов для конкретного варианта.
-
-Предположим, у вас есть кнопка с пользовательским именем стиля `my-button`, и вы хотите, чтобы она имела разные цвета текста в светлом и темном режимах.
-
-[source,css]
-----
-/* Default style for light mode */
-vaadin-button.my-button {
-    color: navy;
-}
-
-/* Override for dark mode */
-html[theme='dark'] vaadin-button.my-button {
-    color: lightskyblue;
-}
-----
-
-Вы также можете переопределить встроенные CSS-свойства (переменные) Lumo для конкретных вариантов. Это обеспечивает последовательное изменение внешнего вида многих компонентов одновременно.
-
-Например, чтобы изменить основной цвет только для темного варианта:
-
-[source,css]
-----
-html[theme='dark'] {
-    --lumo-primary-color: rgb(100, 200, 255);
-    --lumo-primary-text-color: rgb(100, 200, 255);
-}
-----
-
-[NOTE]
-====
-* Размещайте эти стили для конкретных вариантов в главном CSS-файле вашей темы (например, `my-project.css`). Селектор `html[theme='dark']` будет соответствовать только тогда, когда активен темный вариант.
-* Убедитесь, что ваши стили для темного варианта не конфликтуют со стилями светлого варианта и не переопределяют их непреднамеренно.
-====
+Studio отображает файлы темы приложения в разделе *User Interface -> Styles* xref:studio:tool-window.adoc[окна инструментов Jmix].
