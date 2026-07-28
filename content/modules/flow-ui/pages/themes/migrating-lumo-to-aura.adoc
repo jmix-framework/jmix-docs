@@ -1,0 +1,174 @@
+= 从 Lumo 迁移到 Aura
+
+Jmix 2 应用程序默认使用 Lumo，这是该版本中唯一可用的主题。Jmix 3 增加了 Aura，并作为新项目的默认主题，同时继续支持 Lumo。
+
+当升级 Jmix 2 应用程序时，可以继续使用 Lumo，也可以将应用程序迁移到 Aura。迁移涉及 CSS 自定义属性、工具类和组件样式版本的差异。还包括 Vaadin 25 主题资源的不同位置和样式表的不同加载方式。
+
+请按以下顺序完成迁移：
+
+. <<prepare-aura-files>>
+. <<update-the-application-class>>
+. <<rebuild-the-frontend-bundle>>
+. <<replace-utility-classes>>
+. <<replace-theme-properties>>
+. <<review-component-customizations>>
+. <<review-color-scheme-specific-css>>
+. <<remove-old-theme-files>>
+. <<test-the-production-build>>
+
+[[prepare-aura-files]]
+== 准备 Aura 文件
+
+创建 Aura 应用程序主题目录：
+
+[source,text]
+----
+src/main/resources/META-INF/resources/themes/my-project-aura
+├── my-project.css
+├── styles.css
+└── view
+    ├── login-view.css
+    ├── main-view-top-menu.css
+    └── main-view.css
+----
+
+可以从 Jmix 3 新项目中复制生成的 Aura 文件。特别是对于登录视图和主视图，请使用生成的 Aura 样式，而不是直接复制原来的 Lumo 样式。
+
+然后将应用程序中特定的 CSS 迁移至 `my-project.css`。在 `styles.css` 中，将 `@import url('my-project.css');` 放在导入生成的视图样式之后。这样应用程序的样式就可以覆盖生成的样式。
+
+[TIP]
+====
+在迁移过程中，请保留旧的应用程序主题（`src/main/frontend/themes`）作为参考。
+====
+
+[[update-the-application-class]]
+== 更新应用程序类
+
+移除 `@Theme` 注解及其导入。在主应用程序类添加 Aura 样式表的几个层级：
+
+[source,java,indent=0]
+----
+@StyleSheet(Aura.STYLESHEET)
+@StyleSheet(JmixAura.STYLESHEET)
+@StyleSheet("themes/my-project-aura/styles.css")
+----
+
+改完后，应用程序将会使用 Aura。旧的主题目录应该就没用了，但可以暂时保留作为参考。
+
+[[rebuild-the-frontend-bundle]]
+== 重新构建前端 bundle
+
+升级后的应用程序可能包含迁移主题之前生成的前端 bundle。此时，应用程序会加载 Aura 样式表，但某些组件仍使用 Lumo 样式，导致界面看起来不一致。
+
+清理生成的 Vaadin 前端文件：
+
+[source,console]
+----
+./gradlew vaadinClean
+----
+
+然后以开发模式启动应用程序。Vaadin 会使用当前的样式表注解和主题文件生成新的开发 bundle。
+
+[[replace-utility-classes]]
+== 替换工具类
+
+Aura 不包含 Lumo 工具类。因此，`LumoUtility` 常量和类名需要替换为以下之一：
+
+* `io.jmix.flowui.theme.StyleUtility` 中与主题无关的常量。
+* 组件属性或组件 API。
+* 在应用程序 Aura 样式表中的自定义 CSS 类。
+
+====
+例如，Jmix 2 主视图使用 Lumo 工具类来定位 `userMenu`：
+
+.Jmix 2
+[source,xml]
+----
+<userMenu id="userMenu"
+          themeNames="tertiary"
+          classNames="ms-auto me-m">
+----
+
+将其替换为生成的 Aura 主视图样式所使用的 css 类：
+
+.Jmix 3 with Aura
+[source,xml]
+----
+<userMenu id="userMenu"
+          themeNames="tertiary"
+          classNames="jmix-main-view-user-menu">
+----
+====
+
+[[replace-theme-properties]]
+== 替换主题属性（可选）
+
+在旧主题自定义的 CSS 文件中，如果定义或使用了带有 `--lumo-` 前缀的 Lumo CSS 自定义属性，请按下面的步骤完成迁移。
+
+根据用途将这些 CSS 自定义属性替换为 Aura 或通用 Vaadin 属性。但并非每个 Lumo 属性都有对应的替代项。
+
+[cols="2,3", options="header"]
+|===
+|Lumo 自定义
+|Aura 方式
+
+|主色（Primary color）
+|设置 `--aura-accent-color-light` 和 `--aura-accent-color-dark`。
+
+|应用程序背景
+|设置 `--aura-background-color-light` 和 `--aura-background-color-dark`。
+
+|字体和大小
+|设置 `--aura-font-family` 和 `--aura-base-font-size`。
+
+|边框圆角
+|设置 `--aura-base-radius` 或组件属性，如 `--vaadin-button-border-radius`。
+
+|组件大小
+|设置 `--aura-base-size` 或组件特定的 `--vaadin-` 属性。
+|===
+
+完整的 Aura 属性列表请参见 https://vaadin.com/docs/v25/styling/themes/aura[Aura 主题^]。
+
+IMPORTANT: 在新 CSS 中请不要混用 `--lumo-` 和 `--aura-` 属性。如果同一 css 需要同时适用于两个主题时，请使用通用的 `--vaadin-` 属性。
+
+[[review-component-customizations]]
+== 检查自定义组件样式（可选）
+
+如果自定义样式表中包含组件的 CSS，或者视图 XML 或 Java 代码中对组件进行了自定义，请完成此步骤。
+
+对于每个自定义组件，检查以下内容：
+
+* 组件样式版本。查阅组件的参考文档，了解特定组件支持哪些样式，以及这些样式名是仅 Aura 或 Lumo 支持还是两个主题都支持。
+* 带有 `LUMO_` 前缀的 Java 常量。可以使用与主题无关的常量替换（如果存在）。
+* 旧 `src/main/frontend/themes/<theme>/components` 目录中的其他 css 定义。
++
+Vaadin 25 默认禁用从 `src/main/frontend/themes/<theme>/components` 目录注入 CSS。请将这些内容迁移到常规的 xref:themes/styling-ui-components.adoc#applying-css-to-components[应用程序样式表] 中。可以使用 xref:themes/styling-ui-components.adoc#styling-all-component-instances[组件样式属性]、通过 `::part()` 开放的 xref:themes/styling-ui-components.adoc#shadow-parts[ Shadow parts]、xref:themes/styling-ui-components.adoc#component-states[状态属性] 或其他 xref:themes/styling-ui-components.adoc#component-parts[选择器]。
+
+[[review-color-scheme-specific-css]]
+== 检查配色方案特定的 CSS（可选）
+
+如果应用程序包含自定义浅色或深色模式的样式，请完成此步骤。
+
+检查基于 `html[theme~='dark']` 的规则。该选择器在 Jmix `ThemeUtils` 机制和 `ColorScheme.Value.DARK` 仍然有效，因为两者都会设置 `theme` 属性。而不适用于 Vaadin 的跟随系统模式，`LIGHT_DARK` 和 `DARK_LIGHT`，这里改用了 CSS 的 `color-scheme` 属性。
+
+对于必须在所有模式都有效的颜色，请使用 CSS 的 `light-dark()` 函数。请参见 xref:themes/switching-color-scheme.adoc#writing-color-scheme-aware-css[编写配色方案感知的 CSS]。
+
+[[remove-old-theme-files]]
+== 删除旧主题文件
+
+在完成应用程序特定的样式、工具类、组件样式和配色后，可以安全地删除旧的 `src/main/frontend/themes/<theme-name>`。
+
+[[test-the-production-build]]
+== 测试生产构建
+
+移动主题文件后，需要测试开发模式和生产模式的构建。
+
+对于 JAR 部署，以生产模式构建应用程序：
+
+[source,console]
+----
+./gradlew -Pvaadin.productionMode=true bootJar
+----
+
+启动应用程序并验证默认样式和自定义样式是否已启用。
