@@ -1,87 +1,77 @@
 = loginForm
 
-A form for entering authentication credentials.
+Компонент `loginForm` получает учётные данные и дополнительные параметры аутентификации.
 
-* XML-элемент: `loginForm`
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML-элемент
+|`loginForm`
 
-* Java-класс: `JmixLoginForm`
+|Java-класс
+|`JmixLoginForm`
+|===
 
+== Обзор
+
+[cols="a", options="autowidth", frame=all, grid=none, align=center]
+|===
+|image::visual-components/components/login-form.png[Форма входа, align="center", width="320"]
+|===
+
+[[basics]]
 == Основы
 
-Базовая форма входа `loginForm` включает поля имени пользователя и пароля, а также кнопку, которую пользователь нажимает для попытки входа в систему. Форма может также включать необязательные элементы, такие как выпадающий список выбора языка, флажок "Запомнить меня" и кнопку "Забыли пароль".
+Базовая форма `loginForm` содержит поля имени пользователя и пароля, а также кнопку входа. Кроме того, она может отображать выбор локали, флажок *Запомнить меня* и кнопку *Забыли пароль?*.
 
-image::visual-components/components/login-form.png[align="center", width="320"]
 [[labels-messages]]
 === Надписи и сообщения
 
-Добавьте внутренний элемент `form`, чтобы указать заголовок формы, надписи полей ввода и текст кнопок.
-
-TIP: Значения в форме могут быть текстовыми строками или ключами в xref:localization:message-bundles.adoc[пакете сообщений].
+Во вложенном элементе `form` задаются заголовок формы, подписи полей и текст кнопки. Значения можно указать напрямую или получить по ключам из xref:localization:message-bundles.adoc[message-bundle]. В примере также задаются содержимое `errorMessage` для ошибки аутентификации и `additionalInformation` под формой:
 
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
 ----
-
-Приведенный выше пример также добавляет необязательный элемент `errorMessage` для отображения сообщения при неудачной попытке входа в систему и элемент `additionalInformation` для предоставления релевантной информации о процессе входа в систему.
 
 === Необязательные элементы
 
-Отображайте или скрывайте необязательные элементы, такие как выпадающий список выбора языка, флажок "Запомнить меня" и кнопку "Забыли пароль", используя соответствующие атрибуты:
+Атрибуты видимости позволяют показать или скрыть выбор локали, флажок *Запомнить меня* и кнопку *Забыли пароль?*, не изменяя содержимое вложенного элемента `form`:
 
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
 ----
 
 [[remember-me]]
 === Запоминание пользователя
 
-Флажок *Remember me* ("Запомнить меня") позволяет пользователю сохранять состояние своего входа в систему в течение длительного периода времени, превышающего время жизни HTTP-сессии. Это состояние сохраняется даже после перезапуска сервера.
+Параметр *Запомнить меня* сохраняет в браузере постоянный токен, поэтому аутентифицированный сеанс может продолжаться после завершения HTTP-сеанса и перезапуска приложения. При аутентификации получайте состояние флажка из `LoginEvent`. Если интерфейс должен сразу реагировать на изменение флажка, используйте <<RememberMeChangedEvent,RememberMeChangedEvent>>.
 
-Когда пользователь устанавливает флажок *Remember me* при входе в систему, система сохраняет постоянный токен в cookie браузера. При последующих посещениях пользователь автоматически аутентифицируется без повторного ввода учетных данных.
-
-Для обработки состояния `Remember me` в логике входа в систему используйте событие <<RememberMeChangedEvent,RememberMeChangedEvent>>.
-
-Смотрите https://docs.spring.io/spring-security/reference/servlet/authentication/rememberme.html[документацию Spring Security Remember-Me^] для получения дополнительной информации.
+Подробное описание механизма аутентификации см. в https://docs.spring.io/spring-security/reference/servlet/authentication/rememberme.html[документации Spring Security по функции Remember Me^].
 
 [[authentication]]
 == Аутентификация
 
-Стандартный экран входа в систему будет включать в себя необходимую логику для аутентификации пользователя в приложении:
+Стандартный экран входа подписывается на `LoginEvent`, применяет выбранную локаль и передаёт введённые учётные данные и состояние *Запомнить меня* в `AuthenticationManager`. Ошибки аутентификации отображаются через состояние ошибки формы:
 
 [source,java,indent=0]
 ----
 include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=login-form;on-login-handler]
 ----
-<1> Инжектируйте `loginForm`, чтобы получить доступ к нему по идентификатору в классе контроллера.
-<2> Применяет выбранный язык для приложения.
-<3> Проверяет, следует ли запоминать пользователя между сессиями на основе значения флажка "Запомнить меня".
+<1> Инжектирует форму, чтобы контроллер мог обновлять её состояние.
+<2> Применяет локаль, выбранную в форме.
+<3> Передаёт состояние флажка в токен аутентификации.
 
 == Обработка исключений
 
-Чтобы помочь пользователям выявлять проблемы со входом в систему, расширьте логику по умолчанию, чтобы включить информативные сообщения для каждого типа исключений:
+Расширьте обработчик входа, если пользователю нужно сообщить конкретную причину ошибки аутентификации. В примере определяется заблокированная учётная запись, выводится соответствующее сообщение и регистрируется неудачная попытка входа:
 
 [source,java,indent=0]
 ----
 include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=exception-handling]
 ----
-
-<1> Отображает сообщение об ошибке при неудачной попытке входа в систему на основе исключения, в частности, `LockedException`, которое указывает на то, что учетная запись временно заблокирована.
-<2> Записывает предупреждающее сообщение, указывающее на то, что попытка входа в систему для конкретного пользователя не удалась.
-
-[[locale]]
-== Локаль
-
-Форма входа может включать выпадающий список, позволяющий пользователю выбрать предпочтительную локаль (язык). Чтобы сделать этот параметр доступным, вам необходимо xref:localization:message-bundles.adoc#setting-locales[настроить локаль] в вашем приложении. Как только будет настроена дополнительная локаль, она появится в списке.
-
-image::visual-components/components/login-form-locales.png[align="center", width="480"]
-Whenever the user selects a new locale from the list, the <<LocaleChangedEvent,LocaleChangedEvent>> is fired. By creating a handler for this event, you can ensure that the login form messages will update immediately without requiring a page reload. This is how it is done on the standard login view:
-
-[source,java,indent=0]
-----
-include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=on-locale-changed]
-----
+<1> Выбирает сообщение об ошибке для `LockedException`.
+<2> Записывает неудачную попытку входа в журнал.
 
 == Стилизация экрана входа в систему
 
@@ -91,84 +81,87 @@ include::example$onboarding/src/main/java/com/company/onboarding/view/login/Logi
 </div>
 ++++
 
-Вы можете использовать CSS-стили для улучшения внешнего вида и компоновки экрана входа в систему в вашем приложении. Один из способов улучшить экран - добавить фоновое изображение. Это изображение визуально подтвердит пользователю, что он входит в правильное приложение.
+В примере дескриптор формы используется вместе с CSS, ограниченным областью компонента. XML задаёт содержимое формы входа, а CSS — окружающий макет, фоновое изображение и положение формы:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$ui-samples/main/resources/io/jmix/uisamples/view/flowui/cookbook/customlogin/custom-login.xml[tags=custom-login]
+----
+
+.CSS
+[source,css,indent=0]
+----
+include::example$ui-samples/main/resources/META-INF/resources/themes/lumo/samples/components/custom-login.css[tags=custom-login]
+----
 
 == Атрибуты
 
+`loginForm` имеет следующие уникальные атрибуты:
+
+[cols="2,5,1", options="header"]
+|===
+|Имя
+|Описание
+|По умолчанию
+
+|[[forgotPasswordButtonVisible]]`forgotPasswordButtonVisible`
+|Отображает кнопку *Забыли пароль?*.
+|`false`
+
+|[[localesVisible]]`localesVisible`
+|Отображает выбор локали.
+|`false`
+
+|[[rememberMeVisible]]`rememberMeVisible`
+|Отображает флажок *Запомнить меня*.
+|`false`
+|===
+
+`loginForm` имеет следующие общие атрибуты:
+
 xref:vc/common-attributes.adoc#id[id] -
-xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
-xref:vc/common-attributes.adoc#classNames[classNames] -
-xref:vc/common-attributes.adoc#colspan[colspan] -
-xref:vc/common-attributes.adoc#css[css] -
 xref:vc/common-attributes.adoc#enabled[enabled] -
-<<forgotPasswordButtonVisible,forgotPasswordButtonVisible>> -
-<<localesVisible,localesVisible>> -
-<<rememberMeVisible,rememberMeVisible>> -
-xref:vc/common-attributes.adoc#visible[visible]
-
-[[forgotPasswordButtonVisible]]
-=== forgotPasswordButtonVisible
-
-Устанавливает видимость кнопки **Forgot password** ("Забыли пароль").
-
-[[localesVisible]]
-=== localesVisible
-
-Устанавливает видимость выпадающего списка выбора языка.
-
-[[rememberMeVisible]]
-=== rememberMeVisible
-
-Устанавливает видимость флажка *Remember me* ("Запомнить меня"). Если значение `true`, пользователи могут выбрать опцию оставаться в системе между сеансами браузера.
-
-Значение по умолчанию — `false`.
+xref:vc/common-attributes.adoc#visible[visible] -
+xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#css[css]
 
 == Обработчики
 
+`loginForm` имеет следующие уникальные обработчики:
+
+[cols="2,5", options="header"]
+|===
+|Имя
+|Описание
+
+|[[ForgotPasswordEvent]]ForgotPasswordEvent
+|Запускается, когда пользователь нажимает *Забыли пароль*.
+
+|[[LocaleChangedEvent]]LocaleChangedEvent
+|Запускается, когда пользователь выбирает другую локаль.
+
+|[[LoginEvent]]LoginEvent
+|Запускается, когда пользователь отправляет введённые учетные данные.
+
+|[[RememberMeChangedEvent]]RememberMeChangedEvent
+|Вызывается при изменении состояния флажка *Запомнить меня*.
+
+|[[localeItemLabelGenerator]]`localeItemLabelGenerator`
+|Предоставляет метку, отображаемую для каждого языкового стандарта в селекторе.
+|===
+
+`loginForm` имеет следующие общие обработчики:
+
 xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
-xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
-<<ForgotPasswordEvent,ForgotPasswordEvent>> -
-<<LocaleChangedEvent,LocaleChangedEvent>> -
-<<LoginEvent,LoginEvent>> -
-<<RememberMeChangedEvent,RememberMeChangedEvent>> -
-<<localeItemLabelGenerator, localeItemLabelGenerator>>
-
-include::../handler-generation-tip.adoc[]
-
-[[ForgotPasswordEvent]]
-=== ForgotPasswordEvent
-
-Событие `ForgotPasswordEvent` отправляется при нажатии кнопки "Забыли пароль". Добавьте обработчик для этого события, чтобы предоставить пользователям инструкции по восстановлению пароля.
-
-[[LocaleChangedEvent]]
-=== LocaleChangedEvent
-
-Событие `LocaleChangedEvent` отправляется при выборе другой локали (языка). Обработчик для этого события может быть использован для обновления надписей и сообщений в форме в соответствии с выбранной локалью.
-
-[[LoginEvent]]
-=== LoginEvent
-
-Событие `LoginEvent` отправляется, когда пользователь пытается войти в систему.
-
-[[RememberMeChangedEvent]]
-=== RememberMeChangedEvent
-
-Событие `RememberMeChangedEvent` отправляется при изменении состояния флажка "Запомнить меня".
-
-[[localeItemLabelGenerator]]
-=== localeItemLabelGenerator
-
-Настраивает имена локалей (языков) в списке. Например, вместо использования полного названия языка для каждой локали можно использовать трехбуквенное сокращение в верхнем регистре.
-
-[source,java,indent=0]
-----
-include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=localeItemLabelGenerator]
-----
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent]
 
 == Элементы
 
-<<labels-messages, additionalInformation>> - <<labels-messages, form>> - <<labels-messages, errorMessage>>
+`loginForm` может содержать элементы `form`, `errorMessage` и `additionalInformation`. Элемент `form` задаёт подписи и текст кнопки, `errorMessage` — содержимое при ошибке аутентификации, а `additionalInformation` — дополнительное содержимое под формой.
 
-== См. также
+== Смотрите также
 
-See https://vaadin.com/docs/v25/components/login[Vaadin Docs^] for more information.
+* https://vaadin.com/docs/v25/components/login[Документация Vaadin: Login^]
