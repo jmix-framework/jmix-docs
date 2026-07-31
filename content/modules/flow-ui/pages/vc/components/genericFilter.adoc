@@ -1,8 +1,7 @@
 = genericFilter
 :page-aliases: vcl/components/filter.adoc
 
-
-The `genericFilter` component lets users build, apply, and save data-loading conditions.
+The `genericFilter` component builds configurable conditions for a data loader and presents them as an interactive filter. `genericFilter` is added by default to standard entity views, such as xref:flow-ui:views/view-classes.adoc#standard-list-view[list views].
 
 [cols="1h,1", options="autowidth", grid=none, frame=none]
 |===
@@ -20,7 +19,7 @@ The `genericFilter` component lets users build, apply, and save data-loading con
 |image::flow-ui:visual-components/components/generic-filter-anatomy.png[Generic filter, align="center", width="960"]
 |===
 
-The representative filter contains:
+The filter component contains:
 
 . [[refresh-button]] The *Refresh* button with the drop-down menu.
 . [[operator-selector]] The comparison operator selector.
@@ -28,6 +27,21 @@ The representative filter contains:
 . [[refresh-drop-down-menu]] The list of saved filters and configurations.
 . [[condition-field]] The condition value field.
 . [[add-condition-link]] The *Add search condition* link.
+
+[[runtime-usage]]
+== Runtime Usage
+
+Depending on the filter configuration and <<permissions, granted permissions>>, users can:
+
+* [[quick-filter-example]]Create a temporary filter that lasts while the current view is open. Users can enter condition values, change available operators, and reset the filter.
+* [[adding-conditions]][[condition-types]]Apply saved filters and configuration already made available by the application. Users cannot edit or remove them, but can copy them when granted `ui.genericfilter.modifyConfiguration`.
+* [[creating-conditions]]Create new conditions using wizards. These are equivalent to those that developers can create:
+** <<property-conditions,*Property condition*>> – filters by an entity attribute.
+** <<jpql-conditions,*JPQL condition*>> – filters using a custom query.
+** <<group-conditions,*Group condition*>> – combine several conditions with `AND` or `OR`.
+** xref:search:search-in-ui.adoc#fts-condition-in-filter-component[*Full-text search condition*] – search across configured entity attributes. It is available when the xref:search:index.adoc[Search] add-on is installed.
+* [[runtime-configuration]][[run-time-configuration]]Save, edit, copy, and remove personal runtime configurations when granted `ui.genericfilter.modifyConfiguration`.
+* [[avaialable-for-all-users]]Make a runtime configuration available or default for all users when granted `ui.genericfilter.modifyGlobalConfiguration`.
 
 [[basics]]
 == Basics
@@ -38,7 +52,7 @@ The representative filter contains:
 </div>
 ++++
 
-`genericFilter` is included by default in some standard entity views, such as xref:flow-ui:views/view-classes.adoc#standard-list-view[list views]. It must reference the loader of a standalone `CollectionContainer` or `KeyValueCollectionContainer`. The component builds a `Condition` and assigns it to that loader; for JPA entities, the data store translates the condition into JPQL so filtering happens in the database.
+To operate, the component must reference the loader of a standalone `CollectionContainer` or `KeyValueCollectionContainer`. The component builds a `Condition` and assigns it to that loader; for JPA entities, the data store translates the condition into JPQL so filtering happens in the database.
 
 The sample declares an initial age condition in XML and adds another property condition from Java. Keeping the XML and controller identifiers aligned is essential because the controller retrieves the existing configuration and extends it:
 
@@ -59,66 +73,8 @@ include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/g
 The data loader can have its own _base condition_, set in the loader's `condition` element or programmatically via `DataLoader.setCondition()`. `genericFilter` does not replace it: the active configuration's condition is combined with the base condition as `base AND configuration`, including when you switch between configurations.
 ====
 
-[[quick-filter-example]]
-== Quick Filter Example
-
-By default, the component is in quick filter mode. It means that a user can add a temporary set of conditions that only remains in effect for the duration of the current page session. After the page is closed, the conditions will disappear.
-
-Let’s assume that we have the `Customer` entity and want to:
-
-* Create a quick filter with multiple conditions on the *Customer list* view.
-* Save this filter for future use.
-
-=== Creating a Quick Filter
-
-* Click <<add-condition-link,*Add search condition*>>.
-* Select the <<condition-types,properties>> to filter by. For example: *Age* and *Hobby*.
-* Select an xref:flow-ui:vc/components/propertyFilter.adoc#operation[operator] and enter a value for each property.
-
-=== Saving Configuration
-
-* Click image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"]-> *Save with values*.
-* Enter a configuration name and click *OK* to save:
-+
-
-This configuration can now be selected in the drop-down menu.
-
-To reset all currently applied conditions select the *<Reset filter>* menu option on top.
-
-[[adding-conditions]]
-== Adding Conditions
-
-Click the *Add search condition* link [<<add-condition-link, 6>>] to open the *Add condition* dialog:
-
-[[condition-types]]
-Possible condition types are as follows:
-
-* *Properties* -- attributes of this and related entities that can be used as filter properties. They are displayed according to the rules specified in the <<properties-element,properties>> element and may include both persistent and xref:dyn-attr:index.adoc[dynamic attributes].
-+
-* *Predefined conditions* -- conditions specified at design-time by the developer in the <<conditions-element,conditions>> element.
-+
-* *Configurations* -- existing filter configurations. They can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<runtime-configuration,runtime>>.
-
-Once a condition is added, it appears in the conditions panel. When a condition is no longer needed, it can be removed by clicking image:flow-ui:visual-components/components/generic-filter-remove.png[align="center", width="13"] next to it.
-
-[[creating-conditions]]
-== Creating Conditions
-
-If there is no suitable condition yet, you can proceed to create it from the same dialog.
-The drop-down actions of the *Create* button correspond to the xref:vc/components/genericFilter-components.adoc#filter-compponent-registration[registered] filter components.
-
-Three such components are available by default: xref:vc/components/genericFilter-components.adoc#property-filter[propertyFilter], xref:vc/components/genericFilter-components.adoc#jpql-filter[jpqlFilter], and xref:vc/components/genericFilter-components.adoc#group-filter[groupFilter].
-
-Clicking an action opens a corresponding condition editor:
-
-* <<property-conditions, Property conditions>> editor
-* <<jpql-conditions, JPQL conditions>> editor
-* <<group-conditions, Group conditions>> editor
-
-TIP: Advanced xref:search:search-in-ui.adoc#fts-condition-in-filter-component[Full-text search condition] is available as a part the xref:search:index.adoc[Search] add-on.
-
 [[property-conditions]]
-=== Property Conditions
+== Property Conditions
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -126,18 +82,11 @@ TIP: Advanced xref:search:search-in-ui.adoc#fts-condition-in-filter-component[Fu
 </div>
 ++++
 
-The *Property condition editor* allows users to set an entity attribute as a filter parameter and perform filtering against it. Use *Add search condition* -> *+ Create* -> *Create Property condition* to open the editor.
+A `propertyFilter` converts an entity attribute and comparison operation into a data-loader condition. The `property` attribute accepts a direct or nested property path, and the component generates a value field that matches the property's metadata.
 
-The editor has the following controls and fields:
+In XML, the sample adds filters for `customer` and `customer.grade` to a design-time configuration. Both use the `EQUAL` operation and set `operationEditable="true"`, so the configured operation initially appears as *Equals* but can be changed in the running view.
 
-* *Property* -- accepts an entity attribute.
-* *Operation* -- sets a comparison operator. The list displays only those operators that are compatible with the current property.
-* *Parameter name* -- sets the name of the associated query parameter. Use this name to introduce dependencies between conditions of the same configuration. If not set, then parameter name is randomly generated.
-* *Label* -- sets a custom label for this condition as it appears in the panel and editors.
-* *Default value* -- sets a default value.
-* *Operation editable* -- allows selecting a comparison operation type.
-* *Operation text visible* -- sets whether the operation label is shown.
-* *Visible* -- determines whether this condition is shown in the condition panel.
+The Java example builds an equivalent configuration with the low-level API. Each `PropertyFilter` is connected to the `genericFilter` data loader, configured to delegate condition changes, and assigned a generated parameter name and value component. Finally, the filters are added to the configuration's root logical component.
 
 .XML
 [source,xml,indent=0]
@@ -152,7 +101,7 @@ include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/g
 ----
 
 [[jpql-conditions]]
-=== JPQL Conditions
+== JPQL Conditions
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -160,44 +109,17 @@ include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/g
 </div>
 ++++
 
-The *JPQL condition editor* allows users to create condition based on JPQL expressions. Use *Add search condition* -> *+ Create* -> *Create JPQL condition* to open the editor.
+A `jpqlFilter` defines a custom JPQL predicate for cases that cannot be expressed as a property comparison. The sample filters orders by a product in the `items` collection: the `join` clause introduces the collection alias, and the `where` clause compares the product identifier with the filter parameter.
 
-Field descriptions are provided below:
+The XML example declares the JPQL-condition namespace, sets `Product` as the parameter class, and nests the `join` and `where` clauses inside `condition`. At runtime, the parameter class determines the type of value component displayed for the condition.
 
-* *Parameter type* -- accepts a Java class representing the desired parameter type. You can also choose the `No parameter` option to create a condition without parameter.
-+
-A condition with `No parameter` acts somewhat similar to a tag -- it filters out data based on a predefined, constant criterion.
-+
-* *Label* -- sets the label for this condition as it appears in the panel and editors.
-* *Parameter name* -- sets the name of the associated query parameter. Use this name to introduce dependencies between conditions of the same configuration. If not set, then parameter name is randomly generated.
-* *Default value* -- sets the default value for this condition. This field will be represented by the component compatible with the current value in *Parameter type*.
-//todo: improve IN expression description upon completing jmix ticket #1442
-* *Has IN expression* -- determines whether the condition can parse a collection and put it inside the `IN` clause.
-* *Visible* -- determines whether this condition is shown in the filter panel.
-* *Join* -- specifies an optional `join` clause to be included to the `from` clause of the data loader. This can be used to create a conditions based on an attribute of a related collection.
-+
-When writing this clause:
+The Java example creates the same filter through the low-level API. It passes the `where` and `join` clauses to `setCondition()`, assigns the parameter class and label, generates a parameter name and compatible value component, and adds the filter to a programmatically created design-time configuration.
 
-** Start with `join` or `left join` keywords.
-** Use the `\{E}` placeholder instead of the entity alias.
-+
-For example:
-+
-----
-join {E}.city c
-----
-* *Where* -- specifies the `where` clause to be added to the `select` query of the data loader.
-+
-When writing this clause:
-+
-** Use the placeholder `\{E}` instead of the entity alias.
-** Set `?` as the parameter's value to indicate it is to be passed by the user. There can be only one such parameter in a condition. Besides, there can be any number of xref:data-access:jpql-extensions.adoc#session-and-user-attributes[session and user attributes] parameters.
-+
-For example:
-+
-----
-{E}.code = ? and {E}.area = :session_area
-----
+Use the following syntax when defining a JPQL condition:
+
+* Start an optional `join` clause with `join` or `left join`, and use `\{E}` instead of the data-loader entity alias.
+* In the `where` clause, use `\{E}` for the entity alias and `?` for the value supplied by the filter. A condition can contain only one `?` parameter, but it can also contain xref:data-access:jpql-extensions.adoc#session-and-user-attributes[session and user attribute] parameters.
+* For a collection-valued parameter used in an `IN` expression, enable the filter's `hasInExpression` property.
 
 .XML
 [source,xml,indent=0]
@@ -212,7 +134,7 @@ include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/g
 ----
 
 [[group-conditions]]
-=== Group Conditions
+== Group Conditions
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -220,25 +142,15 @@ include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/g
 </div>
 ++++
 
-The *Group condition editor* allows users to combine conditions into a logical group. Use *Add search condition* -> *+ Create* -> *Create Property condition* to open the editor.
+A `groupFilter` combines nested filter components with `AND` or `OR`. Groups can be nested, and the configuration's root logical component combines its direct children with its own operation.
 
-This editor has two areas -- one to configure group basic properties, and the other to add and show conditions currently in the group. The description of the fields in each area is given below.
+The XML example creates an `OR` group containing the `active` and `grade` property filters. The `age` filter is outside that group, so the default root operation produces the following expression:
 
-==== Group condition
+----
+(active = false OR grade = STANDARD) AND age >= 30
+----
 
-* *Operation* -- logical operator used to join conditions in a group. Group has two logical operators: *AND* or *OR*.
-* *Label* -- sets the label for this condition as it appears in the conditions panel and editors. If not set, the name of the operation (*AND* or *OR*) is displayed instead.
-* *Operation text visible* -- determines whether the name of the operation is displayed.
-* *Visible* -- determines whether this group is shown in the filter panel.
-
-==== Conditions
-
-Conditions of the group are shown in the tree view. Use the following actions to manage them.
-
-* *Add* -- opens the *Add condition* dialog letting you pick necessary ones.
-* *Edit* -- opens an appropriate editor for a condition selected in the tree view.
-* *Remove* -- removes all conditions that are currently selected in the tree view.
-* image:flow-ui:visual-components/components/generic-filter-move-up.png[align="center", width="42"]/image:flow-ui:visual-components/components/generic-filter-move-down.png[align="center", width="42"]  -- buttons to change the order in which the conditions of the group appear.
+The Java example constructs the same tree explicitly. It creates the group and property filters, adds the property filters to the group, and then adds the group and the `age` filter to the configuration root. It sets both each component's current value and the configuration's stored default value, ensuring that the same values are restored when the configuration is selected.
 
 .XML
 [source,xml,indent=0]
@@ -252,15 +164,8 @@ include::example$ui-samples/main/resources/io/jmix/uisamples/view/flowui/compone
 include::example$ui-samples/main/java/io/jmix/uisamples/view/flowui/components/genericfilter/group/GenericFilterGroupConditionSample.java[tags=group-conditions]
 ----
 
-[[configuration]]
-== Configuration
-
-Configuration is a set of conditions saved for later use. It can include conditions of any type as well as another configuration.
-
-Configurations can be created either at <<design-time-configuration, design-time>> by the developer, or by the user at <<runtime-configuration,runtime>>.
-
 [[design-time-configuration]]
-=== Design-time Configuration
+== Design-time Configuration
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -268,9 +173,10 @@ Configurations can be created either at <<design-time-configuration, design-time
 </div>
 ++++
 
-A design-time configuration is a set of <<elements, nested elements>> of `genericFilter` in the XML view descriptor.
+[[configuration]]
+A filter configuration is a named tree of conditions registered with `genericFilter`. A design-time configuration is declared in the XML view descriptor with the filter's <<configurations-element,configurations>> element.
 
-The following example declares `genericFilter` with a design-time configuration containing multiple conditions:
+The sample declares three property filters in one configuration. The `default="true"` attribute makes this configuration active when the view opens, so its default values are immediately reflected in the generated fields:
 
 [source, xml, indent=0]
 ----
@@ -281,42 +187,7 @@ Ensure that each configuration specifies an `id` attribute and its value is uniq
 
 TIP: To add a design-time configuration in Jmix Studio, select the `genericFilter` component in the view descriptor or in the *Jmix UI* structure panel, then use xref:studio:view-designer.adoc#component-inspector-add-button[Add] -> *Configurations* -> *Design-time configuration* menu item of the *Component Inspector* panel.
 
-A design-time configuration does not allow any user customizations at runtime and cannot be removed by the user. However, users can create an identical runtime configuration based on the design-time configuration and modify its parameters. This can be done with the image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Copy* menu action.
-
-When the application is running, design-time configurations are displayed in the drop-down menu [<<refresh-drop-down-menu, 4>>] among other configurations.
-
-[[runtime-configuration]]
-=== Runtime Configuration
-
-Configurations can be created at runtime in the *Configuration editor*. To open the editor, use image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] -> *Edit* menu item.
-
-NOTE: To create, edit, or remove a runtime configuration, the user needs to be granted with `ui.genericfilter.modifyConfiguration` security permission.
-
-To create a runtime configuration:
-
-* Specify a configuration name. This name is displayed in the drop-down menu [<<refresh-drop-down-menu, 4>>] and configuration editors.
-[[avaialable-for-all-users]]
-* Select the *Available for all users* checkbox to let anyone use the configuration. This checkbox is only available to users granted with [ui.filter.modifyGlobalConfiguration] permission.
-* Select the *Default for all users* checkbox to automatically apply this configuration when users open the view. This checkbox is enabled if the *Available for all users* is selected.
-* Configure the group operation and add conditions to the group. See the <<group-conditions, Group Conditions>> section for fields descriptions.
-
-== Permissions
-
-Advanced filter management requires the following permissions:
-
-* To create/edit/delete genericFilter's configurations, the user must be granted `ui.genericfilter.modifyConfiguration` security permission.
-* To create/edit/delete global (<<avaialable-for-all-users, available for all users>>) configurations, users must be granted `ui.genericfilter.modifyGlobalConfiguration` security permission.
-* To create/change <<jpql-conditions,JPQL conditions>> in runtime, users must be granted `ui.genericfilter.modifyJpqlCondition` security permission.
-
-== Application Properties
-
-The following application properties affect the filter behavior:
-
-* xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply]
-* xref:ui-properties.adoc#jmix.ui.component.filter-configuration-unique-names-enabled[jmix.ui.component.filter-configuration-unique-names-enabled]
-* xref:ui-properties.adoc#jmix.ui.component.filter-properties-hierarchy-depth[jmix.ui.component.filter-properties-hierarchy-depth]
-* xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
-* xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
+A design-time configuration appears in the configuration selector, but its condition tree cannot be edited or removed at runtime. The *Copy* action creates an editable runtime configuration from it; see <<runtime-configuration,Saving and Managing Configurations>>.
 
 [[creating-filter-programmatically]]
 == Creating Filter Programmatically
@@ -324,7 +195,7 @@ The following application properties affect the filter behavior:
 You can create and configure a `genericFilter` in Java using the fluent builder API, which has two entry points:
 
 * `filterComponentBuilder()` creates filter components – `propertyFilter`, `jpqlFilter`, and `groupFilter`.
-* `runtimeConfigurationBuilder()` assembles a <<runtime-configuration, runtime configuration>> from those components and registers it with the filter.
+* `runtimeConfigurationBuilder()` assembles a `RunTimeConfiguration` from those components and registers it with the filter.
 
 The builder performs all the required initialization internally (condition modification delegation, parameter name and value component generation), so a programmatically built component behaves exactly like one declared in XML. The owning `genericFilter` must have a `DataLoader`; otherwise the builder methods throw `IllegalStateException`.
 
@@ -392,7 +263,7 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/component
 [[building-runtime-configuration]]
 === Building Runtime Configuration
 
-`runtimeConfigurationBuilder()` creates a <<runtime-configuration, runtime configuration>> and registers it with the filter.
+`runtimeConfigurationBuilder()` creates a `RunTimeConfiguration` and registers it with the filter.
 
 [source,java,indent=0]
 ----
@@ -413,6 +284,25 @@ Keep in mind:
 NOTE: The builder creates a `RunTimeConfiguration`. There is no builder for a `DesignTimeConfiguration`. To create configurations programmatically at a lower level, use `addConfiguration(id, name)` (which returns a `DesignTimeConfiguration`) and create and add the filter components directly, or build a `RunTimeConfiguration` and register it with `addConfiguration(configuration)`. This is the lower-level approach that the builder API replaces.
 
 TIP: For runnable examples of every builder feature, see the *GenericFilter* section of the https://demo.jmix.io/ui-samples[UI samples^].
+
+[[permissions]]
+== Permissions
+
+Grant the following specific permissions to enable users configure filter:
+
+* `ui.genericfilter.modifyConfiguration` allows users to create, edit, and remove their own runtime configurations.
+* `ui.genericfilter.modifyGlobalConfiguration` allows users to create, edit, and remove configurations available to all users.
+* `ui.genericfilter.modifyJpqlCondition` allows users to create and change JPQL conditions at runtime.
+
+== Application Properties
+
+The following application properties control filter behavior:
+
+* xref:ui-properties.adoc#jmix.ui.component.filter-auto-apply[jmix.ui.component.filter-auto-apply]
+* xref:ui-properties.adoc#jmix.ui.component.filter-configuration-unique-names-enabled[jmix.ui.component.filter-configuration-unique-names-enabled]
+* xref:ui-properties.adoc#jmix.ui.component.filter-properties-hierarchy-depth[jmix.ui.component.filter-properties-hierarchy-depth]
+* xref:ui-properties.adoc#jmix.ui.component.filter-apply-shortcut[jmix.ui.component.filter-apply-shortcut]
+* xref:ui-properties.adoc#jmix.ui.component.filter-show-configuration-id-field[jmix.ui.component.filter-show-configuration-id-field]
 
 [[theme-variants]]
 == Theme Variants
@@ -529,12 +419,12 @@ Defines the list of actions for filter management. The framework provides the fo
 * *Save* -- saves changes to current configuration. Implemented by `FilterSaveAction` (`type="genericFilter_save"` in XML).
 * *Save with values* -- saves changes to current configuration along with the values in the condition fields [<<condition-field, 5>>] as their default values.
 * *Save as* -- saves current configuration under a different name. Implemented by `FilterSaveAsAction` (`type="genericFilter_saveAs"` in XML).
-* *Edit* -- opens editor for current <<runtime-configuration, runtime>> configuration. Disable for <<design-time-configuration, design-time>> configurations. Implemented by `FilterEditAction` (`type="genericFilter_edit" in XML).
-* *Remove* -- removes current <<runtime-configuration, runtime>> configuration. Disabled for <<design-time-configuration, design-time>> configurations. Implemented by `FilterRemoveAction` (`type="genericFilter_remove" in XML).
-* *Copy* -- creates a <<runtime-configuration, runtime>> copy for the current configuration. Implemented by `FilterCopyAction` (`type="genericFilter_copy" in XML).
+* *Edit* -- opens the editor for the current <<runtime-configuration,runtime configuration>>. Disabled for <<design-time-configuration,design-time configurations>>. Implemented by `FilterEditAction` (`type="genericFilter_edit"` in XML).
+* *Remove* -- removes the current <<runtime-configuration,runtime configuration>>. Disabled for <<design-time-configuration,design-time configurations>>. Implemented by `FilterRemoveAction` (`type="genericFilter_remove"` in XML).
+* *Copy* -- creates a <<runtime-configuration,runtime>> copy of the current configuration. Implemented by `FilterCopyAction` (`type="genericFilter_copy"` in XML).
 * *Clear values* -- clears the values in the condition fields [<<condition-field, 5>>]. Implemented by `FilterClearValuesAction` (`type="genericFilter_clearValues" in XML).
-* *Add* -- adds a condition to the current configuration. Implemented by `FilterAddConditionAction` (`type="genericFilter_addCondition" in XML).
-* *Reset* -- resets  Implemented by `FilterResetAction` (`type="genericFilter_reset" in XML).
+* *Add* -- adds a condition to the current configuration. Implemented by `FilterAddConditionAction` (`type="genericFilter_addCondition"` in XML).
+* *Reset* -- returns the component to an empty quick filter. Implemented by `FilterResetAction` (`type="genericFilter_reset"` in XML).
 
 Developers can override the list of actions in the image:flow-ui:visual-components/components/generic-filter-settings-button.png[align="center", width="42"] menu:
 
@@ -543,7 +433,7 @@ Developers can override the list of actions in the image:flow-ui:visual-componen
 include::example$onboarding/src/main/resources/com/company/onboarding/view/component/genericfilter/generic-filter-view.xml[tags=filter-with-actions]
 ----
 
-The example above creates a filter with two menu actions:
+The example replaces the default action list with *Add* and *Reset*.
 
 [[conditions-element]]
 === conditions
