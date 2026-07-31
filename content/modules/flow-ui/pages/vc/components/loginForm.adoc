@@ -1,89 +1,79 @@
 = loginForm
 
-A form for entering authentication credentials.
+The `loginForm` component collects credentials and related authentication options.
 
-* XML element: `loginForm`
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`loginForm`
 
-* Java class: `JmixLoginForm`
+|Java Class
+|`JmixLoginForm`
+|===
 
+== Overview
+
+[cols="a", options="autowidth", frame=all, grid=none, align=center]
+|===
+|image::visual-components/components/login-form.png[Login form, align="center", width="320"]
+|===
+
+[[basics]]
 == Basics
 
-Basic `loginForm` includes username and password fields and a button that the user clicks to attempt logging in. The form can also include optional elements such as a locales combobox, *Remember me* checkbox and *Forgot password* button.
+A basic `loginForm` contains username and password fields and a login button. It can also show a locale selector, a *Remember me* checkbox, and a *Forgot password* button.
 
-image::visual-components/components/login-form.png[align="center", width="320"]
 [[labels-messages]]
 === Labels and Messages
 
-Include the `form` element to specify the form's title, input field labels, and button text.
-
-TIP: Values in the form can be strings of text or keys in the xref:localization:message-bundles.adoc[message bundle].
+Use the nested `form` element to set the form title, field labels, and button text. Its values can be literal text or xref:localization:message-bundles.adoc[message-bundle] keys. The example also defines `errorMessage` content for failed authentication and `additionalInformation` content below the form:
 
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=custom]
 ----
 
-The example above also adds an optional `errorMessage` element to display a message when login fails and an `additionalInformation` element to provide relevant details about the login process.
+=== Optional Controls
 
-=== Optional Elements
-
-Show or hide optional elements such as a locales combobox, *Remember me* checkbox and *Forgot password* button by using the appropriate attributes:
+The visibility attributes let you show or hide the locale selector, *Remember me* checkbox, and *Forgot password* button without changing the nested form content:
 
 [source,xml,indent=0]
 ----
-include::example$/onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
+include::example$onboarding/src/main/resources/com/company/onboarding/view/component/loginform/login-form-view.xml[tags=basic]
 ----
 
 [[remember-me]]
-=== Remember Me Functionality
+=== Remember Me
 
-The *Remember me* checkbox allows the user to maintain their login state for a long period of time, longer than the lifespan of an HTTP session. This state remains even after the server restarts.
+The *Remember me* option stores a persistent browser token so that an authenticated session can survive beyond the HTTP session and application restart. Read the selected state from `LoginEvent` when authenticating, and use <<RememberMeChangedEvent,RememberMeChangedEvent>> when other UI behavior must react immediately to checkbox changes.
 
-When the user selects the *Remember me* checkbox during login, the system stores a persistent token in a browser cookie. On subsequent visits, the user is automatically authenticated without entering credentials again.
-
-To handle the `Remember me` state in your login logic, use the <<RememberMeChangedEvent,RememberMeChangedEvent>>.
-
-See https://docs.spring.io/spring-security/reference/servlet/authentication/rememberme.html[Spring Security Remember-Me documentation^] for more information.
+See https://docs.spring.io/spring-security/reference/servlet/authentication/rememberme.html[Spring Security Remember-Me documentation^] for details about the underlying authentication mechanism.
 
 [[authentication]]
 == Authentication
 
-The standard login view will include the necessary logic for authenticating the user with the application:
+The standard login view subscribes to `LoginEvent`, applies the selected locale, and passes the entered credentials and remember-me state to `AuthenticationManager`. It reports authentication failures through the form's error state:
 
 [source,java,indent=0]
 ----
 include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=login-form;on-login-handler]
 ----
-<1> Inject the `loginForm` to access it by id in the controller class.
-<2> Applies the selected locale for the application.
-<3> Checks whether to remember the user between sessions based on the checkbox value.
+<1> Injects the form so the controller can update its state.
+<2> Applies the locale selected in the form.
+<3> Passes the checkbox value to the authentication token.
 
-== Exceptions Handling
+== Authentication Error Handling
 
-To help users identify login issues, extend the default logic to include informative messages for each exception type:
+Extend the login handler when users need a more specific explanation than a general authentication failure. This example detects a locked account, displays an appropriate message, and records the failed attempt:
 
 [source,java,indent=0]
 ----
 include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=exception-handling]
 ----
+<1> Chooses the error message for a `LockedException`.
+<2> Logs the failed login attempt.
 
-<1> Displays the error message for a login failure based on the exception, specifically a `LockedException`, which indicates that the account is temporarily locked.
-<2> Logs a warning message indicating that a login attempt failed for a specific user.
-
-[[locale]]
-== Locale
-
-The login form can include a combobox that allows the user to select their preferred locale. To make the preferred option available, you need to xref:localization:message-bundles.adoc#setting-locales[set up the locale] in your application. Once an additional locale is set up, it will appear in the list.
-
-image::visual-components/components/login-form-locales.png[align="center", width="480"]
-Whenever the user selects a new locale from the list, the <<LocaleChangedEvent,LocaleChangedEvent>> is fired. By creating a handler for this event, you can ensure that the login form messages will update immediately without requiring a page reload. This is how it is done on the standard login view:
-
-[source,java,indent=0]
-----
-include::example$onboarding/src/main/java/com/company/onboarding/view/login/LoginView.java[tags=on-locale-changed]
-----
-
-== Styling the Login View
+== Styled Login View
 
 ++++
 <div class="jmix-ui-live-demo-container">
@@ -91,84 +81,87 @@ include::example$onboarding/src/main/java/com/company/onboarding/view/login/Logi
 </div>
 ++++
 
-You can use CSS styles to enhance the appearance and layout of the login view in your application. One way to improve the view is by adding a background image. This image will visually confirm to the user that they are logging into the right app.
+The sample combines the form descriptor with component-scoped CSS. XML provides the login content and CSS controls the surrounding layout, background image, and form positioning:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$ui-samples/main/resources/io/jmix/uisamples/view/flowui/cookbook/customlogin/custom-login.xml[tags=custom-login]
+----
+
+.CSS
+[source,css,indent=0]
+----
+include::example$ui-samples/main/resources/META-INF/resources/themes/lumo/samples/components/custom-login.css[tags=custom-login]
+----
 
 == Attributes
 
+The following attributes are specific to `loginForm`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[forgotPasswordButtonVisible]]`forgotPasswordButtonVisible`
+|Shows the *Forgot password* button.
+|`false`
+
+|[[localesVisible]]`localesVisible`
+|Shows the locale selector.
+|`false`
+
+|[[rememberMeVisible]]`rememberMeVisible`
+|Shows the *Remember me* checkbox.
+|`false`
+|===
+
+The following shared attributes are supported by `loginForm`:
+
 xref:vc/common-attributes.adoc#id[id] -
-xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
-xref:vc/common-attributes.adoc#classNames[classNames] -
-xref:vc/common-attributes.adoc#colspan[colspan] -
-xref:vc/common-attributes.adoc#css[css] -
 xref:vc/common-attributes.adoc#enabled[enabled] -
-<<forgotPasswordButtonVisible,forgotPasswordButtonVisible>> -
-<<localesVisible,localesVisible>> -
-<<rememberMeVisible,rememberMeVisible>> -
-xref:vc/common-attributes.adoc#visible[visible]
-
-[[forgotPasswordButtonVisible]]
-=== forgotPasswordButtonVisible
-
-Sets the visibility of the *Forgot password* button.
-
-[[localesVisible]]
-=== localesVisible
-
-Sets the visibility of the locales combobox.
-
-[[rememberMeVisible]]
-=== rememberMeVisible
-
-Sets the visibility of the *Remember me* checkbox. When `true`, users can choose to stay logged in across browser sessions.
-
-Default value is `false`.
+xref:vc/common-attributes.adoc#visible[visible] -
+xref:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:vc/common-attributes.adoc#colspan[colspan] -
+xref:vc/common-attributes.adoc#classNames[classNames] -
+xref:vc/common-attributes.adoc#css[css]
 
 == Handlers
 
+The following handlers are specific to `loginForm`:
+
+[cols="2,5", options="header"]
+|===
+|Name
+|Description
+
+|[[ForgotPasswordEvent]]ForgotPasswordEvent
+|Fired when the user clicks *Forgot password*.
+
+|[[LocaleChangedEvent]]LocaleChangedEvent
+|Fired when the user selects a different locale.
+
+|[[LoginEvent]]LoginEvent
+|Fired when the user submits the entered credentials.
+
+|[[RememberMeChangedEvent]]RememberMeChangedEvent
+|Fired when the *Remember me* checkbox state changes.
+
+|[[localeItemLabelGenerator]]`localeItemLabelGenerator`
+|Provides the label displayed for each locale in the selector.
+|===
+
+The following shared handlers are supported by `loginForm`:
+
 xref:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
-xref:vc/common-handlers.adoc#DetachEvent[DetachEvent] -
-<<ForgotPasswordEvent,ForgotPasswordEvent>> -
-<<LocaleChangedEvent,LocaleChangedEvent>> -
-<<LoginEvent,LoginEvent>> -
-<<RememberMeChangedEvent,RememberMeChangedEvent>> -
-<<localeItemLabelGenerator, localeItemLabelGenerator>>
-
-include::../handler-generation-tip.adoc[]
-
-[[ForgotPasswordEvent]]
-=== ForgotPasswordEvent
-
-`ForgotPasswordEvent` is sent when the *Forgot password* button is clicked. Add a handler to this event to provide users with password recovery instructions.
-
-[[LocaleChangedEvent]]
-=== LocaleChangedEvent
-
-`LocaleChangedEvent` is sent when a different locale is selected. A handler for this event may be used to update labels and messages in the form to be of selected locale.
-
-[[LoginEvent]]
-=== LoginEvent
-
-`LoginEvent` is sent whe the user attempts to log in.
-
-[[RememberMeChangedEvent]]
-=== RememberMeChangedEvent
-
-`RememberMeChangedEvent` is sent when the state of the *Remember me* checkbox changes.
-
-[[localeItemLabelGenerator]]
-=== localeItemLabelGenerator
-
-Customizes names for locales in the list. For example, instead of using the full language name for each locale, you can use a three-letter uppercase abbreviation.
-
-[source,java,indent=0]
-----
-include::example$onboarding/src/main/java/com/company/onboarding/view/component/loginform/LoginFormView.java[tags=localeItemLabelGenerator]
-----
+xref:vc/common-handlers.adoc#DetachEvent[DetachEvent]
 
 == Elements
 
-<<labels-messages, additionalInformation>> - <<labels-messages, form>> - <<labels-messages, errorMessage>>
+A `loginForm` can contain `form`, `errorMessage`, and `additionalInformation` elements. The `form` element defines labels and button text, `errorMessage` defines the authentication-failure content, and `additionalInformation` adds supporting content below the form.
 
 == See Also
 
-See https://vaadin.com/docs/v25/components/login[Vaadin Docs^] for more information.
+* https://vaadin.com/docs/v25/components/login[Vaadin Login documentation^]
