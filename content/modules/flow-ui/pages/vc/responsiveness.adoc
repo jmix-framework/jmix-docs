@@ -1,0 +1,147 @@
+= Responsiveness
+
+A responsive view remains easy to understand and use as the available space changes. It should work in a resized desktop window, on a tablet or phone, and at every size in between.
+
+Jmix provides much of the required behavior through standard views, layouts, and adaptable visual components.  When more control is needed, use the techniques described below.
+
+[[built-in-responsiveness]]
+== Built-in Responsiveness
+
+Standard Jmix views combine layout and visual components that adapt to the available space and input method. For example:
+
+* The main menu collapses on a narrow screen.
+* On touchscreen devices, xref:flow-ui:vc/components/datePicker.adoc[] and xref:flow-ui:vc/components/select.adoc[] display their overlays at the bottom of the screen.
+* Dialog actions can stack vertically when horizontal space is limited.
+* xref:flow-ui:vc/layouts/tabSheet.adoc[] and xref:flow-ui:vc/components/tabs.adoc[] become scrollable.
+* xref:flow-ui:vc/layouts/formLayout.adoc[] can change the number of columns.
+
+[[designing-responsive-views]]
+== Designing Responsive Views
+
+When building a responsive view from scratch start with a simple layout for the narrowest screen and add columns, context, or actions when more space is available. Use layout components before adding custom CSS.
+
+[[layouts]]
+=== Layouts
+
+Layout components control how content grows, shrinks, and moves as the available space changes. Use xref:flow-ui:vc/layouts/formLayout.adoc[] for responsive forms. Use xref:flow-ui:vc/layouts/gridLayout.adoc[] to arrange components in a responsive grid. `gridLayout` fits as many columns as the available width allows and moves the remaining items onto new rows.
+
+See xref:flow-ui:vc/layout-rules.adoc[Layout Rules] for guidance on combining layouts and sizing their content.
+
+[[css-media-and-container-queries]]
+=== CSS Media and Container Queries
+
+A https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design#media_queries[media query^] checks a condition, such as whether the browser window is wider than a given value, and applies a group of CSS rules only when the condition is true.
+
+Use a media query when components and layouts cannot provide the required change. First, add a class name in the view descriptor:
+
+[source,xml]
+----
+<hbox classNames="view-toolbar" width="100%">
+    <!-- Content -->
+</hbox>
+----
+
+Then define the narrow layout and its wide-screen enhancement in the xref:flow-ui:themes/themes.adoc#application-theme-files[application theme CSS]:
+
+[source,css]
+----
+.view-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+@media (min-width: 48rem) {
+    .view-toolbar {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+----
+
+The `48rem` value is a _breakpoint_ – the width where the layout changes. Below `48rem`, the controls are stacked and stretch to the full width. At `48rem` and above, they are arranged horizontally and aligned vertically in the center. You can define several media queries when the layout needs more than one change.
+
+Media queries use the width of the browser window. In a resizable content area, use a https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Containment/Container_queries[container query^] to apply CSS based on the width of the containing element instead. This lets a component adapt wherever it is placed.
+
+[[wrapping]]
+=== Wrapping at In-between Sizes
+
+At intermediate widths, components may share the available row space but not fit on a single line. Allow the row to wrap onto additional lines:
+
+[source,xml]
+----
+<hbox id="viewToolbar" width="100%" wrap="true">
+    <!-- Content -->
+</hbox>
+----
+
+In Java, call `viewToolbar.setWrap(true)`.
+
+TIP: Resize the browser slowly when testing. Check intermediate widths, browser zoom, split-screen windows, long translated labels, and both portrait and landscape orientation.
+
+[[lumo-utility-classes]]
+=== Lumo Utility Classes
+
+Applications that use xref:flow-ui:themes/lumo.adoc[] can handle some common responsive changes with utility classes instead of custom CSS.
+
+Apply the responsive classes in the view descriptor:
+
+[source,xml]
+----
+<hbox classNames="flex-col md:flex-row" width="100%">
+    <!-- Content -->
+</hbox>
+----
+
+In this example the layout starts as a column and changes to a row at the `md` breakpoint.
+
+See xref:flow-ui:themes/lumo.adoc#utility-classes[Lumo utility classes] for setup and the https://vaadin.com/docs/latest/styling/themes/lumo/lumo-breakpoint[responsive utility class reference^] for the available breakpoints.
+
+[[dedicated-mobile-views]]
+== Dedicated Mobile Views
+
+Whenever possible, use a single responsive view for both desktop and mobile. It is easier to maintain and provides consistent behavior across screen sizes. Some data-heavy views, however, cannot provide an equally effective desktop and mobile experience with one layout. Consider separate desktop and mobile views when both require a carefully polished interface or when the interaction is genuinely different. For example, field workers may need a shorter workflow with fewer actions, camera access, or swipe gestures.
+
+Separate views increase development and maintenance work. Use xref:flow-ui:fragments/fragments.adoc[fragments] to reuse fields, forms, and other UI sections across the views and minimize duplicated presentation code. Keep shared business logic in services.
+
+NOTE: Jmix does not automatically choose between desktop and mobile views according to screen size. The application must xref:flow-ui:views/opening-views.adoc[open the appropriate view] explicitly.
+
+[[designing-responsive-views-for-mobile]]
+== Designing Responsive Views for Mobile
+
+If a dedicated mobile view is necessary, design it using the <<designing-responsive-views, responsive patterns for regular views>>. Additionally, adapt common interactions for touch input and limited screen space.
+
+[[virtual-list]]
+=== Virtual List
+
+On small screens, a xref:flow-ui:vc/components/dataGrid.adoc[] may require too much horizontal space and can be difficult to use with touch input. For lists where users open individual items, xref:flow-ui:vc/components/virtualList.adoc[] is usually a better fit. Use a fragment renderer to create a compact card layout for each item.
+
+The https://demo.jmix.io/windturbines[Wind Turbines^] demo uses this pattern for its turbine list:
+
+[source,xml]
+----
+<virtualList itemsContainer="turbinesDc" width="100%">
+    <fragmentRenderer class="io.jmix.windturbines.view.turbine.TurbineCard"/>
+</virtualList>
+----
+
+[[side-panels]]
+=== Side Panels
+
+Keep secondary elements out of the main workflow until the user needs them. A closable panel provides access without permanently occupying screen space. Use xref:flow-ui:vc/layouts/sidePanelLayout.adoc[] to add such a panel to the view descriptor. Use xref:flow-ui:dialogs.adoc#side-dialog[Side Dialog] to create one from Java code.
+
+[[switch]]
+=== Switch
+
+xref:flow-ui:vc/components/switch.adoc[] is a touchscreen-friendly control for a binary setting. Use it when the application applies the setting immediately, without separate confirmation. Its larger control is easy to tap and can save screen space by eliminating an additional confirmation button.
+
+[[step-by-step-wizard]]
+=== Step-by-step Wizard
+
+For long input forms, show one step at a time. Provide clear *Back*, *Next*, and *Complete* actions, and validate the current step before moving forward. This keeps the user focused and avoids a long page of fields.
+
+NOTE: Jmix does not have a dedicated wizard component. The https://demo.jmix.io/ui-samples/sample/wizard[Wizard sample^] builds this pattern with xref:flow-ui:vc/layouts/tabSheet.adoc[] for navigation and a xref:flow-ui:fragments/fragments.adoc[fragment] for each step.
+
+[[drag-and-drop]]
+=== Drag and Drop
+
+Drag and drop can make moving, grouping, or reordering items more direct on a touch screen and can reduce the number of visible action buttons. Vaadin allows you to make components drag sources and drop targets. See the https://demo.jmix.ru/ui-samples/sample/dnd-components[Drag and Drop^] cookbook.
