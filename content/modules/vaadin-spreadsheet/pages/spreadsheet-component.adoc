@@ -1,0 +1,367 @@
+= Spreadsheet Component
+
+The `spreadsheet` component embeds an Excel-compatible spreadsheet into a view. It renders an https://poi.apache.org[Apache POI^] workbook in the browser, lets the user edit it, and gives the view full programmatic access to the underlying POI model.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`spreadsheet`
+
+|Java Class
+|`Spreadsheet`
+|===
+
+[[basics]]
+== Basics
+
+First, xref:vaadin-spreadsheet:index.adoc#installation[install the add-on]. Then add the component using the *Add Component* palette of the Studio xref:studio:view-designer.adoc[View Designer]. The component is in the *Vaadin Commercial* category.
+
+If you add the component manually, declare the `sprd` namespace in the view descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/resources/com/company/vaadinspreadsheetex1/view/basics/spreadsheet-basics-view.xml[tags=basics]
+----
+
+The component is injected into the view controller as usual:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/basics/SpreadsheetBasicsView.java[tags=injection]
+----
+
+The spreadsheet is not bound to a xref:flow-ui:data/data-containers.adoc[data container]. Its content is either an <<loading, XLSX file>> that you load into it, or cells that you fill from <<filling-from-data, entity data>>. In both cases the workbook is kept in memory, and edits are lost on a page refresh unless they are saved explicitly.
+
+[[loading]]
+== Loading XLSX
+
+The `read()` method loads a workbook into the component, replacing its current content. It takes an `InputStream`, so the file can come from anywhere: the application resources as in the example below, a xref:files:file-storage.adoc[file storage], or an upload made with xref:flow-ui:vc/components/fileStorageUploadField.adoc[fileStorageUploadField].
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/loading/SpreadsheetLoadingView.java[tags=read]
+----
+
+The `write()` method does the opposite and returns the workbook with all the edits made by the user. Pass the bytes to the xref:files:downloading-files.adoc#downloader[Downloader] so that the user can save the current document:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/loading/SpreadsheetLoadingView.java[tags=write]
+----
+
+[[filling-from-data]]
+== Filling XLSX from Entities
+
+A spreadsheet can be built from entities instead of a file. Cells and attributes are not bound to each other, so the view fills the sheet when it opens and reads the values back when the user saves.
+
+To fill the sheet, create cells from the items of a xref:flow-ui:data/collection-container.adoc[collection container]:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/entitydata/SpreadsheetEntityDataView.java[tags=fill]
+----
+
+To save, go through the rows, take the value of each cell, and assign it to the corresponding attribute. The entities come from a container, so the view's xref:flow-ui:data/data-context.adoc[data context] already tracks them, and `save()` stores all the changes made in the loop:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/entitydata/SpreadsheetEntityDataView.java[tags=save-to-entities]
+----
+
+NOTE: Only the values are saved this way. Changes to the sheet itself, such as a new column, formatting, or formula, are lost when the view is closed.
+
+[[cells]]
+== Configuring Cells
+
+Create cells through the component rather than through POI, so that the component knows what to render. Row and column indexes start with zero, so the code below fills the range `A1:B2`:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=create-cells]
+----
+
+The value can be a `String`, `Double`, `Boolean`, `Date`, or `Calendar`.
+
+Existing cells are obtained with `getCell()`, by indexes or by an address in the A1 notation. If you change a cell through the POI API, refresh it so that the browser shows the new value. `refreshCells()` takes several cells or a collection:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=get-cell]
+----
+
+Formulas are created by a separate method and evaluated on the server. Write them without the leading `=`:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=formula]
+----
+
+To recalculate all formulas at once, for example after replacing a block of values, call `refreshAllCellValues()`.
+
+[[styles]]
+== Styling Cells
+
+Fonts, colors, borders, and number formats belong to the workbook, so they are created through the POI API. Create a style, apply it to a cell, and refresh the cell:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=styles]
+----
+
+CAUTION: A workbook allows a limited number of cell styles, so create each style once and reuse it instead of creating one per cell.
+
+[[working-with-selection]]
+== Selection
+
+The initially selected cell or range is set by the <<selection,selection>> attribute in the A1 notation, for example `A1` or `B2:D8`. The component notifies the view every time the user selects something else:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/selection/SpreadsheetSelectionView.java[tags=selection-event]
+----
+
+The event also reports the whole selection: `getIndividualSelectedCells()` returns the separately selected cells, and `getCellRangeAddresses()` returns the selected ranges.
+
+[[embedded-components]]
+== Adding Components to Cells
+
+A cell can show a UI component instead of a value, for example a checkbox for a boolean column. The component asks a factory what to put in a cell, so supply a <<spreadsheetComponentFactory,spreadsheetComponentFactory>> and return a component for the cells that need one:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/handlers/SpreadsheetHandlersView.java[tags=component-factory]
+----
+
+`getCustomComponentForCell()` is called first, and `getCustomEditorForCell()` only if it returns `null`.
+
+Rows that contain components are never lower than the <<minimumRowHeightForComponents,minimumRowHeightForComponents>> value, so the components remain visible.
+
+[[sheets]]
+== Add & Delete Sheets
+
+A workbook contains one or more sheets, and the component shows one of them at a time. A new sheet is created with a name, a number of rows, and a number of columns:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/sheets/SpreadsheetSheetsView.java[tags=sheets]
+----
+
+The active sheet is deleted in the same way:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/sheets/SpreadsheetSheetsView.java[tags=delete-sheet]
+----
+
+Sheets are addressed by index, and there are two kinds of index. Methods without the `POIIndex` suffix count only visible sheets, which is what the user sees in the sheet selection bar. Methods with the suffix, such as `setActiveSheetWithPOIIndex()` and `deleteSheetWithPOIIndex()`, count all sheets of the workbook, including hidden ones. The <<activeSheetIndex,activeSheetIndex>> and <<activeSheetWithPOIIndex,activeSheetWithPOIIndex>> attributes work the same way.
+
+[[freeze-panes]]
+== Frozen Panes
+
+Frozen rows and columns stay in place while the rest of the sheet scrolls, which keeps a header row visible in a long table:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=freeze-pane]
+----
+
+NOTE: The arguments are the number of frozen rows and then the number of frozen columns. The POI `Sheet.createFreezePane()` method takes them in the opposite order.
+
+[[grouping]]
+== Grouping Rows and Columns
+
+If the loaded document uses grouping, it is preserved in the application. The groups are shown with outline controls next to the headings, and the user collapses and expands them in the browser as in Excel.
+
+The example below loads a document in which countries are grouped by region:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/grouping/SpreadsheetGroupingView.java[tags=load-grouped]
+----
+
+Groups can also be created from code. The component has no API of its own for this, so use the POI API and then reload the component. The reload is what makes the outline controls appear:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/grouping/SpreadsheetGroupingView.java[tags=grouping]
+----
+
+NOTE: Grouping works only with XLSX documents.
+
+[[report-style]]
+== Report Mode
+
+The <<reportStyle,reportStyle>> attribute hides the two toolbars of the component: the function bar above the sheet and the sheet selection bar below it.
+
+[source,xml,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/resources/com/company/vaadinspreadsheetex1/view/reportstyle/spreadsheet-report-style-view.xml[tags=report-style]
+----
+
+Gridlines and row and column headings are not part of the report mode. They belong to the sheet and are taken from the loaded document. The component applies them again every time a workbook is loaded or another sheet is activated. Call `setGridlinesVisible(false)` and `setRowColHeadingsVisible(false)` after loading the document to turn them off, and protect the sheet if the user should not change it:
+
+[source,java,indent=0]
+----
+include::example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/reportstyle/SpreadsheetReportStyleView.java[tags=clean-output]
+----
+
+[[attributes]]
+== Attributes
+
+The following attributes are specific to `spreadsheet`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[activeSheetIndex]]`activeSheetIndex`
+|The index of the sheet shown initially, counting only visible sheets.
+|—
+
+|[[activeSheetWithPOIIndex]]`activeSheetWithPOIIndex`
+|The index of the sheet shown initially, counting all sheets of the underlying POI workbook, including hidden ones.
+|—
+
+|[[chartsEnabled]]`chartsEnabled`
+|If `true`, the charts contained in the loaded workbook are rendered.
+|`false`
+
+|[[colBufferSize]]`colBufferSize`
+|The size, in pixels, of the horizontal buffer rendered to the left and right of the visible area. A larger buffer makes scrolling smoother at the cost of a larger payload.
+|`200`
+
+|[[defaultColumnCount]]`defaultColumnCount`
+|The number of columns in a newly created sheet.
+|—
+
+|[[defaultColumnWidth]]`defaultColumnWidth`
+|The default width of a column, in pixels.
+|—
+
+|[[defaultPercentageFormat]]`defaultPercentageFormat`
+|The format applied to cells whose value is entered as a percentage.
+|`0.00%`
+
+|[[defaultRowCount]]`defaultRowCount`
+|The number of rows in a newly created sheet.
+|—
+
+|[[defaultRowHeight]]`defaultRowHeight`
+|The default height of a row, in points.
+|—
+
+|[[functionBarVisible]]`functionBarVisible`
+|If `true`, the formula bar is shown above the sheet.
+|`true`
+
+|[[invalidFormulaErrorMessage]]`invalidFormulaErrorMessage`
+|The message shown when the user enters a formula that cannot be parsed. Accepts a message key.
+|—
+
+|[[maxColumns]]`maxColumns`
+|The number of columns rendered in the active sheet.
+|—
+
+|[[maxRows]]`maxRows`
+|The number of rows rendered in the active sheet.
+|—
+
+|[[minimumRowHeightForComponents]]`minimumRowHeightForComponents`
+|The minimum height, in points, applied to rows that contain embedded components, so that the components remain visible. See <<embedded-components, Adding Components to Cells>>.
+|`30`
+
+|[[reportStyle]]`reportStyle`
+|If `true`, the function bar and the sheet selection bar are hidden. See <<report-style, Report Mode>>.
+|`false`
+
+|[[rowBufferSize]]`rowBufferSize`
+|The size, in pixels, of the vertical buffer rendered above and below the visible area.
+|`200`
+
+|[[selection]]`selection`
+|The initially selected cell or range in the A1 notation, for example `A1` or `B2:D8`. See <<working-with-selection, Selection>>.
+|—
+
+|[[sheetSelectionBarVisible]]`sheetSelectionBarVisible`
+|If `true`, the sheet tabs are shown at the bottom of the component.
+|`true`
+
+|[[statusLabelValue]]`statusLabelValue`
+|The text shown in the status area of the component. Accepts a message key.
+|—
+
+|[[theme]]`theme`
+|The theme of the spreadsheet. Possible values: `LUMO`, `VALO`. `LUMO` aligns the component with the rest of the application; `VALO` is the classic spreadsheet look.
+|`VALO`
+|===
+
+The following shared attributes are supported by `spreadsheet`:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[handlers]]
+== Handlers
+
+The following handlers are specific to `spreadsheet`.
+
+include::flow-ui:vc/handler-generation-tip.adoc[]
+
+[cols="2,5", options="header"]
+|===
+|Name
+|Description
+
+|[[CellValueChangeEvent]]`CellValueChangeEvent`
+|Sent when the user has changed the value of one or more cells.
+
+|[[cellDeletionHandler]]`cellDeletionHandler`
+|`Spreadsheet.CellDeletionHandler` deciding whether a cell may be cleared by the user. Use it to protect computed or reference cells from being emptied.
+
+|[[FormulaValueChangeEvent]]`FormulaValueChangeEvent`
+|Sent when the user has changed a formula in one or more cells.
+
+|[[hyperlinkCellClickHandler]]`hyperlinkCellClickHandler`
+|`Spreadsheet.HyperlinkCellClickHandler` defining what happens when the user clicks a cell containing a hyperlink. Use it to navigate to an application view instead of opening an external URL.
+
+|[[ProtectedEditEvent]]`ProtectedEditEvent`
+|Sent when the user has attempted to edit a locked cell on a protected sheet.
+
+|[[RowHeaderDoubleClickEvent]]`RowHeaderDoubleClickEvent`
+|Sent when the user has double-clicked a row header. The event provides the index of the row through `getRowIndex()`.
+
+|[[SelectionChangeEvent]]`SelectionChangeEvent`
+|Sent when the selected cell or range has changed. See <<working-with-selection, Selection>>.
+
+|[[SheetChangeEvent]]`SheetChangeEvent`
+|Sent when the user has switched to another sheet.
+
+|[[spreadsheetComponentFactory]]`spreadsheetComponentFactory`
+|`SpreadsheetComponentFactory` supplying a component to be rendered inside a cell, either for display or for editing. See <<embedded-components, Adding Components to Cells>>.
+
+|[[spreadsheetHandler]]`spreadsheetHandler`
+|`SpreadsheetHandlerImpl` handling the client-server protocol of the component. Override it only when the required behavior cannot be achieved through any other extension point.
+|===
+
+The following shared handlers are supported by `spreadsheet`:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== See Also
+
+* https://vaadin.com/docs/v25/components/spreadsheet[Vaadin Spreadsheet documentation^]
+* https://poi.apache.org/components/spreadsheet/[Apache POI Spreadsheet documentation^]

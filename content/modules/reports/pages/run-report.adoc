@@ -96,6 +96,61 @@ include::example$/library/src/main/resources/com/company/library/view/book/book-
 include::example$/library/src/main/java/com/company/library/view/book/BookDetailView.java[tags=actions;reportButton;onInitEntity;RunSingleEntityReportAction]
 ----
 
+[[spreadsheet-viewer]]
+== Opening Reports within the Application
+
+Instead of downloading a generated XLS or XLSX report as a file, you can open it in a spreadsheet viewer inside the application. Users review the document, edit it, and download the edited version in its original format. This is provided by the separate xref:report-spreadsheet:index.adoc[] add-on.
+
+Once the add-on is installed, the *Run and open in spreadsheet* action appears next to the standard run action in the xref:reports-ui.adoc#run-report-view[Run report] and xref:reports-ui.adoc[Reports] views. The action is enabled only for reports that have at least one template producing XLS or XLSX output, and the input parameters dialog offers only those templates and output types.
+
+The action opens the generated document in the spreadsheet viewer, where the user can:
+
+* Edit cells directly in the browser.
+* Download the current state of the workbook with the *Download* button. The file is downloaded in the format of the generated document and includes the edits made in the viewer.
+* Switch from a dialog to a full page with the *Open in view* button, which is convenient for large documents.
+
+The viewer also opens previously generated documents. If the xref:exec-history.adoc[execution history] is enabled and xref:exec-history.adoc#history_output_documents[output documents] are saved, the *Open in Spreadsheet* action of the *Execution history* view opens a stored XLS or XLSX result.
+
+[[spreadsheet-viewer-permissions]]
+=== Permissions
+
+The spreadsheet viewer is a separate view, `report_ReportSpreadsheetView`. Access to it is granted by the *Reports: open report result in spreadsheet* resource role with the `report-spreadsheet-run` code. Assign this role in addition to the xref:creation/permissions.adoc[reports roles] to the users who should open report results in a spreadsheet. Users without it do not see the spreadsheet actions.
+
+[[spreadsheet-viewer-open-mode]]
+=== Open Mode
+
+By default, the spreadsheet viewer is shown as a modal dialog. Set the xref:configuration.adoc#jmix.reports.spreadsheet.output-open-mode[jmix.reports.spreadsheet.output-open-mode] application property to `NAVIGATION` to open it as a full page instead:
+
+[source,properties,indent=0]
+----
+jmix.reports.spreadsheet.output-open-mode = NAVIGATION
+----
+
+[[spreadsheet-report-runner]]
+=== SpreadsheetReportRunner
+
+To open a report in the spreadsheet viewer from your own code, build a `UiReportRunContext` with the fluent interface of <<ui-report-runner,UiReportRunner>> and pass it to `SpreadsheetReportRunner`:
+
+[source,java,indent=0]
+----
+@Autowired
+private UiReportRunner uiReportRunner;
+@Autowired
+private SpreadsheetReportRunner spreadsheetReportRunner;
+
+@Subscribe("openInSpreadsheetBtn")
+public void onOpenInSpreadsheetBtnClick(final ClickEvent<JmixButton> event) {
+    UiReportRunContext context = uiReportRunner.byReportCode("orders-report")
+            .addParam("customer", customer)
+            .withParametersDialogShowMode(ParametersDialogShowMode.IF_REQUIRED)
+            .buildContext();
+
+    spreadsheetReportRunner.runAndShow(context);
+}
+----
+
+If the report produces output that the spreadsheet viewer cannot render, the result is handled in the same way as with a regular run: the document is downloaded.
+
 [[reports-api]]
 == Reports API
 
