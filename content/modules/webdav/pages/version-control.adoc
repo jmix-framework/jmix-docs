@@ -1,11 +1,21 @@
 = Version Control
 
+When versioning is enabled for a document, the add-on never overwrites its content. Each change is stored as a separate `WebdavDocumentVersion` instance, so the document keeps its full history and any earlier version remains available.
+
+Versions are created in two ways:
+
+* Automatically, whenever the document content is written to the server: when a user saves the document in a desktop application, or when a WebDAV client uploads a new content. The new version is added after the current latest one.
+
+* Manually, in the *WebDAV document versions* view described below.
+
+Versioning is enabled by default for all attributes of the `WebdavDocument` type. You can disable it for a particular attribute with the xref:webdav:features.adoc#webdav-support-annotation[@WebdavSupport] annotation, or globally with the xref:webdav:webdav-properties.adoc#jmix.webdav.versioning-enabled[jmix.webdav.versioning-enabled] property.
+
 [[webdav-document-versions]]
 == WebDAV Document Versions
 
-The *WebDAV document versions* view provides you with the ability to manage versions of a document when versioning is enabled for it.
+The *WebDAV document versions* view shows the history of a document and lets you manage it: add versions, base a new version on an older one, open a particular version, and download versions as files. It is the only place in the UI where you work with the version history directly, rather than by editing the document itself.
 
-There are two main ways to access the *WebDAV document versions* view:
+There are two ways to access the *WebDAV document versions* view:
 
 . Via the xref:webdav:ui-components.adoc#webdav-document-upload-field[WebdavDocumentUploadField] component by clicking on the link that displays the version number of a document.
 +
@@ -17,50 +27,86 @@ Once you have performed either of these actions, the *WebDAV document versions* 
 
 image::web-dav-document-versions.png[align="center", width="1026"]
 
+[[pending-versions]]
+=== Pending Versions
+
+Versions that you add in this dialog are not stored immediately. They exist only in the dialog until you save it, and their numbers are marked with the `*` symbol to show that they are not yet linked to the document.
+
+When you save the dialog, the pending versions are stored and their numbers are finalized. If you close the dialog without saving, they are never linked to the document and are eventually deleted by the xref:webdav:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob].
+
+CAUTION: The *Refresh* button reloads the history from the database and discards all pending versions. If you copied or uploaded a version but have not saved the dialog yet, those versions are lost.
+
+[[versions-operations]]
+=== Operations
+
 The *WebDAV document versions* dialog supports the following operations:
 
-. *Creating a new document version*: Clicking *Upload* allows you to select files to upload to the system. The uploaded files will be numbered in accordance with the latest document version number, with the numbers of new versions tagged with the * symbol to indicate that they have been uploaded but not yet linked to a document. The version numbers are updated after saving the changes. If you close the dialog window without saving, all versions tagged with * will be removed after the xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] is run.
+. *Creating a new version*: click *Upload* and select files to upload. The uploaded files are numbered after the current latest version and marked as <<pending-versions,pending>>.
 
-. *Creating a new document version based on another one*: Select a document version and click the *Copy to head* button to copy it and assign it a number in accordance with the latest document version number. The numbers of new versions are tagged with the * symbol to indicate that they have been uploaded but not yet linked to a document. The version numbers are updated after saving the changes. If you close the dialog window without saving, all versions tagged with * will be removed after the xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] is run.
+. *Creating a new version based on an existing one*: select a version and click *Copy to head*. Its content is copied into a new version numbered after the current latest version and marked as <<pending-versions,pending>>. Use it to return to an earlier state of the document without losing the versions created in between.
 
-. *Opening a document for editing*: Select a document version and click the *Open* button to open the document for editing. Each time a document is saved in an external application, a new version of the document is sent to the database. Use the *Refresh* button to update the list of document versions displayed in the *WebDAV document versions* dialog.
-+
-CAUTION: Clicking *Refresh* deletes all unsaved document versions. Therefore, if a document version was copied but not saved, the changes will be discarded.
+. *Opening the document for editing*: click *Open* to open the document in the associated desktop application. This always opens the latest version with full access, regardless of the version selected in the table. Each time the document is saved in the desktop application, a new version is sent to the server, so use *Refresh* to see it in the table.
 
-. *Opening a document for reading (read-only)*: To open a document for reading, click on the link with the file name.
+. *Opening a version for reading*: click the link with the file name. The selected version is opened in read-only mode.
 
-. *Downloading a ZIP archive with one or several document versions*: The *Download* button provides two options for downloading selected documents/versions. The first option allows you to download documents as separate files. The *Download as ZIP* option allows you to send all selected documents to a ZIP archive and download it. For convenience, file names contain `-v` suffixes with the corresponding version numbers, for example, `example-v3.docx`, `document-v1.docx`.
+. *Downloading versions*: the *Download* button downloads the selected versions as separate files. The *Download as ZIP* option packs them into a single `files.zip` archive. In both cases the version number is added to the file name, for example, `example-v3.docx` and `document-v1.docx`.
 
 [[conflict-resolution-policies]]
 == Conflict Resolution Policies
 
-Several policies are available to resolve conflicts that may occur when multiple users edit the same document simultaneously.
+A conflict resolution policy defines how the add-on reconciles the versions you added in the *WebDAV document versions* dialog with the versions that appeared in the database while the dialog was open.
 
-For example, consider a scenario where two users open the same document in *WebDAV document versions* and add several new versions. The first user completes their work on their versions and saves the changes. Subsequently, the second user does the same. As a result, the database contains versions created by both users. However, each user can only see their own versions in *WebDAV document versions*.
+A conflict is possible only when you save that dialog. It occurs if the document has been modified after the dialog loaded it, regardless of the source of the modification: another user working in the same dialog, a desktop application saving the document, a WebDAV client, or application code calling the add-on services.
 
-This situation can lead to problems with ordering and saving these conflicting document versions. To resolve such conflicts, you can utilize the policies described below.
+The add-on provides the following conflict resolution policies:
 
-By default, the `RejectMergePolicy` is applied.
+[cols="1,3", options="header"]
+|===
+|Policy
+|Description
 
-[[rebase-merge-policy]]
-=== RebaseMergePolicy
+|[[reject-merge-policy]]`RejectMergePolicy`
+|Applied by default if a conflict occurs. Nothing is saved: a warning is displayed and the versions you added in the dialog are discarded. The stored history remains unchanged.
 
-The `RebaseMergePolicy` allows for the insertion of new document versions after those already existing in the database. New versions are numbered in accordance with the latest document version number present in the database.
+|[[rebase-merge-policy]]`RebaseMergePolicy`
+|Keeps both sets of versions. Your versions are renumbered to continue after the last version stored in the database, so nothing is lost.
 
-[[cancel-my-merge-policy]]
-=== CancelMyMergePolicy
+|[[cancel-their-merge-policy]]`CancelTheirMergePolicy`
+|Keeps the versions you added in the dialog and deletes the versions that were stored in the database meanwhile.
 
-If document versions have changed while working in *WebDAV document versions*, all non-persistent versions (marked with *) are deleted.
+|[[cancel-my-merge-policy]]`CancelMyMergePolicy`
+|Keeps the versions stored in the database and deletes the versions you added in the dialog.
 
-[[cancel-their-merge-policy]]
-=== CancelTheirMergePolicy
+|`FastForwardMergePolicy`
+|Applied automatically when there is no conflict. All versions from the dialog are saved. You cannot select it as a conflict resolution policy.
+|===
 
-If document versions have changed while working in *WebDAV document versions*, all versions marked with * are saved instead of those added in *WebDAV document versions*.
+[[comparing-policy-outcomes]]
+=== Comparing Policy Outcomes
 
-[[reject-merge-policy]]
-=== RejectMergePolicy
+To illustrate the difference between the policies, consider a document that has versions 1, 2, and 3. You open the *WebDAV document versions* dialog and upload a file, which appears as <<pending-versions,pending>> version `4*`. Meanwhile, another user saves the same document twice from a desktop application, so the document in the database now has versions 4 and 5. Then you save the dialog.
 
-If a conflict occurs, a warning is displayed, and all new versions are discarded.
+The result depends on the policy:
+
+[cols="1,2", options="header"]
+|===
+|Policy
+|Versions after saving
+
+|`RejectMergePolicy`
+|`1, 2, 3, 4, 5` - your upload is not saved, and a warning is displayed
+
+|`RebaseMergePolicy`
+|`1, 2, 3, 4, 5, 6` - your upload is saved as version 6
+
+|`CancelTheirMergePolicy`
+|`1, 2, 3, 4` - version 4 is your upload, while versions 4 and 5 saved by the other user are deleted
+
+|`CancelMyMergePolicy`
+|`1, 2, 3, 4, 5` - your upload is deleted
+|===
+
+If the other user had not saved the document, there would be no conflict: the `FastForwardMergePolicy` would be applied and your upload would be saved as version 4.
 
 [[overriding-conflict-resolution-policy]]
 === Overriding Default Conflict Resolution Policy
