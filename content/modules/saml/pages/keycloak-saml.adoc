@@ -23,13 +23,20 @@ NOTE: Инструкции были протестированы с Keycloak 26.
 [source,properties]
 ----
 spring.security.saml2.relyingparty.registration.keycloak.entity-id=https://<your-app-url>/saml/sp
-spring.security.saml2.relyingparty.registration.keycloak.acs.location=https://<your-app-url>/login/saml2/sso/keycloak
+spring.security.saml2.relyingparty.registration.keycloak.acs.location={baseUrl}/login/saml2/sso/keycloak
 spring.security.saml2.relyingparty.registration.keycloak.assertingparty.metadata-uri=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor
-spring.security.saml2.relyingparty.registration.keycloak.singlelogout.url=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml
-spring.security.saml2.relyingparty.registration.keycloak.singlelogout.response-url=https://<your-app-url>/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.url={baseUrl}/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.response-url={baseUrl}/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.binding=redirect
 ----
 
 NOTE: `keycloak` в ключе свойства — это идентификатор провайдера. Он может иметь любое значение.
+
+Плейсхолдер pass:q[`{baseUrl}`] разрешается Spring Security во время выполнения. В настройках Keycloak используйте фактический URL приложения, например `\https://jmix-app.com`.
+
+Значение `entity-id` должно быть равно Client ID Keycloak. Свойство `assertingparty.metadata-uri` указывает на дескриптор realm Keycloak и позволяет приложению считывать ID сущности IdP, конечные точки SSO/SLO и сертификат для проверки подписи при запуске.
+
+Как `singlelogout.url`, так и `singlelogout.response-url` указывают на конечную точку SLO приложения Jmix. Установка `singlelogout.binding=redirect` соответствует поведению по умолчанию `jmix.saml.force-redirect-binding-logout=true` и позволяет Spring Security принимать ответы выхода с привязкой redirect от Keycloak.
 
 [[configure-keycloak-client]]
 == Настройка клиента Keycloak
@@ -41,8 +48,10 @@ NOTE: `keycloak` в ключе свойства — это идентифика�
 ** *Сlient type:* `SAML`.
 ** *Client ID:* `\https://<your-app-url>/saml/sp` (то же значение, что и в свойстве `entity-id`).
 ** *Root URL:* базовый URL вашего приложения, например `\https://jmix-app.com`.
-** *Valid redirect URIs:* допустимые шаблоны URI перенаправления, например `\https://jmix-app.com/*`.
+** *Master SAML Processing URL:* `\https://<your-app-url>/login/saml2/sso/keycloak` — тот же эндпойнт, что и `acs.location`.
+** *Valid redirect URIs*: допустимые шаблоны URI перенаправления. Убедитесь, что они включают URL службы обработки утверждений (assertion consumer service), например `\https://jmix-app.com/login/saml2/sso/keycloak`.
 ** *Valid post logout redirect URIs:* допустимые шаблоны URI перенаправления после выхода из приложения, например `\https://jmix-app.com/*`.
+. В разделе *Fine Grain SAML Endpoint Configuration* установите *Logout Service Redirect Binding URL* в значение `\https://<your-app-url>/logout/saml2/slo`.
 
 Эти значения связывают клиент Keycloak с конфигурацией приложения Jmix из предыдущего шага.
 
@@ -107,7 +116,7 @@ openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in private.key -out priv
 ----
 ====
 +
-. Поместите файлы в расположение, доступное приложению, например в `src/main/resources`, и укажите их через свойства:
+. Поместите файлы в расположение, доступное приложению, например в `src/main/resources`, и укажите их через свойства. Приложение использует эту пару ключей для подписи исходящих сообщений `AuthnRequest` и `LogoutRequest`:
 +
 .application.properties
 [source,properties]
@@ -130,7 +139,7 @@ spring.security.saml2.relyingparty.registration.keycloak.signing.credentials[0].
 [[verification-certificate]]
 == (Опционально) Указание сертификата проверки
 
-В некоторых окружениях также может потребоваться сертификат проверки. Чтобы указать сертификат:
+Сертификат для проверки подписи IdP обычно считывается из дескриптора `assertingparty.metadata-uri`. Предоставляйте его вручную только в том случае, если метаданные недоступны или вам необходимо переопределить сертификат. Чтобы предоставить сертификат:
 
 . Откройте дескриптор метаданных Keycloak по адресу `https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor`
 . Скопируйте значение `X509Certificate`.
