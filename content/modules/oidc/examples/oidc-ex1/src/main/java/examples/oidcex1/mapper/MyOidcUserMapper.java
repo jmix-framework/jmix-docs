@@ -32,6 +32,7 @@ public class MyOidcUserMapper extends BaseOidcUserMapper<MyUser> {
     @Override
     protected void populateUserAttributes(OidcUser oidcUser, MyUser jmixUser) {
         jmixUser.setPosition((String) oidcUser.getClaims().get("position"));
+        jmixUser.setDelegate(oidcUser);
     }
 
     @Override
