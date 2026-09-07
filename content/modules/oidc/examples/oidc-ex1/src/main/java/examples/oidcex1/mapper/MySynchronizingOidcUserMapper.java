@@ -38,6 +38,7 @@ public class MySynchronizingOidcUserMapper extends SynchronizingOidcUserMapper<U
         jmixUser.setFirstName(oidcUser.getGivenName());
         jmixUser.setLastName(oidcUser.getFamilyName());
         jmixUser.setEmail(oidcUser.getEmail());
+        jmixUser.setDelegate(oidcUser);
     }
 }
 //end::code[]
