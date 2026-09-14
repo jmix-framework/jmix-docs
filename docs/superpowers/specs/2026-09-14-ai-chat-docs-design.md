@@ -105,7 +105,9 @@ What stays in: behavior a Java developer observes and controls from Java or XML.
 
 `AiCodeBlock.appendCode(String)` and `setStreaming(boolean)` are there so that `AiChat` and `AiMessageList` can drive an embedded block while an answer streams in. An application developer does not call them, so they are left out, and with them the batching mechanism behind them.
 
-This rule needs re-checking per page rather than applied blind. `AiMessageList.appendText` is the open case: the add-on's specs present the list as usable standalone through `setItems` / `addItem` / `appendText`, which would make it reader-facing rather than a seam. Settle it when `aiMessageList.adoc` is written, not before.
+This rule needs re-checking per page rather than applied blind, and the first re-check reversed the default. `AiMessageList.setState`, `getActiveItem`, `AiMessageListItem.appendText` and `addRetryListener` look like the seam `AiChat` drives the list through, and on that reading they would have been cut. They stay in: Gleb's call, on the ground that this API is what lets an application assemble its own AI chat out of the base components instead of being restricted to `aiChat`. Driving the list by hand — add a user item, switch to `GENERATING`, stream with `appendText`, return to `IDLE` — is a supported use of the add-on and gets a section of its own.
+
+The distinction that separates this from `AiCodeBlock.appendCode`: a code block is never the thing an application assembles a feature out of, while the message list is. Ask whether the component is a building block in its own right before deciding that its state API is internal.
 
 ## Page content map
 
