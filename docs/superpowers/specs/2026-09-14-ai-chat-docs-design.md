@@ -99,6 +99,12 @@ The reader is a Jmix application developer working in Java and XML. Client-side 
 
 What stays in: behavior a Java developer observes and controls from Java or XML. "Highlighting runs only when a language is set and streaming is off" is behavior and stays; the `Highlighter` contract, `setHighlighter`, and highlight.js lazy loading are mechanism and go. CSS is not affected by this rule — `::part()` selectors, `--jmix-ai-*` knobs and theme variants are how an application styles these components and remain in `styling.adoc`.
 
+### D10. API that exists only as a seam for other components in the add-on is not documented
+
+`AiCodeBlock.appendCode(String)` and `setStreaming(boolean)` are there so that `AiChat` and `AiMessageList` can drive an embedded block while an answer streams in. An application developer does not call them, so they are left out, and with them the batching mechanism behind them.
+
+This rule needs re-checking per page rather than applied blind. `AiMessageList.appendText` is the open case: the add-on's specs present the list as usable standalone through `setItems` / `addItem` / `appendText`, which would make it reader-facing rather than a seam. Settle it when `aiMessageList.adoc` is written, not before.
+
 ## Page content map
 
 Each page's material, traced to its source. Written against the specs, not the cheat sheet.
@@ -107,7 +113,7 @@ Each page's material, traced to its source. Written against the specs, not the c
 
 **`getting-started.adoc`** — prerequisites; `@Push` on the application class and why it is required (streaming and thinking statuses); implementing `LLMProvider` (`Flux<String> stream(LLMRequest)`) and connecting it through `@Install(to = "chat", subject = "llmProvider")`; a zero-configuration `<aiChat height="100%"/>`; running it; one screenshot. One sentence noting that the Studio designer preview renders placeholder boxes for these components.
 
-**`aiCodeBlock.adoc`** — standalone use and automatic embedding in fenced blocks of assistant messages; `language` and `AiCodeBlockLanguage`; the `code` attribute versus the multi-line CDATA `<code>` element; copy and wrap toggle; independent horizontal scrolling; the hybrid toolbar with and without a language; `appendCode(delta)` and `setStreaming` for streaming; theming knobs; attribute/handler/element tables. Per D9, the swappable client-side `Highlighter` contract is not documented; that highlighting requires a language and is suspended while streaming is documented as behavior, without the mechanism.
+**`aiCodeBlock.adoc`** — standalone use and automatic embedding in fenced blocks of assistant messages; `language` and `AiCodeBlockLanguage`; the `code` attribute versus the multi-line CDATA `<code>` element; copy and wrap toggle and the wrap reset on replacement; independent horizontal scrolling and vertical scrolling under a fixed height; the hybrid toolbar with and without a language; per-instance localization; theming knobs; attribute/handler/element tables. Excluded per D9 and D10: the client-side `Highlighter` seam, and `appendCode` / `setStreaming`. The `highlight` attribute keeps a row in the attributes table; that highlighting needs a language is stated under Language.
 
 **`aiMessageInput.adoc`** — adaptive collapsed/expanded layout and `fixed-toolbar`; `maxRows` and the short-viewport cap; send/stop button and when it is disabled; `EnterAction` (`SEND` / `NEWLINE`) and `enterkeyhint`; the `prefix`, `suffix`, `header`, `footer` and `tooltip` slots, all injectable by id; `no-header-footer-gap`; composite-level focus and blur events; `AiMessageInputVariant`; attribute/handler/element tables. Attachment configuration is cross-referenced to `attachments.adoc`, not repeated.
 
