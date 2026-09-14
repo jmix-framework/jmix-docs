@@ -93,9 +93,11 @@ No `Conversation` entity: `AiChat` binds to a flat message list, and the demo or
 
 `aiCodeBlock` → `aiMessageInput` → `aiMessageList` → `aiChat`, after `index` and `getting-started`. The simplest component page is written first so the page template is calibrated on cheap material before it is applied to the expensive pages.
 
-### D9. The audience is Java developers; client-side JavaScript APIs are not documented
+### D9. The audience is Java developers; front-end internals and non-operative detail stay out
 
 The reader is a Jmix application developer working in Java and XML. Client-side JavaScript contracts the add-on exposes are therefore left out of the product docs entirely, even when a spec describes them: they are not what this audience programs against, and in the one case that came up — `AiCodeBlock`'s swappable `Highlighter` registry — there is no established practice behind the seam to document.
+
+The rule is broader than JavaScript APIs. Every component of this add-on has a client element behind it, and the add-on's own specs describe those elements in depth — shadow parts, measurement strategies, layout mechanics, forked Vaadin internals. None of it belongs in the product docs. Neither does any other technical detail that does not change how the component is used.
 
 What stays in: behavior a Java developer observes and controls from Java or XML. "Highlighting runs only when a language is set and streaming is off" is behavior and stays; the `Highlighter` contract, `setHighlighter`, and highlight.js lazy loading are mechanism and go. CSS is not affected by this rule — `::part()` selectors, `--jmix-ai-*` knobs and theme variants are how an application styles these components and remain in `styling.adoc`.
 
@@ -126,6 +128,37 @@ Each page's material, traced to its source. Written against the specs, not the c
 **`localization.adoc`** — the `messages.properties` bundle and overriding its keys application-wide; the nested `<i18n>` element mirroring the component tree; override-not-replace semantics (a declared attribute wins, an absent one keeps the bundle value, an empty element is a no-op); `msg://` resolution; the `*I18n` Java beans.
 
 **`styling.adoc`** — the public `::part()` surface per component; the `--jmix-ai-*` custom property namespace and the knobs worth naming; `--jmix-ai-chat-max-width` projecting onto the inner components; theme variants (`AiChatVariant`, `AiMessageInputVariant`) and how chat variants project onto inner components; Aura and Lumo; dark mode, `forced-colors`, `prefers-reduced-motion`, RTL.
+
+## Component page template
+
+Established on `aiCodeBlock.adoc` (step 5) and to be reused for the remaining component pages.
+
+Shape, following `flow-ui:vc/components/markdown.adoc`, the closest existing analogue:
+
+```
+= <xmlTag>                       one-sentence description
+[cols table]                     XML Element / Java Class
+                                 a sentence placing the component in the add-on
+== Overview                      one tight screenshot of the component itself
+== Basics                        namespace declaration, Studio TIP, the minimal example
+== <feature sections>            one per feature, anchored
+== Attributes                    own attributes table, then the shared-attribute xref line
+== Handlers                      shared-handler xref line
+== Elements                      one subsection per nested element
+```
+
+Mechanics learned the hard way, all of which recur on every page:
+
+- **`indent=0` is incompatible with `CDATA`.** The directive strips the region's *common* leading whitespace. When the code inside a `CDATA` block is indented relative to its own first line, that indentation becomes the common minimum and is silently removed — a nested YAML key ends up level with its parent. Omit `indent=0` on any include whose region contains `CDATA`; the snippet then carries the descriptor's own indentation, which is honest.
+- **An `*` inside backticks still pairs as bold.** Two mentions of a wildcard family in one paragraph (`--jmix-ai-code-block-color-*` and `--jmix-ai-code-block-icon-*`) render as one bold run with both asterisks eaten. Wrap them in a passthrough: `+`...`+`. This will recur on `styling.adoc` and `localization.adoc`.
+- **Build success is not page correctness.** Both defects above produced a clean Antora build. Render the page and read the output — `build/site/jmix/ai-chat/<page>.html` — before calling it done.
+- **Anchor names collide between sections and attribute rows.** An attribute row keeps the plain attribute name as its anchor (`[[language]]`); the section about that attribute needs a different one (`[[setting-language]]`).
+
+Sections are cut when the behavior is what a reader already expects — a code block scrolling its own long lines did not earn a section.
+
+**Before documenting a surprise, establish that a reader would meet it.** A demo view stacking eight code blocks made them shrink instead of the view scrolling, and that went onto the page as a section with a `css="flex: none"` remedy carried by every snippet. It should not have: the effect needs many blocks in one constrained container, which no real view has, so it was a property of our own scaffolding. Documenting it made the component read as defective and put a workaround in front of every example. Scaffolding that keeps a demo view usable belongs in the demo and stays invisible — a wrapper the snippets do not include, not an attribute they do.
+
+**Screenshots are taken at 2x and declared at half width.** Verified against existing pages: `groupdatagrid-basic.png` is 2194x900 at `width="1097"`, `overview-embedded-kanban.png` is 1780x1152 at `width="890"`. Capture with `deviceScaleFactor: 2` and set `width` to half the file's pixel width, so the image stays sharp on high-DPI displays.
 
 ## Traps to carry over
 
