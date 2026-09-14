@@ -266,4 +266,19 @@ public class SampleView extends StandardView {
         window.open();
     }
     // end::openViewWithSize[]
+    @Subscribe(id = "openedDialogWindows", subject = "clickListener")
+    public void onOpenedDialogWindowsClick(final ClickEvent<JmixButton> event) {
+        DepartmentDetailView detailView = getOpenedDepartmentDetailView();
+    }
+    // tag::openDialogWindows[]
+    private DepartmentDetailView getOpenedDepartmentDetailView() {
+        return dialogWindows.getOpenedDialogWindows()
+                .getDialogs()
+                .stream()
+                .filter(DepartmentDetailView.class::isInstance)
+                .map(DepartmentDetailView.class::cast)
+                .reduce((previous, current) -> current)
+                .orElseThrow();
+    }
+    // end::openDialogWindows[]
 }
