@@ -211,13 +211,28 @@ Each view also gets a `menu.xml` item and its keys in `messages_en.properties`.
 
 `ChatMessage` and `ChatMessageAttachment` per D7, plus a Liquibase changelog. Introduced at step 10, not earlier: `quickstart`, `codeblock`, `messageinput` and `messagelist` all run on `ListAiChatItems` with the built-in `SimpleAiChatMessage` and need no entity.
 
-### Tests
+### No tests
 
-`./gradlew testAll` runs example tests, and `AGENTS.md` states that example tests are what keep documented snippets correct. One light `@UiTest` per view: open it, assert the component is present and that history rendered. Where a test needs deterministic generation, use a synchronous `Flux` provider — the harness the add-on itself uses.
+The example carries no tests for these views. Gleb's call, and the reasoning holds: the project exists so that snippets are pulled from a live application instead of being hardcoded in the docs, and that is its whole job. Compilation already provides the protection that matters — the views are compiled by `compileAll`, so a change in the add-on's API breaks the build without any assertions, and assertions over rendering added little beyond that while needing maintenance.
 
-### Open: the LLM provider
+Three `@UiTest` classes written before this decision — for the code block, message input and message list views — still exist. Verification of a demo view is now: it compiles, and it was run and looked at. That is where every valuable finding has come from in any case.
 
-Which provider the example carries is deferred to step 2, to be decided against the user's existing demo project. The relevant precedent in this repository: `ai-tools-ex1` depends only on `org.springframework.ai:spring-ai-model` (the API, no model starter, no key, no `spring.ai.*` properties) and shows the OpenAI starter as an inline snippet in the docs rather than including it from the example. Options on the table: a real Spring AI provider with the key from an environment variable, a deterministic stub returning a canned `Flux`, or both beans with the real one conditional.
+### The LLM provider: Ollama, for real
+
+Settled. The example depends on `org.springframework.ai:spring-ai-starter-model-ollama` and configures it as Gleb's own demo project does — `spring.ai.model.chat=ollama`, a `base-url` and `chat.model` from the environment with local defaults, and `spring.ai.ollama.init.pull-model-strategy=never`. Ollama needs no API key, so the example carries genuinely runnable configuration rather than a placeholder nobody can start.
+
+What the documentation actually teaches is the glue, which is four lines and identical for any Spring AI model — swapping the starter and the properties is the only difference:
+
+```java
+@Install(to = "chat", subject = "llmProvider")
+private Flux<String> llmProvider(LLMProvider.LLMRequest request) {
+    return chatClient.prompt().user(request.userMessage()).stream().content();
+}
+```
+
+Deliberately not copied from that project: its `PlaceholderChatModel` and `QwenChatModel`. Both are its own stand scaffolding — a scripted model for exercising the UI, and a wrapper that strips demo-screen options before delegating to Ollama — and neither is something a reader writes.
+
+Open until verified: whether the application starts and stays usable with no Ollama running. `pull-model-strategy=never` suggests nothing is fetched at boot, and the whole arrangement depends on it.
 
 ## Repository plumbing
 
@@ -232,7 +247,8 @@ Neither playbook nor `content/antora.yml` needs a change: `examples/` under a mo
 
 ## Risks
 
-- **CI is red until the add-on is published.** `.github/workflows/test.yml` runs `compileAll testAll` against the premium Nexus. `io.jmix.aichat:*` at `3.1.999-SNAPSHOT` must be published there before the example compiles in CI. Locally, `publish-to-maven-local` in `jmix-all` plus the `mavenLocal()` entry already present in the example's repositories covers it.
+- ~~CI is red until the add-on is published.~~ **Retired.** `io.jmix.aichat:jmix-aichat-flowui-starter` resolves straight from `https://nexus.jmix.io/repository/premium` at `3.1.999-SNAPSHOT`; no local publishing is needed. Verified by the example resolving it with an empty `~/.m2/repository/io/jmix`.
+- **`compileAll` does not fit the default Gradle heap.** Configuring the ~30 included builds exhausts 512 MiB and the daemon dies of GC thrashing. Run it with `-Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"`. Note also that `--dry-run` does not propagate into included builds, so a "dry" run of `compileAll` compiles everything for real.
 - **The add-on is experimental.** Every package of `aichat-flowui` carries `@Experimental`. The docs should say so once, in `index.adoc`.
 - **Snippets drift.** Mitigated by including from tagged regions of compiling code and by the per-view `@UiTest`s, per the repository's existing practice.
 
@@ -242,7 +258,7 @@ Neither playbook nor `content/antora.yml` needs a change: `examples/` under a mo
 |---|---|---|
 | 0 | docs | This plan. |
 | 1 | docs | Plumbing (see above) plus skeletons of all nine pages with headings and anchors, so cross-references can be written from the start. |
-| 2 | ai-chat-ex1 | Provider decision; `@Push`; `view/quickstart`; menu and message keys; `@UiTest`. |
+| 2 | ai-chat-ex1 | Provider decision; `@Push`; `view/quickstart`; menu and message keys. |
 | 3 | docs | `index.adoc`, `getting-started.adoc`, first screenshot. |
 | 4 | ai-chat-ex1 | `view/codeblock`. |
 | 5 | docs | `aiCodeBlock.adoc` — establishes the reusable component-page template: header table (XML element / Java class), Basics with the namespace declaration, feature sections, snippet presentation, attribute/handler/element tables. |
