@@ -1,2 +1,80 @@
 = Getting Started
 
+This section shows how to put a working AI chat into an application: enable server push, connect a model, and add the component.
+
+[[prerequisites]]
+== Prerequisites
+
+Install the add-on as described in xref:ai-chat:index.adoc#installation[Installation].
+
+[[push]]
+== Enabling Server Push
+
+Answers arrive token by token, from a thread other than the one that handled the request, so the application must have server push enabled. Add `@Push` to the application class:
+
+[source,java,indent=0]
+----
+@Push
+@SpringBootApplication
+public class DemoApplication {
+----
+
+Without it the components render, but nothing an answer produces ever reaches the browser.
+
+[[connecting-a-model]]
+== Connecting a Model
+
+The chat does not talk to a model itself. It asks the application for one function — given a request, return the answer as a stream of text — and that function is an `LLMProvider`, installed on the component.
+
+This example uses https://ollama.com[Ollama^], which runs a model locally and needs no API key. Add the Spring AI starter for it:
+
+[source,groovy,indent=0]
+----
+include::example$/ai-chat-ex1/build.gradle[tags=provider-dependencies]
+----
+
+And configure it in `application.properties`:
+
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/application.properties[tags=provider-properties]
+----
+
+Then install the provider on the chat. Spring AI autoconfigures a `ChatClient.Builder`, from which the view builds its client:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/quickstart/QuickStartView.java[tags=llm-provider]
+----
+
+`LLMProvider` comes from `com.vaadin.flow.component.ai.provider`, not from a Jmix package.
+
+TIP: Nothing above is specific to Ollama except the starter and the properties. To use OpenAI, Anthropic, Azure OpenAI, or any other https://docs.spring.io/spring-ai/reference/api/index.html[Spring AI model^], swap those two and leave the provider method as it is.
+
+[[adding-the-chat]]
+== Adding the Chat
+
+Declare the component in the view descriptor. Give it a width and a height — a chat with neither sizes itself to its content, which in a view's root layout means a narrow column:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/quickstart/quick-start-view.xml[tags=basics]
+----
+
+That is the whole configuration. The chat keeps the conversation in memory, renders the answers, and needs nothing else to work:
+
+image::aichat-quickstart.png[A working chat, align="center", width="1068"]
+
+[NOTE]
+====
+The application starts normally when no model is reachable, and the view opens as usual. The failure appears on the first message, as a failed generation in the chat rather than as a startup error.
+====
+
+TIP: In the Studio view designer these components render as empty placeholder boxes of the right size and position. That is by design, not a defect.
+
+[[next-steps]]
+== What Next
+
+The chat above keeps its conversation in memory, so it is gone when the view closes. See xref:ai-chat:aiChat.adoc[] for binding the chat to your own message entity, persisting the conversation, controlling generation, and configuring the parts it is assembled from.
+
+The components it assembles are usable on their own as well: xref:ai-chat:aiMessageList.adoc[aiMessageList] to display a conversation or drive one yourself, xref:ai-chat:aiMessageInput.adoc[aiMessageInput] to collect a message, and xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock] to show code anywhere in the application.

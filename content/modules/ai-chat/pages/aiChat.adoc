@@ -1,1 +1,350 @@
 = aiChat
+
+The `aiChat` component is a complete chat: a transcript, a composer, an empty state, and the generation cycle that connects them to a language model.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`aiChat`
+
+|Java Class
+|`AiChat`
+|===
+
+The component is part of the xref:ai-chat:index.adoc#installation[AI Chat Components] add-on. It composes xref:ai-chat:aiMessageList.adoc[aiMessageList] and xref:ai-chat:aiMessageInput.adoc[aiMessageInput] and configures both on your behalf, so most of what those pages describe is reachable from here as well.
+
+== Overview
+
+image::aichat-chat-conversation.png[A conversation, align="center", width="1068"]
+
+[[basics]]
+== Basics
+
+A chat needs an element and a provider. The element:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/quickstart/quick-start-view.xml[tags=basics]
+----
+
+And the provider, which is the one function the component asks the application for — see xref:ai-chat:getting-started.adoc#connecting-a-model[Connecting a Model]:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/quickstart/QuickStartView.java[tags=llm-provider]
+----
+
+That is a working chat. It keeps the conversation in memory and loses it when the view closes; <<data,binding it to data>> is what makes the conversation outlive the view.
+
+[NOTE]
+====
+Give the chat a width and a height. Without them it sizes to its content, which in a view's root layout produces a narrow column rather than a chat.
+
+A chat that is sized and still looks narrow is a different matter: the conversation column is capped at `--jmix-ai-chat-max-width`, 768px by default, so that lines stay readable on a wide screen. See <<configuring,Configuring the Parts>>.
+====
+
+[[data]]
+== Messages and Data
+
+A message is data, not a component. The chat reads it through the `AiChatMessage` contract — a role, the text, an optional time, and any attachments — and never writes to it directly.
+
+Out of the box the chat keeps a list of built-in messages in memory. To persist a conversation, supply your own entity implementing that contract:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/entity/ChatMessage.java[tags=entity]
+----
+
+Then load it into a collection container and point the chat at it:
+
+.Data
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=data]
+----
+
+.Layout
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=chat]
+----
+
+[IMPORTANT]
+====
+Order the query by a persistent attribute, as above. The contract's `time` is derived from your entity and JPQL cannot resolve it. Messages saved in the same second need a tiebreaker if their order is to survive a reload.
+====
+
+Because the contract is read-only, the component cannot create your entity — install a factory that does:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/chat/ChatView.java[tags=message-factory]
+----
+
+The factory is called once per committed message: for the user's message when it is submitted, and for the answer when it completes.
+
+[[persistence]]
+== Persistence
+
+`autoSave="true"`, shown in the example above, makes the chat persist through the view's `DataContext`: each committed message is merged and saved, and a message removed by a rewind is deleted.
+
+[NOTE]
+====
+`autoSave` saves the whole `DataContext`, not only the message — sending a message also commits unrelated edits made elsewhere in the view. It is also an XML attribute with no Java equivalent: from a controller you install a save delegate and a remove delegate instead, which is also what an application does when it needs to persist differently.
+====
+
+If the chat is inside a detail view whose `DataContext` has a parent, a save reports success while the row reaches the database only when the parent view is saved — and cancelling there discards the conversation with the rest.
+
+An application that persists messages itself can ignore both and listen for `MessageChangeEvent`, which reports every message added or removed.
+
+[[empty-state]]
+== Empty State
+
+Before the first message the chat centres its composer in the space and offers two slots around it, for a greeting, suggestions, or a disclaimer:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=empty-state]
+----
+
+image::aichat-chat-empty-state.png[The empty state, align="center", width="1068"]
+
+The empty state collapses into the normal bottom-pinned layout as soon as the first message lands.
+
+[[bands]]
+== Composer Bands
+
+`inputHeader` and `inputFooter` put application content inside the composer but outside the input box — a context line above the field, the customary disclaimer below it:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=bands]
+----
+
+.Message bundle
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=chat-bands]
+----
+
+[NOTE]
+====
+Both bands are hidden while the chat is empty, because the empty state has its own slots for that space. A band declared and then not seen on a fresh chat is not broken — send a message and it appears. To keep a band visible when the chat is empty, apply the `input-header-component-always-visible` or `input-footer-component-always-visible` theme variant.
+====
+
+[[generation]]
+== Generation
+
+The chat moves between three states — idle, generating, and error — and reports every transition:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=state-listener]
+----
+
+image::aichat-chat-generating.png[A chat generating an answer, align="center", width="1068"]
+
+While an answer is generating, the composer's send button becomes a stop button on its own. `stop()` has the same effect from the application; the partial answer stays on screen but is never committed. `regenerate()` discards the last answer and runs the same prompt again:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=regenerate]
+----
+
+To let the user regenerate any answer rather than only the last, declare the built-in message action — it rewinds the conversation to that message and runs it again:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/generation/generation-view.xml[tags=regenerate-action]
+----
+
+When generation fails, the transcript shows an error banner with a *Retry* button, and the application is notified with the error and whatever text had arrived before it:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=failed-listener]
+----
+
+NOTE: A failed save and a failed generation share the error state, and *Retry* generates the answer again rather than retrying the save.
+
+[[actions]]
+== Chat Actions
+
+The chat holds ordinary Jmix actions, which can be bound to any component in the view:
+
+.Declaration
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=chat-action-declaration]
+----
+
+.Binding
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/ChatView.xml[tags=chat-action]
+----
+
+These are the chat's own actions, not the per-message actions described in xref:ai-chat:aiMessageList.adoc#actions[Message Actions].
+
+[[configuring]]
+== Configuring the Parts
+
+Everything the transcript and the composer offer is reachable from the chat. The `maxRows`, `enterAction`, and attachment attributes configure the composer; `announceMessages` configures the transcript; the `thinkingIndicator`, `thinkingStages`, `userActions`, and `assistantActions` elements are declared on the chat and applied to the transcript; and `inputPrefix` and `inputSuffix` fill the composer's slots. See xref:ai-chat:aiMessageList.adoc[] and xref:ai-chat:aiMessageInput.adoc[] for what each does.
+
+`--jmix-ai-chat-max-width` sets the width of the whole conversation column — the transcript, the composer, and the empty state together. Its default is `768px`.
+
+NOTE: `AiChat` has no custom element of its own. It renders as a plain `div` containing the transcript and composer elements, so it cannot be selected by a tag name in CSS or found by one in the browser's inspector. Use its id or a class name.
+
+[[localization]]
+== Localization
+
+The chat's own announcements come from the add-on's message bundle, under the `+aiChat.i18n.*+` keys. Its nested `i18n` element mirrors the component tree: attributes on the element itself re-word the chat, and nested `messageList`, `messageInput`, and `codeBlock` elements reach the parts it composes. See xref:ai-chat:localization.adoc[].
+
+[[attachments]]
+== Attachments
+
+The chat threads attachments end to end: the composer collects them, the message factory stores them, and the transcript renders them. See xref:ai-chat:attachments.adoc[].
+
+== Attributes
+
+The following attributes are specific to `aiChat`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[acceptedFileExtensions]]`acceptedFileExtensions`
+|Restricts attachments to the listed file extensions. See xref:ai-chat:attachments.adoc[].
+|—
+
+|[[acceptedMimeTypes]]`acceptedMimeTypes`
+|Restricts attachments to the listed media types. See xref:ai-chat:attachments.adoc[].
+|—
+
+|[[announceMessages]]`announceMessages`
+|Sets whether arriving messages are announced to screen readers. See xref:ai-chat:aiMessageList.adoc#accessibility[Accessibility].
+|`false`
+
+|[[attachmentsEnabled]]`attachmentsEnabled`
+|Sets whether the composer accepts attachments. See xref:ai-chat:attachments.adoc[].
+|`false`
+
+|[[autoSave]]`autoSave`
+|Persists committed messages through the view's `DataContext`. See <<persistence,Persistence>>.
+|`false`
+
+|[[dataContainer]]`dataContainer`
+|Binds the chat to a collection container of messages. See <<data,Messages and Data>>.
+|—
+
+|[[enterAction]]`enterAction`
+|Sets what *Enter* does in the composer. See xref:ai-chat:aiMessageInput.adoc#text-area[Text Area].
+|`SEND`
+
+|[[maxFileSize]]`maxFileSize`
+|Sets the maximum size of a single attachment in bytes. See xref:ai-chat:attachments.adoc[].
+|`26214400`
+
+|[[maxFiles]]`maxFiles`
+|Sets how many files can be attached to one message. See xref:ai-chat:attachments.adoc[].
+|`10`
+
+|[[maxRows]]`maxRows`
+|Sets how many lines the composer grows to before it scrolls. See xref:ai-chat:aiMessageInput.adoc#text-area[Text Area].
+|`10`
+
+|[[systemPrompt]]`systemPrompt`
+|Sets the system prompt sent with every request. Can also be declared as a nested element for a multi-line value.
+|—
+
+|[[themeNames]]`themeNames`
+|Applies theme variants, including `input-header-component-always-visible` and `input-footer-component-always-visible`, which keep a band visible while the chat is empty. See <<bands,Composer Bands>>.
+|—
+
+|[[uploadDropZoneEnabled]]`uploadDropZoneEnabled`
+|Sets whether files can be dropped onto the composer. See xref:ai-chat:attachments.adoc[].
+|`true`
+|===
+
+The following shared attributes are supported by `aiChat`:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Handlers
+
+The following handlers are specific to `aiChat`:
+
+[cols="2,5", options="header"]
+|===
+|Name
+|Description
+
+|[[GenerationFailedEvent]]`GenerationFailedEvent`
+|Fired when generation fails. Carries the error and the text received before it. See <<generation,Generation>>.
+
+|[[GenerationStateChangeEvent]]`GenerationStateChangeEvent`
+|Fired on every transition between idle, generating, and error. See <<generation,Generation>>.
+
+|[[MessageChangeEvent]]`MessageChangeEvent`
+|Fired when a message is committed or removed. See <<persistence,Persistence>>.
+
+|[[llmProvider]]`llmProvider`
+|Supplies the answer for a request, as a stream of text. Required. See <<basics,Basics>>.
+
+|[[messageFactory]]`messageFactory`
+|Creates a message instance for the bound source. Required when the chat is bound to your own entity. See <<data,Messages and Data>>.
+|===
+
+The following shared handlers are supported by `aiChat`:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Elements
+
+An `aiChat` can include `actions`, `systemPrompt`, `inputPrefix`, `inputSuffix`, `inputHeader`, `inputFooter`, `thinkingIndicator`, `thinkingStages`, `userActions`, `assistantActions`, `emptyStateHeader`, `emptyStateFooter`, and `i18n` as its nested elements.
+
+[[actions-element]]
+=== actions
+
+The `actions` element contains the chat's own `action` elements. See <<actions,Chat Actions>>.
+
+[[systemPrompt-element]]
+=== systemPrompt
+
+The `systemPrompt` element holds a multi-line system prompt, as an alternative to the attribute of the same name.
+
+[[input-slots-elements]]
+=== inputPrefix, inputSuffix, inputHeader, inputFooter
+
+These elements fill the composer's slots — the first two inside the input box, the last two as bands outside it. See <<bands,Composer Bands>> and xref:ai-chat:aiMessageInput.adoc#slots[Prefix and Suffix].
+
+[[empty-state-elements]]
+=== emptyStateHeader, emptyStateFooter
+
+These elements hold the content shown above and below the composer while the chat is empty. See <<empty-state,Empty State>>.
+
+[[transcript-elements]]
+=== thinkingIndicator, thinkingStages, userActions, assistantActions
+
+These elements configure the transcript and behave as described for xref:ai-chat:aiMessageList.adoc#thinking-indicator[aiMessageList].
+
+[[i18n-element]]
+=== i18n
+
+The `i18n` element re-words this chat and, through its nested `messageList`, `messageInput`, and `codeBlock` elements, the parts it composes. See <<localization,Localization>>.
