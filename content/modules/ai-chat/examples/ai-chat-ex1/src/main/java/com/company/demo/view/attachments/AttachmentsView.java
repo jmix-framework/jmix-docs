@@ -62,14 +62,12 @@ public class AttachmentsView extends StandardView {
     @Install(to = "chat", subject = "llmProvider")
     private Flux<String> llmProvider(final LLMProvider.LLMRequest request) {
         String userMessage = request.userMessage();
-        if (userMessage == null || userMessage.isBlank()) {
-            // a message can carry only attachments, and ChatClient.user(...)
-            // rejects blank text
+        if (userMessage == null || userMessage.isBlank()) { // <1>
             userMessage = "Describe the attached files.";
         }
         String text = userMessage;
 
-        Media[] media = request.attachments().stream()
+        Media[] media = request.attachments().stream() // <2>
                 .map(attachment -> Media.builder()
                         .name(attachment.name())
                         .mimeType(MimeTypeUtils.parseMimeType(attachment.mimeType()))

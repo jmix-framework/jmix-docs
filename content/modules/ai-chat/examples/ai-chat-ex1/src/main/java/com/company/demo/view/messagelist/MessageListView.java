@@ -149,8 +149,7 @@ public class MessageListView extends StandardView {
         }
 
         @Override
-        public void progress(List<String> chunks) {
-            // runs on the UI thread, which is what appendText requires
+        public void progress(List<String> chunks) { // <1>
             chunks.forEach(answer::appendText);
         }
 

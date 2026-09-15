@@ -21,7 +21,7 @@ import reactor.core.publisher.Flux;
 
 @Route(value = "chat", layout = MainView.class)
 @ViewController(id = "ChatView")
-@ViewDescriptor(path = "ChatView.xml")
+@ViewDescriptor(path = "chat-view.xml")
 public class ChatView extends StandardView {
 
     @ViewComponent
@@ -47,9 +47,7 @@ public class ChatView extends StandardView {
     private Flux<String> llmProvider(final LLMProvider.LLMRequest request) {
         ChatClient.ChatClientRequestSpec prompt = chatClient.prompt();
 
-        // the declared <aichat:systemPrompt> arrives on the request, but only
-        // reaches the model if the provider passes it on
-        String systemPrompt = request.systemPrompt();
+        String systemPrompt = request.systemPrompt(); // <1>
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt = prompt.system(systemPrompt);
         }

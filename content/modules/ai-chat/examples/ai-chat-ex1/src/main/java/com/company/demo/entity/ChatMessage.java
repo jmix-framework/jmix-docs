@@ -84,9 +84,7 @@ public class ChatMessage implements AiChatMessage {
 
     @Override
     public List<FileRef> getAttachments() {
-        // the contract requires a non-null list, and an empty element collection
-        // comes back from the database as null
-        return attachments == null ? List.of() : attachments;
+        return attachments == null ? List.of() : attachments; // <1>
     }
     // end::entity[]
 
