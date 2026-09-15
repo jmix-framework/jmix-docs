@@ -21,13 +21,17 @@ import org.springframework.core.env.Environment;
 
 import javax.sql.DataSource;
 
+// tag::push[]
 @Push
+// end::push[]
 @StyleSheet(Aura.STYLESHEET)
 @StyleSheet(JmixAura.STYLESHEET)
 @StyleSheet("themes/ai-chat-ex1-aura/styles.css")
 @PWA(name = "Ai Chat Ex1", shortName = "Ai Chat Ex1", offline = false)
+// tag::app-class[]
 @SpringBootApplication
 public class AiChatEx1Application implements AppShellConfigurator {
+// end::app-class[]
 
     @Autowired
     private Environment environment;
