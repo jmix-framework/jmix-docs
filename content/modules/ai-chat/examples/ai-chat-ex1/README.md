@@ -32,3 +32,13 @@ The default user credentials are:
 * Password: `admin`
 
 **WARNING**: Change admin password and remove `ui.login.defaultUsername` and `ui.login.defaultPassword` application properties when deploying the application to production.
+
+## The language model
+
+The chat views talk to a local [Ollama](https://ollama.com) server. Nothing is contacted at startup, so the application runs without it — a chat reports the failure on the first message instead.
+
+Attachments need a model that accepts them. The default `qwen3:8b` handles text only and refuses any attached file — a plain text file as readily as an image — so the Attachments view reports an error until you point the application at a [multimodal model](https://ollama.com/search?c=vision):
+
+```bash
+OLLAMA_CHAT_MODEL=<model> ./gradlew bootRun
+```
