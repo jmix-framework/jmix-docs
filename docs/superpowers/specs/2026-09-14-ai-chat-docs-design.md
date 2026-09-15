@@ -262,6 +262,20 @@ Neither playbook nor `content/antora.yml` needs a change: `examples/` under a mo
 - **The add-on is experimental.** Every package of `aichat-flowui` carries `@Experimental`. The docs should say so once, in `index.adoc`.
 - **Snippets drift.** Mitigated by including from tagged regions of compiling code and by the per-view `@UiTest`s, per the repository's existing practice.
 
+## Handover notes
+
+For whoever picks this up next.
+
+**What the deleted tests took with them.** The code block and message list `@UiTest`s each pinned localization override-not-replace — that a label left undeclared keeps its value from the message bundle. Nothing asserts it now, so a regression there shows up as wrong words in a screenshot rather than a red build. That is an accepted trade, not an oversight; it is the one guard the no-tests decision actually gave up.
+
+**Verify by reading what the application says, not by checking that the call returned.** The single most valuable finding of the project — that the documented provider stored and displayed attachments while never showing one to the model — came from reading the model's answer. The code ran, the file was saved, the thumbnail rendered, and the feature was broken.
+
+**`tools/screenshot-2x.mjs`** exists because the MCP browser tool cannot set `deviceScaleFactor` and this repository's screenshots are all 2x. Its `--eval` option is also how the demo application's "Change admin password" notification card is cleared before a capture — it will otherwise float over the shot.
+
+**The example errors on attach with the shipped model.** `qwen3:8b` is text-only and refuses any attachment, image or text file alike. The page documents the requirement, and `OLLAMA_CHAT_MODEL` overrides it without touching a snippet.
+
+**`documentationLink` is still empty in `aichat-flowui-kit`.** Per D1 the Studio palette links should point at `%VERSION%/ai-chat/<page>.html#<anchor>`. That is a change in `jmix-all`, out of scope here.
+
 ## Work sequence
 
 | # | Where | Work |
