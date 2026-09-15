@@ -215,7 +215,7 @@ Each view also gets a `menu.xml` item and its keys in `messages_en.properties`.
 
 The example carries no tests for these views. Gleb's call, and the reasoning holds: the project exists so that snippets are pulled from a live application instead of being hardcoded in the docs, and that is its whole job. Compilation already provides the protection that matters — the views are compiled by `compileAll`, so a change in the add-on's API breaks the build without any assertions, and assertions over rendering added little beyond that while needing maintenance.
 
-Three `@UiTest` classes written before this decision — for the code block, message input and message list views — still exist. Verification of a demo view is now: it compiles, and it was run and looked at. That is where every valuable finding has come from in any case.
+The example's whole `src/test` tree is removed, the three `@UiTest` classes written before this decision along with the generated `UserTest` / `UserUiTest` scaffolding. `ai-tools-ex1`, the newest example in the repository, likewise carries no tests, so this is the consistent end state rather than a departure. Verification of a demo view is now: it compiles, and it was run and looked at. That is where every valuable finding has come from in any case.
 
 ### The LLM provider: Ollama, for real
 
