@@ -1,1 +1,120 @@
 = Attachments
+
+A message can carry files. The composer collects them, the application stores them, the transcript renders them, and a click brings them back out of storage. Attachments span xref:ai-chat:aiChat.adoc[aiChat], xref:ai-chat:aiMessageInput.adoc[aiMessageInput], and xref:ai-chat:aiMessageList.adoc[aiMessageList], so they are described here rather than on any one of those pages.
+
+[[enabling]]
+== Enabling Attachments
+
+Attachments are off by default. Turn them on and set the limits on the chat — or on the composer, if you are using it standalone:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=limits]
+----
+
+`maxFiles` and `maxFileSize` bound how much can be attached to one message, and `acceptedFileExtensions` or `acceptedMimeTypes` bound what kind. Both are enforced in the browser and on the server. `uploadDropZoneEnabled` controls whether files can be dropped onto the composer.
+
+[WARNING]
+====
+Each entry of `acceptedFileExtensions` must start with a dot — `.png`, not `png`. A value without one is rejected while the view is opening, so the user gets an error dialog instead of the chat.
+====
+
+[[choosing-files]]
+== Choosing Files
+
+With the drop zone enabled, files can be dropped anywhere on the composer box, which highlights while a file is over it.
+
+For a click-to-pick affordance, place an `aiUploadTrigger`. It is a separate component because the browser only opens a file picker from a real user gesture. Inside the composer it needs no configuration — it finds the chat around it:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=upload-trigger-prefix]
+----
+
+It can also live anywhere else in the view, referencing the chat by id. In a dropdown menu, for instance:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=upload-trigger-menu]
+----
+
+image::aichat-composer-attachments.png[Files attached to a message, align="center", width="769"]
+
+Attached files appear as chips above the input row — a thumbnail for an image, an icon for anything else — each with a button to remove it before sending. The trigger disables itself when the chat it belongs to has attachments turned off.
+
+[[rejected]]
+== Rejected Files
+
+A file that breaks one of the limits is refused before it is added. To tell the user why, listen for the rejection:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=rejected]
+----
+
+The reason is one of `TOO_MANY_FILES`, `FILE_TOO_LARGE`, or `INCORRECT_FILE_TYPE`.
+
+[[storing]]
+== Storing the Files
+
+The component hands the application the raw bytes and lets it decide where they go. On the zero-configuration path the add-on writes them to the default file storage itself, but a chat bound to your own entity needs a message factory that does it:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=attachment-factory]
+----
+
+The entity holds the results as a list of `FileRef`. See xref:ai-chat:aiChat.adoc#data[Messages and Data] for the entity itself.
+
+[IMPORTANT]
+====
+Name the attachments in the fetch plan:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=fetch-plan]
+----
+
+An attachment collection is not part of `_base`. Without this the files are saved correctly and then render nowhere when the conversation is loaded again — the bytes are in storage and the rows are in the database, but the transcript shows no attachment and nothing is logged.
+====
+
+[[sending-to-the-model]]
+== Sending Files to the Model
+
+Storing a file does not show it to the model. The chat passes the attachments to the provider, and forwarding them to the model is the provider's job.
+
+[IMPORTANT]
+====
+The model must accept the files. A model that handles text only refuses the whole request — the chat shows its error banner and no answer is produced.
+
+This applies to *every* attachment, not only images: Spring AI sends any attachment as multimodal data regardless of its type, so a plain text file fails on a text-only model exactly as a photograph does. To try the example below, point the application at a multimodal model.
+====
+
+The request carries the attachments beside the message text. This provider forwards them, and supplies wording for the case where a message carries files and no text at all:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=llm-provider-attachments]
+----
+
+NOTE: A message with an attachment and no text is valid, but `ChatClient.user(String)` rejects blank text and fails before the model is reached. The guard above is what a provider needs to handle it.
+
+[[downloading]]
+== Downloading from the Conversation
+
+Attachments stay in the transcript across reloads, images as thumbnails and other files as chips. Clicking one tells the application which file was clicked, and Jmix's downloader does the rest:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=download]
+----
+
+image::aichat-attachment-in-transcript.png[An attachment in the transcript, align="center", width="769"]
+
+Image previews are streamed on demand, so displaying a conversation does not read its attachments from storage.
+
+== See Also
+
+* xref:ai-chat:aiChat.adoc#data[Messages and Data] — the entity that holds the attachments.
+* xref:ai-chat:aiMessageInput.adoc[aiMessageInput] — the composer that collects them.
+* xref:ai-chat:aiMessageList.adoc[aiMessageList] — the transcript that renders them.
