@@ -42,13 +42,23 @@ public class ChatView extends StandardView {
         chatClient = chatClientBuilder.build();
     }
 
+    // tag::system-prompt[]
     @Install(to = "chat", subject = "llmProvider")
     private Flux<String> llmProvider(final LLMProvider.LLMRequest request) {
-        return chatClient.prompt()
-                .user(request.userMessage())
+        ChatClient.ChatClientRequestSpec prompt = chatClient.prompt();
+
+        // the declared <aichat:systemPrompt> arrives on the request, but only
+        // reaches the model if the provider passes it on
+        String systemPrompt = request.systemPrompt();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt = prompt.system(systemPrompt);
+        }
+
+        return prompt.user(request.userMessage())
                 .stream()
                 .content();
     }
+    // end::system-prompt[]
 
     // tag::message-factory[]
     @Install(to = "chat", subject = "messageFactory")
