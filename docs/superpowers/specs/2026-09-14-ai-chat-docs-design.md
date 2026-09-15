@@ -76,16 +76,24 @@ It is documented as a section of `attachments.adoc`. The component exists only t
 
 Following `groupdatagrid-ex1`, which uses one view folder per demonstrated feature. Small, single-purpose views keep each included snippet sourced from clean code instead of from one crowded screen.
 
-### D7. The persisted message entity uses a composition for attachments
+### D7. The persisted message entity holds attachments in an `@ElementCollection`
 
-`AiChatMessage.getAttachments()` returns `List<FileRef>`. A single `FileRef` maps to a string column out of the box; a list does not. The demo therefore models attachments as a composition:
+`AiChatMessage.getAttachments()` returns `List<FileRef>`. A single `FileRef` maps to a string column out of the box; a list does not.
 
+This decision originally named a composition child entity, reasoned from that fact alone. Corrected after the peer checked what the contract actually recommends — `getAttachments()`'s javadoc says an application backs it with "an `@ElementCollection List<FileRef>`, a child-entity collection, or a computed getter", and Gleb's own demo project uses the first. So does the example:
+
+```java
+@ElementCollection
+@CollectionTable(name = "CHAT_MESSAGE_ATTACHMENTS", joinColumns = @JoinColumn(name = "CHAT_MESSAGE_ID"))
+@OrderColumn(name = "ATTACHMENTS_ORDER")
+@Convert(converter = FileRefConverter.class)
+@Column(name = "ATTACHMENTS", length = 1024)
+private List<FileRef> attachments;
 ```
-entity/ChatMessage            role (String column <-> AiMessageRole), content, createdDate, attachments
-entity/ChatMessageAttachment  file (FileRef)
-```
 
-Storing the list serialized into one column would be shorter but is not what a real application writes, and this code will be copied.
+This still gives a real child table with one `FileRef` per row — the point the original decision was protecting — while costing the reader no second entity, no composition view and no extra role policies to copy. Storing the list serialized into one column remains rejected.
+
+The lesson generalises: check what the add-on's own contract recommends before inventing a modelling decision for the reader.
 
 No `Conversation` entity: `AiChat` binds to a flat message list, and the demo orders it by the persistent `createdDate`, not by the contract's derived `time` (see "Traps to carry over").
 
