@@ -1,0 +1,400 @@
+= aiMessageList
+
+The `aiMessageList` component is the transcript of a chat. It renders user messages as plain text in a bubble and assistant messages as Markdown, with per-message actions, a thinking indicator, and an error banner.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`aiMessageList`
+
+|Java Class
+|`AiMessageList`
+|===
+
+xref:ai-chat:aiChat.adoc[aiChat] embeds it and drives it for you. Use it on its own to display a stored conversation, or to build your own chat out of the base components — the list can be driven by the application from end to end, as described in <<driving,Driving the Generation>>.
+
+== Overview
+
+image::aichat-message-list-transcript.png[Transcript, align="center", width="672"]
+
+[[basics]]
+== Basics
+
+Declare the `aichat` namespace in the view's XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=namespaces]
+----
+
+TIP: Studio adds the namespace automatically when you add the component using the *Add Component* action in the top actions panel. See xref:studio:view-designer.adoc#component-palette[Component Palette].
+
+A list needs nothing but its element:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=basics]
+----
+
+[[messages]]
+== Messages
+
+Messages are items, not components. Build them with the `AiMessageListItem` factory methods and hand them to the list:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=items]
+----
+
+Assistant messages are rendered as Markdown — headings, lists, tables, links, and inline code. A fenced code block becomes a real xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock], with its language label, highlighting, and its own copy and wrap actions. User messages are rendered as plain text in a bubble, so Markdown in a user message is shown as typed.
+
+`addItem` appends a single message to a list that is already on screen:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=add-item]
+----
+
+NOTE: An item instance belongs to one list and may appear in it only once. Adding the same instance twice, or to a second list, is rejected.
+
+[[driving]]
+== Driving the Generation
+
+An application can run a whole turn against the list itself, without `aiChat`. The sequence is: append the user message, append an empty assistant message to stream into, switch the list to `GENERATING`, append the answer as it arrives, then return the list to `IDLE`.
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=driving]
+----
+<1> `progress` runs on the UI thread, which is what `appendText` requires — the chunks are published from the background task and appended here.
+
+[IMPORTANT]
+====
+The two halves of a turn have different threading rules.
+
+`appendText`, `addItem`, and `setState` must be called on the UI thread. Calling `appendText` directly from a background thread fails with an error about the session lock. In the example above the answer chunks are published from the background task and appended in `progress`, which Jmix runs on the UI thread.
+
+The thinking status feed described <<thinking-status,below>> is the exception: it takes the UI lock itself, so it can be called from any thread.
+====
+
+[NOTE]
+====
+The thinking indicator is attached to the message being generated. Setting the list to `GENERATING` while the last message is a user message shows nothing at all — no indicator, no error. Append the empty assistant message first, as above, and the indicator appears on it.
+====
+
+`getActiveItem()` returns that trailing assistant message while the list is generating, and `null` otherwise.
+
+[[thinking-indicator]]
+== Thinking Indicator
+
+While the list is generating and the answer is still empty, it shows an animated indicator — three pulsing dots — with a label beside it:
+
+image::aichat-message-list-thinking-default.png[The built-in thinking indicator, align="center", width="968"]
+
+Replace the indicator with any component through the `thinkingIndicator` element. Only the animation is replaced; the label beside it stays:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-indicator]
+----
+
+image::aichat-message-list-thinking-custom.png[A replaced thinking indicator, align="center", width="672"]
+
+The label escalates the longer generation takes, so that a slow answer does not look like a stalled one. The `thinkingStages` element defines it — each stage gives the delay after which its text replaces the previous one:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-stages]
+----
+
+[[thinking-status]]
+== Thinking Status Feed
+
+The status feed is a live account of what the assistant is doing — one line per step, rendered above the thinking indicator, each with a spinner that turns into a check mark when the step completes:
+
+image::aichat-message-list-thinking.png[Thinking status feed, align="center", width="672"]
+
+Obtain the publisher from the list, start a status when a step begins, and complete it when the step ends, optionally with a short result:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=thinking-status]
+----
+
+The publisher takes the UI lock itself, so these calls are safe from a background thread — as in the example above, where they run inside the task's `run` method. Statuses are transient: clear them when the turn ends.
+
+[[error-retry]]
+== Error and Retry
+
+Setting the list to `ERROR` reveals a banner with a *Retry* button. The banner is the component's own — the application supplies no markup for it:
+
+image::aichat-message-list-error.png[The error banner, align="center", width="672"]
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=retry]
+----
+
+[NOTE]
+====
+`getUserMessage()` returns the last user message in the list at the moment *Retry* is clicked, not the message whose generation failed. The two are the same in the usual case. They differ if the application appended another user message after the failure.
+====
+
+[[actions]]
+== Message Actions
+
+Actions are declared per role and appear in a bar on the message, revealed on hover or focus:
+
+image::aichat-message-list-actions.png[Message actions, align="center", width="672"]
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=actions]
+----
+
+`aichat_messageCopy` is built in and copies the message source to the clipboard. Any other action is an ordinary Jmix action: give it an id, an icon, and a description, and handle it in the controller. The event carries the message the action was invoked on:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=action-handler]
+----
+
+[WARNING]
+====
+The other built-in action type, `aichat_messageRegenerate`, works only inside xref:ai-chat:aiChat.adoc[aiChat], which wires itself as its target. Declared on a standalone list it renders normally and throws when clicked.
+====
+
+[[long-messages]]
+== Long Messages
+
+A long user message is collapsed to a fixed height with a fade and a *Show more* toggle. Assistant messages are never collapsed.
+
+image::aichat-message-list-collapsed.png[A collapsed user message, align="center", width="642"]
+
+The threshold is a rendered height, not a number of characters, and a message only slightly over it is shown in full rather than collapsed for the sake of a few lines. The same text may therefore collapse in a narrow container and not collapse in a wide one, because the width decides how it wraps.
+
+[[scrolling]]
+== Scrolling
+
+While an answer is streaming, the transcript keeps its viewport at the bottom so that new text stays in view.
+
+image::aichat-scroll-to-bottom.png[The scroll-to-bottom button, align="center", width="968"]
+
+A reader who scrolls up detaches that: the transcript stops following, and content is never pulled away from under them, however much arrives meanwhile. A circular button appears at the bottom of the transcript to go back; clicking it scrolls down and re-engages the following. Scrolling down by hand re-engages it as well, and programmatic scrolling never detaches it.
+
+Arrow keys move focus from message to message, scrolling each into view, so the conversation can be read without a mouse.
+
+[[accessibility]]
+== Accessibility
+
+Set `announceMessages` to make the list announce arriving messages to screen readers through an ARIA live region:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=announce]
+----
+
+[[localization]]
+== Localization
+
+The list's own labels — the error banner, the *Retry* button, the scroll-to-bottom button, the copy action, and the *Show more* / *Show less* toggle — come from the add-on's message bundle, under the `+aiMessageList.i18n.*+` keys. Override them in the application's message bundle to re-word every list.
+
+To re-word a single list, add a nested `i18n` element. It carries a nested `codeBlock` element as well, which re-words the code blocks rendered inside the assistant messages of this list:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=i18n]
+----
+
+.Message bundle
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=message-list-i18n]
+----
+
+An attribute you declare wins, and one you omit keeps its value from the message bundle.
+
+[[styling]]
+== Styling
+
+The message list exposes its internals as shadow parts, addressable with the `::part()` selector.
+
+The list itself offers `list`, the error banner's `error`, `error-icon`, `error-text` and `retry-button`, the `scroll-to-bottom-button`, and the thinking area's `thinking`, `dots`, `thinking-label` and `thinking-current`, with `thinking-status-list`, `thinking-status`, `thinking-status-icon`, `thinking-status-text` and `thinking-status-detail` for the status feed.
+
+Each message offers `message`, `content`, `actions`, `action` and `collapse-toggle`, plus `attachments`, `attachment`, `attachment-image`, `attachment-file`, `attachment-preview`, `attachment-icon` and `attachment-name` for what it carries.
+
+[cols="2,3", options="header"]
+|===
+|Name
+|Description
+
+|`--jmix-ai-message-list-max-width`
+|Width the conversation column is centred within.
+
+|`--jmix-ai-message-list-padding`
+|Padding around the conversation.
+
+|`--jmix-ai-message-list-scrollbar-color`
+|Colour of the scrollbar.
+
+|`--jmix-ai-message-list-scroll-button-icon-size`
+|Size of the glyph in the scroll-to-bottom button.
+
+|`--jmix-ai-message-list-icon-scroll-down`
+|Glyph of the scroll-to-bottom button.
+
+|`--jmix-ai-message-list-icon-error`
+|Glyph shown in the error banner.
+
+|`--jmix-ai-message-list-icon-retry`
+|Glyph of the *Retry* button.
+
+|`--jmix-ai-message-list-icon-check`
+|Glyph marking a completed thinking status.
+
+|`--jmix-ai-message-text-color`
+|Colour of message text.
+
+|`--jmix-ai-message-font-size`
+|Font size of message text.
+
+|`--jmix-ai-message-line-height`
+|Line height of message text.
+
+|`--jmix-ai-message-padding`
+|Padding inside a message.
+
+|`--jmix-ai-message-success-color`
+|Colour of the check mark that confirms a copy.
+
+|`--jmix-ai-message-action-padding`
+|Padding of a message action button.
+
+|`--jmix-ai-message-action-icon-size`
+|Size of a message action icon.
+
+|`--jmix-ai-message-action-border-radius`
+|Corner radius of a message action button.
+
+|`--jmix-ai-message-icon-copy`
+|Glyph of the built-in copy action.
+
+|`--jmix-ai-message-icon-check`
+|Glyph shown while a copy is confirmed.
+
+|`--jmix-ai-message-icon-regenerate`
+|Glyph of the built-in regenerate action.
+
+|`--jmix-ai-message-icon-file`
+|Glyph shown on an attachment that is not an image.
+
+|`--jmix-ai-message-attachment-image-size`
+|Size of an image attachment thumbnail.
+
+|`--jmix-ai-markdown-link-color`
+|Colour of links in an assistant message.
+
+|`--jmix-ai-user-message-collapsed-max-height`
+|Height a long user message is collapsed to. See <<long-messages,Long Messages>>.
+
+|`--jmix-ai-user-message-icon-chevron`
+|Glyph of the *Show more* toggle.
+
+|`--jmix-ai-thinking-indicator-color`
+|Colour of the thinking indicator.
+
+|`--jmix-ai-thinking-indicator-gap`
+|Gap between the dots of the thinking indicator.
+
+|`--jmix-ai-thinking-indicator-animation-duration`
+|Duration of one pulse of the thinking indicator.
+
+|`--jmix-ai-thinking-status-max-height`
+|Height the status feed grows to before it scrolls. See <<thinking-status,Thinking Status Feed>>.
+|===
+
+The icon properties hold an image applied as a mask, so overriding one replaces that glyph.
+
+The components are styled for both Jmix themes, Aura and Lumo, and follow the theme's own tokens for focus rings, borders, radii, and spacing — which is why the properties above have no single default value. Dark mode, high-contrast mode, and reduced motion are handled, and layout is expressed in direction-agnostic properties, so the components follow the text direction of the document.
+
+[[attachments]]
+== Attachments
+
+Messages can carry files, shown as thumbnails or chips under the message text. Attachments span several components, so they are described together in xref:ai-chat:attachments.adoc[].
+
+== Attributes
+
+The following attribute is specific to `aiMessageList`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[announceMessages]]`announceMessages`
+|Sets whether arriving messages are announced to screen readers. See <<accessibility,Accessibility>>.
+|`false`
+|===
+
+The following shared attributes are supported by `aiMessageList`:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Handlers
+
+The following handlers are specific to `aiMessageList`:
+
+[cols="2,5", options="header"]
+|===
+|Name
+|Description
+
+|[[AttachmentClickEvent]]`AttachmentClickEvent`
+|Fired when the user clicks an attachment in a message. Carries the message and the file. See xref:ai-chat:attachments.adoc#downloading[Downloading from the Conversation].
+
+|[[RetryEvent]]`RetryEvent`
+|Fired when the user clicks *Retry* on the error banner. See <<error-retry,Error and Retry>>.
+|===
+
+The following shared handlers are supported by `aiMessageList`:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Elements
+
+An `aiMessageList` can include `thinkingIndicator`, `thinkingStages`, `userActions`, `assistantActions`, and `i18n` as its nested elements.
+
+[[thinkingIndicator-element]]
+=== thinkingIndicator
+
+The `thinkingIndicator` element holds one component that replaces the built-in indicator. See <<thinking-indicator,Thinking Indicator>>.
+
+[[thinkingStages-element]]
+=== thinkingStages
+
+The `thinkingStages` element contains `thinkingStage` elements, each with a required `delayMillis` and a required `text`, which define the escalating label beside the indicator. See <<thinking-indicator,Thinking Indicator>>.
+
+[[userActions-element]]
+=== userActions, assistantActions
+
+These elements contain the `action` elements offered on user and assistant messages respectively. An `action` requires an `id` and accepts `type`, `description`, `classNames`, and icon attributes. See <<actions,Message Actions>>.
+
+[[i18n-element]]
+=== i18n
+
+The `i18n` element re-words this list. It supports the `error`, `retry`, `scrollToBottom`, `copy`, `copied`, `showMore`, and `showLess` attributes, each accepting a message key, and a nested `codeBlock` element for the code blocks rendered inside its messages. See <<localization,Localization>>.
