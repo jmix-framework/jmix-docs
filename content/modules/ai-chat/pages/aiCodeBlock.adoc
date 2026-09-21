@@ -1,0 +1,282 @@
+= aiCodeBlock
+
+The `aiCodeBlock` component displays a fragment of source code with syntax highlighting, an optional language label, and actions for copying and wrapping the code.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`aiCodeBlock`
+
+|Java Class
+|`AiCodeBlock`
+|===
+
+Use it anywhere an application shows code. Inside a conversation it is also used automatically: xref:ai-chat:aiMessageList.adoc[aiMessageList] renders every fenced code block of an assistant message as an `aiCodeBlock`, so code in a chat looks and behaves the same as code elsewhere in the application.
+
+image::aichat-code-block-overview.png[Code block, align="center", width="413"]
+
+[[basics]]
+== Basics
+
+Declare the `aichat` namespace in the view's XML descriptor:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=namespaces]
+----
+
+TIP: Studio adds the namespace automatically when you add the component using the *Add Component* action in the top actions panel. See xref:studio:view-designer.adoc#component-palette[Component Palette].
+
+Then declare a block and put the source in a nested `code` element:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=basics]
+----
+
+[NOTE]
+====
+Write the nested element with the `aichat` prefix, as `<aichat:code>`. The default view namespace has an element named `code` as well, so an unprefixed `<code>` inside `aiCodeBlock` is a different component rather than this element, and the view may load without reporting an error.
+====
+
+A block takes the width of its content and never exceeds the width of its container.
+
+[[declaring-code]]
+== Code
+
+There are two ways to provide the code.
+
+A nested `code` element holds multi-line source. Wrap it in `CDATA` so that the source arrives verbatim, as in the example <<basics,above>>.
+
+The `code` attribute holds a single line and accepts a message key, which is useful when the source is kept in a xref:localization:message-bundles.adoc[message bundle]:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=code-from-bundle]
+----
+
+.Message bundle
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-code]
+----
+
+When both are present, the nested element wins. A `code` element that is present but empty fails the view load, so that it cannot silently shadow the code declared in the attribute.
+
+Both may be omitted. The block then renders empty, which is the normal state of a block the controller fills later.
+
+[[setting-language]]
+== Language
+
+The `language` attribute does two things: it puts a label in the block's header, and it tells the highlighter which grammar to apply.
+
+`AiCodeBlockLanguage` holds the common language ids as constants:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/codeblock/CodeBlockView.java[tags=programmatic]
+----
+
+The constants are a convenience, not the accepted set: the attribute takes any string. A value the highlighter does not recognize is not an error; the code renders as plain text.
+
+Without a language, the block has no header row at all. The actions float over the top-trailing corner of the code instead, and the code is inset so that nothing renders underneath them:
+
+image::aichat-code-block-no-language.png[Code block without a language, align="center", width="501"]
+
+Highlighting requires a language, but the two settings are not interchangeable. Setting `highlight="false"` on a block that has a language keeps the header and the label and renders the code plain; omitting the language removes the header as well.
+
+[[actions]]
+== Copy and Wrap Actions
+
+The copy action copies the source of the block to the clipboard, always the raw source and never the highlighted markup, and briefly confirms it.
+
+The wrap action switches the block between horizontal scrolling and soft wrapping. Its icon and tooltip describe what the next click does rather than the current state. Replacing the code of a block resets wrapping to its declared value.
+
+Either action can be removed with `copyActionEnabled` or `wrapActionEnabled`. A disabled action is not rendered at all:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=actions-disabled]
+----
+
+[WARNING]
+====
+The copy action fails silently when the browser refuses the clipboard write: nothing is copied, and nothing tells the user. The common cause is serving the application over plain HTTP, because browsers restrict clipboard access to secure contexts. Copying works over HTTPS and on `localhost`.
+====
+
+[[localization]]
+== Localization
+
+The labels of the copy and wrap actions come from the add-on's message bundle, under the `+aiCodeBlock.i18n.*+` keys: `copy`, `copied`, `wrapOn`, and `wrapOff`. Override these keys in the application's message bundle to re-word the actions everywhere.
+
+To re-word the actions of a single block, add a nested `i18n` element:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=i18n]
+----
+
+.Message bundle
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-i18n]
+----
+
+In the example above the wrap action keeps its standard labels. See xref:ai-chat:localization.adoc#precedence[Precedence] for how the two levels combine.
+
+[[styling]]
+== Styling
+
+The block exposes its internals as shadow parts, addressable with the `::part()` selector.
+
+The following style properties can be used in CSS stylesheets to customize the appearance of this component.
+
+[cols="2,3", options="header"]
+|===
+|Name
+|Description
+
+|`--jmix-ai-code-block-background`
+|Background of the block.
+
+|`--jmix-ai-code-block-border-radius`
+|Corner radius of the block.
+
+|`--jmix-ai-code-block-font-family`
+|Font family of the code.
+
+|`--jmix-ai-code-block-font-size`
+|Font size of the code.
+
+|`--jmix-ai-code-block-actions-gap`
+|Gap between the action buttons.
+
+|`--jmix-ai-code-block-action-icon-size`
+|Size of the action icons.
+
+|`--jmix-ai-code-block-color-text`
+|Color of code that carries no syntax role.
+
+|`--jmix-ai-code-block-color-keyword`
+|Color of language keywords.
+
+|`--jmix-ai-code-block-color-string`
+|Color of string literals.
+
+|`--jmix-ai-code-block-color-number`
+|Color of numeric literals.
+
+|`--jmix-ai-code-block-color-comment`
+|Color of comments.
+
+|`--jmix-ai-code-block-color-title`
+|Color of declaration names, such as functions and classes.
+
+|`--jmix-ai-code-block-color-type`
+|Color of type names.
+
+|`--jmix-ai-code-block-color-built-in`
+|Color of built-in identifiers of the language.
+
+|`--jmix-ai-code-block-color-attr`
+|Color of attribute and property names.
+
+|`--jmix-ai-code-block-color-tag`
+|Color of markup tags.
+
+|`--jmix-ai-code-block-color-meta`
+|Color of metadata such as annotations and preprocessor directives.
+
+|`--jmix-ai-code-block-color-success`
+|Color of the check mark that confirms a copy.
+
+|`--jmix-ai-code-block-icon-copy`
+|Glyph of the copy action.
+
+|`--jmix-ai-code-block-icon-check`
+|Glyph shown while a copy is confirmed.
+
+|`--jmix-ai-code-block-icon-wrap`
+|Glyph of the wrap action while wrapping is off.
+
+|`--jmix-ai-code-block-icon-no-wrap`
+|Glyph of the wrap action while wrapping is on.
+|===
+
+The icon properties hold an image applied as a mask, so overriding one replaces that glyph.
+
+The components are styled for both Jmix themes, Aura and Lumo, and follow the theme's own tokens for focus rings, borders, radii, and spacing, which is why the properties above have no single default value. Dark mode, high-contrast mode, and reduced motion are handled, and layout is expressed in direction-agnostic properties, so the components follow the text direction of the document.
+
+== Attributes
+
+The following attributes are specific to `aiCodeBlock`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[code]]`code`
+|Sets the code as a single-line value, directly or from a message bundle. A nested <<code-element,code>> element takes precedence. See <<declaring-code,Code>>.
+|—
+
+|[[codeWrapped]]`codeWrapped`
+|Sets whether the code is soft-wrapped instead of scrolled horizontally. See <<actions,Copy and Wrap Actions>>.
+|`false`
+
+|[[copyActionEnabled]]`copyActionEnabled`
+|Sets whether the block has a copy action.
+|`true`
+
+|[[highlight]]`highlight`
+|Sets whether syntax highlighting is applied. Highlighting also requires <<language,language>> to be set.
+|`true`
+
+|[[language]]`language`
+|Sets the language of the code, which is shown as a label and used for highlighting. Any string is accepted. See <<setting-language,Language>>.
+|—
+
+|[[wrapActionEnabled]]`wrapActionEnabled`
+|Sets whether the block has a wrap action.
+|`true`
+|===
+
+The following shared attributes are supported by `aiCodeBlock`:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Handlers
+
+The following shared handlers are supported by `aiCodeBlock`:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Elements
+
+An `aiCodeBlock` can include <<code-element,code>> and <<i18n-element,i18n>> as its nested elements.
+
+[[code-element]]
+=== code
+
+The `code` element holds the source of the block. Its content is taken verbatim, so it can span several lines. See <<declaring-code,Code>>.
+
+[[i18n-element]]
+=== i18n
+
+The `i18n` element re-words the actions of this block. It supports the `copy`, `copied`, `wrapOn`, and `wrapOff` attributes, each accepting a message key. Omitted attributes keep their values from the message bundle. See <<localization,Localization>>.

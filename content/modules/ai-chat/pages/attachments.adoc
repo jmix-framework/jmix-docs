@@ -1,0 +1,180 @@
+= Attachments
+
+A message can carry files. The message input collects them, the application stores them, the message list renders them, and a click brings them back out of storage. Attachments span xref:ai-chat:aiChat.adoc[aiChat], xref:ai-chat:aiMessageInput.adoc[aiMessageInput], and xref:ai-chat:aiMessageList.adoc[aiMessageList], so they are described here rather than on any one of those pages.
+
+[[enabling]]
+== Enabling Attachments
+
+Attachments are off by default. Turn them on and set the limits on the chat, or on the message input if you are using it standalone:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=limits]
+----
+
+`maxFiles` and `maxFileSize` bound how much can be attached to one message, and `acceptedFileExtensions` or `acceptedMimeTypes` bound what kind. Both are enforced in the browser and on the server. `uploadDropZoneEnabled` controls whether files can be dropped onto the message input.
+
+[WARNING]
+====
+Each entry of `acceptedFileExtensions` must start with a dot: `.png`, not `png`. A value without one is rejected while the view is opening, so the user gets an error dialog instead of the chat.
+====
+
+[[choosing-files]]
+== Choosing Files
+
+With the drop zone enabled, files can be dropped anywhere on the message input's box, which highlights while a file is over it.
+
+For a click-to-pick affordance, place an `aiUploadTrigger`. It is a separate component because a browser only opens a file picker from a real user gesture. It is commonly added to the dropdown menu:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=upload-trigger-menu]
+----
+
+image::aichat-upload-trigger-menu.png[The attach menu open in the message input, align="center", width="868"]
+
+The `menu-item` theme variant styles the trigger as a row of the menu rather than a button inside it: it drops its own background, padding, and visible border, and aligns its content to the start. Activating it with the keyboard works too. Open the menu and press *Enter*, and the file picker opens, because a menu item carries the same user activation a button does.
+
+[IMPORTANT]
+====
+A trigger inside a `componentItem` must name its chat with `aiChatId`, even when the menu itself sits inside that chat. The automatic lookup walks the component tree while the descriptor is loaded, and the item's children are not part of the chat at that point.
+====
+
+A trigger placed directly in the chat, in `inputPrefix` or `inputSuffix` rather than inside a menu, needs no `aiChatId` at all: it finds the chat around it. Outside a chat it can live anywhere in the view, naming its chat by id.
+
+image::aichat-composer-attachments.png[Files attached to a message, align="center", width="700"]
+
+Attached files appear as chips above the input row, a thumbnail for an image and an icon for anything else. Each chip has a button to remove it before sending. The trigger disables itself when the chat it belongs to has attachments turned off.
+
+[[rejected]]
+== Rejected Files
+
+A file that breaks one of the limits is refused before it is added. To tell the user why, listen for the rejection:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=rejected]
+----
+
+The reason is one of `TOO_MANY_FILES`, `FILE_TOO_LARGE`, or `INCORRECT_FILE_TYPE`.
+
+[[storing]]
+== Storing the Files
+
+The component hands the application the raw bytes and lets it decide where they go. On the zero-configuration path the add-on writes them to the default file storage itself, but a chat bound to your own entity needs a message factory that does it:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=attachment-factory]
+----
+
+The entity holds the results as a list of `FileRef`. See xref:ai-chat:aiChat.adoc#data[Messages and Data] for the entity itself.
+
+[IMPORTANT]
+====
+Name the attachments in the fetch plan:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=fetch-plan]
+----
+
+An attachment collection is not part of `_base`. Without this the files are saved correctly and then render nowhere when the conversation is loaded again. The bytes are in storage and the rows are in the database, but the message list shows no attachment and nothing is logged.
+====
+
+[[sending-to-the-model]]
+== Sending Files to the Model
+
+Storing a file does not show it to the model. The chat passes the attachments to the provider, and forwarding them to the model is the provider's job.
+
+[IMPORTANT]
+====
+The model must accept the files. A model that handles text only refuses the whole request, so the chat shows its error banner and no answer is produced.
+
+This applies to every attachment, not only images: Spring AI sends any attachment as multimodal data regardless of its type, so a plain text file fails on a text-only model exactly as a photograph does. To try the example below, point the application at a multimodal model.
+====
+
+The request carries the attachments beside the message text. This provider forwards them, and supplies wording for the case where a message carries files and no text at all:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=llm-provider-attachments]
+----
+<1> A message with an attachment and no text is valid, but `ChatClient.user(String)` rejects blank text and fails before the model is reached. Supply wording for that case.
+<2> The attachments travel on the request beside the text. Mapping them into `Media` sends them to the model.
+
+[[downloading]]
+== Downloading from the Conversation
+
+Attachments stay in the message list across reloads, images as thumbnails and other files as chips. Clicking one tells the application which file was clicked, and Jmix's downloader does the rest:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=download]
+----
+
+[[upload-trigger-reference]]
+== aiUploadTrigger
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML Element
+|`aiUploadTrigger`
+
+|Java Class
+|`AiUploadTrigger`
+|===
+
+The following attributes are specific to `aiUploadTrigger`:
+
+[cols="2,5,1", options="header"]
+|===
+|Name
+|Description
+|Default
+
+|[[aiChatId]]`aiChatId`
+|Identifies the chat the trigger attaches files to. Required unless the trigger is placed directly inside the chat. See <<choosing-files,Choosing Files>>.
+|—
+
+|[[triggerIcon]]`icon`
+|Sets the icon of the trigger.
+|—
+
+|[[text]]`text`
+|Sets the label of the trigger.
+|—
+
+|[[triggerThemeNames]]`themeNames`
+|Applies theme variants. `menu-item` styles the trigger as a row of a dropdown menu rather than a button inside one.
+|—
+|===
+
+The following shared attributes are supported by `aiUploadTrigger`:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabel[ariaLabel] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabelledBy[ariaLabelledBy] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#enabled[enabled] -
+xref:flow-ui:vc/common-attributes.adoc#focusShortcut[focusShortcut] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#tabIndex[tabIndex] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+The trigger disables itself when the chat it belongs to has attachments turned off, on top of whatever `enabled` says.
+
+== See Also
+
+* xref:ai-chat:aiChat.adoc#data[Messages and Data]: the entity that holds the attachments.
+* xref:ai-chat:aiMessageInput.adoc[aiMessageInput]: the message input that collects them.
+* xref:ai-chat:aiMessageList.adoc[aiMessageList]: the message list that renders them.

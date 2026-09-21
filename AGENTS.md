@@ -92,6 +92,8 @@ git config core.hooksPath .githooks
 Optimize PNG screenshots with `pngquant --quality=65-85 --strip --force --ext .png <file>`.
 See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-verify`.
 
+Screenshots are captured at **2x** and declared at half their pixel width (`image::foo.png[width="413"]` for an 826px-wide file), so they stay sharp on high-DPI displays. `tools/screenshot-2x.mjs` does this: it drives Playwright directly with `deviceScaleFactor: 2` and captures a single element, which the Playwright MCP tool cannot do — its resize action takes a width and a height only, so every capture it makes is 1x. Run it with `--url`, `--selector` and `--out`; it prints the resulting pixel size and the width to declare. See the comment at the top of the file for the rest of its options.
+
 ## Conventions
 
 - In multi-locale examples use German (`de`) as the secondary locale.
