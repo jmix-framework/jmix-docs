@@ -1,6 +1,30 @@
 # Jmix Documentation
 
-This repository contains documentation for all [Jmix](https://jmix.io) framework modules. The documentation is published at https://docs.jmix.io.
+This is the main repository of [Jmix](https://jmix.io) documentation. Guides are located in the repositories of the respective sample projects.  
+
+The documentation is published at https://docs.jmix.io.
+
+## Development
+
+* Install IntelliJ IDEA and AsciiDoc plugin.
+* Clone the repository and open the root folder in IntelliJ IDEA.
+* Import the Gradle project.
+* Repositories of guides sample projects will be automatically cloned into the `external` folder.
+  The branch is defined by the `samplesBranch` property in `gradle.properties`, so the samples stay
+  on the release branch even when you work in a feature branch. Use `-PsamplesBranch=<branch>` to
+  change it for all sample repositories, or `-PsamplesBranch.<repo-name>=<branch>` for a single one.
+
+Main documentation modules are located in the `content` folder. Guides are located in the `external/<sample>/doc` folders.
+
+The AsciiDoc IntelliJ plugin correctly recognizes all modules by their `antora.yml` files and allows you to make cross-references.
+
+### Contributing a Jmix Guide
+
+To add a new guide to the Jmix documentation, follow the steps outlined in [CONTRIBUTING.md](CONTRIBUTING.md). The guide explains how to:
+
+* Set up a new example project based on the Jmix template.
+* Organize your documentation structure with Antora.
+* Submit your guide for review and integration into the Jmix Docs.
 
 ## Building
 

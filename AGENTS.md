@@ -51,7 +51,13 @@ include::example$/data-model-ex1/src/main/java/com/company/demo/entity/Customer.
   documented snippets stay correct — keep them passing.
 
 `settings.gradle` also calls `cloneOrPull(...)` to clone each `external/jmix-*-sample` guide repo on
-first Gradle import (pass `-PpullExamples` to refresh them).
+first Gradle import (pass `-PpullExamples` to refresh them). The branch to check out comes from the
+`samplesBranch` property in `gradle.properties` (`release_3` on this branch), so a feature branch
+still uses the release branch of the samples. Override it with `-PsamplesBranch=<branch>` for all
+repositories or `-PsamplesBranch.<repo-name>=<branch>` for one. A repository that always lives on
+its own branch passes it as the third argument of `cloneOrPull(...)`, as `jmix-ui-samples` does with
+`main`. Already-cloned repositories are never switched automatically — a warning is printed when the
+checked-out branch differs.
 
 ## Compiling and testing examples
 
