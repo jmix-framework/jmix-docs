@@ -102,6 +102,7 @@ When asked to translate to Russian, translate the words:
 - endpoint -> эндпойнт
 - entity -> сущность
 - fetch plan -> фетч-план
+- in a bubble -> в пузырьке
 - inject -> инжектировать
 - list view -> экран списка
 - lookup view -> экран выбора

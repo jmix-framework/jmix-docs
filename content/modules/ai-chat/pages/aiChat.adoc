@@ -1,0 +1,430 @@
+= aiChat
+
+Компонент `aiChat` представляет собой готовый чат: список сообщений, поле ввода сообщений, пустое состояние и цикл генерации, который связывает их с языковой моделью.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML-элемент
+|`aiChat`
+
+|Java-класс
+|`AiChat`
+|===
+
+Он состоит из компонентов xref:ai-chat:aiMessageList.adoc[aiMessageList] и xref:ai-chat:aiMessageInput.adoc[aiMessageInput] и настраивает их автоматически, поэтому большая часть того, что описано на страницах этих компонентов, доступна и отсюда.
+
+image::aichat-chat-conversation.png[Диалог, align="center", width="1068"]
+
+[[basics]]
+== Основы
+
+Для чата нужны элемент и провайдер. Элемент:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/quickstart/quick-start-view.xml[tags=basics]
+----
+
+Провайдер — единственная функция, которую компонент запрашивает у приложения. Он описан в разделе xref:ai-chat:getting-started.adoc#connecting-a-model[Подключение модели]:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/quickstart/QuickStartView.java[tags=llm-provider]
+----
+
+Этого достаточно для работающего чата. Он хранит диалог в памяти и теряет его при закрытии экрана. <<data,Свяжите чат с данными>>, чтобы диалог сохранялся после закрытия экрана.
+
+[[system-prompt]]
+== Системный промпт
+
+Системный промпт сообщает модели, кто она: ее роль, язык ответов, на что она должна отвечать отказом. Объявите его как вложенный элемент, который принимает многострочное значение без изменений:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=system-prompt]
+----
+
+Атрибут `systemPrompt` вместо этого принимает однострочное значение и поддерживает ключ локализованного сообщения.
+
+[IMPORTANT]
+====
+Объявленный системный промпт сам по себе ничего не делает. Чат добавляет его в запрос, а провайдер решает, что отправить. Провайдер, который читает только сообщение пользователя, отбрасывает промпт, и модель отвечает так, как будто промпта нет.
+
+Передайте его дальше:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/chat/ChatView.java[tags=system-prompt]
+----
+<1> Объявленный промпт приходит сюда и попадает в модель только потому, что провайдер передает его дальше. Если промпт не объявлен, значение отсутствует, а `ChatClient.system(String)` не принимает пустой текст.
+====
+
+То же самое относится к вложениям, которые передаются в запросе вместе с промптом и сообщением. См. раздел xref:ai-chat:attachments.adoc#sending-to-the-model[Отправка файлов модели].
+
+[[data]]
+== Сообщения и данные
+
+Сообщение — это данные. Чат читает его через контракт `AiChatMessage`: роль, текст, необязательное время и вложения. Чат никогда не изменяет сообщение напрямую.
+
+По умолчанию чат хранит в памяти список встроенных сообщений. Чтобы сохранять диалог, создайте собственную сущность, которая реализует этот контракт:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/entity/ChatMessage.java[tags=entity]
+----
+<1> Контракт требует список и никогда не допускает `null`, а пустая коллекция элементов приходит из базы данных как `null`.
+
+Затем загрузите сущность в контейнер коллекции и укажите его для чата:
+
+.Данные
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=data]
+----
+
+.Компоновка
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat]
+----
+
+[IMPORTANT]
+====
+Сортируйте результат запроса по хранимому атрибуту, как в примере выше. Поле `time` контракта вычисляется из вашей сущности, и JPQL не может его использовать. Сообщениям, сохраненным в одну и ту же секунду, нужен дополнительный критерий сортировки, чтобы их порядок сохранялся после перезагрузки.
+====
+
+Компонент не может самостоятельно создать вашу сущность, поэтому установите фабрику, которая ее создает:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/chat/ChatView.java[tags=message-factory]
+----
+
+Фабрика вызывается один раз для каждого зафиксированного сообщения: для сообщения пользователя — при его отправке, для ответа — при его завершении.
+
+[[persistence]]
+== Сохранение
+
+Атрибут `autoSave="true"`, показанный в примере выше, заставляет чат сохранять сообщения через `DataContext` экрана: каждое зафиксированное сообщение объединяется с контекстом и сохраняется, а сообщение, удаленное при откате диалога, удаляется.
+
+[NOTE]
+====
+`autoSave` сохраняет весь `DataContext`, а не только сообщение, поэтому при отправке сообщения также сохраняются несвязанные изменения, сделанные в других частях экрана. Кроме того, это XML-атрибут без эквивалента в Java: в контроллере вместо него устанавливаются делегат сохранения и делегат удаления. Так же поступает приложение, которому нужно сохранять сообщения по-другому.
+====
+
+Без `autoSave` сохраняйте сообщения сами, установив два делегата. `saveDelegate` вызывается для каждого зафиксированного сообщения до того, как оно попадет в диалог, и чат использует экземпляр, который возвращает делегат. Слой хранения обычно возвращает другой объект, чем тот, который получил, и именно этот объект далее отслеживают контейнер и `DataContext`. `removeDelegate` вызывается для каждого сообщения, которое удаляется при откате диалога, начиная с самого нового.
+
+Приложение, которому нужно сохранять сообщения по-своему, может не устанавливать ни один из делегатов и слушать событие `MessageChangeEvent`, которое сообщает о каждом добавленном или удаленном сообщении.
+
+[[empty-state]]
+== Пустое состояние
+
+До первого сообщения чат размещает поле ввода сообщений в центре и предоставляет вокруг него два слота для приветствия, подсказок или предупреждения:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=empty-state]
+----
+
+image::aichat-chat-empty-state.png[Пустое состояние, align="center", width="1068"]
+
+Как только появляется первое сообщение, пустое состояние сменяется обычной компоновкой, в которой поле ввода закреплено внизу.
+
+[[bands]]
+== Полосы поля ввода сообщений
+
+`inputHeader` и `inputFooter` размещают содержимое приложения внутри поля ввода сообщений, но вне его рамки, например строку контекста над полем или предупреждение под ним:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=bands]
+----
+
+.Пакет сообщений
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=chat-bands]
+----
+
+[NOTE]
+====
+Пока чат пуст, обе полосы скрыты, потому что для этого места у пустого состояния есть свои слоты. После отправки сообщения полоса появляется. Чтобы полоса была видна и в пустом чате, примените вариант темы `input-header-component-always-visible` или `input-footer-component-always-visible`.
+====
+
+[[generation]]
+== Генерация
+
+Чат переходит между тремя состояниями (ожидание, генерация и ошибка) и сообщает о каждом переходе:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=state-listener]
+----
+
+image::aichat-chat-generating.png[Чат генерирует ответ, align="center", width="1068"]
+
+Остановка и повторная генерация доступны пользователю без дополнительного кода: во время генерации ответа кнопка отправки в поле ввода сообщений становится кнопкой остановки, а на баннере ошибки появляется кнопка *Retry*. Частичный ответ остановленной генерации остается на экране, но никогда не фиксируется.
+
+Те же операции доступны из приложения, если чат должен предлагать их и в другом месте, например на панели инструментов над диалогом, в меню или по сочетанию клавиш. В примере ниже подключены две такие кнопки. Для работы встроенных элементов управления ничего из этого не нужно:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=regenerate]
+----
+
+Чтобы пользователь мог повторно сгенерировать любой ответ, а не только последний, объявите встроенное действие сообщения. Оно откатывает диалог к этому сообщению и запускает генерацию заново:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/generation/generation-view.xml[tags=regenerate-action]
+----
+
+При ошибке генерации список сообщений показывает баннер ошибки с кнопкой *Retry*, а приложение получает уведомление с ошибкой и текстом, который пришел до нее:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=failed-listener]
+----
+
+NOTE: Ошибка сохранения и ошибка генерации используют одно и то же состояние ошибки, и кнопка *Retry* заново генерирует ответ, а не повторяет сохранение.
+
+[[actions]]
+== Действия чата
+
+Чат содержит обычные действия Jmix, которые можно связать с любым компонентом экрана:
+
+.Объявление
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat-action-declaration]
+----
+
+.Связывание
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat-action]
+----
+
+Это собственные действия чата, а не действия отдельных сообщений, описанные в разделе xref:ai-chat:aiMessageList.adoc#actions[Действия над сообщениями].
+
+[[configuring]]
+== Настройка составных частей
+
+Все возможности списка сообщений и поля ввода сообщений доступны через чат. Атрибуты `maxRows`, `enterAction` и атрибуты вложений настраивают поле ввода сообщений; `announceMessages` настраивает список сообщений; элементы `thinkingIndicator`, `thinkingStages`, `userActions` и `assistantActions` объявляются в чате и применяются к списку сообщений; а `inputPrefix` и `inputSuffix` заполняют слоты поля ввода сообщений. Назначение каждого из них описано на страницах xref:ai-chat:aiMessageList.adoc[] и xref:ai-chat:aiMessageInput.adoc[].
+
+[[styling]]
+== Стилизация
+
+У `aiChat` нет собственного пользовательского элемента. Он отображается как обычный `div`, который содержит список сообщений и поле ввода сообщений. Поэтому он не предоставляет shadow parts, и его нельзя выбрать по имени тега в CSS или найти по нему в инспекторе браузера. Задавайте стили через класс или id, которые вы ему назначили, а к его частям обращайтесь через компоненты внутри него:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/styling/styling-view.xml[tags=styled-chat]
+----
+
+.CSS
+[source,css,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/META-INF/resources/themes/ai-chat-ex1-aura/view/styling-view.css[tags=part]
+----
+
+Следующие свойства стилей можно использовать в таблицах стилей CSS для настройки внешнего вида компонента.
+
+[cols="2,3", options="header"]
+|===
+|Имя
+|Описание
+
+|`--jmix-ai-chat-max-width`
+|Ширина колонки диалога. Значение передается в список сообщений и поле ввода сообщений, поэтому оно одновременно меняет размер диалога, поля ввода и пустого состояния.
+|===
+
+Все остальное стилизуется в составляющих его компонентах. См. xref:ai-chat:aiMessageList.adoc#styling[aiMessageList], xref:ai-chat:aiMessageInput.adoc#styling[aiMessageInput] и xref:ai-chat:aiCodeBlock.adoc#styling[aiCodeBlock].
+
+[[chat-theme-variants]]
+=== Варианты темы
+
+[cols="2,3", options="header"]
+|===
+|Вариант
+|Описание
+
+|`fixed-toolbar`
+|Всегда размещает элементы управления поля ввода сообщений в отдельной строке. Передается в поле ввода сообщений.
+
+|`input-footer-component-always-visible`
+|Оставляет полосу `inputFooter` видимой, пока чат пуст. См. <<bands,Полосы поля ввода сообщений>>.
+
+|`input-header-component-always-visible`
+|Оставляет полосу `inputHeader` видимой, пока чат пуст. См. <<bands,Полосы поля ввода сообщений>>.
+
+|`no-header-footer-gap`
+|Убирает промежуток между полосами и рамкой поля ввода. Передается в поле ввода сообщений.
+|===
+
+[[localization]]
+== Локализация
+
+Собственные объявления чата берутся из пакета сообщений дополнения по ключам `+aiChat.i18n.*+`. Его вложенный элемент `i18n` повторяет дерево компонентов: атрибуты самого элемента меняют тексты чата, а вложенные элементы `messageList`, `messageInput` и `codeBlock` относятся к частям, из которых он состоит. См. xref:ai-chat:localization.adoc[].
+
+[[attachments]]
+== Вложения
+
+Чат поддерживает вложения на всем пути: поле ввода сообщений собирает их, фабрика сообщений сохраняет их, а список сообщений отображает их. См. xref:ai-chat:attachments.adoc[].
+
+== Атрибуты
+
+`aiChat` имеет следующие уникальные атрибуты:
+
+[cols="2,5,1", options="header"]
+|===
+|Имя
+|Описание
+|По умолчанию
+
+|[[acceptedFileExtensions]]`acceptedFileExtensions`
+|Разрешает вложения только с указанными расширениями файлов. См. xref:ai-chat:attachments.adoc[].
+|—
+
+|[[acceptedMimeTypes]]`acceptedMimeTypes`
+|Разрешает вложения только с указанными типами медиа. См. xref:ai-chat:attachments.adoc[].
+|—
+
+|[[announceMessages]]`announceMessages`
+|Определяет, объявляются ли новые сообщения программам чтения с экрана. См. xref:ai-chat:aiMessageList.adoc#accessibility[Доступность].
+|`false`
+
+|[[attachmentsEnabled]]`attachmentsEnabled`
+|Определяет, принимает ли поле ввода сообщений вложения. См. xref:ai-chat:attachments.adoc[].
+|`false`
+
+|[[autoSave]]`autoSave`
+|Сохраняет зафиксированные сообщения через `DataContext` экрана. См. <<persistence,Сохранение>>.
+|`false`
+
+|[[dataContainer]]`dataContainer`
+|Связывает чат с контейнером коллекции сообщений. См. <<data,Сообщения и данные>>.
+|—
+
+|[[enterAction]]`enterAction`
+|Определяет, что делает клавиша *Enter* в поле ввода сообщений. См. xref:ai-chat:aiMessageInput.adoc#text-area[Текстовое поле].
+|`SEND`
+
+|[[maxFileSize]]`maxFileSize`
+|Задает максимальный размер одного вложения в байтах. См. xref:ai-chat:attachments.adoc[].
+|`26214400`
+
+|[[maxFiles]]`maxFiles`
+|Задает, сколько файлов можно прикрепить к одному сообщению. См. xref:ai-chat:attachments.adoc[].
+|`10`
+
+|[[maxRows]]`maxRows`
+|Задает, до скольких строк увеличивается поле ввода сообщений, прежде чем появится прокрутка. См. xref:ai-chat:aiMessageInput.adoc#text-area[Текстовое поле].
+|`10`
+
+|[[systemPrompt]]`systemPrompt`
+|Задает системный промпт, который отправляется с каждым запросом. Для многострочного значения его также можно объявить как вложенный элемент.
+|—
+
+|[[themeNames]]`themeNames`
+|Применяет варианты темы, в том числе `input-header-component-always-visible` и `input-footer-component-always-visible`, которые оставляют полосу видимой, пока чат пуст. См. <<bands,Полосы поля ввода сообщений>>.
+|—
+
+|[[uploadDropZoneEnabled]]`uploadDropZoneEnabled`
+|Определяет, можно ли перетаскивать файлы в поле ввода сообщений. См. xref:ai-chat:attachments.adoc[].
+|`true`
+|===
+
+`aiChat` имеет следующие общие атрибуты:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Обработчики
+
+`aiChat` имеет следующие уникальные обработчики:
+
+[cols="2,5", options="header"]
+|===
+|Имя
+|Описание
+
+|[[AttachmentClickEvent]]`AttachmentClickEvent`
+|Срабатывает, когда пользователь нажимает на вложение в сообщении. См. xref:ai-chat:attachments.adoc#downloading[Скачивание из диалога].
+
+|[[AttachmentRejectedEvent]]`AttachmentRejectedEvent`
+|Срабатывает, когда файл отклонен одним из ограничений на вложения. См. xref:ai-chat:attachments.adoc#rejected[Отклонённые файлы].
+
+|[[GenerationFailedEvent]]`GenerationFailedEvent`
+|Срабатывает при ошибке генерации. Содержит ошибку и текст, полученный до нее. См. <<generation,Генерация>>.
+
+|[[GenerationStateChangeEvent]]`GenerationStateChangeEvent`
+|Срабатывает при каждом переходе между состояниями ожидания, генерации и ошибки. См. <<generation,Генерация>>.
+
+|[[MessageChangeEvent]]`MessageChangeEvent`
+|Срабатывает, когда сообщение зафиксировано или удалено. См. <<persistence,Сохранение>>.
+
+|[[llmProvider]]`llmProvider`
+|Возвращает ответ на запрос в виде потока текста. Обязателен. См. <<basics,Основы>>.
+
+|[[messageFactory]]`messageFactory`
+|Создает экземпляр сообщения для связанного источника. Обязателен, если чат связан с вашей собственной сущностью. См. <<data,Сообщения и данные>>.
+
+|[[removeDelegate]]`removeDelegate`
+|Удаляет сообщение, которое было убрано из диалога при откате. См. <<persistence,Сохранение>>.
+
+|[[saveDelegate]]`saveDelegate`
+|Сохраняет зафиксированное сообщение и возвращает экземпляр, который чат будет использовать дальше. См. <<persistence,Сохранение>>.
+|===
+
+`aiChat` поддерживает следующие общие обработчики:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Элементы
+
+`aiChat` может содержать следующие вложенные элементы: `actions`, `systemPrompt`, `inputPrefix`, `inputSuffix`, `inputHeader`, `inputFooter`, `thinkingIndicator`, `thinkingStages`, `userActions`, `assistantActions`, `emptyStateHeader`, `emptyStateFooter` и `i18n`.
+
+[[actions-element]]
+=== actions
+
+Элемент `actions` содержит собственные элементы `action` чата. См. <<actions,Действия чата>>.
+
+[[systemPrompt-element]]
+=== systemPrompt
+
+Элемент `systemPrompt` содержит многострочный системный промпт и используется вместо одноименного атрибута.
+
+[[input-slots-elements]]
+=== inputPrefix, inputSuffix, inputHeader, inputFooter
+
+Эти элементы заполняют слоты поля ввода сообщений: первые два — внутри его рамки, последние два — как полосы вне ее. См. <<bands,Полосы поля ввода сообщений>> и xref:ai-chat:aiMessageInput.adoc#slots[Префикс и суффикс].
+
+[[empty-state-elements]]
+=== emptyStateHeader, emptyStateFooter
+
+Эти элементы содержат контент, который отображается над полем ввода сообщений и под ним, пока чат пуст. См. <<empty-state,Пустое состояние>>.
+
+[[message-list-elements]]
+=== thinkingIndicator, thinkingStages, userActions, assistantActions
+
+Эти элементы настраивают список сообщений и работают так, как описано для xref:ai-chat:aiMessageList.adoc#thinking-indicator[aiMessageList].
+
+[[i18n-element]]
+=== i18n
+
+Элемент `i18n` меняет тексты этого чата, а через вложенные элементы `messageList`, `messageInput` и `codeBlock` — тексты частей, из которых он состоит. См. <<localization,Локализация>>.
