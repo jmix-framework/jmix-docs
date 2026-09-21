@@ -107,6 +107,11 @@ cloneOrPull('https://github.com/jmix-framework/jmix-$GUIDE_NAME-sample', 'extern
 includeBuild 'external/jmix-$GUIDE_NAME-sample'
 ```
 
+The branch to check out is taken from the `samplesBranch` property in `gradle.properties`. Pass
+`-PsamplesBranch=<branch>` to use another branch for all sample repositories, or
+`-PsamplesBranch.jmix-$GUIDE_NAME-sample=<branch>` for this one only. If your sample always lives on
+a branch of its own, give it as the third argument: `cloneOrPull(url, dir, 'main')`.
+
 Additionally, you have to add the source root to the Antora playbook `antora-playbook.yml`:
 
 ```yaml

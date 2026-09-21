@@ -10,6 +10,9 @@ The documentation is published at https://docs.jmix.io.
 * Clone the repository and open the root folder in IntelliJ IDEA.
 * Import the Gradle project.
 * Repositories of guides sample projects will be automatically cloned into the `external` folder.
+  The branch is defined by the `samplesBranch` property in `gradle.properties`, so the samples stay
+  on the release branch even when you work in a feature branch. Use `-PsamplesBranch=<branch>` to
+  change it for all sample repositories, or `-PsamplesBranch.<repo-name>=<branch>` for a single one.
 
 Main documentation modules are located in the `content` folder. Guides are located in the `external/<sample>/doc` folders.
 
