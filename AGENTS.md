@@ -98,7 +98,9 @@ Screenshots are captured at **2x** and declared at half their pixel width (`imag
 
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
-- Use bold text only for UI elements. Don't use bold for emphasis.
+- Use bold text only for UI elements and keyboard shortcuts. Don't use bold for emphasis.
+- Write keyboard shortcuts in bold, e.g. `*Ctrl+Space*`. Don't use `kbd:[...]`.
+- Add `^` to the link text of external links so they open in a new tab, e.g. `{spring-framework-doc}/core/expressions.html[SpEL^]`.
 
 ## Writing prose
 
