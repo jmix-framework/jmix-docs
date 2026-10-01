@@ -104,6 +104,8 @@ When asked to translate to Russian, translate the words:
 - fetch plan -> фетч-план
 - inject -> инжектировать
 - list view -> экран списка
+- lookup view -> экран выбора
+- read view -> экран чтения
 - release -> релиз
 - resource role -> ресурсная роль
 - row-level role -> роль уровня строк 
