@@ -22,7 +22,7 @@ Behind the scenes, the model is serialized as YAML. You normally work with the g
 [[versioning-and-deployment]]
 == Versioning and Deployment
 
-The model definition is stored in the database as a set of versioned configurations. Only one version is active at a time. Keeping previous versions lets you review changes over time and roll back by activating an earlier version.
+The model definition is stored in the database as a set of versioned configurations. Each apply saves a new version, and only one version is active at a time. Previous versions are kept, and you can see them in the xref:dyn-model:defining-model.adoc#model-history[model history]. To return to an earlier model, copy its YAML from the history and apply it again.
 
 On application startup, the framework can automatically apply the active version so that the running application reflects the latest deployed model. This behavior is controlled by the xref:dyn-model:app-properties.adoc#jmix.dynmodel.deploy-on-app-start[jmix.dynmodel.deploy-on-app-start] property.
 
@@ -35,6 +35,27 @@ Destructive cleanup — such as dropping columns or tables that are no longer pa
 
 Already open views are not switched over automatically; they pick up the changes after a reload.
 
+The framework also checks that nobody applied another model after you opened the model for editing. If someone did, your apply is refused, so that it does not silently discard the other changes. In this case, reload the model settings and repeat your changes.
+
+[[cluster]]
+== Cluster
+
+[.since]
+Since Jmix 3.1
+
+Dynamic Model can work in an application cluster. When cluster support is enabled:
+
+* A model applied on one node is applied on all other nodes, without a restart.
+* Only one apply can run at a time in the whole cluster. If a user tries to apply the model while it is being applied on another node, the apply is refused with a message that names the user who is applying it. Try again after the other apply is finished.
+
+To enable cluster support:
+
+. Set the xref:dyn-model:app-properties.adoc#jmix.dynmodel.cluster.enabled[jmix.dynmodel.cluster.enabled] property to `true`.
+. Add the xref:pessimistic-lock:index.adoc[Pessimistic Lock] add-on to the project. It holds the apply lock for the cluster. If cluster support is enabled and the add-on is missing, the application does not start.
+. Configure cluster communication between the nodes as described in xref:features:cluster-communication.adoc[]. Both the messages about applied models and the apply lock need it. Without it, a model applied on one node reaches the other nodes only when they restart.
+
+The xref:dyn-model:app-properties.adoc#jmix.dynmodel.cluster.apply-lock-timeout-sec[jmix.dynmodel.cluster.apply-lock-timeout-sec] property sets when the lock left by a node that stopped during an apply expires. Set it to a value greater than the longest apply in your application.
+
 [[storage]]
 == Storage
 
@@ -46,6 +67,17 @@ Dynamic Model keeps the runtime data in dedicated database tables:
 Each entity can specify a physical store through its `store` property; when omitted, the entity uses the `main` data store. References and collections are allowed only between entities that belong to the same physical store.
 
 The table-name prefixes are configurable; see xref:dyn-model:yaml-reference.adoc[] and xref:dyn-model:app-properties.adoc[] for the relevant settings.
+
+[[data-tools]]
+== Data Tools
+
+[.since]
+Since Jmix 3.1
+
+Dynamic entities and dynamic attributes are shown in the views of the xref:data-tools:index.adoc[Data Tools] add-on:
+
+* The xref:data-tools:data-model.adoc[Data model] view lists dynamic entities with their data store and table, and dynamic attributes of static entities with their side table columns. Calculated and collection attributes are listed without a column. The diagram shows which entities and attributes are dynamic.
+* The xref:data-tools:entity-inspector.adoc[Entity inspector] lets you browse, create, edit and delete instances of dynamic entities, and edit dynamic attributes of static entities. You can filter and sort by dynamic attributes in the generic filter.
 
 [[supported-databases]]
 == Supported Databases

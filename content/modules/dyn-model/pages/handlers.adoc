@@ -1,0 +1,157 @@
+= UI Handlers
+
+[.since]
+Since Jmix 3.1
+
+A UI handler adds behavior to a view without Java code and without a redeploy. It connects a UI event, such as a button click, a field value change or a view lifecycle event, to a short expression. The expression can read and change the edited entity, change the state of components, show notifications and dialogs, open other views, and call application methods that a developer has made available.
+
+Handlers are declared in the `handlers` list of a view declaration, in YAML or on the *Handlers* tab of the view dialog. They can be added to:
+
+* a view of a dynamic entity;
+* an override of a static entity view;
+* a static entity view declaration that has only `handlers` and no `descriptor`. This adds behavior to an existing application view without changing its XML.
+
+[[declaring-handlers]]
+== Declaring Handlers
+
+Each handler has an `event`, a `componentId` for component events, and one `expression`. The example below adds handlers to the generated detail view of the `LoyaltyLevel` dynamic entity. The first handler sets a default name for a new instance. The second one makes the `description` field required when a discount is entered:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view-handlers]
+----
+
+Components of a view generated from a template have IDs made from the attribute name plus `Field`, for example `discountField`.
+
+The next example adds handlers to the `Customer.detail` view of the application. The declaration has no `descriptor`, so the view XML is not changed:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-view-handlers]
+----
+
+The `beforeShow` handler makes the name field read-only for existing customers. A click on `checkNameButton` opens a confirmation dialog. When the user clicks *Yes*, the dialog runs the `doCheckName` handler, which calls the `checkCustomerName` application operation and shows the result. See <<operations>> for how the operation is defined.
+
+Several handlers can use the same event and component. They run in the order in which they are declared.
+
+[[events]]
+== Events
+
+[cols="1,2,1",options="header"]
+|===
+| Event | When the handler runs | `componentId`
+
+| `click`
+| The component is clicked.
+| required
+
+| `valueChange`
+| The user changes the value of the component.
+| required
+
+| `init`
+| The view is initialized.
+| not allowed
+
+| `initEntity`
+| A detail view initializes a new entity. Runs only when an entity is created.
+| not allowed
+
+| `beforeShow`
+| Before the view is shown.
+| not allowed
+
+| `ready`
+| After the view is shown.
+| not allowed
+|===
+
+A handler without an `event` must have a `name`. It is not connected to any event and runs only when a confirmation dialog of the same view calls it. See `dialogs.confirm()` below.
+
+[[expressions]]
+== Expressions
+
+The expression is a single {spring-framework-doc}/core/expressions.html[SpEL^] expression. To do two things, declare two handlers.
+
+An expression can use the following objects:
+
+[cols="1,3",options="header"]
+|===
+| Name | Members
+
+| `entity`
+| The edited entity of a detail view, or the single selected row of a list view. Attributes can be read and written: `entity.discount`, `entity.customer.name`.
+
+| `isNew()`
+| `true` if the current entity is new and not saved yet.
+
+| `components`
+| `setVisible(id, boolean)`, `setEnabled(id, boolean)`, `setRequired(id, boolean)`, `setReadOnly(id, boolean)`, `getValue(id)`, `setValue(id, value)`, `focus(id)`.
+
+| `notifications`
+| `show(text)`, `show(title, message)`.
+
+| `dialogs`
+| `message(header, text)` shows a message. `confirm(header, text, handlerName)` shows a confirmation dialog; the *Yes* button runs the handler with the given name in the same view.
+
+| `navigation`
+| `navigate(viewId)`, `navigateToDetail(entity)`, `close()`.
+
+| `services`
+| `call(operationName, args...)` calls an application operation. See <<operations>>.
+
+| `state`
+| `put(key, value)`, `get(key)`, `remove(key)`. Values are kept while the view is open, for example to pass a value to a handler called from a confirmation dialog.
+
+| `event`
+| For `valueChange`: `event.value` and `event.oldValue`. For other events: `null`.
+|===
+
+Nothing else can be used in an expression. Spring beans, static methods, constructors and other Java methods are not available.
+
+[[operations]]
+== Calling Application Code
+
+The only way for a handler to call application code is `services.call()`. A developer makes a method available for handlers by adding the `@DynamicModelOperation` annotation with the operation name:
+
+[source,java,indent=0]
+----
+include::example$/dyn-model-ex1/src/main/java/com/company/sample/app/CustomerOperations.java[tags=operation]
+----
+
+Rules for operations:
+
+* The method must be public and belong to a Spring bean.
+* Operation names must be unique. A blank or duplicate name stops the application at startup.
+* Arguments are converted to the declared parameter types. For example, `services.call('checkCustomerName', entity)` passes the edited `Customer` instance to the method above.
+* An operation runs in the session of the current user. Everything it does follows the user's permissions, including row-level security.
+* The returned value can be used in the expression. You can read properties of returned numbers, strings, entities, DTOs and collections, but you cannot call methods on them.
+
+[[handlers-tab]]
+== Editing Handlers in the Admin UI
+
+Handlers are edited on the *Handlers* tab of the view dialog. The handler dialog has the following fields:
+
+* *Event* – one of the <<events,events>>. `initEntity` is available only for detail views.
+* *Component ID* – a drop-down list of the view components, with the ID and the XML element of each component. The list contains only components that the selected event can use: clickable components for `click`, and components with a value for `valueChange`. You can also type an ID that is not in the list. The field is enabled only for `click` and `valueChange`.
+* *Name* – an optional handler name, unique in the view. It is required for a handler without an event.
+* *Expression* – a code editor with code completion. It suggests the objects and members listed in <<expressions>>, entity attributes after `entity.`, component IDs in `components` methods, operation names in `services.call()`, and handler names in `dialogs.confirm()`. Completion opens after a dot or when you press *Ctrl+Space*.
+
+In the handlers grid, handlers of the same event and component are kept together. Use the up and down buttons to change their order in the group.
+
+[[checks]]
+== Checks and Errors
+
+Handlers are checked when the model is applied. The apply is refused, and the message explains the error, in the following cases:
+
+* the expression is empty or cannot be parsed;
+* the component ID is missing, or is set for an event that does not allow it;
+* a component with this ID does not exist in the view. This is checked only if the view declaration has an XML `source`;
+* a handler has neither an event nor a name;
+* two handlers in the view have the same name;
+* `dialogs.confirm()` refers to a handler name that does not exist in the view;
+* `services.call()` refers to an unknown operation.
+
+For a view generated from a template, and for a static view declaration without a `descriptor`, a wrong component ID is not found at apply time. It is reported in the application log when the view is opened.
+
+If an expression fails when it runs, the user sees a notification that the operation failed, and the view keeps working. The application log contains the view ID, the handler, and the cause of the error.

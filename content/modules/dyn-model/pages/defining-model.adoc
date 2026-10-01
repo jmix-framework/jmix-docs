@@ -17,6 +17,26 @@ When the model is ready, click *Apply*. The framework compares the edited model 
 
 Review the list and click *Apply changes* to confirm. The model is validated and, if valid, the changes are applied and published as a new model version that becomes active immediately. Closing the *Dynamic model changes* view without applying discards the pending changes and leaves the active model unchanged.
 
+[[attribute-order]]
+=== Attribute Order
+
+[.since]
+Since Jmix 3.1
+
+On the *Attributes* tab, select an attribute and use the *Move the attribute up* and *Move the attribute down* buttons to change its position. The order of attributes is saved in the model. It defines the order of fields in generated detail views and of columns in generated list views, and the order of properties in metadata, which is used by the REST API, the entity inspector and the generic filter. The new order takes effect when you apply the model.
+
+Only dynamic attributes can be moved. The own properties of a static entity and the identifier of a dynamic entity keep their positions. The order of columns in the database does not change.
+
+[[model-history]]
+=== Model History
+
+[.since]
+Since Jmix 3.1
+
+In the *Code* presentation, click *History* to see all saved versions of the model, newest first. For each version, the dialog shows the date, the user who applied it, and whether it is the active one. Select a version to see its YAML, and click *Copy to clipboard* to copy it.
+
+The dialog does not apply an earlier model. To return to an earlier version, copy its YAML, paste it into the *Code* presentation, and apply the model.
+
 [[extending-static-entities]]
 == Extending Static Entities
 
@@ -52,6 +72,12 @@ A datatype attribute holds a simple value such as a string, number, date, or boo
 
 For the full list of supported types, see xref:dyn-model:yaml-reference.adoc#javaclass[supported types].
 
+[[instance-name]]
+=== Instance Name
+
+Select *Instance name* for an attribute to use its value as the xref:data-model:entities.adoc#instance-name[instance name] of the entity. An entity can have only one instance name attribute. If another attribute already has this flag, the attribute dialog shows its name, and selecting the flag moves it to the current attribute. A calculated attribute can also be the instance name.
+
+[[reference-attributes]]
 === Reference Attributes
 
 A reference attribute is a single-valued link to another entity. You select the target entity, and at runtime the attribute stores a reference to one instance of it.
@@ -60,6 +86,23 @@ A reference attribute is a single-valued link to another entity. You select the 
 ----
 include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
 ----
+
+[[lookup-field]]
+==== Lookup Field
+
+[.since]
+Since Jmix 3.1
+
+For a single-valued reference, you can choose the UI component that generated views use to select the referenced instance. Set it in the *Lookup field type* and *Lookup actions* fields of the attribute dialog. The `loyaltyLevel` attribute in the example above uses a drop-down list.
+
+*Lookup field type* can have the following values:
+
+* `DROPDOWN` – an xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox]. Items are loaded while the user types, by the instance name of the referenced entity, so this type works for large tables. If the instance name of the referenced entity is not based on string attributes, the field uses a lookup view instead.
+* `VIEW` – an xref:flow-ui:vc/components/entityPicker.adoc[entityPicker] that opens a lookup view. If no actions are set, the field gets the standard lookup and clear actions.
+
+If the type is not set, the default component is used.
+
+*Lookup actions* sets the buttons of the field: `entity_lookup`, `entity_open`, `entity_clear`.
 
 === Collection Attributes
 
@@ -154,3 +197,44 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 ----
 
 For more about resource roles, see xref:security:resource-roles.adoc[resource roles].
+
+[[settings-access]]
+== Access to the Model Settings
+
+The add-on provides the following resource roles for the *Dynamic model settings* view. Assign one of them to users who work with the model.
+
+[cols="1,1,2",options="header"]
+|===
+| Role name | Code | Access
+
+| Dynamic model: view settings
+| `dynmod-view-settings`
+| Open the model settings and the model history. The model cannot be changed.
+
+| Dynamic model: modify settings
+| `dynmod-modify-settings`
+| Full access. Apply any change, including changes that delete data.
+
+| Dynamic model: modify settings without data loss
+| `dynmod-safe-modify-settings`
+| Apply only changes that cannot lose stored data.
+|===
+
+[[safe-modify-role]]
+=== Changes Without Data Loss
+
+[.since]
+Since Jmix 3.1
+
+The "Dynamic model: modify settings without data loss" role lets users extend the model without the risk of losing stored data. A user with this role can edit the model in the *Visual* and *Code* presentations and apply the following changes: new entities, attributes, enumerations and enumeration values, and changes to validation, views, menu items, messages and resource roles.
+
+The user cannot apply changes that can lose data:
+
+* removing an applied entity or attribute;
+* renaming an applied entity or attribute in YAML, because a rename is applied as a removal and a creation;
+* removing an applied enumeration;
+* removing a value from an applied enumeration.
+
+In the *Visual* presentation, applied items cannot be removed. Items added after the last apply can still be removed. If the edited model contains changes that are not allowed, the *Dynamic model changes* view lists them, and the model cannot be applied until you remove these changes.
+
+The restriction is checked on the server. It cannot be avoided by saving the model settings in another way, for example through the entity inspector.
