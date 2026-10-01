@@ -99,3 +99,14 @@ Screenshots are captured at **2x** and declared at half their pixel width (`imag
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
 - Use bold text only for UI elements. Don't use bold for emphasis.
+
+## Writing prose
+
+After you write or change prose that people read (`.adoc` pages, `README.md`, `CONTRIBUTING.md`, PR and issue descriptions), run the `no-ai-slop` skill in detect mode on the text you changed, then fix what it finds. The skill is written for personal writing, so apply it with these adjustments:
+
+- Check only the lines in your diff. Leave the surrounding text as it is unless asked to clean it up.
+- Keep AsciiDoc markup unchanged: `include::`, `xref:`, anchors, attributes, source blocks, admonition labels and UI element names.
+- The voice to keep is the existing style of the page.
+- Technical subjects with active verbs are correct here: "the component displays", "the method returns".
+- Keep short sections on reference pages. Readers reach them through anchors.
+- The readers are Jmix developers, and many of them are non-native English speakers. Use plain, common words.
