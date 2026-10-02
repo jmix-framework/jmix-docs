@@ -1450,6 +1450,8 @@ In part 1 of `site.css` (the line numbers are those of the upstream files; searc
 | `highlight.css` | `background: #fdd;` | `background: var(--syntax-removed);` |
 | `highlight.css` | `background: #dfd;` | `background: var(--syntax-added);` |
 
+In the header comment of `site.css`, delete the now stale words `font files, ` (Task 4 retired the typeface sections).
+
 - [ ] **Step 3: Move `overrides.css` and the banner into part 2**
 
 Append to part 2 of `site.css` (the rules of `overrides.css` and of the inline `<style>` in `head-styles.hbs`, with tokens instead of literals; the `outline: none` focus resets of the buttons are dropped, and the heading, link and navbar colors are not copied because tokens now provide them):
@@ -3013,6 +3015,7 @@ Append to `STYLE_EXPECTATIONS`:
     ['manager', 'article.doc pre.highlight > code', 'background-color', '#f7f8fa'],
     ['manager', 'article.doc pre.highlight > code', 'border-top-left-radius', '8px'],
     ['manager', 'article.doc .hljs-keyword', 'color', '#0033b3'],
+    ['manager', 'article.doc pre.highlight > code', 'font-variant-ligatures', 'none'],
     ['manager', 'article.doc .source-toolbox', 'visibility', 'visible'],
     ['manager', 'article.doc .conum[data-value]', 'background-color', '#17124b'],
     ['events', '.admonitionblock.note > table', 'border-left-color', '#25cde3'],
@@ -3144,6 +3147,12 @@ Append to part 2 of `site.css`:
 
 .doc pre {
   line-height: 1.6;
+}
+
+/* JetBrains Mono ships programming ligatures; IntelliJ IDEA keeps them off by default, and readers copy this code */
+.doc pre,
+.doc code {
+  font-variant-ligatures: none;
 }
 
 .doc pre.highlight code {

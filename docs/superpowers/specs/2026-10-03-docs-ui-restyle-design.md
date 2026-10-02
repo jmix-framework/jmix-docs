@@ -143,7 +143,7 @@ Search keyboard behavior. How `search-ui.js` works: it appends `.search-result-d
 
 Self-hosted in `content/supplemental/font/` from Fontsource 5.3.0, OFL-1.1, license texts next to the files. Subsets `latin`, `latin-ext` and `cyrillic`, each limited by `unicode-range` so only the needed ones load.
 
-- Roboto variable, weights 400 to 700, normal (latin 43 KB), plus Roboto 400 italic static (latin 24 KB). Replaces the bundle's four static faces and gives the heading weights without synthesized bold.
+- Roboto variable, normal (latin 43 KB; one file per subset covers weights 100 to 900, the design uses 400 to 700), plus Roboto 400 italic static (latin 24 KB). Replaces the bundle's four static faces and gives the heading weights without synthesized bold.
 - JetBrains Mono 400 normal and 400 italic, static (latin 21 KB and 22 KB), for code. Replaces Roboto Mono. All monospace text, including the `/` hint and the language label, is set at weight 400; there is no 500 face.
 - First visit costs about 40–60 KB more than today; after that the fonts come from cache.
 
@@ -234,7 +234,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 
 ### Code blocks
 
-- JetBrains Mono, 0.78rem (14 px), line height 1.6.
+- JetBrains Mono, 0.78rem (14 px), line height 1.6, ligatures off (`font-variant-ligatures: none`): IntelliJ IDEA keeps JetBrains Mono's ligatures off by default, and readers copy this code.
 - Block: padding 0.9rem 1.125rem, border 1px `--color-line`, radius 8px, `--code-block-background`, `--code-block-text`, no inset shadow.
 - Titled blocks: the title becomes a tab attached to the block, as most titles are file names. Inline block, padding 0.4rem 0.8rem 0.35rem, border 1px `--color-line` without the bottom side, radius 8px 8px 0 0, `--code-block-background`, `--color-text` 0.75rem 500, overlapping the block's top border by 1px; the block's top-left radius becomes 0.
 - Toolbox, top right (0.45rem, 0.5rem): the language in lowercase JetBrains Mono 400 0.7rem `--color-text-muted`, no `|` separator; the copy button 1.75rem square with radius 6px, a 0.9rem mask icon in `--color-text-muted`, hover `--color-surface-hover` and `--color-heading`; the "Copied!" toast under the button with `--color-heading` background and `--color-text-on-accent` 0.7rem text.
