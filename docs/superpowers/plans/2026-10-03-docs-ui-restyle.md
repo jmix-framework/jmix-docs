@@ -49,7 +49,7 @@ Set `U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923` in shells that
 | `content/supplemental/css/dropdown-menu.css` | Header version menu |
 | `content/supplemental/css/feedback-form.css` | "Was this page helpful?" form |
 | `content/supplemental/font/` | Roboto and JetBrains Mono woff2 files and their licenses |
-| `content/supplemental/img/icons/*.svg` | Mask icons: chevron, home, edit, search, copy, note, tip, warning, important, caution, addon |
+| `--icon-*` tokens in `tokens.css` | Mask icons as data-URI SVGs: chevron, home, edit, search, copy, note, tip, warning, important, caution, addon (amended in Task 6: Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how `AGENTS.md` tells authors to preview a build) |
 | `content/supplemental/partials/head-styles.hbs` | The five stylesheet links |
 | `content/supplemental/partials/head-meta.hbs` | Favicons |
 | `content/supplemental/partials/header-content.hbs` | Skip link, header, inline icons, search field |
@@ -2378,7 +2378,7 @@ Append to part 2 of `site.css`:
   width: 1em;
   height: 1em;
   background-color: currentColor;
-  mask: url(../img/icons/copy.svg) center / contain no-repeat;
+  mask: var(--icon-copy) center / contain no-repeat;
 }
 
 /* the explore panel toggle is a button now */
@@ -2741,7 +2741,7 @@ Append to part 2 of `site.css`:
   width: 100%;
   height: 100%;
   background-color: var(--color-text-muted);
-  mask: url(../img/icons/chevron.svg) center / 14px no-repeat;
+  mask: var(--icon-chevron) center / 14px no-repeat;
 }
 
 .nav-item-toggle:hover {
@@ -2774,7 +2774,7 @@ Append to part 2 of `site.css`:
   width: 1rem;
   height: 1rem;
   background: currentColor;
-  mask: url(../img/icons/chevron.svg) center / 12px no-repeat;
+  mask: var(--icon-chevron) center / 12px no-repeat;
   rotate: -90deg;
 }
 
@@ -2880,7 +2880,7 @@ Append to part 2 of `site.css`:
   width: 1rem;
   height: 1rem;
   background-color: currentColor;
-  mask: url(../img/icons/home.svg) center / contain no-repeat;
+  mask: var(--icon-home) center / contain no-repeat;
 }
 
 .home-link:hover {
@@ -2921,7 +2921,7 @@ Append to part 2 of `site.css`:
   width: 0.875rem;
   height: 0.875rem;
   background-color: currentColor;
-  mask: url(../img/icons/edit.svg) center / contain no-repeat;
+  mask: var(--icon-edit) center / contain no-repeat;
 }
 
 .toolbar .edit-this-page a:hover {
@@ -3365,7 +3365,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--note-background);
   --adm-border: var(--note-border-color);
   --adm-accent: var(--note-accent);
-  --adm-icon: url(../img/icons/note.svg);
+  --adm-icon: var(--icon-note);
 }
 
 .doc .admonitionblock.tip {
@@ -3373,7 +3373,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--tip-background);
   --adm-border: var(--tip-border-color);
   --adm-accent: var(--tip-accent);
-  --adm-icon: url(../img/icons/tip.svg);
+  --adm-icon: var(--icon-tip);
 }
 
 .doc .admonitionblock.warning {
@@ -3381,7 +3381,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--warning-background);
   --adm-border: var(--warning-border-color);
   --adm-accent: var(--warning-accent);
-  --adm-icon: url(../img/icons/warning.svg);
+  --adm-icon: var(--icon-warning);
 }
 
 .doc .admonitionblock.important {
@@ -3389,7 +3389,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--important-background);
   --adm-border: var(--important-border-color);
   --adm-accent: var(--important-accent);
-  --adm-icon: url(../img/icons/important.svg);
+  --adm-icon: var(--icon-important);
 }
 
 .doc .admonitionblock.caution {
@@ -3397,7 +3397,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--caution-background);
   --adm-border: var(--caution-border-color);
   --adm-accent: var(--caution-accent);
-  --adm-icon: url(../img/icons/caution.svg);
+  --adm-icon: var(--icon-caution);
 }
 
 /* the add-on role sits on top of NOTE ("admonitionblock note addon-component"), so it comes last */
@@ -3406,7 +3406,7 @@ Append to part 2 of `site.css`:
   --adm-background: var(--addon-background);
   --adm-border: var(--addon-border-color);
   --adm-accent: var(--addon-accent);
-  --adm-icon: url(../img/icons/addon.svg);
+  --adm-icon: var(--icon-addon);
 }
 
 .doc .admonitionblock {

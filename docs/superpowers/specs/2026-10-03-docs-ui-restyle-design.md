@@ -149,7 +149,7 @@ Self-hosted in `content/supplemental/font/` from Fontsource 5.3.0, OFL-1.1, lice
 
 ### Icons
 
-- Mask icons as SVG files in `content/supplemental/img/icons/`: chevron, home, edit, search, copy, note, tip, warning, important, caution, add-on. CSS draws them with `mask` and `background-color: currentColor` (or a token).
+- Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution` and `--icon-addon`, each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
 - Header icons inline in `header-content.hbs`. The AI Assistant icon is redrawn as a single-color icon (shapes with cut-outs instead of navy strokes on white), so it works on the navy button, on a light background and in forced colors. `git-icon.svg`, `jmix-icon.svg` and `jmix-ai-assistant-icon.svg` are removed once inlined, together with the unused `warning-icon.svg`, the duplicate `img/img/feedback-form__thumb-up.svg` and the dead Slack icon rule in `search.css`.
 
 ## Accessibility
