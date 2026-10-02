@@ -3665,6 +3665,17 @@ footer.footer {
 }
 ```
 
+Two fixes in existing part 2 sections, found in the Task 5 review:
+
+- In "Content additions", the live demo hover keeps its label color (`.doc a:hover` recolored it before): change the rule to
+  ```css
+  a.live-demo-btn:hover {
+    background-color: var(--live-demo-background-hover);
+    color: var(--live-demo-text);
+  }
+  ```
+- In "Event banner", make the section comment state the markup contract: `/* ---- Event banner: #jmix-banner.jmix-banner, a .navbar-item inside .navbar-brand after the version dropdown, shown by its event script with an inline style ---- */`.
+
 - [ ] **Step 3: Rewrite `feedback-form.css`**
 
 ```css
