@@ -57,6 +57,17 @@ const TEXT_CONTRAST = [
 // Computed styles the spec fixes: [page, selector (may end with ::before or ::after), property, expected].
 // Colors can be written as #rrggbb. Tasks 7 to 11 add entries.
 const STYLE_EXPECTATIONS = [
+    // Task 6: header and search
+    ['manager', 'nav.navbar', 'background-color', '#ffffff'],
+    ['manager', 'nav.navbar', 'border-bottom-color', '#e4e6eb'],
+    ['manager', '.navbar-logo-center', 'fill', '#17124b'],
+    ['manager', '.version-dropdown-toggle', 'background-color', '#f0eeff'],
+    ['manager', '.version-dropdown-toggle', 'color', '#342a98'],
+    ['manager', '#search-input', 'width', '324px'],
+    ['manager', '#search-input', 'border-top-color', '#8a8f99'],
+    ['manager', '.search-kbd', 'font-weight', '400'],
+    ['manager', '.header-icon-link.ai-assistant-link', 'background-color', '#17124b'],
+    ['manager', '.header-icon-link.git-link', 'color', '#17124b'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
