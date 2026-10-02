@@ -2401,8 +2401,15 @@ Append to part 2 of `site.css`:
     forced-color-adjust: none;
     background-color: ButtonText;
   }
+
+  /* the navy center of the logo would vanish on a dark Canvas */
+  .navbar-logo-center {
+    fill: CanvasText;
+  }
 }
 ```
+
+Also align our mobile breakpoints with part 1, which switches at `1023.5px`: in part 2 of `site.css` and in `search.css`, replace every `max-width: 1023px` with `max-width: 1023.5px` (a viewport between the two, possible under browser zoom, would otherwise get the mobile panel without our mobile rules).
 
 - [ ] **Step 4: Add the skip link and the main target**
 

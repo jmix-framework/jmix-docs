@@ -178,7 +178,7 @@ Forced colors, written next to each component in a `@media (forced-colors: activ
 
 - Borders in `CanvasText` for the header bottom, nav right, toolbar bottom, code blocks and their title tabs, admonitions, sidebar and example blocks, the feedback form and the search field. `GrayText` border for inline code.
 - Active states lose their tinted backgrounds, so the current nav item, the active TOC item and the current version get a `Highlight` border.
-- Inline SVG icons follow `currentColor` and need nothing. Mask icons get `forced-color-adjust: none` and a system color (`CanvasText`, `LinkText`, `ButtonText` or `GrayText`), because the icon carries meaning.
+- The header icons are inline SVG with `fill: currentColor`; because the AI Assistant icon uses an SVG mask, the SVGs set `forced-color-adjust: none` and, in forced colors, `color: LinkText` (Chromium would otherwise let them inherit the author color). The logo center gets `fill: CanvasText`. Mask icons get `forced-color-adjust: none` and a system color (`CanvasText`, `LinkText`, `ButtonText` or `GrayText`), because the icon carries meaning.
 - Callout numbers in code get a border. Syntax highlighting is left to the browser: in forced colors it collapses to the text color, which is fine because color carries no meaning there.
 
 Motion and scheme:
@@ -198,7 +198,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - Search: input 18rem wide (100% below 1024px), 2.25rem high, padding 0 2.1rem, border 1px `--color-control-border`, radius 8px, background `--color-surface-subtle`, text `--color-text` 0.8rem, placeholder `--color-text-muted`; hover background `--color-surface-hover`; focus background `--color-surface` and border `--color-accent` plus the focus ring. Magnifier icon 0.9rem at 0.65rem from the left, `--color-text-muted`. The `/` hint at 0.55rem from the right: border 1px `--color-line-strong`, radius 4px, JetBrains Mono 400 0.68rem, `--color-text-muted`; hidden while the input has focus.
 - Search results: radius 8px, `--shadow-menu`; the list has a 1px `--color-line` border and padding 0.25rem 0.75rem 0.75rem; component header `--color-text-muted` 500 0.75rem; document titles `--color-text-muted` with a right border `--color-line`; snippets at regular weight (today they are bold); result links radius 6px with `--color-surface-hover` on hover; matches with `--color-accent-tint` background, `--color-accent` text, 600.
 - Icon buttons: 2.25rem square, radius 8px, `--header-text`, hover `--color-surface-hover`. AI Assistant: 2.75rem wide, background `--color-heading`, icon `--color-text-on-accent`; hover background `--color-accent`.
-- Below 1024px: burger lines `--header-text`, the menu panel `--color-surface`, the search text 1rem, because iOS Safari zooms into fields with text below 16px.
+- Below 1024px: burger lines `--header-text`, the menu panel `--color-surface`, the search text 1rem, because iOS Safari zooms into fields with text below 16px, the `/` hint hidden (no keyboard shortcut there), and the search results allowed to overflow the menu panel instead of being clipped by it.
 
 ### Navigation
 
