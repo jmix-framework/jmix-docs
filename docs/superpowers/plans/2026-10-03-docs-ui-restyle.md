@@ -22,6 +22,7 @@
 - Root font size: 18 px from 1024 px wide, 17 px below (upstream). `1rem` in the values below is 18 px on desktop.
 - Build: `npx antora antora-playbook.yml` writes `build/site` (about three minutes). Every task that changes the UI ends with a build and `node tools/ui-audit.mjs`.
 - After writing prose for people (`ui/README.md`, `AGENTS.md`, `CONTRIBUTING.md`, the PR text), run the `no-ai-slop` skill in detect mode on the changed lines and fix the findings, as `AGENTS.md` requires.
+- Shell variables used by the steps: `SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad` and `U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923`. Every code block that needs them defines them on its first line.
 - Keep the class names `site.js` and `search-ui.js` bind to: `.nav-item-toggle`, `.nav-panel-explore .context`, `.navbar-burger`, `.version-dropdown-toggle`, `.version-dropdown-menu`, `#search-input`, `.copy-button`.
 
 ## Working material outside the repository
@@ -394,7 +395,7 @@ Expected: 5 tests pass.
 - [ ] **Step 5: Run the check on the current stylesheets**
 
 Run: `node tools/check-css.mjs; echo "exit $?"`
-Expected: color literal findings in `overrides.css`, `search.css`, `feedback-form.css` and `dropdown-menu.css`, and `exit 1`. Write down the number of problems in the commit-free task notes; Task 6 brings it to zero.
+Expected: color literal findings in `overrides.css`, `search.css`, `feedback-form.css` and `dropdown-menu.css`, and `exit 1`. Write down the number of problems in your task report; Task 5 brings it to zero.
 
 - [ ] **Step 6: Write the browser audit**
 
@@ -683,6 +684,7 @@ class Audit {
         await page.waitForTimeout(400);
         s = await state();
         if (s.open || s.value || s.focus !== 'search-input') failures.push(`Escape in the results leaves open=${s.open} value="${s.value}" focus=${s.focus}`);
+        await page.click('#search-input');
         await page.keyboard.type('fetch plan');
         await page.waitForSelector('.search-result-item', { timeout: 10000 });
         await page.keyboard.press('Shift+Tab');
@@ -738,16 +740,17 @@ class Audit {
             return {
                 text: family('article.doc .paragraph p'),
                 code: family('article.doc pre code'),
-                bold: document.fonts.check('700 16px Roboto'),
-                mono: document.fonts.check('16px "JetBrains Mono"'),
+                // document.fonts.check() is true for a family without any @font-face, so look at the loaded faces
+                bold: [...document.fonts].some((f) => f.family.replace(/["']/g, '') === 'Roboto' && f.style === 'normal' && f.status === 'loaded' && /^(100 900|700)$/.test(f.weight)),
+                mono: [...document.fonts].some((f) => f.family.replace(/["']/g, '') === 'JetBrains Mono' && f.status === 'loaded'),
                 requests: performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/_/font/')),
             };
         });
         const failures = [];
         if (!/^"?Roboto"?,/.test(r.text)) failures.push(`text font is ${r.text}`);
         if (!/^"JetBrains Mono"/.test(r.code)) failures.push(`code font is ${r.code}`);
-        if (!r.bold) failures.push('Roboto 700 is not available');
-        if (!r.mono) failures.push('JetBrains Mono is not available');
+        if (!r.bold) failures.push('no loaded Roboto face covers weight 700');
+        if (!r.mono) failures.push('JetBrains Mono is not loaded');
         const old = r.requests.filter((n) => /roboto-mono|roboto-latin-500|roboto-latin-400-normal\.woff2?$/.test(n));
         if (old.length) failures.push(`old bundle fonts are still requested: ${old.join(', ')}`);
         await context.close();
@@ -861,7 +864,12 @@ async function main() {
             failed = failures.length;
         } else {
             for (const name of opts.only || CHECKS) {
-                const failures = name === 'forced' ? await audit.forced(out) : await audit[name]();
+                let failures;
+                try {
+                    failures = name === 'forced' ? await audit.forced(out) : await audit[name]();
+                } catch (e) {
+                    failures = [`the check threw: ${e.message.split('\n')[0]}`];
+                }
                 console.log(`${failures.length ? 'FAIL' : 'PASS'} ${name}`);
                 failures.forEach((f) => console.log(`  - ${f}`));
                 failed += failures.length;
@@ -880,7 +888,7 @@ main();
 - [ ] **Step 7: Run the audit on the current build**
 
 Run: `node tools/ui-audit.mjs; echo "exit $?"`
-Expected: `FAIL focus` (version toggle, search input, header buttons, nav toggles, TOC links), `FAIL skip`, `FAIL names`, `FAIL search` (Tab clears the query), `FAIL contrast` (tip, warning and note labels, the edit link), `PASS styles` (no expectations yet), `FAIL fonts` (Roboto Mono), `PASS forced` or failures for elements without borders, and `exit 1`. This is the failing baseline. If the script itself throws, fix the script before continuing.
+Expected: `FAIL focus` (version toggle, search input, header buttons, nav toggles, TOC links), `FAIL skip`, `FAIL names`, `FAIL search` (Tab clears the query), `FAIL contrast` (tip, warning and note labels, the edit link), `PASS styles` (no expectations yet), `FAIL fonts` (Roboto Mono), `PASS forced` or failures for elements without borders, and `exit 1`. This is the failing baseline. A check that throws is reported as `the check threw: …`; on the baseline none should, so fix the script if one does.
 
 - [ ] **Step 8: Commit**
 
@@ -909,6 +917,7 @@ Expected: `snapshot saved to build/ui-audit/bundle` and 10 PNG files in that dir
 - [ ] **Step 2: Create `tokens.css` from the upstream `vars.css`**
 
 ```bash
+SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad
 U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923
 {
   printf '/*\n * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL\n * was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.\n *\n * Custom properties of the docs UI. Started from src/css/vars.css of antora-ui-default at revision 0e38223a.\n */\n\n'
@@ -919,6 +928,8 @@ U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923
 - [ ] **Step 3: Create `site.css` from the upstream sources**
 
 ```bash
+SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad
+U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923
 OUT=content/supplemental/css/site.css
 {
   printf '/*\n * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL\n * was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.\n *\n * Stylesheet of the Jmix docs UI. It replaces css/site.css of the Antora default UI bundle (ui/ui-bundle.zip).\n *\n * Part 1 is src/css of antora-ui-default at revision 0e38223a, the revision of the bundle, concatenated in the\n * order of its site.css; vars.css lives in tokens.css. Part 1 changes only where a line says so: font files,\n * color literals replaced with tokens, removed focus outline resets. Part 2 holds the Jmix styles and overrides\n * part 1 where the design differs. Colors come only from tokens.css (node tools/check-css.mjs).\n */\n\n/* ==== Part 1: Antora default UI ==== */\n'
@@ -978,6 +989,7 @@ git commit -m "Vendor the default UI stylesheet with its custom properties"
 - [ ] **Step 1: Copy the font files**
 
 ```bash
+SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad
 mkdir -p content/supplemental/font
 for s in latin latin-ext cyrillic; do
   cp "$SP/fonts/roboto-$s-wght-normal.woff2" "$SP/fonts/roboto-$s-400-italic.woff2" \
@@ -1150,6 +1162,8 @@ After this task every color comes from `tokens.css` and the palette is the final
 - Produces: every token of the spec's tiers, with the names below. Later tasks use exactly these names.
 
 - [ ] **Step 1: Rewrite `tokens.css`**
+
+Naming: the code block tokens are `--code-block-background` and `--code-block-text`, because upstream's `--code-background` already means the inline code background and part 1 reads it that way. The font tokens keep the upstream names `--body-font-family` and `--monospace-font-family`. The spec uses the same names.
 
 Replace the file with:
 
@@ -1684,7 +1698,7 @@ Expected: tests pass and `5 stylesheets checked, no problems.` If a finding rema
 - [ ] **Step 7: Build and look**
 
 Run: `npx antora antora-playbook.yml && node tools/ui-audit.mjs --only contrast,fonts`
-Expected: `PASS fonts`, and `PASS contrast` or failures only for admonition labels (until Task 9 the upstream pills show the label colors as backgrounds with white text). Open `build/site/jmix/data-access/data-manager.html` through a local server (`python3 -m http.server 4500 --directory build/site`, then `http://localhost:4500/jmix/data-access/data-manager.html`) and check that the page renders with a white header and nav; the header icons are expected to be invisible.
+Expected: `PASS fonts`; `contrast` fails only on `manager: article.doc pre .hljs-comment`, because the highlight.js `default.min.css` theme, linked after `site.css` until Task 9, sets comments to `#888` (3.35:1 on the code background). The admonition label pills pass: white on the new label colors is 5.9:1 or better. Open `build/site/jmix/data-access/data-manager.html` through a local server (`python3 -m http.server 4500 --directory build/site`, then `http://localhost:4500/jmix/data-access/data-manager.html`) and check that the page renders with a white header and nav; the header icons are expected to be invisible.
 
 - [ ] **Step 8: Commit**
 
@@ -1949,11 +1963,6 @@ Append to part 2 of `site.css`:
 }
 
 @media screen and (max-width: 1023px) {
-  .navbar-end {
-    display: flex;
-    justify-content: center;
-  }
-
   .header-btn {
     flex-wrap: wrap;
     justify-content: center;
@@ -2613,8 +2622,8 @@ Replace `content/supplemental/partials/footer-scripts.hbs` with (no icons8 swap;
 
 - [ ] **Step 9: Build and run the checks**
 
-Run: `npx antora antora-playbook.yml && node tools/check-css.mjs && node tools/ui-audit.mjs --only focus,skip,names,search,forced`
-Expected: all PASS. If `focus` reports an element below 3:1, its outline sits on a dark or tinted background: fix it in that component's section, not in the global rule.
+Run: `npx antora antora-playbook.yml && node tools/check-css.mjs && node tools/ui-audit.mjs --only focus,skip,names,search`
+Expected: all PASS. (`forced` still reports the nav, toolbar, code and admonition borders, which Tasks 8 and 9 add.) If `focus` reports an element below 3:1, its outline sits on a dark or tinted background: fix it in that component's section, not in the global rule.
 
 - [ ] **Step 10: Commit**
 
@@ -2695,8 +2704,9 @@ Append to part 2 of `site.css`:
   margin-left: 0.25rem;
 }
 
-.nav-link,
-.nav-text {
+/* .nav prefix: upstream .nav a { color: inherit } is (0,1,1) */
+.nav .nav-link,
+.nav .nav-text {
   display: block;
   padding: 0.3rem 0.5rem;
   border-radius: var(--radius-md);
@@ -2815,6 +2825,11 @@ Append to part 2 of `site.css`:
   color: var(--color-text-on-accent);
 }
 
+.nav-panel-explore .component .is-current a:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .nav-item-toggle {
     transition: transform 0.15s;
@@ -2871,7 +2886,8 @@ Append to part 2 of `site.css`:
   color: var(--color-heading);
 }
 
-.breadcrumbs {
+/* .toolbar prefix: upstream a + .breadcrumbs is (0,1,1) */
+.toolbar .breadcrumbs {
   padding-left: 0.375rem;
 }
 
@@ -2967,7 +2983,7 @@ Append to part 2 of `site.css`:
 - [ ] **Step 3: Build and run the checks**
 
 Run: `npx antora antora-playbook.yml && node tools/check-css.mjs && node tools/ui-audit.mjs`
-Expected: `styles`, `focus`, `names`, `contrast` (except admonition labels, fixed in Task 9) and `forced` pass. Open the explore panel with the mouse and with Enter on its button: the version pills show, v3 filled violet, and the menu above is covered by the Space-tinted overlay.
+Expected: `styles`, `focus`, `skip`, `names`, `search` and `fonts` pass; `contrast` fails only on `manager: article.doc pre .hljs-comment` and `forced` only on the `code` and `admonition` borders, both until Task 9. Open the explore panel with the mouse and with Enter on its button: the version pills show, v3 filled violet, and the menu above is covered by the Space-tinted overlay.
 
 - [ ] **Step 4: Commit**
 
@@ -3007,7 +3023,7 @@ Append to `STYLE_EXPECTATIONS`:
 ```
 
 Run: `node tools/ui-audit.mjs --only styles`
-Expected: FAIL on the new entries.
+Expected: FAIL on the new entries, except the toolbox visibility, which Task 7 already made visible.
 
 - [ ] **Step 2: Drop the highlight.js theme and the superseded content rules**
 
@@ -3099,11 +3115,14 @@ Append to part 2 of `site.css`:
   font-weight: 500;
 }
 
+/* part 1 fills only p, thead and colist code; this covers code in dt, summary and block titles too */
 .doc :not(pre) > code,
 .doc .colist > table code {
   padding: 0.1em 0.35em;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
+  background: var(--code-background);
+  color: var(--code-font-color);
   font-size: 0.86em;
 }
 
@@ -3276,7 +3295,7 @@ Append to part 2 of `site.css`:
   color: var(--syntax-keyword);
 }
 
-.doc :is(.hljs-title, .hljs-selector-class) {
+.doc :is(.hljs-title, .hljs-selector-class, .hljs-selector-id) {
   color: var(--syntax-function);
   font-weight: 400;
 }
@@ -3570,6 +3589,11 @@ nav.pagination :is(.prev, .next)::before {
 nav.pagination .prev,
 nav.pagination .next {
   padding: 0;
+}
+
+nav.pagination span {
+  /* half the row minus half the gap: upstream flex: 50% lets a lone card grow to the full row */
+  flex: 0 0 calc(50% - 0.5rem);
 }
 
 nav.pagination a {

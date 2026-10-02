@@ -111,12 +111,12 @@ Tier 3, component. Upstream names from `vars.css` stay where they exist (`--navb
 | Group | Tokens and light values |
 |---|---|
 | Header | `--header-background`: surface; `--header-text`: heading; `--header-logo-center`: `--jmix-space` (the logo's center diamond) |
-| Code | `--code-background`: `#F7F8FA`; `--code-text`: `#080808`; `--inline-code-text`: `#1F2128` |
+| Code | `--code-block-background`: `#F7F8FA`; `--code-block-text`: `#080808`; `--inline-code-text`: `#1F2128`. Upstream's `--code-background` keeps its meaning, the inline code background. |
 | Syntax | keyword `#0033B3`, string `#067D17`, number `#1750EB`, comment `#6F6F6F` italic, annotation `#7A6A0A`, method declaration `#00627A`, field and variable `#871094`, XML attribute `#174AD4`, properties key `#083080`, JSON and YAML key `#871094`, diff added background `#E6F4EA`, diff removed background `#FCE8E6` (an IntelliJ IDEA Light-like palette; comment and annotation are darkened from IntelliJ's `#8C8C8C` and `#9E880D`, which give 3.2:1 and 3.3:1 on the code background, to 4.7:1 and 5.1:1) |
 | Admonitions | per type `--<type>-color` (label and icon), `--<type>-background`, `--<type>-border-color`, `--<type>-accent` (left edge); values in the admonitions section |
 | Banner | `--banner-background`: `--jmix-violet-700`; `--banner-text`: white (10.9:1; the current `#8882FF` gives 3.1:1) |
 
-Other tokens: `--font-text: Roboto, system-ui, sans-serif`, `--font-code: "JetBrains Mono", ui-monospace, monospace`, radii `--radius-lg: 8px`, `--radius-md: 6px`, `--radius-sm: 4px`. Upstream dimension tokens stay, except `--toc-width--widescreen` (14rem, see below) and `--toolbar-height` (2.75rem); the explore panel's context row, the sticky TOC offset and the nav panel heights follow `--toolbar-height`.
+Other tokens: the fonts keep the upstream names, `--body-font-family: "Roboto", system-ui, sans-serif` and `--monospace-font-family: "JetBrains Mono", ui-monospace, monospace`; radii `--radius-lg: 8px`, `--radius-md: 6px`, `--radius-sm: 4px`. Upstream dimension tokens stay, except `--toc-width--widescreen` (14rem, see below) and `--toolbar-height` (2.75rem); the explore panel's context row, the sticky TOC offset and the nav panel heights follow `--toolbar-height`.
 
 ### Templates and scripts
 
@@ -235,8 +235,8 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 ### Code blocks
 
 - JetBrains Mono, 0.78rem (14 px), line height 1.6.
-- Block: padding 0.9rem 1.125rem, border 1px `--color-line`, radius 8px, `--code-background`, `--code-text`, no inset shadow.
-- Titled blocks: the title becomes a tab attached to the block, as most titles are file names. Inline block, padding 0.4rem 0.8rem 0.35rem, border 1px `--color-line` without the bottom side, radius 8px 8px 0 0, `--code-background`, `--color-text` 0.75rem 500, overlapping the block's top border by 1px; the block's top-left radius becomes 0.
+- Block: padding 0.9rem 1.125rem, border 1px `--color-line`, radius 8px, `--code-block-background`, `--code-block-text`, no inset shadow.
+- Titled blocks: the title becomes a tab attached to the block, as most titles are file names. Inline block, padding 0.4rem 0.8rem 0.35rem, border 1px `--color-line` without the bottom side, radius 8px 8px 0 0, `--code-block-background`, `--color-text` 0.75rem 500, overlapping the block's top border by 1px; the block's top-left radius becomes 0.
 - Toolbox, top right (0.45rem, 0.5rem): the language in lowercase JetBrains Mono 400 0.7rem `--color-text-muted`, no `|` separator; the copy button 1.75rem square with radius 6px, a 0.9rem mask icon in `--color-text-muted`, hover `--color-surface-hover` and `--color-heading`; the "Copied!" toast under the button with `--color-heading` background and `--color-text-on-accent` 0.7rem text.
 - Callout numbers: 1.35em circles filled `--color-heading` with `--color-text-on-accent` 600 digits, 0.68rem in callout lists and 0.62rem inside code.
 - Syntax colors: the tier 3 syntax tokens. The highlight.js classes are mapped as follows: `keyword`, `literal`, `tag`, `name`, `section`, `selector-tag` take keyword; `string`, `regexp`, `link` take string; `number`, `symbol`, `bullet` take number; `comment`, `quote` take comment in italic; `doctag` takes comment at 600; `meta` takes annotation, and keyword in XML; `title` and `selector-class` take method declaration; the class title, `type`, `params` and `built_in` take the code text; `variable` and `template-variable` take field; `attr` takes XML attribute, field in JSON and YAML, properties key in properties files; `attribute` takes properties key; `addition` and `deletion` take the diff backgrounds. Nothing is bold except `doctag` and `strong`.
