@@ -198,7 +198,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - Search: input 18rem wide (100% below 1024px), 2.25rem high, padding 0 2.1rem, border 1px `--color-control-border`, radius 8px, background `--color-surface-subtle`, text `--color-text` 0.8rem, placeholder `--color-text-muted`; hover background `--color-surface-hover`; focus background `--color-surface` and border `--color-accent` plus the focus ring. Magnifier icon 0.9rem at 0.65rem from the left, `--color-text-muted`. The `/` hint at 0.55rem from the right: border 1px `--color-line-strong`, radius 4px, JetBrains Mono 400 0.68rem, `--color-text-muted`; hidden while the input has focus.
 - Search results: radius 8px, `--shadow-menu`; the list has a 1px `--color-line` border and padding 0.25rem 0.75rem 0.75rem; component header `--color-text-muted` 500 0.75rem; document titles `--color-text-muted` with a right border `--color-line`; snippets at regular weight (today they are bold); result links radius 6px with `--color-surface-hover` on hover; matches with `--color-accent-tint` background, `--color-accent` text, 600.
 - Icon buttons: 2.25rem square, radius 8px, `--header-text`, hover `--color-surface-hover`. AI Assistant: 2.75rem wide, background `--color-heading`, icon `--color-text-on-accent`; hover background `--color-accent`.
-- Below 1024px: burger lines `--header-text`, the menu panel `--color-surface`.
+- Below 1024px: burger lines `--header-text`, the menu panel `--color-surface`, the search text 1rem, because iOS Safari zooms into fields with text below 16px.
 
 ### Navigation
 
