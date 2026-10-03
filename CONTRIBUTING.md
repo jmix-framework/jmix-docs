@@ -182,7 +182,7 @@ Typical reduction for UI screenshots: 70-80% size, no visible quality loss.
 
 ### Images in the dark theme
 
-Screenshots keep their own light background in the dark theme, but a diagram drawn with dark lines on a transparent background disappears. Add `role=light-background` to the image macro of such a diagram, for example `image::transactions/transactions-1.png[,500,role=light-background]`, or export it with a white background.
+Screenshots keep their own light background in the dark theme, but a diagram drawn with dark lines on a transparent background disappears. Add `role=light-background` to the image macro of such a diagram, for example `image::transactions/transactions-1.png[,500,role=light-background]`, or export it with a white background. Check new pages in both themes by choosing Light and Dark in the theme menu in the header.
 
 ## Changing the UI
 
