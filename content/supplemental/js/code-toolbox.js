@@ -46,11 +46,13 @@
             if (toolbox && code) blocks.push({ pre: pre, code: code, toolbox: toolbox });
         });
         // all reads first, then all writes, so the layout is not forced once per block; only the horizontal
-        // direction is measured, so the top padding that a mark adds cannot change the next result
+        // direction is measured, so the top padding that a mark adds cannot change the next result; a block or a
+        // toolbox without layout (the toolbox is hidden in print) cannot be measured and keeps its state
         const marks = blocks.map(function (block) {
             const end = firstLineEnd(block.code);
-            if (end === null) return block.pre.classList.contains(MARK);
-            return end >= block.toolbox.getBoundingClientRect().left - clearance;
+            const toolbox = block.toolbox.getBoundingClientRect();
+            if (end === null || !toolbox.width) return block.pre.classList.contains(MARK);
+            return end >= toolbox.left - clearance;
         });
         blocks.forEach(function (block, i) {
             block.pre.classList.toggle(MARK, marks[i]);
@@ -61,12 +63,16 @@
     document.fonts.ready.then(update);
 
     let scheduled = false;
-    window.addEventListener('resize', function () {
+    const schedule = function () {
         if (scheduled) return;
         scheduled = true;
         requestAnimationFrame(function () {
             scheduled = false;
             update();
         });
-    });
+    };
+    window.addEventListener('resize', schedule);
+    // a block in a closed details has no layout in some engines, so opening the details measures it again (the
+    // toggle event does not bubble, so the listener is on the capture phase)
+    document.addEventListener('toggle', schedule, true);
 })()

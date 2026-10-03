@@ -29,6 +29,8 @@ const PAGES = {
     important: 'jmix/studio/ai-assistant.html',
     features: 'jmix/studio/studio-features.html',
     intro: 'jmix/intro.html',
+    bpm: 'jmix/bpm/index.html',
+    saml: 'jmix/saml/keycloak-saml.html',
 };
 
 const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'kroki.io', 'img.icons8.com'];
@@ -97,6 +99,11 @@ const STYLE_EXPECTATIONS = [
     ['events', '.admonitionblock.note td.icon i', 'color', '#0a6874'],
     ['geomap', '.admonitionblock.addon-component > table', 'border-left-color', '#17124b'],
     ['geomap', '.admonitionblock.addon-component td.icon i::after', 'content', '"Add-on component"'],
+    // Task 9 rulings: plain blocks have the code size (also in an admonition, where upstream sets 15px), and a block
+    // whose first line would run under the toolbox starts its code below it (code-toolbox.js, 2.3rem at 18px)
+    ['bpm', 'article.doc .listingblock pre:not(.highlight)', 'font-size', '14.04px'],
+    ['saml', 'article.doc .admonitionblock .listingblock pre:not(.highlight)', 'font-size', '14.04px'],
+    ['saml', 'article.doc pre.highlight.first-line-under-toolbox > code', 'padding-top', '41.4px'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
