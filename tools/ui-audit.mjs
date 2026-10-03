@@ -129,6 +129,19 @@ const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
 // the Tab walk ends when focus returns to the skip link; this only stops a keyboard trap
 const MAX_TAB_PRESSES = 1000;
 
+// Runs before the page's scripts: stores a preference (unless null) and records data-theme at the moment the first
+// stylesheet link enters the document. The parser delivers these mutation records before it runs the next script,
+// so a stylesheet placed before the theme script is caught.
+const THEME_PROBE = (stored) => {
+    if (stored !== null) localStorage.setItem('jmix-docs-theme', stored);
+    new MutationObserver((records, observer) => {
+        if (document.querySelector('link[rel="stylesheet"]')) {
+            window.__themeAtFirstStylesheet = document.documentElement.getAttribute('data-theme');
+            observer.disconnect();
+        }
+    }).observe(document, { childList: true, subtree: true });
+};
+
 const PAGE_HELPERS = `
 window.__audit = (() => {
     const parse = (value) => {
@@ -454,6 +467,59 @@ class Audit {
         return failures;
     }
 
+    // The color theme: resolved from the stored preference and the system setting, and set before the first stylesheet
+    async theme(out) {
+        const failures = [];
+        const attributes = (page) => page.evaluate(() => {
+            const head = [...document.head.children];
+            const script = head.findIndex((n) => n.tagName === 'SCRIPT' && n.textContent.includes('jmix-docs-theme'));
+            const sheet = head.findIndex((n) => n.matches('link[rel="stylesheet"]'));
+            const meta = document.querySelector('meta[name="color-scheme"]');
+            return {
+                theme: document.documentElement.getAttribute('data-theme'),
+                preference: document.documentElement.getAttribute('data-theme-preference'),
+                first: window.__themeAtFirstStylesheet,
+                scriptFirst: script !== -1 && sheet !== -1 && script < sheet,
+                meta: meta ? meta.content : null,
+            };
+        });
+        const cases = [
+            { colorScheme: 'light', stored: null, theme: 'light', preference: 'system' },
+            { colorScheme: 'dark', stored: null, theme: 'dark', preference: 'system' },
+            { colorScheme: 'dark', stored: 'light', theme: 'light', preference: 'light' },
+            { colorScheme: 'light', stored: 'dark', theme: 'dark', preference: 'dark' },
+            { colorScheme: 'dark', stored: 'sepia', theme: 'dark', preference: 'system' },
+        ];
+        for (const c of cases) {
+            const context = await this.context({ colorScheme: c.colorScheme });
+            await context.addInitScript(THEME_PROBE, c.stored);
+            const a = await attributes(await this.open(context, 'manager'));
+            const what = `${c.colorScheme} system, stored ${c.stored}`;
+            if (a.theme !== c.theme || a.preference !== c.preference) failures.push(`${what}: data-theme "${a.theme}", data-theme-preference "${a.preference}", expected "${c.theme}" and "${c.preference}"`);
+            if (a.first !== c.theme) failures.push(`${what}: data-theme was "${a.first}" when the first stylesheet entered the page, a flash of the wrong theme`);
+            if (!a.scriptFirst) failures.push(`${what}: the theme script does not come before the first stylesheet link in <head>`);
+            if (a.meta !== c.theme) failures.push(`${what}: the color-scheme meta element says "${a.meta}", expected "${c.theme}"`);
+            await context.close();
+        }
+        // storage that throws, as in some private modes: the page follows the system
+        const blocked = await this.context({ colorScheme: 'dark' });
+        await blocked.addInitScript(() => {
+            Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } });
+        });
+        const b = await attributes(await this.open(blocked, 'manager'));
+        if (b.theme !== 'dark' || b.preference !== 'system') failures.push(`blocked storage: data-theme "${b.theme}", data-theme-preference "${b.preference}", expected "dark" and "system"`);
+        await blocked.close();
+        // without JavaScript nothing sets the attributes, and the page stays light
+        const noScript = await this.context({ colorScheme: 'dark', javaScriptEnabled: false });
+        const plain = await noScript.newPage();
+        await plain.goto(this.base + PAGES.manager, { waitUntil: 'load' });
+        if (await plain.locator('html').getAttribute('data-theme') !== null) failures.push('without JavaScript <html> has a data-theme attribute');
+        const plainBody = await plain.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        if (plainBody !== 'rgb(255, 255, 255)') failures.push(`without JavaScript the body background is ${plainBody}, expected white`);
+        await noScript.close();
+        return failures;
+    }
+
     async forced(out) {
         const failures = [];
         for (const colorScheme of ['light', 'dark']) {
@@ -576,7 +642,7 @@ class Audit {
     }
 }
 
-const CHECKS = ['focus', 'skip', 'names', 'search', 'contrast', 'styles', 'fonts', 'forced'];
+const CHECKS = ['focus', 'skip', 'names', 'search', 'contrast', 'styles', 'fonts', 'forced', 'theme'];
 
 async function main() {
     const opts = parseArgs(process.argv.slice(2));
@@ -600,7 +666,7 @@ async function main() {
             for (const name of opts.only || CHECKS) {
                 let failures;
                 try {
-                    failures = name === 'forced' ? await audit.forced(out) : await audit[name]();
+                    failures = name === 'forced' || name === 'theme' ? await audit[name](out) : await audit[name]();
                 } catch (e) {
                     failures = [`the check threw: ${e.message.split('\n')[0]}`];
                 }
