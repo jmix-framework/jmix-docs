@@ -10,3 +10,7 @@ The bundle provides the layouts, the Handlebars helpers, the partials that `cont
 2. Diff `src/css`, `src/partials` and `src/js` between the old and the new revision.
 3. Port the `src/css` changes into part 1 of `site.css` and new custom properties into `tokens.css`. Compare the partials we override with their upstream versions.
 4. Replace `ui-bundle.zip`, update the revision above, build the site and run `node tools/check-css.mjs` and `node tools/ui-audit.mjs`.
+
+## License
+
+The root `LICENSE.md` (CC BY 4.0) covers the documentation text. The bundle and the files derived from it, `content/supplemental/css/site.css`, `content/supplemental/css/tokens.css` and the partials that carry the MPL header, are under the [Mozilla Public License 2.0](https://mozilla.org/MPL/2.0/). The license text is in `content/supplemental/partials/LICENSE`.
