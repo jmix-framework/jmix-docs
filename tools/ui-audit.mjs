@@ -637,7 +637,14 @@ class Audit {
 
     async themeMenu(out) {
         const failures = [];
-        const context = await this.context({ colorScheme: 'light' });
+        // every context the method opens is closed in the finally block at the end, also when a step throws
+        const opened = [];
+        const launch = async (options) => {
+            const context = await this.context(options);
+            opened.push(context);
+            return context;
+        };
+        const context = await launch({ colorScheme: 'light' });
         const page = await this.open(context, 'manager');
         const state = (p = page) => p.evaluate(() => {
             const toggle = document.querySelector('.theme-menu-toggle');
@@ -668,6 +675,8 @@ class Audit {
                 if (JSON.stringify(actual[k]) !== JSON.stringify(v)) failures.push(`theme menu, ${step}: ${k} is ${JSON.stringify(actual[k])}, expected ${JSON.stringify(v)}`);
             }
         };
+        // a real click focuses the button, and focusin would close the menu before the capture-phase click listener is tried; Safari does not focus clicked buttons
+        const clickWithoutFocus = (p, selector) => p.evaluate((s) => document.querySelector(s).click(), selector);
         const semantics = await page.evaluate(() => {
             const toggle = document.querySelector('.theme-menu-toggle');
             const list = toggle && document.getElementById(toggle.getAttribute('aria-controls'));
@@ -682,116 +691,133 @@ class Audit {
             await context.close();
             return failures;
         }
-        await expect('at load', { theme: 'light', preference: 'system', stored: null, expanded: 'false', open: false, label: 'Color theme: System', checked: ['system'] });
-        // keyboard
-        await page.focus('.theme-menu-toggle');
-        await page.keyboard.press('Enter');
-        await expect('Enter on the button', { expanded: 'true', open: true, focus: 'system' });
-        await page.keyboard.press('ArrowDown');
-        await expect('ArrowDown', { focus: 'light' });
-        await page.keyboard.press('End');
-        await expect('End', { focus: 'dark' });
-        await page.keyboard.press('ArrowDown');
-        await expect('ArrowDown on the last item', { focus: 'system' });
-        await page.keyboard.press('ArrowUp');
-        await expect('ArrowUp on the first item', { focus: 'dark' });
-        await page.keyboard.press('Home');
-        await expect('Home', { focus: 'system' });
-        await page.keyboard.press('End');
-        await page.keyboard.press('Enter');
-        await expect('Enter on Dark', { theme: 'dark', preference: 'dark', meta: 'dark', stored: 'dark', expanded: 'false', open: false, focus: 'toggle', label: 'Color theme: Dark', checked: ['dark'] });
-        await page.keyboard.press('Space');
-        await expect('Space on the button', { open: true, focus: 'dark' });
-        await page.keyboard.press('Escape');
-        await expect('Escape', { open: false, expanded: 'false', focus: 'toggle' });
-        await page.keyboard.press('ArrowDown');
-        await expect('ArrowDown on the button', { open: true, focus: 'dark' });
-        await page.keyboard.press('Tab');
-        await expect('Tab out of the menu', { open: false, expanded: 'false' });
-        // another page of the same site follows a choice
-        const other = await this.open(context, 'manager');
-        await expect('another page at load', { theme: 'dark', preference: 'dark' }, other);
-        // pointer
-        await page.click('.theme-menu-toggle');
-        await expect('a click on the button', { open: true });
-        await page.click('.theme-menu-item[data-theme-option="light"]');
-        await expect('a click on Light', { theme: 'light', preference: 'light', meta: 'light', stored: 'light', open: false, checked: ['light'] });
-        await page.waitForTimeout(200);
-        await expect('the other page after Light', { theme: 'light', preference: 'light' }, other);
-        await page.click('.theme-menu-toggle');
-        await page.click('article.doc > h1.page');
-        await expect('a click outside', { open: false, expanded: 'false' });
-        await page.click('.theme-menu-toggle');
-        await page.click('.nav-item:not(.is-active) > .nav-item-toggle');
-        await expect('a click on a navigation toggle, which site.js keeps from bubbling', { open: false, expanded: 'false' });
-        // the system setting: an explicit choice ignores it, System follows it live
-        await page.emulateMedia({ colorScheme: 'dark' });
-        await page.waitForTimeout(100);
-        await expect('a dark system with Light chosen', { theme: 'light' });
-        await page.click('.theme-menu-toggle');
-        await page.click('.theme-menu-item[data-theme-option="system"]');
-        await expect('a click on System', { theme: 'dark', preference: 'system', stored: null, checked: ['system'] });
-        await page.emulateMedia({ colorScheme: 'light' });
-        await page.waitForTimeout(100);
-        await expect('the system turning light', { theme: 'light', preference: 'system' });
-        await page.emulateMedia({ colorScheme: 'dark' });
-        await page.waitForTimeout(100);
-        await expect('the system turning dark', { theme: 'dark', preference: 'system' });
-        // persistence
-        await page.click('.theme-menu-toggle');
-        await page.click('.theme-menu-item[data-theme-option="dark"]');
-        await page.reload({ waitUntil: 'load' });
-        await expect('a reload with Dark chosen', { theme: 'dark', preference: 'dark', stored: 'dark', label: 'Color theme: Dark', checked: ['dark'] });
-        await page.click('.theme-menu-toggle');
-        await page.screenshot({ path: join(out, 'theme-dark-manager-menu.png') });
-        await page.keyboard.press('Escape');
-        // a page restored from the back/forward cache reads the preference again; another tab's write is simulated
-        await page.evaluate(() => {
-            localStorage.setItem('jmix-docs-theme', 'light');
-            window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
-        });
-        await expect('a pageshow from the back/forward cache', { theme: 'light', preference: 'light', checked: ['light'] });
-        await context.close();
-        // storage that throws: a choice still applies to the page
-        const blocked = await this.context({ colorScheme: 'light' });
-        await blocked.addInitScript(() => {
-            Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } });
-        });
-        const b = await this.open(blocked, 'manager');
-        await b.click('.theme-menu-toggle');
-        await b.click('.theme-menu-item[data-theme-option="dark"]');
-        await expect('a choice with blocked storage', { theme: 'dark', preference: 'dark', stored: 'blocked' }, b);
-        await blocked.close();
-        // the header at the narrowest desktop width
-        const narrow = await this.context({ colorScheme: 'light', viewport: { width: 1024, height: 768 } });
-        const np = await this.open(narrow, 'manager');
-        const fits = await np.evaluate(() => {
-            const last = document.querySelector('.header-btn > :last-child').getBoundingClientRect();
-            const search = document.querySelector('.search-field').getBoundingClientRect();
-            const version = document.querySelector('.version-dropdown-toggle').getBoundingClientRect();
-            return last.right <= window.innerWidth && search.left >= version.right;
-        });
-        if (!fits) failures.push('theme menu: at 1024px the header items overflow or overlap');
-        await narrow.close();
-        // phone width: the menu sits in the burger panel and stays inside the viewport
-        const phone = await this.context({ colorScheme: 'light', viewport: { width: 375, height: 812 } });
-        const pp = await this.open(phone, 'manager');
-        await pp.click('.navbar-burger');
-        await pp.click('.theme-menu-toggle');
-        const box = await pp.evaluate(() => {
-            const r = document.querySelector('.theme-menu-list').getBoundingClientRect();
-            return { left: r.left, right: r.right, width: window.innerWidth };
-        });
-        if (box.left < 0 || box.right > box.width) failures.push(`theme menu at phone width: the menu spans ${Math.round(box.left)} to ${Math.round(box.right)}px of ${box.width}px`);
-        await pp.screenshot({ path: join(out, 'theme-light-manager-phone-menu.png') });
-        // closing the burger panel closes the menu too, so it is not open when the panel comes back
-        await pp.click('.navbar-burger');
-        await expect('closing the burger panel', { open: false, expanded: 'false' }, pp);
-        await pp.click('.navbar-burger');
-        await pp.click('.theme-menu-toggle');
-        await pp.click('.theme-menu-item[data-theme-option="dark"]');
-        await expect('a choice at phone width', { theme: 'dark' }, pp);
-        await phone.close();
+        // the parts do not depend on each other: a step that throws, for example a click that times out because an earlier
+        // step left the menu in the wrong state, is reported and does not hide the other parts
+        const part = async (name, steps) => {
+            try {
+                await steps();
+            } catch (e) {
+                failures.push(`theme menu, ${name}: a step threw: ${e.message.split('\n')[0]}`);
+            }
+        };
+        try {
+            await part('at 1440px', async () => {
+                await expect('at load', { theme: 'light', preference: 'system', stored: null, expanded: 'false', open: false, label: 'Color theme: System', checked: ['system'] });
+                // keyboard
+                await page.focus('.theme-menu-toggle');
+                await page.keyboard.press('Enter');
+                await expect('Enter on the button', { expanded: 'true', open: true, focus: 'system' });
+                await page.keyboard.press('ArrowDown');
+                await expect('ArrowDown', { focus: 'light' });
+                await page.keyboard.press('End');
+                await expect('End', { focus: 'dark' });
+                await page.keyboard.press('ArrowDown');
+                await expect('ArrowDown on the last item', { focus: 'system' });
+                await page.keyboard.press('ArrowUp');
+                await expect('ArrowUp on the first item', { focus: 'dark' });
+                await page.keyboard.press('Home');
+                await expect('Home', { focus: 'system' });
+                await page.keyboard.press('End');
+                await page.keyboard.press('Enter');
+                await expect('Enter on Dark', { theme: 'dark', preference: 'dark', meta: 'dark', stored: 'dark', expanded: 'false', open: false, focus: 'toggle', label: 'Color theme: Dark', checked: ['dark'] });
+                await page.keyboard.press('Space');
+                await expect('Space on the button', { open: true, focus: 'dark' });
+                await page.keyboard.press('Escape');
+                await expect('Escape', { open: false, expanded: 'false', focus: 'toggle' });
+                await page.keyboard.press('ArrowDown');
+                await expect('ArrowDown on the button', { open: true, focus: 'dark' });
+                await page.keyboard.press('Tab');
+                await expect('Tab out of the menu', { open: false, expanded: 'false' });
+                // another page of the same site follows a choice
+                const other = await this.open(context, 'manager');
+                await expect('another page at load', { theme: 'dark', preference: 'dark' }, other);
+                // pointer
+                await page.click('.theme-menu-toggle');
+                await expect('a click on the button', { open: true });
+                await page.click('.theme-menu-item[data-theme-option="light"]');
+                await expect('a click on Light', { theme: 'light', preference: 'light', meta: 'light', stored: 'light', open: false, checked: ['light'] });
+                await page.waitForTimeout(200);
+                await expect('the other page after Light', { theme: 'light', preference: 'light' }, other);
+                await page.click('.theme-menu-toggle');
+                await page.click('article.doc > h1.page');
+                await expect('a click outside', { open: false, expanded: 'false' });
+                await page.click('.theme-menu-toggle');
+                await clickWithoutFocus(page, '.nav-item:not(.is-active) > .nav-item-toggle');
+                await expect('a click on a navigation toggle, which site.js keeps from bubbling', { open: false, expanded: 'false' });
+                // the system setting: an explicit choice ignores it, System follows it live
+                await page.emulateMedia({ colorScheme: 'dark' });
+                await page.waitForTimeout(100);
+                await expect('a dark system with Light chosen', { theme: 'light' });
+                await page.click('.theme-menu-toggle');
+                await page.click('.theme-menu-item[data-theme-option="system"]');
+                await expect('a click on System', { theme: 'dark', preference: 'system', stored: null, checked: ['system'] });
+                await page.emulateMedia({ colorScheme: 'light' });
+                await page.waitForTimeout(100);
+                await expect('the system turning light', { theme: 'light', preference: 'system' });
+                await page.emulateMedia({ colorScheme: 'dark' });
+                await page.waitForTimeout(100);
+                await expect('the system turning dark', { theme: 'dark', preference: 'system' });
+                // persistence
+                await page.click('.theme-menu-toggle');
+                await page.click('.theme-menu-item[data-theme-option="dark"]');
+                await page.reload({ waitUntil: 'load' });
+                await expect('a reload with Dark chosen', { theme: 'dark', preference: 'dark', stored: 'dark', label: 'Color theme: Dark', checked: ['dark'] });
+                await page.click('.theme-menu-toggle');
+                await page.screenshot({ path: join(out, 'theme-dark-manager-menu.png') });
+                await page.keyboard.press('Escape');
+                // a page restored from the back/forward cache reads the preference again; another tab's write is simulated
+                await page.evaluate(() => {
+                    localStorage.setItem('jmix-docs-theme', 'light');
+                    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+                });
+                await expect('a pageshow from the back/forward cache', { theme: 'light', preference: 'light', checked: ['light'] });
+            });
+            await part('with blocked storage', async () => {
+                // storage that throws: a choice still applies to the page
+                const blocked = await launch({ colorScheme: 'light' });
+                await blocked.addInitScript(() => {
+                    Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } });
+                });
+                const b = await this.open(blocked, 'manager');
+                await b.click('.theme-menu-toggle');
+                await b.click('.theme-menu-item[data-theme-option="dark"]');
+                await expect('a choice with blocked storage', { theme: 'dark', preference: 'dark', stored: 'blocked' }, b);
+            });
+            await part('at 1024px', async () => {
+                // the header at the narrowest desktop width
+                const narrow = await launch({ colorScheme: 'light', viewport: { width: 1024, height: 768 } });
+                const np = await this.open(narrow, 'manager');
+                const fits = await np.evaluate(() => {
+                    const last = document.querySelector('.header-btn > :last-child').getBoundingClientRect();
+                    const search = document.querySelector('.search-field').getBoundingClientRect();
+                    const version = document.querySelector('.version-dropdown-toggle').getBoundingClientRect();
+                    return last.right <= window.innerWidth && search.left >= version.right;
+                });
+                if (!fits) failures.push('theme menu: at 1024px the header items overflow or overlap');
+            });
+            await part('at phone width', async () => {
+                // phone width: the menu sits in the burger panel and stays inside the viewport
+                const phone = await launch({ colorScheme: 'light', viewport: { width: 375, height: 812 } });
+                const pp = await this.open(phone, 'manager');
+                await pp.click('.navbar-burger');
+                await pp.click('.theme-menu-toggle');
+                const box = await pp.evaluate(() => {
+                    const r = document.querySelector('.theme-menu-list').getBoundingClientRect();
+                    return { left: r.left, right: r.right, width: window.innerWidth };
+                });
+                if (box.left < 0 || box.right > box.width) failures.push(`theme menu at phone width: the menu spans ${Math.round(box.left)} to ${Math.round(box.right)}px of ${box.width}px`);
+                await pp.screenshot({ path: join(out, 'theme-light-manager-phone-menu.png') });
+                // closing the burger panel closes the menu too, so it is not open when the panel comes back
+                await clickWithoutFocus(pp, '.navbar-burger');
+                await expect('closing the burger panel', { open: false, expanded: 'false' }, pp);
+                await pp.click('.navbar-burger');
+                await pp.click('.theme-menu-toggle');
+                await pp.click('.theme-menu-item[data-theme-option="dark"]');
+                await expect('a choice at phone width', { theme: 'dark' }, pp);
+            });
+        } finally {
+            await Promise.all(opened.map((c) => c.close().catch(() => {})));
+        }
         return failures;
     }
 
