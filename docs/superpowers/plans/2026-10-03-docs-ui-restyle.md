@@ -2657,6 +2657,8 @@ git commit -m "Add focus styles, skip link and keyboard access"
 
 Amended after Task 7 (ruling in the ledger). The Task 7 implementer found four gaps in the parts this task owns: the home link and the toolbar's nav toggle (the button that opens the navigation below 1024px) have no accessible name; "expand all" (`.nav-menu-toggle`) is `visibility: hidden` until the menu is hovered, so the keyboard cannot reach it, and it is 1em square, below the 24px target; the fixed header and the sticky toolbar can cover a focused element.
 
+Amended after the Task 8 review (rulings in the ledger; the code blocks below are the reviewed first version): "expand all" uses `visibility: inherit`, because `visible` escaped the hidden closed navigation below 1024px, and it shows on hover only while the menu panel `.is-active`, as upstream; `.nav-menu` left padding is 1.25rem, so the top-level toggles stay inside the panel at the 17px root size; in forced colors the current nav link takes 1px off its padding for the `Highlight` border; the home link gets `aria-current="page"` on the home page; the `names` check asserts that "expand all" is hidden while the navigation is closed at phone width.
+
 **Interfaces:**
 - Consumes: the chevron, home and edit icons (Task 6); the explore button, the inset ring of `.nav-toggle` and `a11y.js` (Task 7).
 - Produces: `--icon-unfold` and `--icon-fold` in `tokens.css`.

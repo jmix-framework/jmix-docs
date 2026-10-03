@@ -166,8 +166,8 @@ Focus:
 Keyboard and names:
 
 - The copy button is always visible, in `--color-text-muted` (5.9:1 on the code background, no reduced opacity), focusable and named "Copy to clipboard".
-- Nav toggles have a name and `aria-expanded`. So do the burger and the toolbar's nav toggle. The home link is named "Home".
-- "Expand all" stays in the tab order: it is hidden with `opacity`, not `visibility`, until the menu is hovered or the button has focus, and always shown on touch screens.
+- Nav toggles have a name and `aria-expanded`. So do the burger and the toolbar's nav toggle. The home link is named "Home" and has `aria-current="page"` on the home page.
+- "Expand all" stays in the tab order while the navigation is shown: it is hidden with `opacity` until the menu is hovered or the button has focus, and always shown on touch screens. Its `visibility` follows the navigation, which is hidden while it is closed below 1024px.
 - The header version menu exposes `aria-expanded`, closes on Escape and on outside click.
 - The explore panel toggle is a button with `aria-expanded`.
 - Search results are reachable by Tab, as described above.
@@ -181,7 +181,7 @@ Sizes and contrast:
 Forced colors, written next to each component in a `@media (forced-colors: active)` block:
 
 - Borders in `CanvasText` for the header bottom, nav right, toolbar bottom, code blocks and their title tabs, admonitions, sidebar and example blocks, the feedback form and the search field. `GrayText` border for inline code.
-- Active states lose their tinted backgrounds, so the current nav item, the active TOC item and the current version get a `Highlight` border.
+- Active states lose their tinted backgrounds, so the current nav item, the active TOC item and the current version get a `Highlight` border. The current nav item takes 1px off its padding for it, so it keeps its height.
 - The header icons are inline SVG with `fill: currentColor`; because the AI Assistant icon uses an SVG mask, the SVGs set `forced-color-adjust: none` and, in forced colors, `color: LinkText` (Chromium would otherwise let them inherit the author color). The logo center gets `fill: CanvasText`. Mask icons get `forced-color-adjust: none` and a system color (`CanvasText`, `LinkText`, `ButtonText` or `GrayText`), because the icon carries meaning.
 - Callout numbers in code get a border. Syntax highlighting is left to the browser: in forced colors it collapses to the text color, which is fine because color carries no meaning there.
 
@@ -207,7 +207,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 ### Navigation
 
 - Background `--color-surface`, right border 1px `--color-line` from 1024px up.
-- Menu padding 1rem 0.75rem 3rem 1.125rem, line height 1.4. Component title (`h3.title`): 0.8rem 600 `--color-heading`.
+- Menu padding 1rem 0.75rem 3rem 1.25rem, line height 1.4. The left padding holds the 24px toggles of the top level at both root font sizes. Component title (`h3.title`): 0.8rem 600 `--color-heading`.
 - Items 1px apart; nested lists indented 0.875rem (0.25rem at the top level).
 - Links and plain text items (`.nav-link`, `.nav-text`): block, padding 0.3rem 0.5rem, radius 6px, `--color-text-nav`; link hover `--color-surface-hover` and `--color-heading`; current page `--color-accent-tint` background, `--color-accent` text, 600.
 - Toggles: 24×24 at the item's left (margin 3px 0 0 -24px), radius 5px, a chevron mask of 14px in `--color-text-muted` that rotates 90° when the item is open; hover `--color-surface-hover`.
