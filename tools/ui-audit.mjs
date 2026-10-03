@@ -31,6 +31,7 @@ const PAGES = {
     intro: 'jmix/intro.html',
     bpm: 'jmix/bpm/index.html',
     saml: 'jmix/saml/keycloak-saml.html',
+    install: 'jmix/studio/install.html',
 };
 
 const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'kroki.io', 'img.icons8.com'];
@@ -104,6 +105,18 @@ const STYLE_EXPECTATIONS = [
     ['bpm', 'article.doc .listingblock pre:not(.highlight)', 'font-size', '14.04px'],
     ['saml', 'article.doc .admonitionblock .listingblock pre:not(.highlight)', 'font-size', '14.04px'],
     ['saml', 'article.doc pre.highlight.first-line-under-toolbox > code', 'padding-top', '41.4px'],
+    // Task 10: tables, blocks, end of page
+    ['events', 'table.tableblock > thead > tr > th', 'background-color', '#f6f7f9'],
+    ['events', 'table.tableblock > thead > tr > th', 'color', '#17124b'],
+    ['manager', 'nav.pagination a', 'border-top-width', '1px'],
+    ['manager', 'nav.pagination a', 'text-decoration-line', 'none'],
+    ['manager', 'nav.pagination .next a::before', 'content', '"Next"'],
+    ['manager', '.feedback-form', 'border-top-left-radius', '8px'],
+    ['manager', '.feedback-form__btn', 'background-color', '#ffffff'],
+    ['manager', 'footer.footer', 'background-color', '#ffffff'],
+    ['manager', 'footer.footer', 'border-top-width', '1px'],
+    // guard from the Task 9 review: the embedded TOC is hidden from 1024px up, and must not space the first section there
+    ['install', 'article.doc > .sect1', 'margin-top', '0px'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
