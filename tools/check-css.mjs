@@ -9,7 +9,7 @@
  * Usage: node tools/check-css.mjs [dir]    (default: content/supplemental/css; exit code 1 on findings)
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -110,6 +110,6 @@ function main() {
     console.log(`${sheets.length} stylesheets checked, no problems.`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-    main();
-}
+// run main() only when this file is the entry point; Node resolves symlinks in import.meta.url but not in argv[1]
+const invokedAs = process.argv[1] && realpathSync(process.argv[1]);
+if (invokedAs && import.meta.url === pathToFileURL(invokedAs).href) main();

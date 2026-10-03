@@ -11,8 +11,8 @@
  *
  * Options: --site <dir> (default build/site), --out <dir> (default build/ui-audit).
  * Forced colors screenshots are written to --out for review. Exit code 1 when a check fails.
- * Requests to hosts other than the local server and the CDNs the pages need are blocked, so
- * the audit never sends analytics.
+ * Requests to hosts other than the local server, cdnjs.cloudflare.com (highlight.js) and kroki.io
+ * (diagrams) are blocked, so the audit never sends analytics.
  */
 
 import { createServer } from 'node:http';
@@ -34,7 +34,7 @@ const PAGES = {
     install: 'jmix/studio/install.html',
 };
 
-const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'kroki.io', 'img.icons8.com'];
+const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'kroki.io'];
 
 // Text that must reach 4.5:1 against its background: [page, selector]
 const TEXT_CONTRAST = [
@@ -461,7 +461,8 @@ class Audit {
                     };
                 });
                 for (const [what, width] of Object.entries(widths)) {
-                    if (width === 0) failures.push(`forced colors (${colorScheme}), ${key}: ${what} has no border`);
+                    if (width === null) failures.push(`forced colors (${colorScheme}), ${key}: ${what} not found`);
+                    else if (width === 0) failures.push(`forced colors (${colorScheme}), ${key}: ${what} has no border`);
                 }
                 await page.close();
             }
