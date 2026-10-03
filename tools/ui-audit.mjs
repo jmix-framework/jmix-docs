@@ -285,6 +285,7 @@ class Audit {
         if (!synced) failures.push('aria-expanded does not follow a nav toggle click');
         const small = await this.context({ viewport: { width: 375, height: 812 } });
         const mobile = await this.open(small, 'manager');
+        if (await mobile.evaluate(() => getComputedStyle(document.querySelector('.nav-menu-toggle')).visibility) !== 'hidden') failures.push('"expand all" is visible while the navigation is closed');
         await mobile.click('.toolbar .nav-toggle');
         await mobile.waitForTimeout(100);
         if (await mobile.getAttribute('.toolbar .nav-toggle', 'aria-expanded') !== 'true') failures.push('aria-expanded does not follow a click on the toolbar nav toggle');
