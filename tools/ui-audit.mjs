@@ -9,7 +9,8 @@
  *   node tools/ui-audit.mjs --snapshot <dir>         save reference screenshots
  *   node tools/ui-audit.mjs --compare <dir>          compare with the screenshots in <dir>
  *
- * Options: --site <dir> (default build/site), --out <dir> (default build/ui-audit).
+ * Options: --site <dir> (default build/site), --out <dir> (default build/ui-audit), --mask <selector> (with
+ * --snapshot and --compare: hide these elements in both runs, for example the header when it has changed on purpose).
  * Forced colors screenshots are written to --out for review. Exit code 1 when a check fails.
  * Requests to hosts other than the local server, cdnjs.cloudflare.com (highlight.js) and kroki.io
  * (diagrams) are blocked, so the audit never sends analytics.
@@ -179,12 +180,23 @@ window.__audit = (() => {
         const label = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40);
         return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls + (label ? ' "' + label + '"' : '');
     };
-    return { parse, background, ratio, textContrast, describe };
+    // forced colors: null when the element (or its pseudo-element) paints a background that differs from Canvas
+    const drawn = (el, pseudo) => {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'forced-color-adjust: none; background-color: Canvas; position: fixed; width: 1px; height: 1px';
+        document.body.append(probe);
+        const canvas = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        const value = getComputedStyle(el, pseudo).backgroundColor;
+        const color = parse(value);
+        return color && color.a > 0 && value !== canvas ? null : 'background-color ' + value + ' is not visible on Canvas ' + canvas;
+    };
+    return { parse, background, ratio, textContrast, describe, drawn };
 })();
 `;
 
 function parseArgs(argv) {
-    const opts = { site: 'build/site', out: 'build/ui-audit', only: null, snapshot: null, compare: null };
+    const opts = { site: 'build/site', out: 'build/ui-audit', only: null, snapshot: null, compare: null, mask: null };
     for (let i = 0; i < argv.length; i += 2) {
         const key = argv[i].replace(/^--/, '');
         if (!(key in opts)) throw new Error(`unknown option --${key}`);
@@ -483,17 +495,7 @@ class Audit {
         const page = await this.open(context, 'manager');
         await page.screenshot({ path: join(out, `forced-${colorScheme}-manager-phone.png`) });
         const inspect = () => page.evaluate(() => {
-            // the Canvas color of the page: a probe that opts out of forced colors and asks for the system color
-            const probe = document.createElement('div');
-            probe.style.cssText = 'forced-color-adjust: none; background-color: Canvas; position: fixed; width: 1px; height: 1px';
-            document.body.append(probe);
-            const canvas = getComputedStyle(probe).backgroundColor;
-            probe.remove();
-            const invisible = (el, pseudo) => {
-                const value = getComputedStyle(el, pseudo).backgroundColor;
-                const color = window.__audit.parse(value);
-                return color && color.a > 0 && value !== canvas ? null : `background-color ${value} is not visible on Canvas ${canvas}`;
-            };
+            const invisible = window.__audit.drawn;
             const lines = [...document.querySelectorAll('.navbar-burger span')];
             const toggle = document.querySelector('.toolbar .nav-toggle');
             const icon = toggle && getComputedStyle(toggle, '::before');
@@ -519,11 +521,13 @@ class Audit {
         return failures;
     }
 
-    async snapshot(dir) {
+    async snapshot(dir, mask) {
         await mkdir(dir, { recursive: true });
         const context = await this.context();
         for (const key of SNAPSHOT_PAGES) {
             const page = await this.open(context, key);
+            // the masked elements keep their space, so the rest of the page stays where it was
+            if (mask) await page.addStyleTag({ content: `${mask} { visibility: hidden !important; }` });
             for (const position of [0, 50]) {
                 await page.evaluate((p) => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * p / 100), position);
                 await page.waitForTimeout(300);
@@ -534,9 +538,9 @@ class Audit {
         await context.close();
     }
 
-    async compare(dir, out) {
+    async compare(dir, out, mask) {
         const fresh = join(out, 'compare');
-        await this.snapshot(fresh);
+        await this.snapshot(fresh, mask);
         const page = await this.browser.newPage();
         const failures = [];
         for (const file of readdirSync(dir).filter((f) => f.endsWith('.png'))) {
@@ -586,10 +590,10 @@ async function main() {
     let failed = 0;
     try {
         if (opts.snapshot) {
-            await audit.snapshot(resolve(opts.snapshot));
+            await audit.snapshot(resolve(opts.snapshot), opts.mask);
             console.log(`snapshot saved to ${opts.snapshot}`);
         } else if (opts.compare) {
-            const failures = await audit.compare(resolve(opts.compare), out);
+            const failures = await audit.compare(resolve(opts.compare), out, opts.mask);
             failures.forEach((f) => console.log(`  FAIL ${f}`));
             failed = failures.length;
         } else {
