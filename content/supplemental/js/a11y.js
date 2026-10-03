@@ -2,17 +2,17 @@
 // whose state site.js keeps in classes, a name for the copy buttons, focus for the skip link, and
 // keyboard access to the search results.
 (function () {
-    // site.js toggles .is-active on nav items, the explore panel and the burger
+    // site.js toggles .is-active on nav items, the explore panel and the toolbar's nav toggle (it sets the burger's aria-expanded itself)
     const syncNavToggle = function (item) {
         const toggle = item.querySelector(':scope > .nav-item-toggle');
         if (toggle) toggle.setAttribute('aria-expanded', String(item.classList.contains('is-active')));
     };
     const explorePanel = document.querySelector('.nav-panel-explore');
     const exploreToggle = explorePanel && explorePanel.querySelector('.context');
-    const burger = document.querySelector('.navbar-burger');
+    const navToggle = document.querySelector('.toolbar .nav-toggle');
     const syncPanels = function () {
         if (exploreToggle) exploreToggle.setAttribute('aria-expanded', String(explorePanel.classList.contains('is-active')));
-        if (burger) burger.setAttribute('aria-expanded', String(burger.classList.contains('is-active')));
+        if (navToggle) navToggle.setAttribute('aria-expanded', String(navToggle.classList.contains('is-active')));
     };
     document.querySelectorAll('.nav-item').forEach(syncNavToggle);
     syncPanels();
@@ -24,7 +24,7 @@
     });
     const nav = document.querySelector('.nav');
     if (nav) observer.observe(nav, { subtree: true, attributes: true, attributeFilter: ['class'] });
-    if (burger) observer.observe(burger, { attributes: true, attributeFilter: ['class'] });
+    if (navToggle) observer.observe(navToggle, { attributes: true, attributeFilter: ['class'] });
 
     // site.js names the copy buttons through a hidden icon's alt text and an invisible toast
     document.querySelectorAll('.doc .source-toolbox .copy-button').forEach(function (button) {
@@ -48,7 +48,7 @@
     const searchArea = searchInput && searchInput.closest('.search-field');
     if (searchArea) {
         const clearSearch = function () {
-            searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         };
         // keep Tab away from search-ui.js, or the result that just received focus is replaced
         document.addEventListener('keydown', function (event) {

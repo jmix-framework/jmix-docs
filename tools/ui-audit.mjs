@@ -68,6 +68,20 @@ const STYLE_EXPECTATIONS = [
     ['manager', '.search-kbd', 'font-weight', '400'],
     ['manager', '.header-icon-link.ai-assistant-link', 'background-color', '#17124b'],
     ['manager', '.header-icon-link.git-link', 'color', '#17124b'],
+    // Task 8: navigation, explore panel, toolbar, TOC
+    ['manager', '.nav', 'border-right-width', '1px'],
+    ['manager', '.is-current-page > .nav-link', 'background-color', '#f0eeff'],
+    ['manager', '.is-current-page > .nav-link', 'color', '#342a98'],
+    ['manager', '.nav-item-toggle', 'width', '24px'],
+    ['manager', '.nav-menu-toggle', 'visibility', 'visible'],
+    ['manager', '.nav-menu-toggle', 'width', '24px'],
+    ['manager', '.nav-panel-explore .context', 'height', '49.5px'],
+    ['manager', '.toolbar', 'height', '49.5px'],
+    ['manager', '.toolbar', 'border-bottom-width', '1px'],
+    ['manager', '.edit-this-page a', 'color', '#5c606b'],
+    ['manager', 'aside.toc.sidebar', 'flex-basis', '252px'],
+    ['manager', '.toc .toc-menu a', 'border-left-width', '1px'],
+    ['manager', 'html', 'scroll-padding-top', '130.5px'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
@@ -258,6 +272,10 @@ class Audit {
             if (burger && !burger.getAttribute('aria-label')) out.push('the burger has no aria-label');
             const search = document.getElementById('search-input');
             if (!search.getAttribute('aria-label')) out.push('the search input has no aria-label');
+            const home = document.querySelector('.home-link');
+            if (home && !home.getAttribute('aria-label')) out.push('the home link has no aria-label');
+            const navToggle = document.querySelector('.toolbar .nav-toggle');
+            if (navToggle && (!navToggle.getAttribute('aria-label') || !navToggle.hasAttribute('aria-expanded'))) out.push('the toolbar nav toggle has no aria-label or no aria-expanded');
             return out;
         });
         await page.click('.nav-item:not(.is-active) > .nav-item-toggle');
@@ -265,6 +283,12 @@ class Audit {
         const synced = await page.evaluate(() => [...document.querySelectorAll('.nav-item-toggle')]
             .every((b) => b.getAttribute('aria-expanded') === String(b.parentElement.classList.contains('is-active'))));
         if (!synced) failures.push('aria-expanded does not follow a nav toggle click');
+        const small = await this.context({ viewport: { width: 375, height: 812 } });
+        const mobile = await this.open(small, 'manager');
+        await mobile.click('.toolbar .nav-toggle');
+        await mobile.waitForTimeout(100);
+        if (await mobile.getAttribute('.toolbar .nav-toggle', 'aria-expanded') !== 'true') failures.push('aria-expanded does not follow a click on the toolbar nav toggle');
+        await small.close();
         await context.close();
         return unique(failures);
     }
