@@ -734,7 +734,13 @@ class Audit {
                 await page.keyboard.press('ArrowDown');
                 await expect('ArrowDown on the button', { open: true, focus: 'dark' });
                 await page.keyboard.press('Tab');
-                await expect('Tab out of the menu', { open: false, expanded: 'false' });
+                await expect('Tab out of the menu', { open: false, expanded: 'false', focus: 'a' });
+                // Shift+Tab lands on the button, which is inside the menu element, so the menu has to close on the key itself
+                await page.focus('.theme-menu-toggle');
+                await page.keyboard.press('Enter');
+                await expect('Enter on the button before Shift+Tab', { open: true, focus: 'dark' });
+                await page.keyboard.press('Shift+Tab');
+                await expect('Shift+Tab out of the menu', { open: false, expanded: 'false', focus: 'toggle' });
                 // another page of the same site follows a choice
                 const other = await this.open(context, 'manager');
                 await expect('another page at load', { theme: 'dark', preference: 'dark' }, other);

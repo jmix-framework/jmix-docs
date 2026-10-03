@@ -85,6 +85,12 @@
         });
     });
     list.addEventListener('keydown', function (event) {
+        // Tab and Shift+Tab close the menu, and focus moves on from the item, which is hidden by then. Shift+Tab lands
+        // on the button, which is inside the menu element, so the focusin listener below would not close the menu.
+        if (event.key === 'Tab') {
+            close(false);
+            return;
+        }
         const index = items.indexOf(document.activeElement);
         const target = {
             ArrowDown: (index + 1) % items.length,
@@ -103,7 +109,7 @@
             close(true);
         }
     });
-    // focus moving elsewhere (Tab, the / shortcut) or a click elsewhere closes the menu. Not focusout: Safari does
+    // focus moving elsewhere (the / shortcut) or a click elsewhere closes the menu. Not focusout: Safari does
     // not focus a clicked button, so focus leaves the menu on mousedown and the click would never reach the item.
     document.addEventListener('focusin', function (event) {
         if (isOpen() && !menu.contains(event.target)) close(false);
