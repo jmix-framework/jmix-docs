@@ -25,9 +25,10 @@ Made with Gleb during brainstorming on 2026-10-03; the mockups are in the sessio
 - The resolved theme is `light` or `dark`. For System it comes from `matchMedia('(prefers-color-scheme: dark)')`.
 - `<html>` carries two attributes: `data-theme` with the resolved theme, which the CSS reads, and `data-theme-preference` with the preference, so that the menu button shows the right icon from the first paint.
 - While the preference is System, a change of the OS setting switches the open page (a `change` listener on the media query).
-- Other open tabs follow a choice through the `storage` event.
+- Other open tabs follow a choice through the `storage` event. A page restored from the back/forward cache missed those events, so it reads the stored preference again on `pageshow` when `event.persisted` is true.
+- One function, `apply(preference)`, handles every path (a choice in the menu, the media query, the storage event, `pageshow`): it sets both attributes, the menu button's name and tooltip, and the items' `aria-checked`.
 - Without JavaScript neither attribute is set: the page is light and the menu button is hidden, because it could not work.
-- The switch is instant. Nothing in the stylesheets animates colors (the only transitions rotate chevrons), so no rule is needed to suppress transitions.
+- The switch is instant. No transition in the stylesheets animates a color (they animate transforms and opacity), so no rule is needed to suppress transitions.
 - Print is always light: the dark block applies only to `screen`.
 - Forced colors stay as they are; system colors win in both themes.
 - The favicons keep following the OS through their `media` attributes: they sit in the browser's tab strip, which follows the OS, not the page.
@@ -49,11 +50,16 @@ An inline script at the start of `partials/head-styles.hbs`, before the styleshe
         const dark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme-preference', preference);
+        // the canvas color until the stylesheets arrive; once they do, color-scheme in tokens.css decides
+        const meta = document.createElement('meta');
+        meta.name = 'color-scheme';
+        meta.content = dark ? 'dark' : 'light';
+        document.head.appendChild(meta);
     })();
 </script>
 ```
 
-It is inline because an external file would add a render-blocking request. Placed before the links, it runs at once instead of waiting for the stylesheets. The 404 layout uses the same head, header and footer partials, so it gets the theme and the menu too.
+It is inline because an external file would add a render-blocking request. Placed before the links, it runs at once instead of waiting for the stylesheets. The `color-scheme` meta element keeps a slow first load from showing a white canvas before the dark stylesheet values apply; `js/theme-menu.js` keeps its content in step with the theme. The explicit `color-scheme` in `tokens.css` overrides it once the stylesheets load, also in print. The 404 layout uses the same head, header and footer partials, so it gets the theme and the menu too.
 
 ## Theme menu
 
@@ -76,7 +82,7 @@ The first child of `.header-btn` in `partials/header-content.hbs`:
 
 ### Look
 
-- The button looks like the header links: `.header-icon-link`, 2.25rem square, `--header-text`, hover background `--navbar_hover-background`, which it also keeps while the menu is open. Its icon is a mask icon from tokens (monitor, sun or moon) chosen by `data-theme-preference` on `<html>`, so it is right before the script runs. Stroke icons in the style of the existing mask icons.
+- The button looks like the header links: `.header-icon-link`, 2.25rem square, `--header-text`, hover background `--navbar_hover-background`, which it also keeps while the menu is open. `.header-icon-link` was written for links, so the button also gets the button reset: no border, padding or background, `font: inherit`. Its icon is a mask icon from tokens (monitor, sun or moon) chosen by `data-theme-preference` on `<html>`, so it is right before the script runs. Stroke icons in the style of the existing mask icons.
 - A hairline after the menu separates it from the links: a 1px `--color-line` border, 1.25rem high. It is a border so that forced colors keep it.
 - The menu panel shares its look with the version menu: `--color-surface`, 1px `--color-line` border, `--radius-lg`, `--shadow-menu`, 0.375rem padding, at least 10rem wide, 0.5rem below the button, aligned with the button's left edge. `css/dropdown-menu.css` holds both menus, and the panel rules are written once for both.
 - Items fill the panel width: a 1rem icon in `--color-text-muted`, the label in `--color-text` at 0.8rem, 0.45rem by 0.625rem padding, `--radius-md`. Hover and focus give `--color-surface-hover`. The checked item has `--color-accent` text and icon, weight 600, and a check mark at the right. The focus ring is drawn inside the item (`outline-offset: -2px`), like other rings in filled lists.
@@ -87,13 +93,20 @@ The WAI-ARIA menu button pattern with `menuitemradio` items:
 
 | Key | On the button | In the menu |
 |---|---|---|
-| Enter, Space, ArrowDown | Opens the menu and focuses the checked item | Enter and Space choose the focused item, close the menu and return focus to the button. ArrowDown moves to the next item, wrapping. |
-| ArrowUp | Opens the menu and focuses the checked item | Moves to the previous item, wrapping |
+| Enter, Space | Opens or closes the menu | Choose the focused item, close the menu and return focus to the button |
+| ArrowDown, ArrowUp | Open the menu | Move to the next or previous item, wrapping |
 | Home, End | | First and last item |
 | Escape | Closes the menu if it is open | Closes the menu and returns focus to the button |
-| Tab | Moves on | Closes the menu; focus moves on |
+| Tab | Moves on | Focus moves on, and the menu closes |
 
-A click on the button opens or closes the menu, a click on an item chooses it and closes the menu, a click outside closes it. After a choice, focus is back on the button, whose name now includes the new mode, so screen readers announce it without a live region.
+How it is built, so that no key is handled twice:
+
+- The button and the items are `<button>` elements, so Enter and Space reach them as native `click` events. Only `click` handlers react to them; `keydown` handles ArrowDown, ArrowUp (both with `preventDefault()`, so the page does not scroll), Home, End and Escape.
+- Opening the menu, by keyboard or pointer, always moves focus to the checked item, as the APG examples do.
+- The menu closes when focus moves outside it (a `focusin` listener on the document, which covers Tab and the `/` search shortcut), on Escape, and on a click outside it. Not on `focusout`: Safari does not focus a clicked button, so focus would leave the menu on mousedown and the click would never reach the item.
+- The outside click is caught by a capture-phase `click` listener on the document. `site.js` stops the propagation of clicks in the navigation, on the burger and on the toolbar's nav toggle, so a bubbling listener would miss them, and below 1024px the menu would stay open inside a closed burger panel.
+
+After a choice, focus is back on the button, whose name now includes the new mode, so screen readers announce it without a live region.
 
 ### Below 1024px
 
@@ -188,7 +201,7 @@ Code. `--code-block-background` `#1E1F22`, `--code-block-text` `#BCBEC4` (8.9:1)
 | `--syntax-added` | `#E6F4EA` | `#294436` | code text on it 5.7:1 |
 | `--syntax-removed` | `#FCE8E6` | `#4A2A2E` | code text on it 6.8:1 |
 
-`--syntax-tag` is new because IntelliJ colors XML tags like keywords in its light scheme but yellow in its dark one. The rule for `.hljs-tag` and `.hljs-name` in `site.css` part 2 moves from `--syntax-keyword` to it; in light the color stays `#0033B3`.
+`--syntax-tag` is new because IntelliJ colors XML tags like keywords in its light scheme but yellow in its dark one. In `site.css` part 2, the combined rule `.doc :is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-tag, .hljs-name)` loses `.hljs-tag` and `.hljs-name` to a new rule on `--syntax-tag`, and `.doc .language-xml .hljs-meta` (the XML prolog and DOCTYPE) moves from `--syntax-keyword` to `--syntax-tag` as well, so a whole XML block stays in one tag color. In light all of them stay `#0033B3`.
 
 Admonitions. The background is the edge hue at 9% over the surface, the border the same hue at 24%; the label colors are lighter tints of the hue:
 
@@ -217,7 +230,7 @@ Unchanged in dark, by design: the brand edges of note, tip, warning and importan
 - Header. The logo center follows `--header-logo-center`; the icons, the burger and the search field follow tier 2.
 - Event banner. It stays `--jmix-violet-700` with white text in both themes (10.9:1), and its focus ring stays the text color.
 - Version menu, search field and search results. They are drawn from tier 2 tokens and need no rule changes. The panel rules of the version menu are shared with the theme menu.
-- Feedback form. The text input gets an explicit `--color-surface` background and `--color-text` color; today it uses the browser's field colors, which follow `color-scheme`. The thumbs-up image (`img/feedback-form__thumb-up.svg`, a fixed `#397300`, 3.1:1 on Ink) becomes a `span` with the mask icon in `--tip-color` (10.8:1 in dark). The glyph stays; in light its green moves from `#397300` to the tip green `#0D7348`. The SVG file is removed.
+- Feedback form. The text input gets an explicit `--color-surface` background and `--color-text` color; today it uses the browser's field colors, which follow `color-scheme`. The thumbs-up image (`img/feedback-form__thumb-up.svg`, a fixed `#397300`, 3.1:1 on Ink) becomes a `span` with the mask icon in `--tip-color` (10.8:1 in dark). The glyph stays; in light its green moves from `#397300` to the tip green `#0D7348`. Like every mask icon it gets `forced-color-adjust: none` and `CanvasText` in the form's forced colors block. The SVG file is removed.
 - Images. Block and inline images are not changed. The role `light-background` (`.doc :is(.imageblock, .image).light-background img`) gives the image `--image-plate-background`, `--radius-sm` corners and `forced-color-adjust: none`, so the plate also survives a dark forced colors palette. The role goes on these image macros:
 
   | Page | Image |
@@ -231,14 +244,14 @@ Unchanged in dark, by design: the brand edges of note, tip, warning and importan
 
   The list comes from rendering all 1,477 images in `content/modules` in Chromium: 296 PNGs and 26 SVGs have transparent edges, but almost all are window screenshots whose transparent part is the shadow margin, or inline icons. Only these eight draw dark lines or labels directly on transparency. The 103 images of the external guides need nothing. Inline icons stay as they are; the IntelliJ gray `#6C707E` of the Studio icons gives 3.6:1 on Ink.
 - The HTML email sample in `message-templates/pages/template-definition.adoc` has its own white card with inline colors and stays as it is, like a screenshot.
-- The DocsBot chat widget is injected by Google Tag Manager, renders in its own shadow root with its own styles, and stays light. It is not ours to restyle.
+- The DocsBot chat widget is injected by Google Tag Manager, mounts into `#docsbotai-root` (DocsBot's documented mount element) and renders in its own shadow root with its own light styles. It is not ours to restyle, but `color-scheme` is inherited, so in the dark theme the widget's parts that keep browser defaults (fields, placeholders, scrollbars) would turn dark inside its light panel. One rule in `site.css` part 2 keeps the host light in both themes: `#docsbotai-root { color-scheme: light; }`. DocsBot also has a `theme` option (`light`, `dark` or `auto`, which follows the OS rather than our menu); it is set in the Google Tag Manager container, outside this repository, and is left for a follow-up.
 - Print uses the light values (the dark block is `screen` only).
 
 ## Tooling
 
 ### `tools/check-css.mjs`
 
-A third rule: the dark block of `tokens.css` (`:root[data-theme="dark"]`) declares every tier 2 token of the light `:root` block, which are the custom properties named `--color-*` and `--shadow-*`, and declares nothing the light block lacks. New tier 2 tokens therefore cannot be added without a dark value. The rule gets unit tests in `check-css.test.mjs`.
+A third rule: the dark block of `tokens.css` (`:root[data-theme="dark"]`) declares every tier 2 token of the light `:root` block, which are the custom properties named `--color-*` and `--shadow-*`, and declares nothing the light block lacks. New tier 2 tokens therefore cannot be added without a dark value. Two details of the existing checker matter: `mask()` blanks string contents, so the dark selector is found in the raw text (its quotes are blank in the masked text), while the declarations are read from the masked block; and only custom property names are compared, so the dark block's `color-scheme: dark` does not count. The rule gets unit tests in `check-css.test.mjs` for a missing dark value, a missing dark block and a dark-only token.
 
 ### `tools/ui-audit.mjs`
 
@@ -246,22 +259,24 @@ A third rule: the dark block of `tokens.css` (`:root[data-theme="dark"]`) declar
 - `TEXT_CONTRAST` gains pairs that differ between the themes: the version button, the current nav item, a table header, the Since badge, and the XML tag, attribute and string colors on a page with an XML block (`geomap`).
 - A list of dark style expectations next to `STYLE_EXPECTATIONS`, for example: navbar background `#17171d`, logo center `#f2f1f9`, version button background `#2b2650` and color `#a99bff`, search field border `#6e6e80`, code background `#1e1f22`, keyword `#cf8e6d`, XML tag `#d5b778`, note edge `#25cde3` and label `#6bdcea`, add-on edge `#a99bff`, table header background `#1f1f27`, footer background `#17171d`, `color-scheme` `dark` on `<html>`, and a white plate on a `light-background` image. The light list gains the XML tag color `#0033b3` and the plate.
 - A new `theme` check:
-  - no flash: with `dark` stored and a light OS, `data-theme` is already `dark` when the first stylesheet link enters the DOM (recorded by a `MutationObserver` from an init script);
+  - no flash: with `dark` stored and a light OS, `data-theme` is already `dark` when the first stylesheet link enters the DOM. A `MutationObserver` from an init script records it; the parser delivers mutation records before it runs each script, so a link placed before the theme script is caught (verified in Chromium with synthetic pages in both orders). As a second guard, the theme script precedes the first `link[rel="stylesheet"]` in `<head>`, and the `color-scheme` meta element matches the resolved theme;
   - resolution: light OS, dark OS, `light` stored on a dark OS, `dark` stored on a light OS, and storage that throws (the page follows the OS and a choice still applies to the page);
   - semantics: `aria-haspopup="menu"`, `aria-expanded`, `aria-controls`, a `menu` with three `menuitemradio` items of which exactly one is checked, and the button's name with the mode;
   - keyboard: the flows of the table above, including that a choice sets both attributes, writes or removes the key, closes the menu, returns focus and renames the button;
-  - pointer: open, choose, close by an outside click;
+  - pointer: open, choose, close by a click on the article and by a click on a navigation toggle, whose click `site.js` stops from bubbling;
+  - the chat widget host: an element `#docsbotai-root` added to a dark page computes `color-scheme: light` (the audit blocks Google Tag Manager, so the real widget never loads there);
+  - the back/forward cache: a `pageshow` event with `persisted` re-reads the stored preference;
   - live System: `page.emulateMedia({ colorScheme })` switches the page while the preference is System and does not while it is Light;
   - other tabs: a choice in one page of a context switches the other page;
   - persistence across a reload;
   - no JavaScript: no attributes, the menu hidden, a white page;
   - print: with the dark theme, `emulateMedia({ media: 'print' })` gives a white body and dark text;
-  - phone width: at 375px the open menu lies inside the viewport;
-  - screenshots of the manager page in both themes at 1440 and 375px, written to `--out` for review and for the pull request.
+  - phone width: at 375px the open menu lies inside the viewport, and closing the burger panel closes the menu;
+  - the narrowest desktop width: at 1024px the header items neither overflow nor overlap;
+  - screenshots, written to `--out` for review and for the pull request: the manager and events pages in both themes at 1440px, the open menu in dark at 1440px, and the menu at 375px.
 - `forced` also checks that the theme button's icon is drawn.
 - `--mask <selector>` for `--snapshot` and `--compare` hides the matching elements (`visibility: hidden`) in both runs, so the light theme can be compared with the header excluded.
-- `PAGES` gains the BPM transactions page for the image role.
-- The `background()` page helper falls back to the body's background instead of white, so a missing opaque ancestor cannot make a dark pair pass.
+- `PAGES` gains the BPM transactions page for the image role; the forced colors run includes it and checks the plate there.
 
 ## Files
 
@@ -273,13 +288,13 @@ A third rule: the dark block of `tokens.css` (`:root[data-theme="dark"]`) declar
 | `content/supplemental/partials/pagination.hbs` | the thumbs-up `img` becomes a `span` |
 | `content/supplemental/js/theme-menu.js` | new: menu behavior, applying and saving the choice, live System, other tabs |
 | `content/supplemental/css/tokens.css` | tier 1 additions, new tokens, `--banner-text`, the dark block |
-| `content/supplemental/css/site.css` | part 2 only: the XML tag rule reads `--syntax-tag`; the `light-background` role |
+| `content/supplemental/css/site.css` | part 2 only: XML tags and the XML prolog read `--syntax-tag`; the `light-background` role; `color-scheme: light` on the chat widget host |
 | `content/supplemental/css/dropdown-menu.css` | the theme menu; the panel rules shared with the version menu |
 | `content/supplemental/css/feedback-form.css` | the input colors; the thumbs-up mask icon |
 | `content/supplemental/img/feedback-form__thumb-up.svg` | removed |
 | the six `.adoc` pages listed under Images | `role=light-background` on eight image macros |
 | `tools/check-css.mjs`, `tools/check-css.test.mjs` | the dark block rule and its tests |
-| `tools/ui-audit.mjs` | dark runs, the `theme` check, `--mask`, the helper fallback |
+| `tools/ui-audit.mjs` | dark runs, the `theme` check, `--mask`, the forced colors additions |
 | `AGENTS.md`, `CONTRIBUTING.md` | the dark theme, the menu, the role |
 
 Files derived from antora-ui-default keep their MPL-2.0 header; `theme-menu.js` is new code and gets none.
@@ -311,4 +326,7 @@ Files derived from antora-ui-default keep their MPL-2.0 header; `theme-menu.js` 
 - Moving `.hljs-tag` and `.hljs-name` to `--syntax-tag` must not change the light colors; the light style expectation for the XML tag color guards it.
 - New line diagrams on transparency will be unreadable in dark until they get the role; `CONTRIBUTING.md` says so.
 - Browsers without `color-mix()` lose the dark overlay and menu shadow, as they lose the light ones today.
+- The chat widget's own look stays light in the dark theme until its `theme` option is changed in Google Tag Manager; the audit cannot load it, so it is checked by hand on the production site after release.
+- A comment inside a diff line (`--syntax-comment` on `--syntax-added` or `--syntax-removed`) reaches 3.1:1 and 3.7:1 in dark; the light theme has the same edge case. Diff blocks with comments are rare, so it stays.
+- Upstream's page versions menu in the toolbar uses a fixed dark chevron image (`img/chevron.svg`) that the dark theme does not redraw. Both playbooks build a single version, so the menu is not rendered today; a multi-version build would need it redrawn as a mask icon.
 - This spec and its plan are removed from the branch before the pull request is merged, as the restyle's were.
