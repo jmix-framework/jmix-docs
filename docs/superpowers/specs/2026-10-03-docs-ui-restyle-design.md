@@ -231,7 +231,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 
 - Body: Roboto 0.94444rem (17 px), line height 1.65, `--color-text`. The content column keeps its upstream width (46rem from 1024px up). Paragraphs use `text-wrap: pretty`.
 - Headings: `--color-heading`, Roboto 650, letter spacing −0.01em, `text-wrap: balance`. `h1` 2.125rem, line height 1.2, 700, letter spacing −0.02em, margin 2.25rem 0 1.25rem. `h2` 1.5rem, line height 1.3, without the upstream bottom border and negative margins. `h3` 1.1875rem. `h4` 1rem.
-- Section spacing: 3rem between top-level sections, 2rem before second-level sections.
+- Section spacing: 3rem between top-level sections, and before the first one after the preamble or, below 1024px, after the embedded TOC; 2rem before second-level sections.
 - Heading anchors: `#` in `--color-text-muted`, shown on hover, replacing `§`.
 - Links: `--color-link`, hover `--color-link-hover`, underline as in the accessibility section.
 - "Since" badge (`.paragraph.since`): pill, radius 999px, padding 0.15em 0.65em, `--color-accent-tint` background, `--color-accent` text, 500 0.75rem.
