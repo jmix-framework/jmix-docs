@@ -152,7 +152,7 @@ Self-hosted in `content/supplemental/font/` from Fontsource 5.3.0, OFL-1.1, lice
 
 ### Icons
 
-- Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution`, `--icon-addon`, and `--icon-unfold` and `--icon-fold` for "expand all", each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
+- Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution`, `--icon-addon`, `--icon-unfold` and `--icon-fold` for "expand all", and `--icon-menu` and `--icon-back` for the toolbar's nav toggle (it shows the back arrow while the navigation is open), each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
 - Header icons inline in `header-content.hbs`. The AI Assistant icon is redrawn as a single-color icon (shapes with cut-outs instead of navy strokes on white), so it works on the navy button, on a light background and in forced colors. `git-icon.svg`, `jmix-icon.svg` and `jmix-ai-assistant-icon.svg` are removed once inlined, together with the unused `warning-icon.svg`, the duplicate `img/img/feedback-form__thumb-up.svg` and the dead Slack icon rule in `search.css`.
 
 ## Accessibility
@@ -183,7 +183,7 @@ Forced colors, written next to each component in a `@media (forced-colors: activ
 
 - Borders in `CanvasText` for the header bottom, nav right, toolbar bottom, code blocks and their title tabs, admonitions, sidebar and example blocks, the feedback form and the search field. `GrayText` border for inline code.
 - Active states lose their tinted backgrounds, so the current nav item, the active TOC item and the current version get a `Highlight` border. The current nav item takes 1px off its padding for it, so it keeps its height.
-- The header icons are inline SVG with `fill: currentColor`; because the AI Assistant icon uses an SVG mask, the SVGs set `forced-color-adjust: none` and, in forced colors, `color: LinkText` (Chromium would otherwise let them inherit the author color). The logo center gets `fill: CanvasText`. Mask icons get `forced-color-adjust: none` and a system color (`CanvasText`, `LinkText`, `ButtonText` or `GrayText`), because the icon carries meaning.
+- The header icons are inline SVG with `fill: currentColor`; because the AI Assistant icon uses an SVG mask, the SVGs set `forced-color-adjust: none` and, in forced colors, `color: LinkText` (Chromium would otherwise let them inherit the author color). The logo center gets `fill: CanvasText`. Below 1024px the burger's lines (upstream draws them with `background-color`, which forced colors removes) get `ButtonText`, and the toolbar's nav toggle draws its icon as a mask instead of upstream's dark `menu.svg`. The live demo and docs buttons get a `LinkText` border and the Since pill a `CanvasText` border, because their fill is what shows them. Mask icons get `forced-color-adjust: none` and a system color (`CanvasText`, `LinkText`, `ButtonText` or `GrayText`), because the icon carries meaning.
 - Callout numbers in code get a border. Syntax highlighting is left to the browser: in forced colors it collapses to the text color, which is fine because color carries no meaning there.
 
 Motion and scheme:
@@ -306,14 +306,14 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - Review at 1440, 1280 and 390 px wide: `intro`, `data-access/data-manager`, `bpm/bpmn/bpmn-events`, `flow-ui/vc/components/geoMap`, `studio/studio-features` (a layout table), a guide from an external repository, a page with a sidebar block, a page with `details`, a page with a Kroki diagram, the 404 page.
 - The first steps change nothing visible: pin the bundle, vendor `site.css`, then compare screenshots of the old and the new stylesheet before any restyling.
 - `tools/ui-audit.mjs` (Playwright through `tools/lib/playwright.mjs`, which `tools/screenshot-2x.mjs` also uses), reusable by the dark theme PR:
-  - a Tab walk that fails on any focused element without a 2px outline, or with an outline below 3:1 against its background;
+  - a Tab walk over the whole page, until focus returns to the skip link, that fails on any focused element without a 2px outline, or with an outline below 3:1 against its background;
   - the skip link as the first Tab stop, moving focus to `#main-content`;
   - accessible names and `aria-expanded` of the nav toggles, the explore toggle, the burger, the toolbar's nav toggle, the version toggle, the copy button, the search field and the home link;
   - the search keyboard flow: Tab reaches the results, Escape in the results clears and returns to the input, leaving the area clears;
   - text contrast against 4.5:1 for body text, nav, TOC, breadcrumbs, the edit link, the language label, the syntax colors and every admonition label;
   - computed style expectations taken from this spec;
   - the loaded fonts;
-  - forced colors, light and dark: screenshots for review and a check that the header, nav, toolbar, code blocks and admonitions have borders;
+  - forced colors, light and dark: screenshots for review, a check that the header, nav, toolbar, code blocks and admonitions have borders, and a check at phone width that the burger and the toolbar's nav toggle are drawn;
   - screenshot comparison with a saved snapshot, for the no-visible-change steps.
 - `tools/check-css.mjs` and its tests pass.
 - Before and after screenshots go into the pull request.
