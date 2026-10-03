@@ -180,6 +180,10 @@ pngquant --quality=65-85 --strip --force --ext .png path/to/screenshot.png
 
 Typical reduction for UI screenshots: 70-80% size, no visible quality loss.
 
+## Changing the UI
+
+UI styles live in `content/supplemental/css/`. Use the custom properties from `tokens.css` for colors; `node tools/check-css.mjs` rejects color literals in the other files. Build the site and run `node tools/ui-audit.mjs` before you open a pull request. The default UI bundle is pinned; see `ui/README.md` before you replace it.
+
 ## Repository history
 
 This repository was created in May 2026 with a fresh history; previous history (including pre-cleanup image revisions) is preserved in the archived repo at [TBD: link to old repo]. Refer there for `git blame` and commit history older than the initial commit.

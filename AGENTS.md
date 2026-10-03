@@ -94,6 +94,17 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 
 Screenshots are captured at **2x** and declared at half their pixel width (`image::foo.png[width="413"]` for an 826px-wide file), so they stay sharp on high-DPI displays. `tools/screenshot-2x.mjs` does this: it drives Playwright directly with `deviceScaleFactor: 2` and captures a single element, which the Playwright MCP tool cannot do — its resize action takes a width and a height only, so every capture it makes is 1x. Run it with `--url`, `--selector` and `--out`; it prints the resulting pixel size and the width to declare. See the comment at the top of the file for the rest of its options.
 
+## UI: styles, tokens and the pinned bundle
+
+The site uses the Antora default UI bundle pinned in `ui/ui-bundle.zip`. `ui/README.md` says which revision it is and how to update it. The styles are ours and live in `content/supplemental/css/`:
+
+- `tokens.css` holds every custom property in three tiers: palette, semantic roles, components. A dark theme changes values here, not in the components.
+- `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes. Part 2 holds the Jmix styles, one section per component, each with its forced colors rules.
+- `search.css`, `dropdown-menu.css` and `feedback-form.css` style the search, the version menu and the feedback form.
+- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when its first line would run under it), `dropdown-menu.js` (the version menu) and `feedback-form.js`.
+
+Outside `tokens.css`, write colors only as `var(--…)`. `node tools/check-css.mjs` checks that and reports custom properties that are used but never declared; CI runs it on pull requests. After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, the skip link, accessible names, keyboard access to search results, contrast, the expected styles, fonts and forced colors mode. The built pages load the production analytics container, so check them through the audit or a Playwright script that blocks external hosts, not in a browser pane.
+
 ## Conventions
 
 - In multi-locale examples use German (`de`) as the secondary locale.
