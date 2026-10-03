@@ -5,6 +5,8 @@
  *     Keywords such as transparent and currentColor, and the CSS system colors used in forced
  *     colors mode (CanvasText, Highlight and so on), are allowed because they are not literals.
  *  2. Every custom property read with var() without a fallback is declared in one of the files.
+ *  3. The dark block of tokens.css (:root[data-theme="dark"]) sets every tier 2 token of the light :root block
+ *     (--color-* and --shadow-*), and nothing the light block does not declare.
  *
  * Usage: node tools/check-css.mjs [dir]    (default: content/supplemental/css; exit code 1 on findings)
  */
@@ -38,6 +40,9 @@ const WORD_RX = /(?<![\w-])[a-z]+(?![\w-])/gi;
 const DECLARATION_RX = /(?:^|[;{])\s*(--[\w-]+|[a-z-]+)\s*:\s*([^;{}]*)(?=[;}])/gi;
 const VAR_RX = /var\(\s*(--[\w-]+)\s*(,)?/g;
 const DECLARED_RX = /(?:^|[;{\s])(--[\w-]+)\s*:/g;
+const TIER2_RX = /^--(?:color|shadow)-/;
+const LIGHT_BLOCK_RX = /(?:^|[\s}]):root\s*\{/;
+const DARK_BLOCK_RX = /:root\[data-theme="dark"\]\s*\{/;
 
 // Blank out comments, url(...) and strings, keeping offsets so that line numbers stay right.
 function mask(text) {
@@ -49,6 +54,34 @@ function mask(text) {
 
 function lineOf(text, index) {
     return text.slice(0, index).split('\n').length;
+}
+
+// Custom properties declared in the block whose "{" is at index `open` of the masked text (blocks hold no braces once masked).
+function declaredInBlock(masked, open) {
+    const close = masked.indexOf('}', open);
+    const block = masked.slice(open + 1, close === -1 ? masked.length : close);
+    return new Set([...block.matchAll(DECLARED_RX)].map((m) => m[1]));
+}
+
+export function checkDarkTokens(text) {
+    const masked = mask(text);
+    const light = masked.match(LIGHT_BLOCK_RX);
+    if (!light) return [];
+    const lightNames = declaredInBlock(masked, light.index + light[0].length - 1);
+    const tier2 = [...lightNames].filter((name) => TIER2_RX.test(name));
+    // the selector's quotes are blanked in the masked text, so the dark block is found in the original
+    const dark = text.match(DARK_BLOCK_RX);
+    if (!dark) {
+        // the match starts at the character before ":root"
+        const line = lineOf(masked, light.index + light[0].indexOf(':root'));
+        return tier2.length ? [{ line, message: 'no dark block :root[data-theme="dark"] for the tier 2 tokens' }] : [];
+    }
+    const darkNames = declaredInBlock(masked, dark.index + dark[0].length - 1);
+    const line = lineOf(masked, dark.index);
+    return [
+        ...tier2.filter((name) => !darkNames.has(name)).map((name) => ({ line, message: `the dark block does not set ${name}` })),
+        ...[...darkNames].filter((name) => !lightNames.has(name)).map((name) => ({ line, message: `the dark block sets ${name}, which the light :root block does not declare` })),
+    ];
 }
 
 function colorLiteral(value) {
@@ -72,7 +105,10 @@ export function checkStylesheets(sheets) {
         for (const m of masked.matchAll(VAR_RX)) {
             if (!m[2]) used.push({ name, line: lineOf(masked, m.index), property: m[1] });
         }
-        if (name === TOKENS_FILE) continue;
+        if (name === TOKENS_FILE) {
+            findings.push(...checkDarkTokens(text).map((f) => ({ name, ...f })));
+            continue;
+        }
         for (const m of masked.matchAll(DECLARATION_RX)) {
             const [whole, property, value] = m;
             const literal = colorLiteral(value);

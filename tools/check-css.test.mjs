@@ -32,3 +32,20 @@ test('reports custom properties that are used but never declared', () => {
     assert.deepEqual(messages('a { color: var(--missing); }'), ['--missing is used but never declared']);
     assert.deepEqual(messages('a { color: var(--missing, var(--a)); }'), []);
 });
+
+const withDark = (dark) => checkStylesheets([{
+    name: 'tokens.css',
+    text: ':root { --gray-900: #111; --color-text: var(--gray-900); --shadow-menu: 0 1px 2px #000; --radius-lg: 8px; }'
+        + (dark === null ? '' : ` @media screen { :root[data-theme="dark"] { ${dark} } }`),
+}]).map((f) => f.message);
+
+test('requires the dark block to set every tier 2 token', () => {
+    assert.deepEqual(withDark('--color-text: #eee; --shadow-menu: none;'), []);
+    assert.deepEqual(withDark('--color-text: #eee;'), ['the dark block does not set --shadow-menu']);
+    assert.deepEqual(withDark(null), ['no dark block :root[data-theme="dark"] for the tier 2 tokens']);
+});
+
+test('rejects dark tokens that the light block does not declare', () => {
+    assert.deepEqual(withDark('--color-text: #eee; --shadow-menu: none; --color-txet: #fff;'),
+        ['the dark block sets --color-txet, which the light :root block does not declare']);
+});
