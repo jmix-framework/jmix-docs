@@ -145,6 +145,7 @@ const STYLE_EXPECTATIONS = [
     ['manager', '.theme-menu-toggle', 'width', '40.5px'],
     ['manager', '.feedback-form__icon', 'background-color', '#0d7348'],
     ['manager', '.feedback-form__input', 'background-color', '#ffffff'],
+    ['transactions', '.imageblock.light-background img', 'background-color', '#ffffff'],
 ];
 
 // The same check in the dark theme (system dark, no stored preference): [page, selector, property, expected].
@@ -176,6 +177,7 @@ const DARK_STYLE_EXPECTATIONS = [
     ['manager', '.feedback-form__icon', 'background-color', '#5ee0a5'],
     ['manager', '.feedback-form__input', 'background-color', '#17171d'],
     ['manager', '.feedback-form__input', 'color', '#d8d8e2'],
+    ['transactions', '.imageblock.light-background img', 'background-color', '#ffffff'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
@@ -830,7 +832,7 @@ class Audit {
         const failures = [];
         for (const colorScheme of ['light', 'dark']) {
             const context = await this.context({ forcedColors: 'active', colorScheme });
-            for (const key of ['manager', 'events', 'geomap']) {
+            for (const key of ['manager', 'events', 'geomap', 'transactions']) {
                 const page = await this.open(context, key);
                 await page.screenshot({ path: join(out, `forced-${colorScheme}-${key}.png`) });
                 await page.evaluate(() => document.querySelector('.admonitionblock, .listingblock').scrollIntoView({ block: 'center' }));
@@ -855,6 +857,13 @@ class Audit {
                 if (key === 'manager') {
                     const icon = await page.evaluate(() => window.__audit.drawn(document.querySelector('.theme-menu-toggle'), '::before'));
                     if (icon) failures.push(`forced colors (${colorScheme}), manager: the theme menu icon: ${icon}`);
+                }
+                if (key === 'transactions') {
+                    const plate = await page.evaluate(() => {
+                        const img = document.querySelector('.imageblock.light-background img');
+                        return img ? getComputedStyle(img).backgroundColor : null;
+                    });
+                    if (plate !== 'rgb(255, 255, 255)') failures.push(`forced colors (${colorScheme}), transactions: the light-background plate is ${plate}`);
                 }
                 await page.close();
             }
