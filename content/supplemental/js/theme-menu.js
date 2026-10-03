@@ -96,8 +96,8 @@
     });
     list.addEventListener('keydown', function (event) {
         if (hasModifier(event)) return;
-        // Tab and Shift+Tab close the menu, and focus moves on from the item, which is hidden by then. Shift+Tab lands
-        // on the button, which is inside the menu element, so the focusin listener below would not close the menu.
+        // Tab and Shift+Tab close the menu; focus then moves on from the hidden item. Shift+Tab lands on the button,
+        // which is inside the menu element, so the focusin listener below would not close the menu.
         if (event.key === 'Tab') {
             close(false);
             return;

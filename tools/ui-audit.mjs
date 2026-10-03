@@ -741,7 +741,7 @@ class Audit {
                 await expect('Enter on the button before Shift+Tab', { open: true, focus: 'dark' });
                 await page.keyboard.press('Shift+Tab');
                 await expect('Shift+Tab out of the menu', { open: false, expanded: 'false', focus: 'toggle' });
-                // a shortcut with Alt, Ctrl or Meta belongs to the browser: it neither opens the menu nor moves focus in it
+                // a shortcut with Alt, Ctrl or Meta belongs to the browser, so it neither opens the menu nor moves focus in it
                 for (const modifier of ['Alt', 'Control', 'Meta']) {
                     await page.keyboard.press(`${modifier}+ArrowDown`);
                     await expect(`${modifier}+ArrowDown on the button`, { open: false, expanded: 'false', focus: 'toggle' });
@@ -759,7 +759,7 @@ class Audit {
                 // pointer
                 await page.click('.theme-menu-toggle');
                 await expect('a click on the button', { open: true });
-                // the padding around the items is not an item: a click there leaves focus on the item, so Escape still works
+                // a click on the padding around the items leaves focus on the item, so Escape still works
                 const panel = await page.locator('.theme-menu-list').boundingBox();
                 const first = await page.locator('.theme-menu-item').first().boundingBox();
                 const padding = { x: first.x + first.width / 2, y: (panel.y + first.y) / 2 };
