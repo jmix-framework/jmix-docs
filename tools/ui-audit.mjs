@@ -146,6 +146,9 @@ const STYLE_EXPECTATIONS = [
     ['manager', '.feedback-form__icon', 'background-color', '#0d7348'],
     ['manager', '.feedback-form__input', 'background-color', '#ffffff'],
     ['transactions', '.imageblock.light-background img', 'background-color', '#ffffff'],
+    // feedback form placeholders: opacity 0.5 from part 1 of site.css would put their contrast below 4.5:1
+    ['manager', '.feedback-form__input::placeholder', 'opacity', '1'],
+    ['manager', '.feedback-form__input::placeholder', 'color', '#5c606b'],
 ];
 
 // The same check in the dark theme (system dark, no stored preference): [page, selector, property, expected].
@@ -178,6 +181,7 @@ const DARK_STYLE_EXPECTATIONS = [
     ['manager', '.feedback-form__input', 'background-color', '#17171d'],
     ['manager', '.feedback-form__input', 'color', '#d8d8e2'],
     ['transactions', '.imageblock.light-background img', 'background-color', '#ffffff'],
+    ['manager', '.feedback-form__input::placeholder', 'color', '#9e9eb1'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
