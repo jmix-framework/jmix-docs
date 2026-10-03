@@ -25,7 +25,7 @@
 - Storage key `jmix-docs-theme`, values `light` and `dark`; System is the absence of the key. Attributes on `<html>`: `data-theme` (`light` | `dark`) and `data-theme-preference` (`system` | `light` | `dark`).
 - Names: the menu button is "Color theme: System", "Color theme: Light" or "Color theme: Dark"; the menu is "Color theme"; the items are "System", "Light", "Dark".
 - Build the site with `npx antora antora-playbook.yml` (several minutes). The audit is `node tools/ui-audit.mjs`, optionally `--only <checks>`; it serves `build/site` itself and blocks external hosts.
-- The light reference screenshots live in `build/ui-audit-reference/light` (ignored by git through `build/`). Task 1 creates them before any style changes; later tasks compare against them.
+- The light reference screenshots live in `build/ui-audit-reference/light` (header masked, for `--compare`) and `build/ui-audit-reference/light-full` (unmasked, for review by eye), both ignored by git through `build/`. Task 1 creates them before any style changes; later tasks compare against them.
 
 ## File Structure
 
@@ -55,7 +55,7 @@
 
 **Interfaces:**
 - Produces: CLI option `--mask <selector>` for `--snapshot` and `--compare`; `Audit.snapshot(dir, mask)`, `Audit.compare(dir, out, mask)`; page helper `window.__audit.drawn(el, pseudo)` returning `null` when the element's (or pseudo-element's) background differs from the forced Canvas color, else a message string.
-- Produces: the light reference in `build/ui-audit-reference/light`.
+- Produces: the light references in `build/ui-audit-reference/light` (header masked) and `build/ui-audit-reference/light-full`.
 
 - [ ] **Step 1: Document the option in the header comment**
 
@@ -221,6 +221,9 @@ Expected: `snapshot saved to build/ui-audit-reference/light`; ten PNG files in t
 Run: `node tools/ui-audit.mjs --compare build/ui-audit-reference/light --mask .header`
 Expected: every file reports `0.000% of pixels differ`; exit code 0.
 
+Run: `node tools/ui-audit.mjs --snapshot build/ui-audit-reference/light-full`
+Expected: `snapshot saved to build/ui-audit-reference/light-full`. This unmasked copy keeps the old header for the review by eye in Task 4.
+
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -309,6 +312,8 @@ Add this method to the `Audit` class, after `fonts()`:
         const plain = await noScript.newPage();
         await plain.goto(this.base + PAGES.manager, { waitUntil: 'load' });
         if (await plain.locator('html').getAttribute('data-theme') !== null) failures.push('without JavaScript <html> has a data-theme attribute');
+        const plainBody = await plain.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        if (plainBody !== 'rgb(255, 255, 255)') failures.push(`without JavaScript the body background is ${plainBody}, expected white`);
         await noScript.close();
         return failures;
     }
@@ -525,6 +530,16 @@ In `tools/ui-audit.mjs`, add to `PAGES`:
 
 ```js
     transactions: 'jmix/bpm/bpmn/transactions.html',
+    viewEvents: 'jmix/flow-ui/views/view-events.html',
+    guide: 'jmix/business-logic-guide/index.html',
+    notFound: '404.html',
+```
+
+and after `SNAPSHOT_PAGES` add:
+
+```js
+// pages the theme check photographs in both themes at 1440 and 375px, for review
+const THEME_REVIEW_PAGES = ['manager', 'events', 'intro', 'geomap', 'features', 'transactions', 'viewEvents', 'guide', 'notFound'];
 ```
 
 Append to `TEXT_CONTRAST` (before the closing `];`):
@@ -685,22 +700,30 @@ with
 In `theme()`, before `return failures;`, add the print case:
 
 ```js
-        // print keeps the light values: the dark block is screen only (upstream print styles drop the body background)
+        // print keeps the light values: the dark block is screen only
         const printing = await this.context({ colorScheme: 'dark' });
         const sheet = await this.open(printing, 'manager');
         await sheet.emulateMedia({ media: 'print' });
         const printed = await sheet.evaluate(() => ({
             scheme: getComputedStyle(document.documentElement).colorScheme,
+            body: getComputedStyle(document.body).backgroundColor,
             text: getComputedStyle(document.querySelector('article.doc .paragraph p')).color,
         }));
-        if (printed.scheme !== 'light' || printed.text !== 'rgb(42, 44, 51)') failures.push(`print with the dark theme: color-scheme ${printed.scheme}, text ${printed.text}, expected light and rgb(42, 44, 51)`);
+        if (printed.scheme !== 'light' || printed.body !== 'rgb(255, 255, 255)' || printed.text !== 'rgb(42, 44, 51)') {
+            failures.push(`print with the dark theme: color-scheme ${printed.scheme}, body ${printed.body}, text ${printed.text}, expected light, rgb(255, 255, 255) and rgb(42, 44, 51)`);
+        }
         await printing.close();
-        // the manager page in both themes, for review and for the pull request
+        // the review pages in both themes at 1440 and 375px, for review and for the pull request
         for (const colorScheme of ['light', 'dark']) {
-            const shots = await this.context({ colorScheme });
-            await (await this.open(shots, 'manager')).screenshot({ path: join(out, `theme-${colorScheme}-manager.png`) });
-            await (await this.open(shots, 'events')).screenshot({ path: join(out, `theme-${colorScheme}-events.png`) });
-            await shots.close();
+            for (const [suffix, viewport] of [['', { width: 1440, height: 900 }], ['-phone', { width: 375, height: 812 }]]) {
+                const shots = await this.context({ colorScheme, viewport });
+                for (const key of THEME_REVIEW_PAGES) {
+                    const shot = await this.open(shots, key);
+                    await shot.screenshot({ path: join(out, `theme-${colorScheme}-${key}${suffix}.png`) });
+                    await shot.close();
+                }
+                await shots.close();
+            }
         }
         // the chat widget host stays in the light color scheme: color-scheme is inherited, and the widget draws itself
         // for a light page. The audit blocks Google Tag Manager, so the widget never loads here; an element with its id
@@ -975,7 +998,7 @@ Expected: all files within the threshold; the light theme did not change.
 
 - [ ] **Step 13: Look at the dark theme**
 
-Open with the Read tool `build/ui-audit/theme-light-manager.png`, `theme-dark-manager.png`, `theme-light-events.png`, `theme-dark-events.png`, `forced-light-manager.png` and `forced-dark-manager.png`. Expected: the light screenshots look as before; the dark ones have the Ink surfaces, a light logo center, IntelliJ-like code colors and dark admonitions with the brand edges; the forced colors ones draw borders and text in system colors.
+Open with the Read tool the `theme` check's screenshots in `build/ui-audit`: `theme-{light,dark}-{manager,events,intro,geomap,features,transactions,viewEvents,guide,notFound}.png` and the same names with `-phone`, plus `forced-light-manager.png` and `forced-dark-manager.png`. Expected: the light screenshots look as before; the dark ones have the Ink surfaces, a light logo center, IntelliJ-like code colors (XML tags yellow on `geomap`) and dark admonitions with the brand edges, at both widths; the line diagrams on `transactions` and `viewEvents` still lack their plate (Task 6 adds it); the forced colors ones draw borders and text in system colors.
 
 - [ ] **Step 14: Commit**
 
@@ -997,7 +1020,7 @@ git commit -m "Add the dark theme tokens"
 - Modify: `tools/ui-audit.mjs` (`theme`, `forced`, style expectations)
 
 **Interfaces:**
-- Consumes: the attributes from Task 2, the dark tokens from Task 3, `window.__audit.drawn` from Task 1, `THEME_PROBE` from Task 2.
+- Consumes: the attributes from Task 2, the dark tokens from Task 3, `window.__audit.drawn` from Task 1, `audit.theme(out)` and its review screenshots from Tasks 2 and 3.
 - Produces: markup `.theme-menu > button.theme-menu-toggle + ul.theme-menu-list#theme-menu-list > li > button.theme-menu-item[data-theme-option]`; tokens `--icon-monitor`, `--icon-sun`, `--icon-moon`, `--icon-check`.
 
 - [ ] **Step 1: Write the failing audit checks**
@@ -1174,7 +1197,6 @@ Add these methods to the `Audit` class after `theme()`:
         await pp.click('.theme-menu-toggle');
         await pp.click('.theme-menu-item[data-theme-option="dark"]');
         await expect('a choice at phone width', { theme: 'dark' }, pp);
-        await pp.screenshot({ path: join(out, 'theme-dark-manager-phone.png') });
         await phone.close();
         return failures;
     }
@@ -1655,7 +1677,7 @@ Expected: all files within the threshold.
 
 - [ ] **Step 8: Look at the screenshots**
 
-Open with the Read tool: `build/ui-audit/theme-light-manager.png`, `theme-dark-manager.png`, `theme-dark-manager-menu.png`, `theme-light-manager-phone-menu.png`, `theme-dark-manager-phone.png`, and `forced-light-manager.png`, `forced-dark-manager.png`. Expected: the button sits between the search field and the AI Assistant link with a hairline before the links; the open menu shows System, Light and Dark with icons and a check on the current mode; the dark page uses the Ink colors; nothing overlaps at phone width. Fix and re-run if not.
+Open with the Read tool: `build/ui-audit/theme-light-manager.png`, `theme-dark-manager.png`, `theme-dark-manager-menu.png`, `theme-light-manager-phone-menu.png`, `theme-dark-manager-phone.png`, and `forced-light-manager.png`, `forced-dark-manager.png`. Expected: the button sits between the search field and the AI Assistant link with a hairline before the links; the open menu shows System, Light and Dark with icons and a check on the current mode; the dark page uses the Ink colors; nothing overlaps at phone width. The light comparison masks the header, so `theme-light-manager.png` is the only check that the light header still looks right apart from the new button: compare it with `build/ui-audit-reference/light-full/manager-0.png`, the unmasked reference from Task 1, by eye. Fix and re-run if anything is off.
 
 - [ ] **Step 9: Commit**
 
@@ -1819,7 +1841,7 @@ Expected: no output.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add content/supplemental/css/tokens.css content/supplemental/partials/pagination.hbs content/supplemental/css/feedback-form.css content/supplemental/img/feedback-form__thumb-up.svg tools/ui-audit.mjs
+git add content/supplemental/css/tokens.css content/supplemental/partials/pagination.hbs content/supplemental/css/feedback-form.css tools/ui-audit.mjs
 git commit -m "Draw the feedback icon from tokens and theme the feedback input"
 ```
 
@@ -1857,17 +1879,7 @@ In `forced()`, change the page list from `['manager', 'events', 'geomap']` to `[
                 }
 ```
 
-The `widths` checks run on every page of that list: if `transactions` has no code block or admonition, replace its `null` widths with a skip by changing the failure line
-
-```js
-                    if (width === null) failures.push(`forced colors (${colorScheme}), ${key}: ${what} not found`);
-```
-
-to
-
-```js
-                    if (width === null && key !== 'transactions') failures.push(`forced colors (${colorScheme}), ${key}: ${what} not found`);
-```
+The `widths` checks and the `scrollIntoView` before them stay as they are: the transactions page has two XML code blocks and NOTE and IMPORTANT admonitions, so every element they look for exists there.
 
 - [ ] **Step 2: Run to see them fail**
 
@@ -1932,10 +1944,10 @@ Expected: `5 stylesheets checked, no problems.`
 Run: `npx antora antora-playbook.yml && node tools/ui-audit.mjs`
 Expected: every check passes.
 
-Run: `grep -c 'class="imageblock[^"]*light-background' build/site/jmix/bpm/bpmn/transactions.html build/site/jmix/flow-ui/views/view-events.html`
-Expected: `2` and `1` (Asciidoctor puts the role after other classes, as in `imageblock text-center light-background`).
+Run: `grep -c -E 'class="imageblock[^"]*light-background' build/site/jmix/bpm/bpmn/transactions.html build/site/jmix/flow-ui/views/view-events.html`
+Expected: `2` and `1` (the pattern accepts the role before or after `text-center`).
 
-Open `build/ui-audit/forced-dark-transactions.png` with the Read tool. Expected: the diagram shows on a white plate.
+Open with the Read tool `build/ui-audit/theme-dark-transactions.png`, `theme-dark-viewEvents.png`, `theme-light-transactions.png` and `forced-dark-transactions.png`. Expected: in dark and in dark forced colors the diagrams sit on a white plate with small rounded corners; in light they look as before.
 
 - [ ] **Step 6: Commit**
 
@@ -2054,7 +2066,7 @@ Expected: all files within the threshold.
 
 - [ ] **Step 5: Review the screenshots**
 
-Open with the Read tool every `theme-*.png` and `forced-*.png` in `build/ui-audit`. Expected: the light pages look as before apart from the menu; the dark pages use the Ink palette, IntelliJ-like code colors and the dark admonitions; forced colors screenshots draw borders and icons in system colors.
+Open with the Read tool every `theme-*.png` and `forced-*.png` in `build/ui-audit`: the nine review pages (`manager`, `events`, `intro`, `geomap`, `features`, `transactions`, `viewEvents`, `guide`, `notFound`) in both themes at 1440px and with `-phone` at 375px, the menu screenshots, and the forced colors ones. Expected: the light pages look as before apart from the menu; the dark pages use the Ink palette, IntelliJ-like code colors and the dark admonitions, and the eight line diagrams sit on their plate; forced colors screenshots draw borders and icons in system colors.
 
 - [ ] **Step 6: Commit**
 

@@ -273,7 +273,7 @@ A third rule: the dark block of `tokens.css` (`:root[data-theme="dark"]`) declar
   - print: with the dark theme, `emulateMedia({ media: 'print' })` gives a white body and dark text;
   - phone width: at 375px the open menu lies inside the viewport, and closing the burger panel closes the menu;
   - the narrowest desktop width: at 1024px the header items neither overflow nor overlap;
-  - screenshots, written to `--out` for review and for the pull request: the manager and events pages in both themes at 1440px, the open menu in dark at 1440px, and the menu at 375px.
+  - screenshots, written to `--out` for review and for the pull request: the review pages of Verification step 3 in both themes at 1440 and 375px, the open menu in dark at 1440px, and the open menu at 375px.
 - `forced` also checks that the theme button's icon is drawn.
 - `--mask <selector>` for `--snapshot` and `--compare` hides the matching elements (`visibility: hidden`) in both runs, so the light theme can be compared with the header excluded.
 - `PAGES` gains the BPM transactions page for the image role; the forced colors run includes it and checks the plate there.
@@ -310,7 +310,7 @@ Files derived from antora-ui-default keep their MPL-2.0 header; `theme-menu.js` 
 
 1. Before any change to the styles: build the site and save the light reference, `node tools/ui-audit.mjs --snapshot <dir> --mask .header`. The `--mask` option comes first in the plan for this reason.
 2. After the change: `node tools/check-css.mjs` and `node --test tools/check-css.test.mjs`; `node tools/ui-audit.mjs` with every check passing; `node tools/ui-audit.mjs --compare <dir> --mask .header` within its 0.2% threshold.
-3. Review the audit's screenshots and pages at 1440 and 375px in both themes: `intro`, `data-access/data-manager`, `bpm/bpmn/bpmn-events`, `bpm/bpmn/transactions`, `flow-ui/vc/components/geoMap`, `flow-ui/views/view-events`, `studio/studio-features`, a guide from an external repository, the 404 page. Built pages load the production analytics container, so they are opened only through the audit or a Playwright script that blocks external hosts, never in a browser pane.
+3. Review the screenshots the audit's `theme` check writes, at 1440 and 375px in both themes: `intro`, `data-access/data-manager`, `bpm/bpmn/bpmn-events`, `bpm/bpmn/transactions`, `flow-ui/vc/components/geoMap`, `flow-ui/views/view-events`, `studio/studio-features`, the business logic guide from an external repository, the 404 page. Built pages load the production analytics container, so they are seen only through the audit or a Playwright script that blocks external hosts, never in a browser pane.
 
 ## Out of scope
 
