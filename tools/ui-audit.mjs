@@ -1,7 +1,9 @@
 /*
  * Audits the built docs site in Chromium: keyboard focus, the skip link, accessible names,
  * keyboard access to search results, text contrast, expected computed styles, fonts, forced
- * colors mode, and screenshot comparison with a saved snapshot.
+ * colors mode, the color theme (set before the first stylesheet, changed later with the theme
+ * menu), and screenshot comparison with a saved snapshot. The focus, contrast and style
+ * checks run in both color themes.
  *
  * Build the site first (npx antora antora-playbook.yml), then:
  *   node tools/ui-audit.mjs                          run every check
@@ -11,7 +13,7 @@
  *
  * Options: --site <dir> (default build/site), --out <dir> (default build/ui-audit), --mask <selector> (with
  * --snapshot and --compare: hide these elements in both runs, for example the header when it has changed on purpose).
- * Forced colors screenshots are written to --out for review. Exit code 1 when a check fails.
+ * Forced colors and theme screenshots are written to --out for review. Exit code 1 when a check fails.
  * Requests to hosts other than the local server, cdnjs.cloudflare.com (highlight.js) and kroki.io
  * (diagrams) are blocked, so the audit never sends analytics.
  */
@@ -34,6 +36,10 @@ const PAGES = {
     saml: 'jmix/saml/keycloak-saml.html',
     install: 'jmix/studio/install.html',
     gdg: 'jmix/flow-ui/vc/components/groupDataGrid.html',
+    transactions: 'jmix/bpm/bpmn/transactions.html',
+    viewEvents: 'jmix/flow-ui/views/view-events.html',
+    guide: 'jmix/business-logic-guide/index.html',
+    notFound: '404.html',
 };
 
 const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'kroki.io'];
@@ -57,6 +63,16 @@ const TEXT_CONTRAST = [
     ['geomap', '.admonitionblock.addon-component td.icon i'],
     ['caution', '.admonitionblock.caution td.icon i'],
     ['important', '.admonitionblock.important td.icon i'],
+    // pairs that differ between the themes
+    ['manager', '.version-dropdown-toggle'],
+    ['manager', '.is-current-page > .nav-link'],
+    ['manager', 'article.doc .paragraph p code'],
+    ['events', 'table.tableblock > thead > tr > th'],
+    ['events', '.admonitionblock.note td.content'],
+    ['gdg', '.paragraph.since p'],
+    ['geomap', 'article.doc pre code.language-xml .hljs-tag'],
+    ['geomap', 'article.doc pre code.language-xml .hljs-attr'],
+    ['geomap', 'article.doc pre code.language-xml .hljs-string'],
 ];
 
 // Computed styles the spec fixes: [page, selector (may end with ::before or ::after), property, expected].
@@ -122,9 +138,41 @@ const STYLE_EXPECTATIONS = [
     ['install', 'article.doc > .sect1', 'margin-top', '0px'],
     // final review guard: the Since badge keeps its own size inside an admonition (page: a Since badge in a TIP)
     ['gdg', '.admonitionblock .paragraph.since p', 'font-size', '13.5px'],
+    // dark theme work: XML tags keep the keyword color in light
+    ['geomap', 'article.doc pre code.language-xml .hljs-tag', 'color', '#0033b3'],
+    ['manager', 'html', 'color-scheme', 'light'],
+];
+
+// The same check in the dark theme (system dark, no stored preference): [page, selector, property, expected].
+const DARK_STYLE_EXPECTATIONS = [
+    ['manager', 'html', 'color-scheme', 'dark'],
+    ['manager', 'nav.navbar', 'background-color', '#17171d'],
+    ['manager', 'nav.navbar', 'border-bottom-color', '#2e2e39'],
+    ['manager', '.navbar-logo-center', 'fill', '#f2f1f9'],
+    ['manager', '.version-dropdown-toggle', 'background-color', '#2b2650'],
+    ['manager', '.version-dropdown-toggle', 'color', '#a99bff'],
+    ['manager', '#search-input', 'border-top-color', '#6e6e80'],
+    ['manager', '.header-icon-link.git-link', 'color', '#f2f1f9'],
+    ['manager', '.is-current-page > .nav-link', 'background-color', '#2b2650'],
+    ['manager', '.is-current-page > .nav-link', 'color', '#a99bff'],
+    ['manager', 'article.doc > h1.page', 'color', '#f2f1f9'],
+    ['manager', 'article.doc pre.highlight > code', 'background-color', '#1e1f22'],
+    ['manager', 'article.doc .hljs-keyword', 'color', '#cf8e6d'],
+    ['manager', 'article.doc .conum[data-value]', 'background-color', '#f2f1f9'],
+    ['geomap', 'article.doc pre code.language-xml .hljs-tag', 'color', '#d5b778'],
+    ['events', '.admonitionblock.note > table', 'border-left-color', '#25cde3'],
+    ['events', '.admonitionblock.note td.icon i', 'color', '#6bdcea'],
+    ['geomap', '.admonitionblock.addon-component > table', 'border-left-color', '#a99bff'],
+    ['events', 'table.tableblock > thead > tr > th', 'background-color', '#1f1f27'],
+    ['events', 'table.tableblock > thead > tr > th', 'color', '#f2f1f9'],
+    ['manager', '.feedback-form__btn', 'background-color', '#17171d'],
+    ['manager', 'footer.footer', 'background-color', '#17171d'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
+
+// pages the theme check photographs in both themes at 1440 and 375px, for review
+const THEME_REVIEW_PAGES = ['manager', 'events', 'intro', 'geomap', 'features', 'transactions', 'viewEvents', 'guide', 'notFound'];
 
 // the Tab walk ends when focus returns to the skip link; this only stops a keyboard trap
 const MAX_TAB_PRESSES = 1000;
@@ -279,7 +327,19 @@ class Audit {
     }
 
     async focus() {
-        const context = await this.context();
+        const failures = [];
+        const visited = [];
+        for (const colorScheme of ['light', 'dark']) {
+            const found = await this.focusWalk(colorScheme);
+            failures.push(...found.failures.map((f) => `${colorScheme}: ${f}`));
+            visited.push(`${found.stops} (${colorScheme})`);
+        }
+        this.notes.focus = `the walk visited ${visited.join(' and ')} Tab stops`;
+        return unique(failures);
+    }
+
+    async focusWalk(colorScheme) {
+        const context = await this.context({ colorScheme });
         const page = await this.open(context, 'manager');
         const failures = [];
         let stops = 0;
@@ -307,9 +367,8 @@ class Audit {
             else if (r.ring < 3) failures.push(`focus outline contrast ${r.ring.toFixed(2)}:1 is below 3:1 at Tab stop ${stops}: ${r.what}`);
         }
         if (!wrapped) failures.push(`focus did not return to the skip link within ${MAX_TAB_PRESSES} Tab presses (a keyboard trap?)`);
-        this.notes.focus = `the walk visited ${stops} Tab stops`;
         await context.close();
-        return unique(failures);
+        return { failures: unique(failures), stops };
     }
 
     async skip() {
@@ -406,38 +465,43 @@ class Audit {
     }
 
     async contrast() {
-        const context = await this.context();
-        const pages = {};
         const failures = [];
-        for (const [key, selector] of TEXT_CONTRAST) {
-            pages[key] ??= await this.open(context, key);
-            const ratio = await pages[key].evaluate((sel) => {
-                const el = document.querySelector(sel);
-                return el ? window.__audit.textContrast(el) : null;
-            }, selector);
-            if (ratio === null) failures.push(`${key}: ${selector} not found`);
-            else if (ratio < 4.5) failures.push(`${key}: ${selector} has contrast ${ratio.toFixed(2)}:1, below 4.5:1`);
+        for (const colorScheme of ['light', 'dark']) {
+            // dark: the system is dark and nothing is stored, so the page resolves System to the dark theme
+            const context = await this.context({ colorScheme });
+            const pages = {};
+            for (const [key, selector] of TEXT_CONTRAST) {
+                pages[key] ??= await this.open(context, key);
+                const ratio = await pages[key].evaluate((sel) => {
+                    const el = document.querySelector(sel);
+                    return el ? window.__audit.textContrast(el) : null;
+                }, selector);
+                if (ratio === null) failures.push(`${colorScheme}, ${key}: ${selector} not found`);
+                else if (ratio < 4.5) failures.push(`${colorScheme}, ${key}: ${selector} has contrast ${ratio.toFixed(2)}:1, below 4.5:1`);
+            }
+            await context.close();
         }
-        await context.close();
         return failures;
     }
 
     async styles() {
-        const context = await this.context();
-        const pages = {};
         const failures = [];
-        for (const [key, selector, property, expected] of STYLE_EXPECTATIONS) {
-            pages[key] ??= await this.open(context, key);
-            const actual = await pages[key].evaluate(([sel, prop]) => {
-                const [base, pseudo] = sel.split(/(?=::)/);
-                const el = document.querySelector(base);
-                return el ? getComputedStyle(el, pseudo || null).getPropertyValue(prop).trim() : null;
-            }, [selector, property]);
-            const want = expected.startsWith('#') ? hexToRgb(expected) : expected;
-            if (actual === null) failures.push(`${key}: ${selector} not found`);
-            else if (actual !== want) failures.push(`${key}: ${selector} ${property} is "${actual}", expected "${want}"`);
+        for (const [colorScheme, expectations] of [['light', STYLE_EXPECTATIONS], ['dark', DARK_STYLE_EXPECTATIONS]]) {
+            const context = await this.context({ colorScheme });
+            const pages = {};
+            for (const [key, selector, property, expected] of expectations) {
+                pages[key] ??= await this.open(context, key);
+                const actual = await pages[key].evaluate(([sel, prop]) => {
+                    const [base, pseudo] = sel.split(/(?=::)/);
+                    const el = document.querySelector(base);
+                    return el ? getComputedStyle(el, pseudo || null).getPropertyValue(prop).trim() : null;
+                }, [selector, property]);
+                const want = expected.startsWith('#') ? hexToRgb(expected) : expected;
+                if (actual === null) failures.push(`${colorScheme}, ${key}: ${selector} not found`);
+                else if (actual !== want) failures.push(`${colorScheme}, ${key}: ${selector} ${property} is "${actual}", expected "${want}"`);
+            }
+            await context.close();
         }
-        await context.close();
         return failures;
     }
 
@@ -504,6 +568,8 @@ class Audit {
         // storage that throws, as in some private modes: the page follows the system
         const blocked = await this.context({ colorScheme: 'dark' });
         await blocked.addInitScript(() => {
+            // a stored light preference that the override must hide: if it stopped working, the page would resolve to light
+            localStorage.setItem('jmix-docs-theme', 'light');
             Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } });
         });
         const b = await attributes(await this.open(blocked, 'manager'));
@@ -517,6 +583,43 @@ class Audit {
         const plainBody = await plain.evaluate(() => getComputedStyle(document.body).backgroundColor);
         if (plainBody !== 'rgb(255, 255, 255)') failures.push(`without JavaScript the body background is ${plainBody}, expected white`);
         await noScript.close();
+        // print keeps the light values: the dark block is screen only
+        const printing = await this.context({ colorScheme: 'dark' });
+        const sheet = await this.open(printing, 'manager');
+        await sheet.emulateMedia({ media: 'print' });
+        const printed = await sheet.evaluate(() => ({
+            scheme: getComputedStyle(document.documentElement).colorScheme,
+            body: getComputedStyle(document.body).backgroundColor,
+            text: getComputedStyle(document.querySelector('article.doc .paragraph p')).color,
+        }));
+        if (printed.scheme !== 'light' || printed.body !== 'rgb(255, 255, 255)' || printed.text !== 'rgb(42, 44, 51)') {
+            failures.push(`print with the dark theme: color-scheme ${printed.scheme}, body ${printed.body}, text ${printed.text}, expected light, rgb(255, 255, 255) and rgb(42, 44, 51)`);
+        }
+        await printing.close();
+        // the review pages in both themes at 1440 and 375px, for review and for the pull request
+        for (const colorScheme of ['light', 'dark']) {
+            for (const [suffix, viewport] of [['', { width: 1440, height: 900 }], ['-phone', { width: 375, height: 812 }]]) {
+                const shots = await this.context({ colorScheme, viewport });
+                for (const key of THEME_REVIEW_PAGES) {
+                    const shot = await this.open(shots, key);
+                    await shot.screenshot({ path: join(out, `theme-${colorScheme}-${key}${suffix}.png`) });
+                    await shot.close();
+                }
+                await shots.close();
+            }
+        }
+        // the chat widget host stays in the light color scheme: color-scheme is inherited, and the widget draws itself
+        // for a light page. The audit blocks Google Tag Manager, so the widget never loads here; an element with its id
+        // stands in for it.
+        const widget = await this.context({ colorScheme: 'dark' });
+        const host = await (await this.open(widget, 'manager')).evaluate(() => {
+            const el = document.createElement('div');
+            el.id = 'docsbotai-root';
+            document.body.append(el);
+            return getComputedStyle(el).colorScheme;
+        });
+        if (host !== 'light') failures.push(`the chat widget host #docsbotai-root has color-scheme ${host} in the dark theme, expected light`);
+        await widget.close();
         return failures;
     }
 
