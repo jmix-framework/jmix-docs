@@ -121,6 +121,9 @@ const STYLE_EXPECTATIONS = [
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
 
+// the Tab walk ends when focus returns to the skip link; this only stops a keyboard trap
+const MAX_TAB_PRESSES = 1000;
+
 const PAGE_HELPERS = `
 window.__audit = (() => {
     const parse = (value) => {
@@ -224,6 +227,7 @@ class Audit {
     constructor(browser, base) {
         this.browser = browser;
         this.base = base;
+        this.notes = {};
     }
 
     async context(options = {}) {
@@ -249,7 +253,10 @@ class Audit {
         const context = await this.context();
         const page = await this.open(context, 'manager');
         const failures = [];
-        for (let i = 0; i < 80; i++) {
+        let stops = 0;
+        let wrapped = false;
+        // walks the whole page: from the skip link until focus comes back to it; the cap only stops a keyboard trap
+        for (let i = 0; i < MAX_TAB_PRESSES; i++) {
             await page.keyboard.press('Tab');
             const r = await page.evaluate(() => {
                 const el = document.activeElement;
@@ -259,12 +266,19 @@ class Audit {
                 const visible = cs.outlineStyle !== 'none' && (parseFloat(cs.outlineWidth) || 0) >= 2;
                 const color = a.parse(cs.outlineColor);
                 const ring = visible && color ? a.ratio(color, a.background(el.parentElement || el)) : 0;
-                return { what: a.describe(el), visible, ring };
+                return { skipLink: el.classList.contains('skip-link'), what: a.describe(el), visible, ring };
             });
             if (!r) continue;
-            if (!r.visible) failures.push(`no visible focus outline: ${r.what}`);
-            else if (r.ring < 3) failures.push(`focus outline contrast ${r.ring.toFixed(2)}:1 is below 3:1: ${r.what}`);
+            if (r.skipLink && stops > 1) {
+                wrapped = true;
+                break;
+            }
+            stops++;
+            if (!r.visible) failures.push(`no visible focus outline at Tab stop ${stops}: ${r.what}`);
+            else if (r.ring < 3) failures.push(`focus outline contrast ${r.ring.toFixed(2)}:1 is below 3:1 at Tab stop ${stops}: ${r.what}`);
         }
+        if (!wrapped) failures.push(`focus did not return to the skip link within ${MAX_TAB_PRESSES} Tab presses (a keyboard trap?)`);
+        this.notes.focus = `the walk visited ${stops} Tab stops`;
         await context.close();
         return unique(failures);
     }
@@ -452,7 +466,51 @@ class Audit {
                 await page.close();
             }
             await context.close();
+            failures.push(...await this.forcedPhone(out, colorScheme));
         }
+        return failures;
+    }
+
+    // Below 1024px upstream draws the burger's lines with background-color, which forced colors replaces with
+    // Canvas, and the toolbar's nav toggle with a dark image. Part 2 redraws both; they must be drawn at phone width.
+    async forcedPhone(out, colorScheme) {
+        const context = await this.context({ forcedColors: 'active', colorScheme, viewport: { width: 375, height: 812 } });
+        const page = await this.open(context, 'manager');
+        await page.screenshot({ path: join(out, `forced-${colorScheme}-manager-phone.png`) });
+        const inspect = () => page.evaluate(() => {
+            // the Canvas color of the page: a probe that opts out of forced colors and asks for the system color
+            const probe = document.createElement('div');
+            probe.style.cssText = 'forced-color-adjust: none; background-color: Canvas; position: fixed; width: 1px; height: 1px';
+            document.body.append(probe);
+            const canvas = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            const invisible = (el, pseudo) => {
+                const value = getComputedStyle(el, pseudo).backgroundColor;
+                const color = window.__audit.parse(value);
+                return color && color.a > 0 && value !== canvas ? null : `background-color ${value} is not visible on Canvas ${canvas}`;
+            };
+            const lines = [...document.querySelectorAll('.navbar-burger span')];
+            const toggle = document.querySelector('.toolbar .nav-toggle');
+            const icon = toggle && getComputedStyle(toggle, '::before');
+            return {
+                burger: !lines.length ? 'not found' : lines.some((el) => !el.getClientRects().length) ? 'not displayed' : lines.map((el) => invisible(el)).find(Boolean) ?? null,
+                toggle: !toggle ? 'not found' : !toggle.getClientRects().length ? 'not displayed' : icon.content === 'none' ? 'no ::before icon' : icon.maskImage === 'none' ? 'no mask image' : invisible(toggle, '::before'),
+                mask: icon ? icon.maskImage : null,
+            };
+        });
+        const failures = [];
+        const fail = (message) => failures.push(`forced colors (${colorScheme}), phone: ${message}`);
+        const closed = await inspect();
+        if (closed.burger) fail(`the burger lines: ${closed.burger}`);
+        if (closed.toggle) fail(`the toolbar nav toggle icon: ${closed.toggle}`);
+        // while the navigation is open the toggle shows another icon, the back arrow
+        await page.click('.toolbar .nav-toggle');
+        await page.waitForTimeout(100);
+        const open = await inspect();
+        await page.screenshot({ path: join(out, `forced-${colorScheme}-manager-phone-nav.png`) });
+        if (open.toggle) fail(`the toolbar nav toggle icon while the navigation is open: ${open.toggle}`);
+        else if (open.mask === closed.mask) fail('the toolbar nav toggle shows the same icon while the navigation is open');
+        await context.close();
         return failures;
     }
 
@@ -538,6 +596,7 @@ async function main() {
                     failures = [`the check threw: ${e.message.split('\n')[0]}`];
                 }
                 console.log(`${failures.length ? 'FAIL' : 'PASS'} ${name}`);
+                if (audit.notes[name]) console.log(`  (${audit.notes[name]})`);
                 failures.forEach((f) => console.log(`  - ${f}`));
                 failed += failures.length;
             }
