@@ -90,7 +90,7 @@ Tier 2, semantic.
 | `--color-heading` | `--jmix-space` | headings, header text, strong UI text |
 | `--color-text-nav` | `--gray-700` | nav items |
 | `--color-text-muted` | `--gray-600` | breadcrumbs, TOC, captions, labels (6.3:1 on white) |
-| `--color-text-on-accent` | `#FFFFFF` | text and icons on accent and heading fills: current version pill, AI Assistant button, "Copied!" toast, callout numbers, submit button |
+| `--color-text-on-accent` | `#FFFFFF` | text and icons on accent and heading fills: current version pill, "Copied!" toast, callout numbers, submit button |
 | `--color-link` | `--jmix-violet-700` | links |
 | `--color-link-hover` | `--jmix-violet-800` | hovered links |
 | `--color-accent` | `--jmix-violet-700` | active nav item, active TOC item, current version, primary buttons |
@@ -153,7 +153,7 @@ Self-hosted in `content/supplemental/font/` from Fontsource 5.3.0, OFL-1.1, lice
 ### Icons
 
 - Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution`, `--icon-addon`, `--icon-unfold` and `--icon-fold` for "expand all", and `--icon-menu` and `--icon-back` for the toolbar's nav toggle (it shows the back arrow while the navigation is open), each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
-- Header icons inline in `header-content.hbs`. The AI Assistant icon is redrawn as a single-color icon (shapes with cut-outs instead of navy strokes on white), so it works on the navy button, on a light background and in forced colors. `git-icon.svg`, `jmix-icon.svg` and `jmix-ai-assistant-icon.svg` are removed once inlined, together with the unused `warning-icon.svg`, the duplicate `img/img/feedback-form__thumb-up.svg` and the dead Slack icon rule in `search.css`.
+- Header icons inline in `header-content.hbs`. The AI Assistant icon is redrawn as a single-color icon (shapes with cut-outs instead of navy strokes on white), so it works on the white header and in forced colors. `git-icon.svg`, `jmix-icon.svg` and `jmix-ai-assistant-icon.svg` are removed once inlined, together with the unused `warning-icon.svg`, the duplicate `img/img/feedback-form__thumb-up.svg` and the dead Slack icon rule in `search.css`.
 
 ## Accessibility
 
@@ -202,7 +202,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - Version toggle: a pill with `--color-accent-tint` background, `--color-accent` text, 600 0.8rem, padding 0.35rem 0.55rem 0.35rem 0.65rem, radius 6px, chevron 0.6rem; hover background `--color-accent-line`. Menu: min width 10rem, margin top 0.5rem, padding 0.375rem, border 1px `--color-line`, radius 8px, `--shadow-menu`; items padding 0.45rem 0.625rem, radius 5px, 0.8rem, hover `--color-surface-hover`.
 - Search: input 18rem wide (100% below 1024px), 2.25rem high, padding 0 2.1rem, border 1px `--color-control-border`, radius 8px, background `--color-surface-subtle`, text `--color-text` 0.8rem, placeholder `--color-text-muted`; hover background `--color-surface-hover`; focus background `--color-surface` and border `--color-accent` plus the focus ring. Magnifier icon 0.9rem at 0.65rem from the left, `--color-text-muted`. The `/` hint at 0.55rem from the right: border 1px `--color-line-strong`, radius 4px, JetBrains Mono 400 0.68rem, `--color-text-muted`; hidden while the input has focus.
 - Search results: radius 8px, `--shadow-menu`; the list has a 1px `--color-line` border and padding 0.25rem 0.75rem 0.75rem; component header `--color-text-muted` 500 0.75rem; document titles `--color-text-muted` with a right border `--color-line`; snippets at regular weight (today they are bold); result links radius 6px with `--color-surface-hover` on hover; matches with `--color-accent-tint` background, `--color-accent` text, 600.
-- Icon buttons: 2.25rem square, radius 8px, `--header-text`, hover `--color-surface-hover`. AI Assistant: 2.75rem wide, background `--color-heading`, icon `--color-text-on-accent`; hover background `--color-accent`.
+- Icon buttons (AI Assistant, GitHub, Jmix): 2.25rem square, radius 8px, `--header-text`, hover `--color-surface-hover`. The AI Assistant link has no fill of its own, so it sits with the other two.
 - Below 1024px: burger lines `--header-text`, the menu panel `--color-surface`, the search text 1rem, because iOS Safari zooms into fields with text below 16px, the `/` hint hidden (no keyboard shortcut there), and the search results allowed to overflow the menu panel instead of being clipped by it.
 
 ### Navigation

@@ -70,7 +70,8 @@ const STYLE_EXPECTATIONS = [
     ['manager', '#search-input', 'width', '324px'],
     ['manager', '#search-input', 'border-top-color', '#8a8f99'],
     ['manager', '.search-kbd', 'font-weight', '400'],
-    ['manager', '.header-icon-link.ai-assistant-link', 'background-color', '#17124b'],
+    ['manager', '.header-icon-link.ai-assistant-link', 'background-color', 'rgba(0, 0, 0, 0)'],
+    ['manager', '.header-icon-link.ai-assistant-link', 'color', '#17124b'],
     ['manager', '.header-icon-link.git-link', 'color', '#17124b'],
     // Task 8: navigation, explore panel, toolbar, TOC
     ['manager', '.nav', 'border-right-width', '1px'],
