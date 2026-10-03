@@ -2,7 +2,7 @@
 
 `ui-bundle.zip` is the Antora default UI bundle that both playbooks use. It was built on 2026-07-16 from revision [`0e38223a`](https://gitlab.com/antora/antora-ui-default/-/commit/0e38223adfd81eb74d4b1779e158f8ad05ff8923) of `antora-ui-default` (job `bundle-stable`). The bundle is pinned, so upstream changes reach the site only when someone takes them on purpose.
 
-The bundle provides the layouts, the partials that `content/supplemental/partials` does not override, `js/site.js`, the vendor scripts and the images. `content/supplemental/css/site.css` replaces the bundle's `css/site.css`, so the stylesheet is ours. Part 1 of that file is the upstream `src/css` of the same revision, part 2 holds the Jmix styles, and the custom properties live in `content/supplemental/css/tokens.css`.
+The bundle provides the layouts, the partials that `content/supplemental/partials` does not override, `js/site.js`, the vendor scripts and the images. `content/supplemental/css/site.css` replaces the bundle's `css/site.css`, so the stylesheet is ours. Part 1 of that file is the upstream `src/css` of the same revision, part 2 holds the Jmix styles, and the design tokens live in `content/supplemental/css/tokens.css`.
 
 ## Updating the bundle
 

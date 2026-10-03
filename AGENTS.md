@@ -98,12 +98,14 @@ Screenshots are captured at **2x** and declared at half their pixel width (`imag
 
 The site uses the Antora default UI bundle pinned in `ui/ui-bundle.zip`. `ui/README.md` says which revision it is and how to update it. The styles are ours and live in `content/supplemental/css/`:
 
-- `tokens.css` holds every custom property in three tiers: palette, semantic roles, components. A dark theme changes values here, not in the components.
-- `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes. Part 2 holds the Jmix styles, one section per component, each with its forced colors rules.
+- `tokens.css` holds the design tokens in three tiers: palette, semantic roles, components. A dark theme changes values here, not in the components. The only custom properties declared elsewhere are the `--adm-*` aliases in the Admonitions section of `site.css`.
+- `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes, and override it in part 2 otherwise. Part 2 holds the Jmix styles, one section per component. A section that needs forced colors rules keeps them in its own `@media (forced-colors: active)` block.
 - `search.css`, `dropdown-menu.css` and `feedback-form.css` style the search, the version menu and the feedback form.
-- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when its first line would run under it), `dropdown-menu.js` (the version menu) and `feedback-form.js`.
+- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when the toolbox would cover its first line), `dropdown-menu.js` (the version menu) and `feedback-form.js`.
 
-Outside `tokens.css`, write colors only as `var(--…)`. `node tools/check-css.mjs` checks that and reports custom properties that are used but never declared; CI runs it on pull requests. After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, the skip link, accessible names, keyboard access to search results, contrast, the expected styles, fonts and forced colors mode. The built pages load the production analytics container, so check them through the audit or a Playwright script that blocks external hosts, not in a browser pane.
+Outside `tokens.css`, write colors as `var(--…)`. Keywords such as `transparent`, `currentColor` and `inherit`, and the CSS system colors in forced colors blocks, are the only exceptions. `node tools/check-css.mjs` rejects other color literals and reports custom properties that are used but never declared. CI runs it, with its tests (`node --test tools/check-css.test.mjs`), on pull requests that change `content/supplemental/` or the check.
+
+After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, the skip link, accessible names, keyboard access to search results, contrast, the expected styles, fonts and forced colors mode. It needs Playwright with Chromium, which is not a dependency of this repository. Run `npx playwright@latest install chromium` once. The built pages load the production analytics container, so check them only through the audit or a Playwright script that blocks external hosts. Do not open them in a browser pane or capture them with `tools/screenshot-2x.mjs`, because neither blocks the container.
 
 ## Conventions
 
