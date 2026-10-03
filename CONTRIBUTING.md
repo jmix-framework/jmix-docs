@@ -180,6 +180,14 @@ pngquant --quality=65-85 --strip --force --ext .png path/to/screenshot.png
 
 Typical reduction for UI screenshots: 70-80% size, no visible quality loss.
 
+### Images in the dark theme
+
+Screenshots keep their own light background in the dark theme, but a diagram drawn with dark lines on a transparent background disappears. Add `role=light-background` to the image macro of such a diagram, for example `image::transactions/transactions-1.png[,500,role=light-background]`, or export it with a white background. Check new pages in both themes by choosing Light and Dark in the theme menu in the header.
+
+## Changing the UI
+
+UI styles live in `content/supplemental/css/`. Use the custom properties from `tokens.css` for colors; `node tools/check-css.mjs` rejects color literals in the other files. A new `--color-*` or `--shadow-*` token needs a value in the dark block of `tokens.css` too; the check reports it when it is missing. Build the site and run `node tools/ui-audit.mjs` before you open a pull request; it needs Playwright with Chromium (`npx playwright@latest install chromium`). The default UI bundle is pinned; see `ui/README.md` before you replace it.
+
 ## Repository history
 
 This repository was created in May 2026 with a fresh history; previous history (including pre-cleanup image revisions) is preserved in the archived repo at [TBD: link to old repo]. Refer there for `git blame` and commit history older than the initial commit.
