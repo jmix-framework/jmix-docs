@@ -747,6 +747,18 @@ class Audit {
                 // pointer
                 await page.click('.theme-menu-toggle');
                 await expect('a click on the button', { open: true });
+                // the padding around the items is not an item: a click there leaves focus on the item, so Escape still works
+                const panel = await page.locator('.theme-menu-list').boundingBox();
+                const first = await page.locator('.theme-menu-item').first().boundingBox();
+                const padding = { x: first.x + first.width / 2, y: (panel.y + first.y) / 2 };
+                if (!await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.matches('.theme-menu-list'), padding)) {
+                    failures.push(`theme menu, a click on the panel padding: the point ${Math.round(padding.x)}, ${Math.round(padding.y)} is not on the panel itself`);
+                }
+                await page.mouse.click(padding.x, padding.y);
+                await expect('a click on the panel padding', { open: true, expanded: 'true', focus: 'dark' });
+                await page.keyboard.press('Escape');
+                await expect('Escape after a click on the panel padding', { open: false, expanded: 'false', focus: 'toggle' });
+                await page.click('.theme-menu-toggle');
                 await page.click('.theme-menu-item[data-theme-option="light"]');
                 await expect('a click on Light', { theme: 'light', preference: 'light', meta: 'light', stored: 'light', open: false, checked: ['light'] });
                 await page.waitForTimeout(200);

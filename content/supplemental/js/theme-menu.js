@@ -84,6 +84,10 @@
             close(true);
         });
     });
+    // a press on the panel's padding would move focus to the page, where the arrows and Escape do nothing
+    list.addEventListener('mousedown', function (event) {
+        if (!event.target.closest('.theme-menu-item')) event.preventDefault();
+    });
     list.addEventListener('keydown', function (event) {
         // Tab and Shift+Tab close the menu, and focus moves on from the item, which is hidden by then. Shift+Tab lands
         // on the button, which is inside the menu element, so the focusin listener below would not close the menu.
