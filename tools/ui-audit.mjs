@@ -32,6 +32,7 @@ const PAGES = {
     bpm: 'jmix/bpm/index.html',
     saml: 'jmix/saml/keycloak-saml.html',
     install: 'jmix/studio/install.html',
+    gdg: 'jmix/flow-ui/vc/components/groupDataGrid.html',
 };
 
 const ALLOWED_HOSTS = ['cdnjs.cloudflare.com', 'kroki.io'];
@@ -117,6 +118,8 @@ const STYLE_EXPECTATIONS = [
     ['manager', 'footer.footer', 'border-top-width', '1px'],
     // guard from the Task 9 review: the embedded TOC is hidden from 1024px up, and must not space the first section there
     ['install', 'article.doc > .sect1', 'margin-top', '0px'],
+    // final review guard: the Since badge keeps its own size inside an admonition (page: a Since badge in a TIP)
+    ['gdg', '.admonitionblock .paragraph.since p', 'font-size', '13.5px'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
