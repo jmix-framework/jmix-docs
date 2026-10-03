@@ -60,6 +60,7 @@ Set `U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923` in shells that
 | `content/supplemental/partials/nav-toggle.hbs` | The toolbar's nav toggle with a name and `aria-expanded` (new override, Task 8) |
 | `content/supplemental/partials/footer-scripts.hbs` | Scripts at the end of the body |
 | `content/supplemental/js/dropdown-menu.js` | Version menu behavior |
+| `content/supplemental/js/code-toolbox.js` | Marks code blocks whose first line would run under the toolbox (new, Task 9 ruling) |
 | `content/supplemental/js/a11y.js` | `aria-expanded` sync, copy button names, skip link focus, search keyboard access (new) |
 | `tools/lib/playwright.mjs` | Shared Playwright and Chromium resolution (extracted from `screenshot-2x.mjs`) |
 | `tools/check-css.mjs`, `tools/check-css.test.mjs` | Static check of our stylesheets and its tests |
