@@ -3673,6 +3673,7 @@ Append to `STYLE_EXPECTATIONS`:
     ['events', 'table.tableblock > thead > tr > th', 'background-color', '#f6f7f9'],
     ['events', 'table.tableblock > thead > tr > th', 'color', '#17124b'],
     ['manager', 'nav.pagination a', 'border-top-width', '1px'],
+    ['manager', 'nav.pagination a', 'text-decoration-line', 'none'],
     ['manager', 'nav.pagination .next a::before', 'content', '"Next"'],
     ['manager', '.feedback-form', 'border-top-left-radius', '8px'],
     ['manager', '.feedback-form__btn', 'background-color', '#ffffff'],
@@ -3681,7 +3682,7 @@ Append to `STYLE_EXPECTATIONS`:
 ```
 
 Run: `node tools/ui-audit.mjs --only styles`
-Expected: FAIL on the new entries.
+Expected: FAIL on the new entries, except the footer background, which the Task 5 tokens already set (`--footer-background: var(--color-surface)`).
 
 - [ ] **Step 2: Add the sections**
 
@@ -3767,7 +3768,9 @@ nav.pagination span {
   flex: 0 0 calc(50% - 0.5rem);
 }
 
-nav.pagination a {
+/* .doc prefix: the pagination sits inside article.doc, and the running-text underline in Article,
+   .doc a:not(.anchor, [class$="-btn"]), is (0,2,1) */
+.doc nav.pagination a {
   display: block;
   padding: 0.75rem 1rem 0.875rem;
   border: 1px solid var(--color-line);
@@ -3778,7 +3781,7 @@ nav.pagination a {
   text-decoration: none;
 }
 
-nav.pagination a:hover {
+.doc nav.pagination a:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-tint);
   color: var(--color-accent);
@@ -3821,7 +3824,7 @@ footer.footer {
 }
 
 @media (forced-colors: active) {
-  nav.pagination a {
+  .doc nav.pagination a {
     border-color: LinkText;
   }
 }
