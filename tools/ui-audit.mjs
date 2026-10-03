@@ -82,6 +82,21 @@ const STYLE_EXPECTATIONS = [
     ['manager', 'aside.toc.sidebar', 'flex-basis', '252px'],
     ['manager', '.toc .toc-menu a', 'border-left-width', '1px'],
     ['manager', 'html', 'scroll-padding-top', '130.5px'],
+    // Task 9: article, code, admonitions
+    ['manager', 'article.doc > h1.page', 'font-weight', '700'],
+    ['manager', 'article.doc > h1.page', 'color', '#17124b'],
+    ['manager', 'article.doc h2', 'border-bottom-width', '0px'],
+    ['manager', 'article.doc pre.highlight > code', 'background-color', '#f7f8fa'],
+    ['manager', 'article.doc pre.highlight > code', 'border-top-left-radius', '8px'],
+    ['manager', 'article.doc .hljs-keyword', 'color', '#0033b3'],
+    ['manager', 'article.doc pre.highlight > code', 'font-variant-ligatures', 'none'],
+    ['manager', 'article.doc .source-toolbox', 'visibility', 'visible'],
+    ['manager', 'article.doc .conum[data-value]', 'background-color', '#17124b'],
+    ['events', '.admonitionblock.note > table', 'border-left-color', '#25cde3'],
+    ['events', '.admonitionblock.note td.icon i', 'background-color', 'rgba(0, 0, 0, 0)'],
+    ['events', '.admonitionblock.note td.icon i', 'color', '#0a6874'],
+    ['geomap', '.admonitionblock.addon-component > table', 'border-left-color', '#17124b'],
+    ['geomap', '.admonitionblock.addon-component td.icon i::after', 'content', '"Add-on component"'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
