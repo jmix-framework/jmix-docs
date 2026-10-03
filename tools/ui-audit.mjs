@@ -143,6 +143,8 @@ const STYLE_EXPECTATIONS = [
     ['manager', 'html', 'color-scheme', 'light'],
     ['manager', '.theme-menu-toggle', 'color', '#17124b'],
     ['manager', '.theme-menu-toggle', 'width', '40.5px'],
+    ['manager', '.feedback-form__icon', 'background-color', '#0d7348'],
+    ['manager', '.feedback-form__input', 'background-color', '#ffffff'],
 ];
 
 // The same check in the dark theme (system dark, no stored preference): [page, selector, property, expected].
@@ -171,6 +173,9 @@ const DARK_STYLE_EXPECTATIONS = [
     ['manager', 'footer.footer', 'background-color', '#17171d'],
     ['manager', '.theme-menu-toggle', 'color', '#f2f1f9'],
     ['manager', '.theme-menu-list', 'background-color', '#17171d'],
+    ['manager', '.feedback-form__icon', 'background-color', '#5ee0a5'],
+    ['manager', '.feedback-form__input', 'background-color', '#17171d'],
+    ['manager', '.feedback-form__input', 'color', '#d8d8e2'],
 ];
 
 const SNAPSHOT_PAGES = ['manager', 'events', 'geomap', 'features', 'intro'];
