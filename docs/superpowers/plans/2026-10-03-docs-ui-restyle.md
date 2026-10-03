@@ -2831,6 +2831,7 @@ Append to part 2 of `site.css`:
 
 /* explore panel: component and version switcher at the bottom of the nav */
 
+/* font-size and line-height again: the button reset in Accessibility (font: inherit) clears part 1's */
 .nav-panel-explore .context {
   padding: 0 0.75rem 0 1rem;
   border-top: 1px solid var(--color-line);
@@ -2838,6 +2839,7 @@ Append to part 2 of `site.css`:
   background: var(--color-surface);
   color: var(--color-text-muted);
   font-size: 0.8rem;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -3102,12 +3104,14 @@ diff <(tail -n +4 content/supplemental/partials/nav-toggle.hbs) "$U/src/partials
 
 Expected: each diff shows one changed line, the home link with `aria-label="Home"` and the button with `type`, `aria-label` and `aria-expanded`.
 
-`site.js` toggles `is-active` on the toolbar's nav toggle as well (`showNav` and `hideNav` in upstream `01-nav.js`). In `content/supplemental/js/a11y.js`, keep its `aria-expanded` in sync like the burger's:
+`site.js` toggles `is-active` on the toolbar's nav toggle as well (`showNav` and `hideNav` in upstream `01-nav.js`). It also sets the burger's `aria-expanded` itself (`i.setAttribute("aria-expanded", this.classList.toggle("is-active"))` in the bundle's `js/site.js`), so `a11y.js` does not need to sync the burger (Task 7 review). In `content/supplemental/js/a11y.js`, replace the burger with the toolbar's nav toggle:
 
-- the comment `// site.js toggles .is-active on nav items, the explore panel and the burger` becomes `// site.js toggles .is-active on nav items, the explore panel, the burger and the toolbar's nav toggle`;
-- after `const burger = document.querySelector('.navbar-burger');` add `const navToggle = document.querySelector('.toolbar .nav-toggle');`;
-- at the end of `syncPanels` add `if (navToggle) navToggle.setAttribute('aria-expanded', String(navToggle.classList.contains('is-active')));`;
-- after `if (burger) observer.observe(burger, { attributes: true, attributeFilter: ['class'] });` add `if (navToggle) observer.observe(navToggle, { attributes: true, attributeFilter: ['class'] });`.
+- the comment `// site.js toggles .is-active on nav items, the explore panel and the burger` becomes `// site.js toggles .is-active on nav items, the explore panel and the toolbar's nav toggle (it sets the burger's aria-expanded itself)`;
+- `const burger = document.querySelector('.navbar-burger');` becomes `const navToggle = document.querySelector('.toolbar .nav-toggle');`;
+- in `syncPanels`, the burger line becomes `if (navToggle) navToggle.setAttribute('aria-expanded', String(navToggle.classList.contains('is-active')));`;
+- `if (burger) observer.observe(burger, { attributes: true, attributeFilter: ['class'] });` becomes `if (navToggle) observer.observe(navToggle, { attributes: true, attributeFilter: ['class'] });`.
+
+In the same file, the synthetic Escape in `clearSearch` stops bubbling: `searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));`. `search-ui.js` listens on the input itself, so a bubbling copy only reaches listeners on the document, such as the DocsBot widget that the analytics container injects (Task 7 review).
 
 Add the "expand all" icons to `tokens.css` after `--icon-addon`, drawn like the others (24px grid, stroke 2, round caps):
 
@@ -4024,6 +4028,7 @@ git commit -m "Restyle tables, blocks, pagination, feedback form and footer"
 **Files:**
 - Create: `.github/workflows/ui-check.yml`
 - Modify: `AGENTS.md` (new section after "Images: size budget is enforced"), `CONTRIBUTING.md` (new section, placed where it fits the existing structure)
+- Modify: `content/supplemental/partials/nav-explore.hbs`, `pagination.hbs`, `head-scripts.hbs` (the MPL-2.0 header; added after the Task 7 review: the three derive from upstream partials and predate this branch)
 
 - [ ] **Step 1: Add the workflow**
 
@@ -4084,12 +4089,36 @@ UI styles live in `content/supplemental/css/`. Use the custom properties from `t
 
 Run the `no-ai-slop` skill in detect mode on the two new sections and fix the findings.
 
-- [ ] **Step 4: Run everything**
+- [ ] **Step 4: Add the MPL header to the remaining upstream partials**
+
+`nav-explore.hbs`, `pagination.hbs` and `head-scripts.hbs` override upstream partials of the same names but have no license header. Put the three header lines that `nav-tree.hbs` starts with at the top of each:
+
+```hbs
+{{! This Source Code Form is subject to the terms of the Mozilla Public }}
+{{! License, v. 2.0. If a copy of the MPL was not distributed with this }}
+{{! file, You can obtain one at http://mozilla.org/MPL/2.0/. }}
+```
+
+Then check that every partial that has an upstream namesake starts with the header:
+
+```bash
+SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad; U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923
+for f in content/supplemental/partials/*.hbs; do [ -f "$U/src/partials/$(basename $f)" ] && ! head -1 "$f" | grep -q 'Mozilla Public' && echo "no header: $f"; done; true
+```
+
+Expected: no output. Commit:
+
+```bash
+git add content/supplemental/partials/nav-explore.hbs content/supplemental/partials/pagination.hbs content/supplemental/partials/head-scripts.hbs
+git commit -m "Add the MPL header to the remaining upstream partials"
+```
+
+- [ ] **Step 5: Run everything**
 
 Run: `npx antora antora-playbook.yml && node --test tools/check-css.test.mjs && node tools/check-css.mjs && node tools/ui-audit.mjs`
 Expected: all tests and checks pass.
 
-- [ ] **Step 5: Review the pages at three widths**
+- [ ] **Step 6: Review the pages at three widths**
 
 ```bash
 python3 -m http.server 4500 --directory build/site >/dev/null 2>&1 &
@@ -4102,14 +4131,14 @@ done
 kill $SERVER
 ```
 
-Open the PNG files and check each against the spec's visual specification: header, nav, toolbar, TOC, headings, code blocks, admonitions, tables, pagination, footer. Also open one guide from an external repository, a page with a sidebar block, a page with `details`, a page with a Kroki diagram and `404.html` in a browser. Fix what disagrees with the spec, then repeat Step 4.
+Open the PNG files and check each against the spec's visual specification: header, nav, toolbar, TOC, headings, code blocks, admonitions, tables, pagination, footer. Also open one guide from an external repository, a page with a sidebar block, a page with `details`, a page with a Kroki diagram and `404.html` in a browser. Fix what disagrees with the spec, then repeat Step 5.
 
-- [ ] **Step 6: Save before and after screenshots**
+- [ ] **Step 7: Save before and after screenshots**
 
 Run: `node tools/ui-audit.mjs --snapshot build/ui-audit/after`
 The "before" set is `build/ui-audit/bundle` from Task 3. Both stay out of git (`build/` is ignored) and are for the pull request description.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add .github/workflows/ui-check.yml AGENTS.md CONTRIBUTING.md
