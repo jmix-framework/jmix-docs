@@ -4083,8 +4083,9 @@ The site uses the Antora default UI bundle pinned in `ui/ui-bundle.zip`. `ui/REA
 - `tokens.css` holds every custom property in three tiers: palette, semantic roles, components. A dark theme changes values here, not in the components.
 - `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes. Part 2 holds the Jmix styles, one section per component, each with its forced colors rules.
 - `search.css`, `dropdown-menu.css` and `feedback-form.css` style the search, the version menu and the feedback form.
+- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when its first line would run under it), `dropdown-menu.js` (the version menu) and `feedback-form.js`.
 
-Outside `tokens.css`, write colors only as `var(--…)`. `node tools/check-css.mjs` checks that and reports custom properties that are used but never declared; CI runs it on pull requests. After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, the skip link, accessible names, keyboard access to search results, contrast, the expected styles, fonts and forced colors mode.
+Outside `tokens.css`, write colors only as `var(--…)`. `node tools/check-css.mjs` checks that and reports custom properties that are used but never declared; CI runs it on pull requests. After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, the skip link, accessible names, keyboard access to search results, contrast, the expected styles, fonts and forced colors mode. The built pages load the production analytics container, so check them through the audit or a Playwright script that blocks external hosts, not in a browser pane.
 ```
 
 - [ ] **Step 3: Document the UI in `CONTRIBUTING.md`**
@@ -4130,18 +4131,9 @@ Expected: all tests and checks pass.
 
 - [ ] **Step 6: Review the pages at three widths**
 
-```bash
-python3 -m http.server 4500 --directory build/site >/dev/null 2>&1 &
-SERVER=$!
-for page in intro data-access/data-manager bpm/bpmn/bpmn-events flow-ui/vc/components/geoMap studio/studio-features; do
-  for width in 1440 1280 390; do
-    node tools/screenshot-2x.mjs --url "http://localhost:4500/jmix/$page.html" --selector body --out "build/ui-audit/review/$(echo $page | tr / -)-$width.png" --width $width --height 900 --scale 1 --wait 1500
-  done
-done
-kill $SERVER
-```
+Take full-page screenshots of `intro`, `data-access/data-manager`, `bpm/bpmn/bpmn-events`, `flow-ui/vc/components/geoMap` and `studio/studio-features` at 1440, 1280 and 390 px wide into `build/ui-audit/review/`, with a scratch Playwright script under `$SP` that serves `build/site` locally and blocks every host except the local server and the CDNs, as `tools/ui-audit.mjs` does (`$SP/task7/lib.mjs` has a server and a launcher that do this). Do not point `tools/screenshot-2x.mjs` or a browser pane at the docs build: the pages load the production analytics container, and that script does not block it (amended after Task 10).
 
-Open the PNG files and check each against the spec's visual specification: header, nav, toolbar, TOC, headings, code blocks, admonitions, tables, pagination, footer. Also open one guide from an external repository, a page with a sidebar block, a page with `details`, a page with a Kroki diagram and `404.html` in a browser. Fix what disagrees with the spec, then repeat Step 5.
+Open the PNG files and check each against the spec's visual specification: header, nav, toolbar, TOC, headings, code blocks, admonitions, tables, pagination, footer. Also open one guide from an external repository, a page with a sidebar block, a page with `details`, a page with a Kroki diagram and `404.html` the same way. Fix what disagrees with the spec, then repeat Step 5.
 
 - [ ] **Step 7: Save before and after screenshots**
 
