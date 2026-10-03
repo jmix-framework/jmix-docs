@@ -17,7 +17,7 @@ These come from the live site and the UI bundle as of 2026-10-02.
 - `search.css` loads twice: through a `<link>` in `head-meta.hbs`, and again from `search-ui.js` because of its `data-stylesheet` attribute. The second copy is appended last, so it overrides any later rule with the same specificity.
 - Focus: `outline: none` on the header buttons (inherited from `.header-link`, 2021), the version toggle (copied from Antora's `.version-menu-toggle`) and the live demo, Vaadin, MDN and ECharts buttons. Upstream adds it to `summary`, the nav toggles, TOC links, the copy button, the search input and the burger. The copy button is `visibility: hidden` until hover, so it cannot be reached by keyboard. There is no skip link; the article is more than 50 tab stops away.
 - Search results cannot be reached by keyboard: `onfocusout="this.value=''"` on the search input clears the query on Tab and the results disappear.
-- The nav toggles (the expand/collapse buttons in the nav tree) have no accessible name. The explore panel toggle is a clickable `div`.
+- The nav toggles (the expand/collapse buttons in the nav tree) have no accessible name, and neither do the home link and the toolbar's nav toggle (the button that opens the navigation below 1024px). The explore panel toggle is a clickable `div`. "Expand all" at the top of the nav menu is `visibility: hidden` until the menu is hovered, so the keyboard cannot reach it.
 - Contrast: white on the TIP label 2.8:1, WARNING 2.9:1, NOTE 4.0:1; "Edit this Page" 3.1:1. Links differ from body text by color only, at 1.2:1.
 - Forced colors: the header, nav, toolbar, code blocks and admonitions lose every boundary because they rely on background colors. The GitHub and Jmix header icons vanish in light mode (white SVGs set through `content: url()`). The AI Assistant icon is two-tone and loses its letters and lines.
 - Nav toggles are 21×21 px. Smooth scrolling ignores `prefers-reduced-motion`.
@@ -129,9 +129,11 @@ Other tokens: the fonts keep the upstream names, `--body-font-family: "Roboto", 
 | `partials/main.hbs` (new override) | `<main class="article" id="main-content" tabindex="-1">` |
 | `partials/nav-tree.hbs` (new override) | `.nav-item-toggle` gets `aria-label` with the item title (`detag`) and `aria-expanded` |
 | `partials/nav-explore.hbs` | the `.context` element becomes a `<button class="context" aria-expanded="false">`; `site.js` binds by class, so its handler keeps working |
+| `partials/toolbar.hbs` (new override) | the home link gets `aria-label="Home"` |
+| `partials/nav-toggle.hbs` (new override) | the toolbar's nav toggle gets `type="button"`, `aria-label="Toggle the navigation"` and `aria-expanded` |
 | `partials/footer-scripts.hbs` | drop the icons8 swap and `data-stylesheet`; load `js/a11y.js` as a plain script right after `site.js`, so the copy buttons exist when it runs; keep the `/` shortcut |
 | `js/dropdown-menu.js` | sync `aria-expanded`; close on Escape (focus returns to the toggle) and on outside click |
-| `js/a11y.js` (new) | keep `aria-expanded` of the nav toggles, the explore button and the burger in sync with the `is-active` classes that `site.js` sets, at load and afterwards through a `MutationObserver` (`site.js` changes them from several places, including "expand all"); set `aria-label="Copy to clipboard"` on copy buttons and hide their toast from assistive technology; move focus to `#main-content` when the skip link is used (`site.js` intercepts in-page links to scroll them); search keyboard behavior (below) |
+| `js/a11y.js` (new) | keep `aria-expanded` of the nav toggles, the explore button, the burger and the toolbar's nav toggle in sync with the `is-active` classes that `site.js` sets, at load and afterwards through a `MutationObserver` (`site.js` changes them from several places, including "expand all"); set `aria-label="Copy to clipboard"` on copy buttons and hide their toast from assistive technology; move focus to `#main-content` when the skip link is used (`site.js` intercepts in-page links to scroll them); search keyboard behavior (below) |
 
 Search keyboard behavior. How `search-ui.js` works: it appends `.search-result-dropdown-menu` to the input's parent, which becomes the `.search-field` wrapper; it listens to `keydown` on the input with a 100 ms debounce, where Escape clears the query and the results and any other key runs the search again and re-renders the results; a click anywhere on the page clears the results. The design:
 
@@ -149,7 +151,7 @@ Self-hosted in `content/supplemental/font/` from Fontsource 5.3.0, OFL-1.1, lice
 
 ### Icons
 
-- Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution` and `--icon-addon`, each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
+- Mask icons as tier 3 tokens in `tokens.css`, `--icon-chevron`, `--icon-home`, `--icon-edit`, `--icon-search`, `--icon-copy`, `--icon-note`, `--icon-tip`, `--icon-warning`, `--icon-important`, `--icon-caution`, `--icon-addon`, and `--icon-unfold` and `--icon-fold` for "expand all", each a data-URI SVG. CSS draws them with `mask: var(--icon-…)` and `background-color: currentColor` (or a token). They are not separate files because Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how authors preview a build.
 - Header icons inline in `header-content.hbs`. The AI Assistant icon is redrawn as a single-color icon (shapes with cut-outs instead of navy strokes on white), so it works on the navy button, on a light background and in forced colors. `git-icon.svg`, `jmix-icon.svg` and `jmix-ai-assistant-icon.svg` are removed once inlined, together with the unused `warning-icon.svg`, the duplicate `img/img/feedback-form__thumb-up.svg` and the dead Slack icon rule in `search.css`.
 
 ## Accessibility
@@ -158,19 +160,21 @@ Focus:
 
 - Every `outline: none` is removed, upstream and ours.
 - One rule: `:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px }`. The header is white, so one color works on the whole page.
+- `scroll-margin: 6px` on `:focus-visible` and `scroll-padding-top` on `html` (header and toolbar height plus 1rem) keep a focused element and its ring in view, below the fixed header and the sticky toolbar.
 - A skip link ("Skip to content") is the first tab stop. It is visually hidden until focused, then shown fixed at the top left, and targets `#main-content`. `#main-content` is a region focused only by the skip link, not a control, so `#main-content:focus { outline: none }` is the one allowed outline reset.
 
 Keyboard and names:
 
 - The copy button is always visible, in `--color-text-muted` (5.9:1 on the code background, no reduced opacity), focusable and named "Copy to clipboard".
-- Nav toggles have a name and `aria-expanded`. So does the burger.
+- Nav toggles have a name and `aria-expanded`. So do the burger and the toolbar's nav toggle. The home link is named "Home".
+- "Expand all" stays in the tab order: it is hidden with `opacity`, not `visibility`, until the menu is hovered or the button has focus, and always shown on touch screens.
 - The header version menu exposes `aria-expanded`, closes on Escape and on outside click.
 - The explore panel toggle is a button with `aria-expanded`.
 - Search results are reachable by Tab, as described above.
 
 Sizes and contrast:
 
-- Targets: nav toggles 24×24 px; header icon buttons 2.25rem, the copy button and the home link 1.75rem (40 px and 31 px on desktop). Nothing interactive is smaller than 24×24 px.
+- Targets: nav toggles and "expand all" 24×24 px; header icon buttons 2.25rem, the copy button and the home link 1.75rem (40 px and 31 px on desktop). Nothing interactive is smaller than 24×24 px.
 - Text at least 4.5:1 against its background, syntax colors included. The focus ring at least 3:1. The borders of text inputs at least 3:1 (`--color-control-border`), because the border is what shows the field. Hairlines between regions and blocks and the admonition left edges are decorative: regions differ by position, and an admonition's label and icon (5.6–7.0:1) show its type. The audit checks the pairs listed in Verification.
 - Links in running text are underlined: 1px, offset 0.2em, `currentColor` at 35%, full on hover. No underline in headings, the TOC, the nav, buttons and button-like links.
 
@@ -207,6 +211,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - Items 1px apart; nested lists indented 0.875rem (0.25rem at the top level).
 - Links and plain text items (`.nav-link`, `.nav-text`): block, padding 0.3rem 0.5rem, radius 6px, `--color-text-nav`; link hover `--color-surface-hover` and `--color-heading`; current page `--color-accent-tint` background, `--color-accent` text, 600.
 - Toggles: 24×24 at the item's left (margin 3px 0 0 -24px), radius 5px, a chevron mask of 14px in `--color-text-muted` that rotates 90° when the item is open; hover `--color-surface-hover`.
+- "Expand all": 24×24 at the top right of the menu, beside the component title, radius 5px, a 16px unfold mask in `--color-text-muted` (fold while everything is expanded); hover `--color-surface-hover`.
 - Explore panel: the context row is 2.75rem high, padding 0 0.75rem 0 1rem, top border 1px `--color-line`, `--color-surface`, `--color-text-muted` 0.8rem, the title in `--color-heading` 500, a chevron that points up when closed and down when open, hover `--color-surface-hover` and `--color-heading`. While open, the menu above is covered by `--color-overlay`. The component list has `--color-surface-subtle` background and a top border; version pills: padding 0.3em 0.7em, border 1px `--color-line-strong`, radius 6px, `--color-surface`, `--color-text` 0.78rem 500; hover border and text `--color-accent`; current version filled `--color-accent` with `--color-text-on-accent` text.
 
 ### Toolbar
@@ -302,7 +307,7 @@ Values are for desktop (root font size 18 px from 1024 px up, 17 px below, as up
 - `tools/ui-audit.mjs` (Playwright through `tools/lib/playwright.mjs`, which `tools/screenshot-2x.mjs` also uses), reusable by the dark theme PR:
   - a Tab walk that fails on any focused element without a 2px outline, or with an outline below 3:1 against its background;
   - the skip link as the first Tab stop, moving focus to `#main-content`;
-  - accessible names and `aria-expanded` of the nav toggles, the explore toggle, the burger, the version toggle, the copy button and the search field;
+  - accessible names and `aria-expanded` of the nav toggles, the explore toggle, the burger, the toolbar's nav toggle, the version toggle, the copy button, the search field and the home link;
   - the search keyboard flow: Tab reaches the results, Escape in the results clears and returns to the input, leaving the area clears;
   - text contrast against 4.5:1 for body text, nav, TOC, breadcrumbs, the edit link, the language label, the syntax colors and every admonition label;
   - computed style expectations taken from this spec;

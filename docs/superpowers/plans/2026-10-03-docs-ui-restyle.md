@@ -49,13 +49,15 @@ Set `U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923` in shells that
 | `content/supplemental/css/dropdown-menu.css` | Header version menu |
 | `content/supplemental/css/feedback-form.css` | "Was this page helpful?" form |
 | `content/supplemental/font/` | Roboto and JetBrains Mono woff2 files and their licenses |
-| `--icon-*` tokens in `tokens.css` | Mask icons as data-URI SVGs: chevron, home, edit, search, copy, note, tip, warning, important, caution, addon (amended in Task 6: Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how `AGENTS.md` tells authors to preview a build) |
+| `--icon-*` tokens in `tokens.css` | Mask icons as data-URI SVGs: chevron, home, edit, search, copy, note, tip, warning, important, caution, addon, and unfold and fold for "expand all" (added in Task 8) (amended in Task 6: Chromium blocks mask images loaded from files when the site is opened from `file://`, which is how `AGENTS.md` tells authors to preview a build) |
 | `content/supplemental/partials/head-styles.hbs` | The five stylesheet links |
 | `content/supplemental/partials/head-meta.hbs` | Favicons |
 | `content/supplemental/partials/header-content.hbs` | Skip link, header, inline icons, search field |
 | `content/supplemental/partials/main.hbs` | `<main>` with the skip link target (new override) |
 | `content/supplemental/partials/nav-tree.hbs` | Nav tree with named toggles (new override) |
 | `content/supplemental/partials/nav-explore.hbs` | Explore panel with a button toggle |
+| `content/supplemental/partials/toolbar.hbs` | Toolbar with a named home link (new override, Task 8) |
+| `content/supplemental/partials/nav-toggle.hbs` | The toolbar's nav toggle with a name and `aria-expanded` (new override, Task 8) |
 | `content/supplemental/partials/footer-scripts.hbs` | Scripts at the end of the body |
 | `content/supplemental/js/dropdown-menu.js` | Version menu behavior |
 | `content/supplemental/js/a11y.js` | `aria-expanded` sync, copy button names, skip link focus, search keyboard access (new) |
@@ -2646,11 +2648,18 @@ git commit -m "Add focus styles, skip link and keyboard access"
 ### Task 8: Navigation, explore panel, toolbar and table of contents
 
 **Files:**
-- Modify: `content/supplemental/css/site.css` (new part 2 sections "Navigation", "Toolbar", "Table of contents")
-- Modify: `tools/ui-audit.mjs` (`STYLE_EXPECTATIONS`)
+- Modify: `content/supplemental/css/site.css` (new part 2 sections "Navigation", "Toolbar", "Table of contents"; two additions to "Accessibility")
+- Modify: `content/supplemental/css/tokens.css` (`--icon-unfold`, `--icon-fold`)
+- Create: `content/supplemental/partials/toolbar.hbs` (override: names the home link)
+- Create: `content/supplemental/partials/nav-toggle.hbs` (override: names the toolbar's nav toggle)
+- Modify: `content/supplemental/js/a11y.js` (`aria-expanded` of the toolbar's nav toggle)
+- Modify: `tools/ui-audit.mjs` (`STYLE_EXPECTATIONS`, the `names` check)
+
+Amended after Task 7 (ruling in the ledger). The Task 7 implementer found four gaps in the parts this task owns: the home link and the toolbar's nav toggle (the button that opens the navigation below 1024px) have no accessible name; "expand all" (`.nav-menu-toggle`) is `visibility: hidden` until the menu is hovered, so the keyboard cannot reach it, and it is 1em square, below the 24px target; the fixed header and the sticky toolbar can cover a focused element.
 
 **Interfaces:**
-- Consumes: the chevron, home and edit icons (Task 6), the explore button (Task 7).
+- Consumes: the chevron, home and edit icons (Task 6); the explore button, the inset ring of `.nav-toggle` and `a11y.js` (Task 7).
+- Produces: `--icon-unfold` and `--icon-fold` in `tokens.css`.
 
 - [ ] **Step 1: Write the failing expectations**
 
@@ -2662,16 +2671,39 @@ Append to `STYLE_EXPECTATIONS`:
     ['manager', '.is-current-page > .nav-link', 'background-color', '#f0eeff'],
     ['manager', '.is-current-page > .nav-link', 'color', '#342a98'],
     ['manager', '.nav-item-toggle', 'width', '24px'],
+    ['manager', '.nav-menu-toggle', 'visibility', 'visible'],
+    ['manager', '.nav-menu-toggle', 'width', '24px'],
     ['manager', '.nav-panel-explore .context', 'height', '49.5px'],
     ['manager', '.toolbar', 'height', '49.5px'],
     ['manager', '.toolbar', 'border-bottom-width', '1px'],
     ['manager', '.edit-this-page a', 'color', '#5c606b'],
     ['manager', 'aside.toc.sidebar', 'flex-basis', '252px'],
     ['manager', '.toc .toc-menu a', 'border-left-width', '1px'],
+    ['manager', 'html', 'scroll-padding-top', '130.5px'],
 ```
 
-Run: `node tools/ui-audit.mjs --only styles`
-Expected: FAIL at least on the nav link, nav toggle, toolbar border and TOC border entries (the heights and the TOC width already come from the Task 5 tokens).
+In the `names` check, add two checks at the end of the `page.evaluate` callback, before `return out;`:
+
+```js
+            const home = document.querySelector('.home-link');
+            if (home && !home.getAttribute('aria-label')) out.push('the home link has no aria-label');
+            const navToggle = document.querySelector('.toolbar .nav-toggle');
+            if (navToggle && (!navToggle.getAttribute('aria-label') || !navToggle.hasAttribute('aria-expanded'))) out.push('the toolbar nav toggle has no aria-label or no aria-expanded');
+```
+
+and, after the line `if (!synced) failures.push('aria-expanded does not follow a nav toggle click');`, a click on the toolbar's nav toggle at phone width, where it is shown:
+
+```js
+        const small = await this.context({ viewport: { width: 375, height: 812 } });
+        const mobile = await this.open(small, 'manager');
+        await mobile.click('.toolbar .nav-toggle');
+        await mobile.waitForTimeout(100);
+        if (await mobile.getAttribute('.toolbar .nav-toggle', 'aria-expanded') !== 'true') failures.push('aria-expanded does not follow a click on the toolbar nav toggle');
+        await small.close();
+```
+
+Run: `node tools/ui-audit.mjs --only styles,names`
+Expected: FAIL. `styles` fails at least on the nav link, nav toggle, expand all, toolbar border, TOC border and scroll padding entries (the heights and the TOC width already come from the Task 5 tokens). `names` reports the home link, the toolbar nav toggle and its click.
 
 - [ ] **Step 2: Add the sections**
 
@@ -2753,6 +2785,48 @@ Append to part 2 of `site.css`:
 
 .nav-item-toggle:hover {
   background: var(--color-surface-hover);
+}
+
+/* "expand all" at the top of the menu. Upstream hides it with visibility until the menu is
+   hovered, which also takes it out of the tab order; opacity keeps it reachable. The .nav-menu
+   prefix beats upstream .nav-menu-toggle.is-active (0,2,0), which sets a background image. */
+.nav-menu .nav-menu-toggle {
+  width: 24px;
+  height: 24px;
+  margin: -2px -0.25rem 0 0.5rem;
+  border-radius: 5px;
+  background: none;
+  visibility: visible;
+  opacity: 0;
+}
+
+.nav-menu .nav-menu-toggle::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-text-muted);
+  mask: var(--icon-unfold) center / 16px no-repeat;
+}
+
+.nav-menu .nav-menu-toggle.is-active::before {
+  mask-image: var(--icon-fold);
+}
+
+.nav-panel-menu:hover .nav-menu-toggle,
+.nav-menu .nav-menu-toggle:focus-visible {
+  opacity: 1;
+}
+
+.nav-menu .nav-menu-toggle:hover {
+  background: var(--color-surface-hover);
+}
+
+/* no hover on touch screens: an invisible button would still take taps */
+@media (hover: none) {
+  .nav-menu .nav-menu-toggle {
+    opacity: 1;
+  }
 }
 
 /* explore panel: component and version switcher at the bottom of the nav */
@@ -2851,6 +2925,7 @@ Append to part 2 of `site.css`:
 
 @media (forced-colors: active) {
   .nav-item-toggle::before,
+  .nav-menu .nav-menu-toggle::before,
   .nav-panel-explore .context .version::after {
     forced-color-adjust: none;
     background-color: ButtonText;
@@ -2989,15 +3064,91 @@ Append to part 2 of `site.css`:
 }
 ```
 
-- [ ] **Step 3: Build and run the checks**
+- [ ] **Step 3: Name the toolbar controls and keep focus clear of the header**
 
-Run: `npx antora antora-playbook.yml && node tools/check-css.mjs && node tools/ui-audit.mjs`
-Expected: `styles`, `focus`, `skip`, `names`, `search` and `fonts` pass; `contrast` fails only on `manager: article.doc pre .hljs-comment` and `forced` only on the `code` and `admonition` borders, both until Task 9. Open the explore panel with the mouse and with Enter on its button: the version pills show, v3 filled violet, and the menu above is covered by the Space-tinted overlay.
+Create `content/supplemental/partials/toolbar.hbs`, upstream's partial with a name on the home link, which has no text:
 
-- [ ] **Step 4: Commit**
+```hbs
+{{! This Source Code Form is subject to the terms of the Mozilla Public }}
+{{! License, v. 2.0. If a copy of the MPL was not distributed with this }}
+{{! file, You can obtain one at http://mozilla.org/MPL/2.0/. }}
+<div class="toolbar" role="navigation">
+{{> nav-toggle}}
+  {{#with site.homeUrl}}
+  <a href="{{{relativize this}}}" class="home-link{{#if @root.page.home}} is-current{{/if}}" aria-label="Home"></a>
+  {{/with}}
+{{> breadcrumbs}}
+{{> page-versions}}
+{{> edit-this-page}}
+</div>
+```
+
+Create `content/supplemental/partials/nav-toggle.hbs`:
+
+```hbs
+{{! This Source Code Form is subject to the terms of the Mozilla Public }}
+{{! License, v. 2.0. If a copy of the MPL was not distributed with this }}
+{{! file, You can obtain one at http://mozilla.org/MPL/2.0/. }}
+<button class="nav-toggle" type="button" aria-label="Toggle the navigation" aria-expanded="false"></button>
+```
+
+Compare both with upstream:
 
 ```bash
-git add content/supplemental/css/site.css tools/ui-audit.mjs
+SP=/private/tmp/claude-502/-Users-gorelov-Developer-Haulmont-Platform-jmix-framework-jmix-v3-docs/311779f5-f25b-4241-bd6d-cf27c5db3051/scratchpad; U=$SP/upstream/src-0e38223adfd81eb74d4b1779e158f8ad05ff8923
+diff <(tail -n +4 content/supplemental/partials/toolbar.hbs) "$U/src/partials/toolbar.hbs"
+diff <(tail -n +4 content/supplemental/partials/nav-toggle.hbs) "$U/src/partials/nav-toggle.hbs"
+```
+
+Expected: each diff shows one changed line, the home link with `aria-label="Home"` and the button with `type`, `aria-label` and `aria-expanded`.
+
+`site.js` toggles `is-active` on the toolbar's nav toggle as well (`showNav` and `hideNav` in upstream `01-nav.js`). In `content/supplemental/js/a11y.js`, keep its `aria-expanded` in sync like the burger's:
+
+- the comment `// site.js toggles .is-active on nav items, the explore panel and the burger` becomes `// site.js toggles .is-active on nav items, the explore panel, the burger and the toolbar's nav toggle`;
+- after `const burger = document.querySelector('.navbar-burger');` add `const navToggle = document.querySelector('.toolbar .nav-toggle');`;
+- at the end of `syncPanels` add `if (navToggle) navToggle.setAttribute('aria-expanded', String(navToggle.classList.contains('is-active')));`;
+- after `if (burger) observer.observe(burger, { attributes: true, attributeFilter: ['class'] });` add `if (navToggle) observer.observe(navToggle, { attributes: true, attributeFilter: ['class'] });`.
+
+Add the "expand all" icons to `tokens.css` after `--icon-addon`, drawn like the others (24px grid, stroke 2, round caps):
+
+```css
+  --icon-unfold: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m8 8 4-4 4 4'/><path d='m8 16 4 4 4-4'/><path d='M4 12h16'/></svg>");
+  --icon-fold: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m8 4 4 4 4-4'/><path d='m8 20 4-4 4 4'/><path d='M4 12h16'/></svg>");
+```
+
+In the Accessibility section of `site.css`, replace the global `:focus-visible` rule with:
+
+```css
+/* the ring needs room when the browser scrolls a focused element into view (scroll-margin), and
+   the fixed header and the sticky toolbar cover the top of the window (scroll-padding-top);
+   site.js scrolls its own fragment jumps with scrollTo, which ignores both */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  scroll-margin: 6px;
+}
+
+html {
+  scroll-padding-top: calc(var(--navbar-height) + var(--toolbar-height) + 1rem);
+}
+```
+
+- [ ] **Step 4: Build and run the checks**
+
+Run: `npx antora antora-playbook.yml && node tools/check-css.mjs && node tools/ui-audit.mjs`
+Expected: `styles`, `focus`, `skip`, `names`, `search` and `fonts` pass; `contrast` fails only on `manager: article.doc pre .hljs-comment` and `forced` only on the `code` and `admonition` borders, both until Task 9.
+
+Then by hand, in Chromium through Playwright (the Browser pane loads the production analytics):
+
+- Open the explore panel with the mouse and with Enter on its button: the version pills show, v3 filled violet, and the menu above is covered by the Space-tinted overlay.
+- Tab to "expand all" (the stop before the component title in the nav): it appears with the focus ring at the top right of the menu, beside the title; Enter expands every item and the icon changes to the fold icon. It also shows on hover and is hidden otherwise.
+- At 375px the toolbar's nav toggle opens the navigation and has a full focus ring.
+- Shift+Tab up through the TOC and the article: no focused element ends up under the header or the toolbar.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add content/supplemental/css/site.css content/supplemental/css/tokens.css content/supplemental/partials/toolbar.hbs content/supplemental/partials/nav-toggle.hbs content/supplemental/js/a11y.js tools/ui-audit.mjs
 git commit -m "Restyle the navigation, toolbar and table of contents"
 ```
 
