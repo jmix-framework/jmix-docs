@@ -186,7 +186,7 @@ Screenshots keep their own light background in the dark theme, but a diagram dra
 
 ## Changing the UI
 
-UI styles live in `content/supplemental/css/`. Use the custom properties from `tokens.css` for colors; `node tools/check-css.mjs` rejects color literals in the other files. A new semantic color token needs a value in the dark block of `tokens.css` too; the check reports it when it is missing. Build the site and run `node tools/ui-audit.mjs` before you open a pull request; it needs Playwright with Chromium (`npx playwright@latest install chromium`). The default UI bundle is pinned; see `ui/README.md` before you replace it.
+UI styles live in `content/supplemental/css/`. Use the custom properties from `tokens.css` for colors; `node tools/check-css.mjs` rejects color literals in the other files. A new `--color-*` or `--shadow-*` token needs a value in the dark block of `tokens.css` too; the check reports it when it is missing. Build the site and run `node tools/ui-audit.mjs` before you open a pull request; it needs Playwright with Chromium (`npx playwright@latest install chromium`). The default UI bundle is pinned; see `ui/README.md` before you replace it.
 
 ## Repository history
 

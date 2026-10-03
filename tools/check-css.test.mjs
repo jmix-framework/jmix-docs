@@ -39,10 +39,10 @@ const withDark = (dark) => checkStylesheets([{
         + (dark === null ? '' : ` @media screen { :root[data-theme="dark"] { ${dark} } }`),
 }]).map((f) => f.message);
 
-test('requires the dark block to set every tier 2 token', () => {
+test('requires the dark block to set every --color-* and --shadow-* token', () => {
     assert.deepEqual(withDark('--color-text: #eee; --shadow-menu: none;'), []);
     assert.deepEqual(withDark('--color-text: #eee;'), ['the dark block does not set --shadow-menu']);
-    assert.deepEqual(withDark(null), ['no dark block :root[data-theme="dark"] for the tier 2 tokens']);
+    assert.deepEqual(withDark(null), ['no dark block :root[data-theme="dark"] for the --color-* and --shadow-* tokens']);
 });
 
 test('rejects dark tokens that the light block does not declare', () => {

@@ -74,7 +74,7 @@ export function checkDarkTokens(text) {
     if (!dark) {
         // the match starts at the character before ":root"
         const line = lineOf(masked, light.index + light[0].indexOf(':root'));
-        return tier2.length ? [{ line, message: 'no dark block :root[data-theme="dark"] for the tier 2 tokens' }] : [];
+        return tier2.length ? [{ line, message: 'no dark block :root[data-theme="dark"] for the --color-* and --shadow-* tokens' }] : [];
     }
     const darkNames = declaredInBlock(masked, dark.index + dark[0].length - 1);
     const line = lineOf(masked, dark.index);
