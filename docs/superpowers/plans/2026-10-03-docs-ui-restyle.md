@@ -3682,10 +3682,14 @@ Append to `STYLE_EXPECTATIONS`:
     ['manager', '.feedback-form__btn', 'background-color', '#ffffff'],
     ['manager', 'footer.footer', 'background-color', '#ffffff'],
     ['manager', 'footer.footer', 'border-top-width', '1px'],
+    // guard from the Task 9 review: the embedded TOC is hidden from 1024px up, and must not space the first section there
+    ['install', 'article.doc > .sect1', 'margin-top', '0px'],
 ```
 
+Add the page key `install: 'jmix/studio/install.html'` to `PAGES` (a page without a preamble).
+
 Run: `node tools/ui-audit.mjs --only styles`
-Expected: FAIL on the new entries, except the footer background, which the Task 5 tokens already set (`--footer-background: var(--color-surface)`).
+Expected: FAIL on the new entries, except the footer background, which the Task 5 tokens already set (`--footer-background: var(--color-surface)`), and the `install` guard, which passes since Task 9's last fix (it gave 54px before it).
 
 - [ ] **Step 2: Add the sections**
 
