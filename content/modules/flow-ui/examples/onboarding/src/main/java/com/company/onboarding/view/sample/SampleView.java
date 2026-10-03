@@ -113,6 +113,20 @@ public class SampleView extends StandardView {
     }
     // end::navigateToEditEntity[]
 
+    @Subscribe("navigateToReadViewBtn")
+    protected void onNavigateToReadViewBtnClick(ClickEvent<Button> event) {
+        Department department = dataManager.load(Department.class).all().one();
+        navigateToReadEntity(department);
+    }
+
+    // tag::navigateToReadEntity[]
+    private void navigateToReadEntity(Department entity) {
+        viewNavigators.readView(this, Department.class)
+                .readEntity(entity)
+                .navigate();
+    }
+    // end::navigateToReadEntity[]
+
     @Subscribe("openViewBtn")
     protected void onOpenViewBtnClick(ClickEvent<Button> event) {
         openViewWithResults();
@@ -209,6 +223,20 @@ public class SampleView extends StandardView {
                 .open();
     }
     // end::openDetailViewToEditEntity[]
+
+    @Subscribe("openReadView")
+    protected void onOpenReadViewClick(ClickEvent<Button> event) {
+        Department department = dataManager.load(Department.class).all().one();
+        openReadViewToReadEntity(department);
+    }
+
+    // tag::openReadViewToReadEntity[]
+    private void openReadViewToReadEntity(Department department) {
+        dialogWindows.read(this, Department.class)
+                .readEntity(department)
+                .open();
+    }
+    // end::openReadViewToReadEntity[]
 
 
     @Subscribe("withAfterNavigationHandlerBtn")

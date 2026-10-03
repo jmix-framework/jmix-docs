@@ -9,7 +9,7 @@ The downside of the navigation is the relative complexity of passing parameters 
 
 When opening a view in a dialog window, the browser URL is not changed, but the opened view instance is available to the calling code. It enables passing any values directly to the view instance and returning results after the view is closed. This approach is used when opening list views for selecting and returning entity instances in lookup fields.
 
-The main menu opens views by navigation. Standard xref:actions/list-actions.adoc#list_create[list_create] and xref:actions/list-actions.adoc#list_edit[list_edit] actions also open detail views by navigation, but can be configured to use dialogs. The xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] standard action always opens a list view in a dialog to be able to get back selected entities.
+The main menu opens views by navigation. Standard xref:actions/list-actions.adoc#list_create[list_create], xref:actions/list-actions.adoc#list_edit[list_edit], and xref:actions/list-actions.adoc#list_read[list_read] actions also open detail and read views by navigation, but can be configured to use dialogs. The xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] standard action always opens a list view in a dialog to be able to get back selected entities. The xref:actions/entity-picker-actions.adoc#entity_read[entity_read] action always uses a dialog.
 
 Below we describe how to open views programmatically in your application code.
 
@@ -78,6 +78,18 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 ----
 
 You can specify the detail view id or class explicitly using `withViewId()` and `withViewClass()` methods.
+
+[.since]
+Since Jmix 3.1
+
+To navigate to a xref:views/view-classes.adoc#standard-read-view[read view], use the `readView()` method accepting the entity class or a visual component bound to the entity. The read view class will be chosen by <<view-inference-conventions,convention>>. Invoke `readEntity()` to set the entity instance to show. For example:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToReadEntity]
+----
+
+If you pass a list component, such as `dataGrid`, or an entity picker to `readView()`, the navigator takes the selected entity or the component value. You can specify the read view id or class explicitly using `withViewId()` and `withViewClass()` methods.
 
 [[passing-parameters]]
 === Passing Parameters
@@ -299,10 +311,27 @@ Use `withListDataComponent()` or `withContainer()` to connect the dialog to a co
 
 The exact setup depends on the view data model and entity relationship configuration. For complete examples, see xref:data-modeling-composition-guide:index.adoc[Composition Guide]. For more information about parent-child data contexts, see xref:data/data-context.adoc#parent-data-context[Parent DataContext]. Additional examples are available in https://demo.jmix.io/ui-samples[UI Samples^].
 
+[[reading-entities]]
+=== Showing Entities in Read Views
+
+[.since]
+Since Jmix 3.1
+
+To show an entity instance in a xref:views/view-classes.adoc#standard-read-view[read view], invoke the `read()` method and provide the instance using `readEntity()`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openReadViewToReadEntity]
+----
+
+The `read()` method also accepts a list component, such as `dataGrid`, or an entity picker. In this case, the builder takes the selected entity or the component value.
+
+The read view class is chosen by <<view-inference-conventions,convention>>. To open a particular view, use the `withViewId()` or `withViewClass()` method of the builder.
+
 [[view-inference-conventions]]
 == View Inference Conventions
 
-A list or detail view can be inferred from the entity class.
+A list, detail, or read view can be inferred from the entity class.
 
 When navigating to a list view using `viewNavigators.listView(this, SomeEntity.class)`, the framework selects a view in the following order:
 
@@ -320,3 +349,12 @@ When navigating to a detail view or opening it in a dialog window, the framework
 
 . A view annotated with `@PrimaryDetailView(SomeEntity.class)`.
 . A view with `SomeEntity.detail` id.
+
+When navigating to a read view or opening it in a dialog window, the framework selects a view in the following order:
+
+. A view annotated with `@PrimaryReadView(SomeEntity.class)`.
+. A view with `SomeEntity.read` id.
+. A view annotated with `@PrimaryDetailView(SomeEntity.class)`.
+. A view with `SomeEntity.detail` id.
+
+If the framework selects a detail view, it opens the view in read-only mode.
