@@ -18,6 +18,8 @@ TIP: You can find examples of various bands and datasets in the xref:reports-gui
 [[bands]]
 == Bands
 
+You can define bands at runtime on the <<bands-tab,*Bands* tab>> of the report detail view or at design time with the <<band-def,@BandDef>> annotation.
+
 [[bands-tab]]
 === Bands Tab
 
@@ -40,6 +42,8 @@ NOTE: If the band name starts with *header*, its data will not be printed when u
 
 * *Multiple Datasets* -- select this checkbox if you want to define more than one dataset for the band.
 
+* *Streaming* -- select this checkbox to make the band a <<streaming-bands,streaming band>>.
+
 * *Dataset type* -- <<datasets,the type>> of dataset.
 
 Each band includes one or more datasets. When running a report, datasets are transformed into lists of rows, where each row contains a map of name-value pairs. A band appears in the report as many times as the number of rows in its longest dataset.
@@ -59,11 +63,35 @@ The `@BandDef` allows you to define bands when creating a report at design time.
 * `parent` -- name of the parent band. Can be omitted only for the `Root` band.
 * `root` -- must be set to `true` only for the `Root` band. `false` by default.
 * `orientation` -- band's orientation defined by the `Orientation` enum: `HORIZONTAL`, `VERTICAL`, `CROSS`. It's `HORIZONTAL` by default.
+* `streaming` -- if `true`, the band is a <<streaming-bands,streaming band>>. It's `false` by default.
 * `dataSets` -- datasets defined by the array of `@DataSetDef` annotations.
 
 The report must include the definition of the `Root` band with `name = "Root"` and `root = true` attributes.
 
 IMPORTANT: The order of `@BandDef` annotations in the report definition Java class is important. It affects the printing order of bands on the same level of the hierarchy.
+
+[[streaming-bands]]
+=== Streaming Bands
+
+[.since]
+Since Jmix 3.1
+
+A streaming band reads its rows one by one from a database cursor and writes them to the XLSX document right away. The reporting engine keeps only the last rendered rows in memory and writes older rows to a temporary file. The data of other bands is loaded into memory as usual. To make a band streaming, select the *Streaming* checkbox on the <<bands-tab,*Bands* tab>> or set `streaming = true` in the <<band-def,@BandDef>> annotation.
+
+A report with a streaming band must meet the following requirements:
+
+* The report has only one streaming band.
+* The streaming band is a first-level band, that is, a direct child of the `Root` band, and has no child bands.
+* The streaming band has exactly one dataset of the <<structure_sql,SQL>> or <<structure_jpql,JPQL>> type.
+* All bands of the report are horizontal.
+
+The report detail view does not save a report that breaks these requirements. When the reporting engine renders the streaming band, it checks them and fails with an error that lists the unmet requirements.
+
+Streaming works only with an `.xlsx` template that is not custom. With other templates, the reporting engine ignores the streaming setting, writes a warning to the log, and loads all data into memory. An `.xlsx` template must also follow the rules described in xref:creation/templates.adoc#template_xlsx_streaming[Templates with a Streaming Band].
+
+The query of the streaming band runs in a separate read-only transaction that stays open while the band rows are written.
+
+TIP: To tune streaming, use the xref:configuration.adoc#jmix.reports.streaming.fetch-size[jmix.reports.streaming.fetch-size], xref:configuration.adoc#jmix.reports.streaming.cursor-clear-interval[jmix.reports.streaming.cursor-clear-interval], and xref:configuration.adoc#jmix.reports.streaming.row-access-window-size[jmix.reports.streaming.row-access-window-size] application properties.
 
 [[datasets]]
 == Datasets
