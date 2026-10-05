@@ -113,18 +113,22 @@ public class DemoDataInitializer {
 
         hobby = dataManager.create(Hobby.class);
         hobby.setName("Photography");
+        hobby.setDescription("Taking pictures of landscapes, city streets and people. Members share their best shots every month, discuss composition and light, and go on weekend photo walks around the old town and the river embankment.");
         list.add(dataManager.save(hobby));
 
         hobby = dataManager.create(Hobby.class);
         hobby.setName("Painting");
+        hobby.setDescription("Watercolor and acrylic painting for beginners and experienced artists. The group meets on Thursday evenings, and all materials are provided by the office.");
         list.add(dataManager.save(hobby));
 
         hobby = dataManager.create(Hobby.class);
         hobby.setName("Chess");
+        hobby.setDescription("Casual games during lunch breaks and a company tournament twice a year. Players of all levels are welcome, and there are boards in the second-floor lounge.");
         list.add(dataManager.save(hobby));
 
         hobby = dataManager.create(Hobby.class);
         hobby.setName("Ice skating");
+        hobby.setDescription("Group trips to the city ice rink in winter. Skates can be rented on site, and an instructor is available for those who skate for the first time.");
         list.add(dataManager.save(hobby));
 
         return list;
