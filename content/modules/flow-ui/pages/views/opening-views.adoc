@@ -9,7 +9,7 @@
 
 При открытии экрана в диалоговом окне URL браузера не изменяется, но зато экземпляр открытого экрана доступен вызывающему коду. Он позволяет передавать любые значения непосредственно в экземпляр экрана и возвращать результаты после закрытия экрана. Этот подход используется при открытии экранов списков для выбора и возврата экземпляров сущностей в компонентах выбора.
 
-Главное меню открывает экраны с помощью навигации. Стандартные действия xref:actions/list-actions.adoc#list_create[list_create] и xref:actions/list-actions.adoc#list_edit[list_edit] также открывают экраны деталей с помощью навигации, но их можно настроить на использование диалоговых окон. Стандартное действие xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] всегда открывает экран списка в диалоговом окне, чтобы иметь возможность вернуть выбранные сущности.
+Главное меню открывает экраны с помощью навигации. Стандартные действия xref:actions/list-actions.adoc#list_create[list_create], xref:actions/list-actions.adoc#list_edit[list_edit] и xref:actions/list-actions.adoc#list_read[list_read] также открывают экраны деталей и экраны чтения с помощью навигации, но их можно настроить на использование диалоговых окон. Стандартное действие xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] всегда открывает экран списка в диалоговом окне, чтобы иметь возможность вернуть выбранные сущности. Действие xref:actions/entity-picker-actions.adoc#entity_read[entity_read] всегда использует диалоговое окно.
 
 Ниже описывается, как программно открывать экраны в коде приложения.
 
@@ -78,6 +78,18 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 ----
 
 Идентификатор или класс экрана деталей можно указать явно, используя методы `withViewId()` и `withViewClass()`.
+
+[.since]
+Начиная с Jmix 3.1
+
+Чтобы перейти к xref:views/view-classes.adoc#standard-read-view[экрану чтения], используйте метод `readView()`, принимающий класс сущности или визуальный компонент, привязанный к сущности. Класс экрана чтения будет выбран по <<view-inference-conventions,соглашению>>. Чтобы задать экземпляр сущности для показа, вызовите `readEntity()`. Например:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToReadEntity]
+----
+
+Если передать в `readView()` компонент списка, например `dataGrid`, или компонент выбора сущностей, навигатор использует выбранную сущность или значение компонента. Идентификатор или класс экрана чтения можно указать явно, используя методы `withViewId()` и `withViewClass()`.
 
 [[passing-parameters]]
 === Передача параметров
@@ -298,10 +310,27 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 
 Точная настройка зависит от модели данных экрана и конфигурации связей между сущностями. Полные примеры смотрите в xref:data-modeling-composition-guide:index.adoc[Composition Guide]. Дополнительную информацию о parent-child data contexts смотрите в разделе xref:data/data-context.adoc#parent-data-context[Родительский DataContext]. Дополнительные примеры доступны в https://demo.jmix.ru/ui-samples[UI Samples^].
 
+[[reading-entities]]
+=== Просмотр сущностей в экранах чтения
+
+[.since]
+Начиная с Jmix 3.1
+
+Чтобы показать экземпляр сущности в xref:views/view-classes.adoc#standard-read-view[экране чтения], вызовите метод `read()` и передайте экземпляр с помощью метода `readEntity()`:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openReadViewToReadEntity]
+----
+
+Метод `read()` также принимает компонент списка, например `dataGrid`, или компонент выбора сущностей. В этом случае билдер использует выбранную сущность или значение компонента.
+
+Класс экрана чтения выбирается по <<view-inference-conventions,соглашению>>. Чтобы открыть определенный экран, используйте метод билдера `withViewId()` или `withViewClass()`.
+
 [[view-inference-conventions]]
 == Соглашения о выводе имен экранов
 
-Экран списка или деталей можно вывести из класса сущности.
+Экран списка, деталей или чтения можно вывести из класса сущности.
 
 При переходе к экрану списка с помощью `viewNavigators.listView(this, SomeEntity.class)`, фреймворк выбирает экран в следующем порядке:
 
@@ -319,3 +348,12 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 
 . Экран, помеченный `@PrimaryDetailView(SomeEntity.class)`.
 . Экран с идентификатором `SomeEntity.detail`.
+
+При переходе к экрану чтения или открытии его в диалоговом окне фреймворк выбирает экран в следующем порядке:
+
+. Экран, помеченный `@PrimaryReadView(SomeEntity.class)`.
+. Экран с идентификатором `SomeEntity.read`.
+. Экран, помеченный `@PrimaryDetailView(SomeEntity.class)`.
+. Экран с идентификатором `SomeEntity.detail`.
+
+Если фреймворк выбирает экран деталей, он открывает его в режиме только для чтения.
