@@ -36,10 +36,9 @@
  * browser Playwright has already downloaded.
  */
 
-import { createRequire } from 'node:module';
-import { execSync } from 'node:child_process';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { loadPlaywright, findInstalledChromium } from './lib/playwright.mjs';
 
 function parseArgs(argv) {
     const opts = { click: [], wait: 2000, width: 1280, height: 900, scale: 2 };
@@ -51,38 +50,6 @@ function parseArgs(argv) {
         else opts[key] = value;
     }
     return opts;
-}
-
-function loadPlaywright() {
-    const require = createRequire(import.meta.url);
-    try {
-        return require('playwright');
-    } catch {
-        // not installed here: fall back to any copy npx has already cached
-        const found = execSync(
-            'find ~/.npm/_npx -maxdepth 4 -type d -name playwright 2>/dev/null | head -1',
-            { encoding: 'utf8', shell: '/bin/bash' },
-        ).trim();
-        if (!found) {
-            throw new Error('playwright not found; run: npx playwright@latest install chromium');
-        }
-        return require(found);
-    }
-}
-
-function findInstalledChromium() {
-    // Use the browser Playwright already downloaded, so the script does not
-    // depend on the launcher's own revision pinning matching this machine.
-    const out = execSync(
-        'ls -d ~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/ 2>/dev/null | tail -1',
-        { encoding: 'utf8', shell: '/bin/bash' },
-    ).trim();
-    if (!out) return undefined;
-    const candidates = execSync(
-        `find "${out}" -maxdepth 4 -type f \\( -name 'Google Chrome for Testing' -o -name 'Chromium' \\) 2>/dev/null | head -1`,
-        { encoding: 'utf8', shell: '/bin/bash' },
-    ).trim();
-    return candidates || undefined;
 }
 
 const opts = parseArgs(process.argv.slice(2));
