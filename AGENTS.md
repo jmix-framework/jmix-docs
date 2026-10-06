@@ -94,6 +94,8 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 
 Screenshots are captured at **2x** and declared at half their pixel width (`image::foo.png[width="413"]` for an 826px-wide file), so they stay sharp on high-DPI displays. `tools/screenshot-2x.mjs` does this: it drives Playwright directly with `deviceScaleFactor: 2` and captures a single element, which the Playwright MCP tool cannot do — its resize action takes a width and a height only, so every capture it makes is 1x. Run it with `--url`, `--selector` and `--out`; it prints the resulting pixel size and the width to declare. See the comment at the top of the file for the rest of its options.
 
+A rectangular capture of a rounded element, such as a dialog or a card, shows the app's page background outside the corners, and these pixels look wrong on the docs page and in its dark theme. Pass `--round-corners auto` to make them transparent. A Playwright script of your own, for a capture that needs several steps, can import `captureRounded` from `tools/lib/round-corners.mjs`, which explains the details.
+
 A diagram drawn with dark lines on a transparent background disappears in the dark theme. Give its image macro `role=light-background`, as in `image::transactions/transactions-1.png[,500,role=light-background]`, which puts a white plate behind it. Screenshots have their own background and need no role.
 
 ## UI: styles, tokens and the pinned bundle
