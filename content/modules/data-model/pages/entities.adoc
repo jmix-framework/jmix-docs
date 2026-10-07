@@ -657,6 +657,74 @@ Use the `mandatory` parameter if you want to specify that the attribute requires
 
 `@ListViewTemplate` annotation instructs the framework to generate a list view for the entity at runtime. See xref:flow-ui:views/view-templates.adoc[] for details.
 
+[[lookup-field]]
+=== @LookupField
+
+[.since]
+Since Jmix 3.1
+
+`@LookupField` annotation defines the UI component that the framework generates for selecting a reference to an entity. It affects only the fields that the framework creates at runtime: parameters of xref:flow-ui:vc/components/genericFilter.adoc[genericFilter] and xref:flow-ui:vc/components/propertyFilter.adoc[propertyFilter], editable xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] cells, and fields of xref:flow-ui:views/view-templates.adoc[runtime view templates]. Components that you define in a view descriptor are not affected.
+
+You can put the annotation on an entity class or on a reference attribute:
+
+* On an entity class, it applies to every reference to this entity. Subclasses inherit it.
+* On a reference attribute, it applies only to this attribute.
+
+The annotation has the following parameters:
+
+* `type` – the component to generate:
+** `LookupType.DROPDOWN` – an xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox] that shows a drop-down list of instances.
+** `LookupType.VIEW` – an xref:flow-ui:vc/components/entityPicker.adoc[entityPicker] that opens a lookup view.
+* `actions` – optional ids of xref:flow-ui:actions/entity-picker-actions.adoc[entity picker actions] to add to the component, for example `entity_lookup`, `entity_open`, `entity_clear`. If not set, the component gets the default actions.
+* `itemsQuery` – optional `@LookupItemsQuery` annotation that defines how to load the drop-down items for the `DROPDOWN` type.
+
+If `itemsQuery` is not set, a `DROPDOWN` component loads all instances of the entity at once. Use this only for small entities, such as reference tables of cities or categories. For example:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/City.java[tags=lookup-field-class]
+----
+
+For larger entities, set `itemsQuery` to load the items in pages while the user types. You can do it in one of two ways.
+
+The first way is to search by the instance name. Set `byInstanceName = true`, and the component finds the instances whose <<instance-name,instance name>> attributes of the `String` type contain the entered text, ignoring case. This works with any data store, including <<dto,DTO entities>> in custom data stores. For example:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-instance-name]
+----
+
+The second way is to define a JPQL query. The query must contain the `:searchString` parameter, which receives the entered text. For example:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-query]
+----
+
+The `@LookupItemsQuery` annotation has the following parameters:
+
+`byInstanceName`:: If `true`, the items are found by the instance name. If you also set `query`, the query is used.
+
+`query`:: A JPQL query with the `:searchString` parameter.
+
+`searchStringFormat`:: A format of the `:searchString` parameter value. The `+${inputString}+` placeholder is replaced with the entered text, for example `+(?i)%${inputString}%+`. Applies only to `query`.
+
+`escapeValueForLike`:: If `true`, special characters in the entered text are escaped for the `like` operator. The query must then contain the `escape '\'` clause. Applies only to `query`.
+
+`fetchPlan`:: The name of a fetch plan of the referenced entity to load the items with. With `byInstanceName`, the default is `_instance_name`.
+
+The items are loaded through `DataManager`, so xref:security:row-level-roles.adoc[row-level roles] apply to them.
+
+If several settings exist for the same reference, the framework uses the first one found in this order:
+
+. `@LookupField` on the reference attribute.
+. The xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-fqn[jmix.ui.component.entity-field-fqn] and xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-actions[jmix.ui.component.entity-field-actions] application properties.
+. `@LookupField` on the referenced entity class.
+
+The application properties take precedence over the annotation on the class, so you can change the component for an entity that comes from an add-on.
+
+If the configuration is invalid, the framework does not throw an exception. It logs a warning, ignores the invalid settings and creates a component that still works.
+
 [[number-format]]
 === @NumberFormat
 
