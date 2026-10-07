@@ -656,6 +656,74 @@ private UUID id;
 
 Аннотация `@ListViewTemplate` объявляет для сущности экран списка, генерируемый во время выполнения. Подробнее см. xref:flow-ui:views/view-templates.adoc[].
 
+[[lookup-field]]
+=== @LookupField
+
+[.since]
+Начиная с Jmix 3.1
+
+Аннотация `@LookupField` определяет UI-компонент, который фреймворк генерирует для выбора ссылки на сущность. Она влияет только на поля, которые фреймворк создаёт во время выполнения: параметры xref:flow-ui:vc/components/genericFilter.adoc[genericFilter] и xref:flow-ui:vc/components/propertyFilter.adoc[propertyFilter], редактируемые ячейки xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] и поля xref:flow-ui:views/view-templates.adoc[шаблонов экранов времени выполнения]. На компоненты, которые вы определяете в дескрипторе экрана, аннотация не влияет.
+
+Аннотацию можно поместить на класс сущности или на ссылочный атрибут:
+
+* На классе сущности она применяется ко всем ссылкам на эту сущность. Подклассы наследуют её.
+* На ссылочном атрибуте она применяется только к этому атрибуту.
+
+Аннотация имеет следующие параметры:
+
+* `type` – генерируемый компонент:
+** `LookupType.DROPDOWN` – xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox], который показывает выпадающий список экземпляров.
+** `LookupType.VIEW` – xref:flow-ui:vc/components/entityPicker.adoc[entityPicker], который открывает экран выбора.
+* `actions` – необязательные идентификаторы xref:flow-ui:actions/entity-picker-actions.adoc[действий entity picker], добавляемых в компонент, например `entity_lookup`, `entity_open`, `entity_clear`. Если параметр не задан, компонент получает действия по умолчанию.
+* `itemsQuery` – необязательная аннотация `@LookupItemsQuery`, которая определяет, как загружать элементы выпадающего списка для типа `DROPDOWN`.
+
+Если `itemsQuery` не задан, компонент `DROPDOWN` загружает все экземпляры сущности сразу. Используйте это только для небольших сущностей, например для справочников городов или категорий. Например:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/City.java[tags=lookup-field-class]
+----
+
+Для больших сущностей задайте `itemsQuery`, чтобы элементы загружались порциями по мере ввода текста пользователем. Это можно сделать одним из двух способов.
+
+Первый способ – поиск по имени экземпляра. Установите `byInstanceName = true`, и компонент будет находить экземпляры, у которых атрибуты <<instance-name,имени экземпляра>> типа `String` содержат введённый текст без учёта регистра. Это работает с любым хранилищем данных, включая <<dto,DTO-сущности>> в пользовательских хранилищах. Например:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-instance-name]
+----
+
+Второй способ – определить JPQL-запрос. Запрос должен содержать параметр `:searchString`, в который передаётся введённый текст. Например:
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-query]
+----
+
+Аннотация `@LookupItemsQuery` имеет следующие параметры:
+
+`byInstanceName`:: Если `true`, элементы находятся по имени экземпляра. Если также задан `query`, используется запрос.
+
+`query`:: JPQL-запрос с параметром `:searchString`.
+
+`searchStringFormat`:: Формат значения параметра `:searchString`. Заполнитель `+${inputString}+` заменяется введённым текстом, например `+(?i)%${inputString}%+`. Применяется только к `query`.
+
+`escapeValueForLike`:: Если `true`, специальные символы во введённом тексте экранируются для оператора `like`. В этом случае запрос должен содержать выражение `escape '\'`. Применяется только к `query`.
+
+`fetchPlan`:: Имя фетч-плана ссылочной сущности, с которым загружаются элементы. При использовании `byInstanceName` по умолчанию используется `_instance_name`.
+
+Элементы загружаются через `DataManager`, поэтому к ним применяются xref:security:row-level-roles.adoc[роли уровня строк].
+
+Если для одной ссылки существует несколько настроек, фреймворк использует первую найденную в следующем порядке:
+
+. `@LookupField` на ссылочном атрибуте.
+. Свойства приложения xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-fqn[jmix.ui.component.entity-field-fqn] и xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-actions[jmix.ui.component.entity-field-actions].
+. `@LookupField` на классе ссылочной сущности.
+
+Свойства приложения имеют приоритет над аннотацией на классе, поэтому вы можете изменить компонент для сущности из дополнения.
+
+Если конфигурация некорректна, фреймворк не выбрасывает исключение. Он записывает предупреждение в лог, игнорирует некорректные настройки и создаёт работающий компонент.
+
 [[number-format]]
 === @NumberFormat
 
