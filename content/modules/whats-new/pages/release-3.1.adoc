@@ -102,6 +102,15 @@
 
 Чтобы сохранять применённые xref:flow-ui:vc/components/groupDataGrid.adoc#column-filtering[фильтры по заголовкам колонок] в параметрах запроса URL, добавьте элемент xref:flow-ui:facets/urlQueryParameters.adoc#groupDataGridFilter[`groupDataGridFilter`] в фасет xref:flow-ui:facets/urlQueryParameters.adoc[`urlQueryParameters`].
 
+[[email]]
+=== Дополнение Email Sending
+
+Дополнение xref:email:index.adoc[Email Sending] упрощает настройку xref:email:authentication.adoc#oauth2-authentication[аутентификации OAuth2] для почтовых серверов Google и Microsoft:
+
+* Новый экран xref:email:menu-views/email-connection.adoc[Email connection] заменяет экран *OAuth2 token*. Он подключает почтовый ящик через Authorization Code Flow или, для Microsoft, через Device Code Flow и сохраняет refresh-токен. Экран также показывает параметры подключения и проверяет подключение к почтовому серверу.
+* Новое свойство xref:email:configuration.adoc#jmix.email.oauth2.redirect-uri[jmix.email.oauth2.redirect-uri] задаёт redirect URI для Authorization Code Flow, например, если приложение работает за обратным прокси.
+* Дополнение само задаёт механизм аутентификации `XOAUTH2`, поэтому добавлять его в `spring.mail.properties.*` не нужно.
+
 [[read-views]]
 === Экраны чтения
 
@@ -189,7 +198,7 @@ for (Map<String, Object> row : result.getRows()) {
 * `Grid.containLabel` объявлен устаревшим. Вместо него используйте `outerBoundsMode="SAME"` вместе с `outerBoundsContain="AXIS_LABEL"`. Когда `containLabel` включён, параметры `outerBounds*` игнорируются.
 
 [[email-breaking-changes]]
-=== Дополнение Email
+=== Дополнение Email Sending
 
 * Экран *OAuth2 token* заменён новым экраном подключения, а его идентификатор изменён с `email_tokenView` на `email_connectionView` (см. https://github.com/jmix-framework/jmix/issues/5546[#5546^]). Старый маршрут `email/token` по-прежнему работает. Замените старый идентификатор экрана:
 ** в `menu.xml`, если приложение использует режим единого меню. Иначе при открытии главного экрана возникнет исключение `NoSuchViewException`.
@@ -199,6 +208,10 @@ for (Map<String, Object> row : result.getRows()) {
 ** Код, который инжектирует бин `mailSendTaskExecutor` по имени, при запуске завершается ошибкой `NoSuchBeanDefinitionException`. Удалите такие инжекции.
 ** Ваш собственный бин с именем `mailSendTaskExecutor` больше не заменяет пул отправки писем. Дополнение игнорирует его и при запуске записывает в лог предупреждение.
 ** Методы `@Async` и асинхронные задачи Vaadin выполняются в бине `applicationTaskExecutor` из Spring Boot, а не в пуле отправки писем. У этого пула другой размер и неограниченная очередь.
+
+* Если аутентификация OAuth2 включена, дополнение строже проверяет конфигурацию (см. https://github.com/jmix-framework/jmix/issues/5539[#5539^]):
+** Свойство `spring.mail.password` игнорируется, а дополнение записывает в лог предупреждение. Раньше пароль, заданный вместе с аутентификацией OAuth2, переключал дополнение на базовую аутентификацию.
+** Приложение не запускается, если не задано одно из свойств `spring.mail.username`, `jmix.email.oauth2.client-id` или `jmix.email.oauth2.secret`. Раньше эти ошибки проявлялись только при отправке письма.
 
 [[maps-breaking-changes]]
 === Дополнение Maps

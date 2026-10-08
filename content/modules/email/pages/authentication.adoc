@@ -1,0 +1,198 @@
+= Аутентификация на почтовом сервере
+:page-aliases: email:oauth-providers.adoc
+
+Дополнение отправляет письма через SMTP-сервер, заданный xref:configuration.adoc#spring-boot-mail-properties[свойствами Spring Boot для почты]. Приложение может пройти аутентификацию на сервере одним из двух способов:
+
+* <<basic-authentication,Базовая аутентификация>> по логину и паролю.
+* <<oauth2-authentication,Аутентификация OAuth2>> с access-токеном. Дополнение поддерживает почтовые серверы Gmail, Google Workspace и Microsoft 365.
+
+[[basic-authentication]]
+== Базовая аутентификация
+
+Дополнение использует базовую аутентификацию, если аутентификация OAuth2 не включена свойством xref:configuration.adoc#jmix.email.oauth2.enabled[jmix.email.oauth2.enabled]. Задайте логин и пароль почтового ящика и включите SMTP-аутентификацию:
+
+.application.properties
+[source,properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=basic-authentication]
+----
+
+Google и Microsoft 365 ограничивают базовую аутентификацию для SMTP. Для них используйте <<oauth2-authentication,аутентификацию OAuth2>>.
+
+Чтобы проверить подключение, нажмите *Test connection* на экране xref:menu-views/email-connection.adoc[].
+
+[[oauth2-authentication]]
+== Аутентификация OAuth2
+
+При аутентификации OAuth2 дополнение передает SMTP-серверу access-токен вместо пароля по механизму `XOAUTH2`. Access-токены дополнение получает у провайдера с помощью refresh-токена.
+
+Чтобы настроить аутентификацию OAuth2, следуйте инструкциям для вашего почтового провайдера:
+
+* <<google>>
+* <<microsoft>>
+
+Затем <<connecting-mailbox,подключите почтовый ящик>>.
+
+О том, как дополнение использует свойства почты и refresh-токен, см. раздел <<oauth2-details>>.
+
+[[google]]
+=== Использование почтового ящика Gmail или Google Workspace
+
+NOTE: Инструкции ниже основаны на документации Google для разработчиков по https://developers.google.com/identity/protocols/oauth2/web-server[использованию OAuth 2.0 в веб-серверных приложениях^]. Актуальный порядок действий смотрите на этой странице.
+
+==== Регистрация клиента OAuth в Google Cloud
+
+В https://console.cloud.google.com/[консоли Google Cloud^] выполните следующие действия:
+
+. Создайте или выберите проект.
+. Откройте https://console.developers.google.com/auth/overview[Google Auth Platform^]. В новом проекте нажмите *Get started*, введите сведения о приложении и контактный адрес электронной почты. Выберите аудиторию: *Internal* для почтового ящика Google Workspace или *External* для учетной записи Gmail. Если в проекте уже настроен экран согласия OAuth, эти параметры находятся на страницах *Branding* и *Audience*.
+. Если выбрана аудитория *External* и у приложения статус публикации *Testing*, добавьте адрес почтового ящика в список тестовых пользователей на странице *Audience*. Разрешения, выданные тестовыми пользователями, действуют семь дней, после чего почтовый ящик нужно подключить заново.
+. Создайте клиент OAuth типа *Web application* с авторизованным redirect URI `\http://localhost:8080/email/oauth2/callback`. Замените `\http://localhost:8080` адресом вашего приложения, включая контекстный путь, если он есть.
+. Скопируйте *Client ID* и *Client secret* клиента.
+
+==== Настройка свойств приложения
+
+Укажите учетные данные в файле `application.properties` вашего приложения Jmix:
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=google
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+
+# Адрес отправителя по умолчанию для писем, в которых отправитель не задан
+jmix.email.from-address=<account_name>
+----
+
+Здесь `<account_name>` — адрес почтового ящика, а `<client_id>` и `<client_secret>` — значения, полученные при регистрации клиента.
+
+==== Добавление зависимости Gradle
+
+Добавьте следующую зависимость в `build.gradle`:
+
+[source,groovy,indent=0]
+----
+implementation 'com.google.auth:google-auth-library-oauth2-http'
+----
+
+==== Подключение почтового ящика
+
+Запустите приложение и подключите почтовый ящик кнопкой *Connect via authorization code*, как описано <<connecting-mailbox,ниже>>.
+
+[[microsoft]]
+=== Использование почтового ящика Microsoft 365
+
+NOTE: Инструкции ниже объединяют краткое руководство Microsoft Entra по https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app[регистрации приложения^] и документацию Exchange Online по https://learn.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth[аутентификации SMTP-подключений с помощью OAuth^]. Актуальный порядок действий смотрите на этих страницах.
+
+==== Регистрация приложения в Microsoft Entra
+
+В https://entra.microsoft.com[центре администрирования Microsoft Entra^] перейдите в *Entra ID* > *App registrations* и выполните следующие действия:
+
+. Нажмите *New registration*, введите имя, выберите поддерживаемые типы учетных записей и нажмите *Register*.
+. На странице *Authentication* откройте вкладку *Redirect URI configuration*, нажмите *Add Redirect URI*, выберите *Web* и введите `\http://localhost:8080/email/oauth2/callback`. Замените `\http://localhost:8080` адресом вашего приложения, включая контекстный путь, если он есть.
+. На странице *Certificates & secrets* создайте секрет клиента и скопируйте его значение (*Value*).
+. На странице *API permissions* добавьте делегированное разрешение *SMTP.Send*. Если пользователи вашего тенанта не могут давать согласие приложениям, предоставьте на это разрешение согласие администратора.
+. [[microsoft-public-client-flows]]Чтобы подключать почтовый ящик кнопкой *Connect via device code*, откройте вкладку *Settings* на странице *Authentication* и включите *Allow public client flows*.
+. Скопируйте *Application (client) ID* и *Directory (tenant) ID* на странице *Overview*.
+
+Для почтового ящика должен быть включен SMTP AUTH: в центре администрирования Microsoft 365 выберите *Authenticated SMTP* в настройках почтовых приложений пользователя. См. https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission[Включение и отключение SMTP AUTH в Exchange Online^].
+
+==== Настройка свойств приложения
+
+Укажите учетные данные в файле `application.properties` вашего приложения Jmix:
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.office365.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=microsoft
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+jmix.email.oauth2.tenant-id=<tenant_id>
+
+# Адрес отправителя по умолчанию для писем, в которых отправитель не задан
+jmix.email.from-address=<account_name>
+----
+
+Здесь `<account_name>` — адрес почтового ящика, а `<client_id>`, `<client_secret>` и `<tenant_id>` — значения, полученные при регистрации приложения. Если свойство `jmix.email.oauth2.tenant-id` не задано, дополнение использует тенант `common`, который Microsoft поддерживает только для мультитенантных приложений.
+
+==== Добавление зависимости Gradle
+
+Добавьте следующую зависимость в `build.gradle`:
+
+[source,groovy,indent=0]
+----
+implementation 'com.microsoft.azure:msal4j'
+----
+
+==== Подключение почтового ящика
+
+Запустите приложение и подключите почтовый ящик кнопкой *Connect via authorization code* или *Connect via device code*, как описано <<connecting-mailbox,ниже>>.
+
+[[connecting-mailbox]]
+=== Подключение почтового ящика
+
+[.since]
+Начиная с Jmix 3.1
+
+Настроив приложение, подключите почтовый ящик на экране xref:menu-views/email-connection.adoc[]:
+
+. Запустите приложение и откройте *Email -> Email connection*.
+. Нажмите *Connect via authorization code*. На странице провайдера войдите в почтовый ящик, указанный в `spring.mail.username`, и предоставьте доступ. Когда приложение покажет результат, нажмите *Continue*.
++
+Для Microsoft вместо этого можно нажать *Connect via device code*. Откройте ссылку из диалога на любом устройстве, введите код и войдите в почтовый ящик. Для этого при регистрации должен был быть включен параметр <<microsoft-public-client-flows,*Allow public client flows*>>.
+. Нажмите *Test connection*.
+
+NOTE: Дополнение строит redirect URI из адреса, по которому сервер получил запрос: протокола, хоста, порта и контекстного пути. За обратным прокси этот адрес может отличаться от публичного, и тогда провайдер отклонит запрос из-за несовпадения redirect URI. В этом случае укажите зарегистрированный redirect URI в свойстве xref:configuration.adoc#jmix.email.oauth2.redirect-uri[jmix.email.oauth2.redirect-uri].
+
+[[manual-refresh-token]]
+==== Ввод refresh-токена вручную
+
+Если провайдер не принимает адрес приложения как redirect URI, получите refresh-токен другим способом (например, в https://developers.google.com/oauthplayground[OAuth 2.0 Playground^] для Google, в Postman или запросами к провайдеру вручную). Добавьте в redirect URI клиента OAuth адрес, на который придет ответ провайдера. Затем выполните одно из действий:
+
+* Нажмите *Manual update* в разделе *Advanced* экрана xref:menu-views/email-connection.adoc[] и введите токен.
+* Задайте токен в свойстве xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token].
+
+Токен должен быть выдан для того же client ID, что указан в приложении, со следующими областями доступа (scopes):
+
+* Google: `\https://mail.google.com/`
+* Microsoft: `\https://outlook.office.com/SMTP.Send` и `offline_access`
+
+IMPORTANT: Для Microsoft refresh-токен, который вы вводите вручную, должен быть получен с секретом клиента (например, через Authorization Code Flow, но не через Device Code Flow), иначе Microsoft отклонит его при обмене на access-токен.
+
+[[oauth2-details]]
+== Особенности аутентификации OAuth2
+
+[[oauth2-configuration]]
+=== Требования к конфигурации OAuth2
+
+Когда аутентификация OAuth2 включена, дополнение обрабатывает свойства почты так:
+
+* `spring.mail.username` — обязательное свойство. Это почтовый ящик, от имени которого приложение подключается к серверу.
+* `spring.mail.password` игнорируется. Если это свойство задано, дополнение записывает в лог предупреждение.
+* Дополнение задает свойства JavaMail `mail.smtp.auth=true` и `mail.smtp.auth.mechanisms=XOAUTH2`, если вы не задали их в `spring.mail.properties.*`.
+
+Приложение не запускается, если не задано одно из свойств `spring.mail.username`, xref:configuration.adoc#jmix.email.oauth2.provider[jmix.email.oauth2.provider], xref:configuration.adoc#jmix.email.oauth2.client-id[jmix.email.oauth2.client-id] или xref:configuration.adoc#jmix.email.oauth2.secret[jmix.email.oauth2.secret] либо отсутствует библиотека провайдера.
+
+[[refresh-token]]
+=== Refresh-токен
+
+Дополнение хранит refresh-токен в базе данных. Токен в приложении один, и каждое подключение почтового ящика заменяет его.
+
+Свойство xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token] задает начальное значение токена. Дополнение использует его, только пока в базе данных нет сохраненного токена.
+
+Когда Microsoft возвращает новый refresh-токен, дополнение сохраняет его.
