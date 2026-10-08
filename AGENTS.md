@@ -96,6 +96,7 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 
 When asked to translate to Russian, translate the words:
 
+- access token -> access-токен
 - add-on -> дополнение
 - builder -> билдер
 - detail view -> экран деталей
@@ -107,6 +108,7 @@ When asked to translate to Russian, translate the words:
 - list view -> экран списка
 - lookup view -> экран выбора
 - read view -> экран чтения
+- refresh token -> refresh-токен
 - release -> релиз
 - resource role -> ресурсная роль
 - row-level role -> роль уровня строк 
@@ -115,6 +117,8 @@ When asked to translate to Russian, translate the words:
 Do not translate:
 - changelog
 - fluent API
+- redirect URI
+- OAuth flow names, such as Authorization Code Flow and Device Code Flow
 
 Always keep AsciiDoc formatting.
 
