@@ -74,6 +74,7 @@ public void onInit(final InitEvent event) {
 * `setMessageInputEnabled(boolean)` / `focusMessageInput()` — управляет полем ввода.
 * `isAwaitingResponse()` — показывает, генерируется ли сейчас ответ.
 * `setAiAvatarIconSupplier(SerializableSupplier<Component>)` — настраивает аватар ассистента.
+* `setTitleMode(AiConversationTitleMode)` — задает, как формируется заголовок нового чата. Если режим не задан или равен `null`, используется свойство приложения xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode]. См. <<conversation-titles>>.
 
 [[ai-chat-input-fragment]]
 === AiChatInputFragment
@@ -127,6 +128,41 @@ public void onInit(final InitEvent event) {
 === Поставщик иконок
 
 Фирменная иконка, отображаемая в центре чатов, и аватар ассистента предоставляются бином `AiIconProvider`. Замените этот бин, чтобы глобально изменить иконки дополнения, либо переопределите их для конкретного фрагмента с помощью методов настройки поставщика иконок, показанных выше.
+
+[[conversation-titles]]
+== Заголовки чатов
+
+[.since]
+Начиная с Jmix 3.1
+
+Новый чат создается с заголовком по умолчанию `New AI Conversation`. Свойство приложения xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] определяет, какой заголовок чат получит, когда пользователь отправит первое сообщение.
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|Режим |Заголовок
+
+|`FIRST_MESSAGE`
+|Первое сообщение пользователя. Сообщение длиннее 255 символов обрезается по границе слова. Модель не вызывается. Этот режим используется по умолчанию.
+
+|`GENERATED`
+|Короткий заголовок, который модель генерирует по первому сообщению пользователя. Язык заголовка соответствует локали текущего пользователя. Модель вызывается в фоновом режиме. Пока сгенерированный заголовок не готов или если его не удалось получить, заголовком чата остается первое сообщение.
+
+|`NONE`
+|У чата остается заголовок по умолчанию.
+|===
+
+Сгенерированный заголовок сохраняется, даже если пользователь ушел из чата, не дождавшись его. Если за это время пользователь переименовал чат, сгенерированный заголовок не применяется.
+
+Если ваш экран задает чату собственный заголовок до первого сообщения, вызовите `setTitleMode(AiConversationTitleMode.NONE)` у фрагмента <<ai-chat-fragment,AiChatFragment>>. Иначе первое сообщение заменит этот заголовок.
+
+[[title-generation]]
+=== Кастомизация генерации заголовков
+
+В режиме `GENERATED` заголовок формирует бин `AiConversationTitleGenerator`. Реализация по умолчанию из `jmix-aitools-flowui-data-starter` отправляет первое сообщение пользователя xref:ai-tools:getting-started.adoc#configure-model[настроенной модели]. Если подключен только `jmix-aitools-flowui-starter`, генератор не возвращает заголовок.
+
+Чтобы генерировать заголовки по-другому, зарегистрируйте бин, реализующий `io.jmix.aitoolsflowui.service.AiConversationTitleGenerator`. Его метод `generateTitle(String firstUserMessage)` возвращает заголовок или пустой `Optional`. Метод выполняется в фоновом потоке с аутентификацией текущего пользователя. Возвращенный заголовок сохраняется без изменений, поэтому его длина не должна превышать 255 символов.
+
+Чтобы изменить только системный промпт генератора по умолчанию, зарегистрируйте бин, реализующий `io.jmix.aitoolsflowuidata.service.prompt.AiConversationTitleSystemPromptProvider`, и возвращайте из него свой шаблон. В шаблоне можно использовать параметр `\{responseLanguage}`, который содержит язык локали текущего пользователя, например `German / Deutsch (de)`.
 
 [[roles]]
 == Роль безопасности
