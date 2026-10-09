@@ -5,6 +5,7 @@ import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.flowui.view.template.DetailViewTemplate;
 import io.jmix.flowui.view.template.ListViewTemplate;
+import io.jmix.flowui.view.template.ReadViewTemplate;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -35,6 +36,13 @@ import java.util.UUID;
         editedEntityContainerId = "entityDc"
 )
 // end::detail[]
+// tag::read[]
+@ReadViewTemplate(
+        viewId = "Supplier.read",
+        viewRoute = "suppliers",
+        viewTitle = "Supplier"
+)
+// end::read[]
 @JmixEntity
 @Entity
 @Table(name = "SUPPLIER")

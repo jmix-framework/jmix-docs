@@ -1,0 +1,396 @@
+= aiMessageList
+
+Компонент `aiMessageList` показывает диалог в чате. Он отображает сообщения пользователя как обычный текст в пузырьке (bubble), а сообщения ассистента — как Markdown. Компонент поддерживает действия над отдельными сообщениями, индикатор размышления и баннер ошибки.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML-элемент
+|`aiMessageList`
+
+|Java-класс
+|`AiMessageList`
+|===
+
+Компонент xref:ai-chat:aiChat.adoc[aiChat] встраивает его и управляет им автоматически. Используйте его отдельно, чтобы показать сохранённый диалог или собрать собственный чат из базовых компонентов. Приложение может полностью управлять списком само, как описано в разделе <<driving,Управление генерацией>>.
+
+image::aichat-message-list-transcript.png[Диалог в списке сообщений, align="center", width="672"]
+
+[[basics]]
+== Основы
+
+Объявите пространство имён `aichat` в XML-дескрипторе экрана:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=namespaces]
+----
+
+TIP: Studio добавляет пространство имён автоматически, когда вы добавляете компонент с помощью действия *Add Component* на верхней панели действий. См. xref:studio:view-designer.adoc#component-palette[Палитра компонентов].
+
+Списку не нужно ничего, кроме его элемента:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=basics]
+----
+
+[[messages]]
+== Сообщения
+
+Сообщения — это элементы, создаваемые фабричными методами `AiMessageListItem`, а не компоненты, добавляемые в список:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=items]
+----
+
+Сообщения ассистента отображаются как Markdown: заголовки, списки, таблицы, ссылки и встроенный код. Блок кода становится настоящим компонентом xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock] с меткой языка, подсветкой и собственными действиями копирования и переноса строк. Сообщения пользователя отображаются как обычный текст в пузырьке, поэтому Markdown в сообщении пользователя показывается так, как он был введён.
+
+Метод `addItem` добавляет одно сообщение в конец списка, который уже отображается на экране:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=add-item]
+----
+
+NOTE: Экземпляр элемента принадлежит одному списку и может присутствовать в нём только один раз. Повторное добавление того же экземпляра или добавление его во второй список отклоняется.
+
+[[driving]]
+== Управление генерацией
+
+Приложение может выполнить весь ход диалога непосредственно со списком, без `aiChat`. Последовательность такая: добавить сообщение пользователя, добавить пустое сообщение ассистента для потоковой передачи ответа, переключить список в состояние `GENERATING`, добавлять ответ по мере его поступления, а затем вернуть список в состояние `IDLE`.
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=driving]
+----
+<1> `progress` выполняется в потоке UI, что и требуется для `appendText`. Фрагменты ответа публикуются из фоновой задачи и добавляются здесь.
+
+[IMPORTANT]
+====
+Для двух частей хода диалога действуют разные правила работы с потоками.
+
+Методы `appendText`, `addItem` и `setState` должны вызываться в потоке UI. Прямой вызов `appendText` из фонового потока завершается ошибкой о блокировке сессии. В примере выше фрагменты ответа публикуются из фоновой задачи и добавляются в `progress`, который Jmix выполняет в потоке UI.
+
+Исключение составляет лента статусов размышления, описанная <<thinking-status,ниже>>: она сама захватывает блокировку UI, поэтому её можно вызывать из любого потока.
+====
+
+[NOTE]
+====
+Индикатор размышления привязан к генерируемому сообщению. Если перевести список в состояние `GENERATING`, когда последним сообщением является сообщение пользователя, ничего не отобразится: ни индикатора, ни ошибки. Сначала добавьте пустое сообщение ассистента, как показано выше, и индикатор появится на нём.
+====
+
+Метод `getActiveItem()` возвращает это последнее сообщение ассистента, пока список находится в процессе генерации, и `null` в остальных случаях.
+
+[[thinking-indicator]]
+== Индикатор размышления
+
+Пока список находится в процессе генерации, а ответ ещё пуст, он показывает анимированный индикатор из трёх пульсирующих точек с надписью рядом:
+
+image::aichat-message-list-thinking-default.png[Встроенный индикатор размышления, align="center", width="968"]
+
+Индикатор можно заменить любым компонентом с помощью элемента `thinkingIndicator`. Заменяется только анимация, надпись рядом остаётся:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-indicator]
+----
+
+image::aichat-message-list-thinking-custom.png[Заменённый индикатор размышления, align="center", width="672"]
+
+Чем дольше идёт генерация, тем больше меняется надпись, чтобы медленный ответ не выглядел как зависший. Надпись задаётся элементом `thinkingStages`. Каждый этап задаёт задержку, после которой его текст заменяет предыдущий:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-stages]
+----
+
+[[thinking-status]]
+== Лента статусов размышления
+
+Лента статусов сообщает, что делает ассистент, по одной строке на каждый шаг, и отображается над индикатором размышления. В каждой строке есть индикатор загрузки, который превращается в галочку, когда шаг завершается:
+
+image::aichat-message-list-thinking.png[Лента статусов размышления, align="center", width="672"]
+
+Получите из списка объект для публикации статусов, запускайте статус в начале шага и завершайте его в конце шага, при необходимости с кратким результатом:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=thinking-status]
+----
+
+Этот объект сам захватывает блокировку UI, поэтому эти вызовы безопасно выполнять из фонового потока, как в примере выше, где они выполняются внутри метода `run` задачи. Статусы временные, поэтому очищайте их по завершении хода диалога.
+
+[[error-retry]]
+== Ошибка и повтор
+
+Перевод списка в состояние `ERROR` показывает баннер с кнопкой *Retry*. Баннер является частью самого компонента, и приложению не нужно задавать для него разметку:
+
+image::aichat-message-list-error.png[Баннер ошибки, align="center", width="672"]
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=retry]
+----
+
+[NOTE]
+====
+Метод `getUserMessage()` возвращает последнее сообщение пользователя в списке на момент нажатия *Retry*, а не то сообщение, генерация ответа на которое завершилась ошибкой. Обычно это одно и то же сообщение. Они различаются, если приложение добавило ещё одно сообщение пользователя после ошибки.
+====
+
+[[actions]]
+== Действия над сообщениями
+
+Действия объявляются для каждой роли отдельно и появляются на панели сообщения при наведении указателя или получении фокуса:
+
+image::aichat-message-list-actions.png[Действия над сообщениями, align="center", width="672"]
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=actions]
+----
+
+Действие `aichat_messageCopy` встроено в компонент и копирует исходный текст сообщения в буфер обмена. Любое другое действие — это обычное действие Jmix: задайте ему идентификатор, значок и описание и обработайте его в контроллере. Событие содержит сообщение, для которого было вызвано действие:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=action-handler]
+----
+
+[WARNING]
+====
+Другой встроенный тип действия, `aichat_messageRegenerate`, работает только внутри xref:ai-chat:aiChat.adoc[aiChat], который сам назначает себя его целью. Если объявить его в отдельном списке, оно отображается как обычно, но при нажатии выбрасывает исключение.
+====
+
+[[long-messages]]
+== Длинные сообщения
+
+Длинное сообщение пользователя сворачивается до фиксированной высоты с эффектом затухания и переключателем *Show more*. Сообщения ассистента никогда не сворачиваются.
+
+image::aichat-message-list-collapsed.png[Свёрнутое сообщение пользователя, align="center", width="642"]
+
+Порог задаётся высотой отображаемого сообщения, а не количеством символов, и сообщение, лишь немного превышающее порог, показывается полностью, а не сворачивается ради нескольких строк. Поэтому один и тот же текст может сворачиваться в узком контейнере и не сворачиваться в широком, так как от ширины зависит перенос строк.
+
+[[scrolling]]
+== Прокрутка
+
+Пока ответ передаётся в потоковом режиме, список удерживает область просмотра внизу, чтобы новый текст оставался видимым.
+
+image::aichat-scroll-to-bottom.png[Кнопка прокрутки вниз, align="center", width="968"]
+
+Прокрутка вверх отключает это: список перестаёт следовать за новым текстом, и содержимое никогда не смещается из-под глаз читателя, сколько бы текста ни поступило за это время. Внизу списка появляется круглая кнопка для возврата; нажатие на неё прокручивает список вниз и снова включает следование. Ручная прокрутка вниз также снова включает его, а программная прокрутка никогда его не отключает.
+
+Клавиши со стрелками перемещают фокус от сообщения к сообщению и прокручивают каждое из них в область видимости, поэтому диалог можно читать без мыши.
+
+[[accessibility]]
+== Доступность
+
+Установите атрибут `announceMessages`, чтобы список сообщал о поступающих сообщениях программам чтения с экрана через live-регион ARIA:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=announce]
+----
+
+[[localization]]
+== Локализация
+
+Собственные надписи списка берутся из пакета сообщений дополнения по ключам `+aiMessageList.i18n.*+`: баннер ошибки, кнопка *Retry*, кнопка прокрутки вниз, действие копирования и переключатель *Show more* / *Show less*. Переопределите их в пакете сообщений приложения, чтобы изменить текст во всех списках.
+
+Чтобы изменить текст в одном списке, добавьте вложенный элемент `i18n`. Он также может содержать вложенный элемент `codeBlock`, который изменяет текст блоков кода, отображаемых внутри сообщений ассистента этого списка:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=i18n]
+----
+
+.Пакет сообщений
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=message-list-i18n]
+----
+
+О том, как сочетаются эти два уровня, см. xref:ai-chat:localization.adoc#precedence[Приоритет].
+
+[[styling]]
+== Стилизация
+
+Список сообщений предоставляет свои внутренние части как shadow parts, к которым можно обращаться с помощью селектора `::part()`.
+
+Следующие свойства стиля можно использовать в таблицах стилей CSS, чтобы настроить внешний вид компонента.
+
+[cols="2,3", options="header"]
+|===
+|Имя
+|Описание
+
+|`--jmix-ai-message-list-max-width`
+|Ширина, в пределах которой центрируется колонка диалога.
+
+|`--jmix-ai-message-list-padding`
+|Внутренний отступ вокруг диалога.
+
+|`--jmix-ai-message-list-scrollbar-color`
+|Цвет полосы прокрутки.
+
+|`--jmix-ai-message-list-scroll-button-icon-size`
+|Размер значка на кнопке прокрутки вниз.
+
+|`--jmix-ai-message-list-icon-scroll-down`
+|Значок кнопки прокрутки вниз.
+
+|`--jmix-ai-message-list-icon-error`
+|Значок, отображаемый в баннере ошибки.
+
+|`--jmix-ai-message-list-icon-retry`
+|Значок кнопки *Retry*.
+
+|`--jmix-ai-message-list-icon-check`
+|Значок, отмечающий завершённый статус размышления.
+
+|`--jmix-ai-message-text-color`
+|Цвет текста сообщения.
+
+|`--jmix-ai-message-font-size`
+|Размер шрифта текста сообщения.
+
+|`--jmix-ai-message-line-height`
+|Высота строки текста сообщения.
+
+|`--jmix-ai-message-padding`
+|Внутренний отступ сообщения.
+
+|`--jmix-ai-message-success-color`
+|Цвет галочки, подтверждающей копирование.
+
+|`--jmix-ai-message-action-padding`
+|Внутренний отступ кнопки действия над сообщением.
+
+|`--jmix-ai-message-action-icon-size`
+|Размер значка действия над сообщением.
+
+|`--jmix-ai-message-action-border-radius`
+|Радиус скругления углов кнопки действия над сообщением.
+
+|`--jmix-ai-message-icon-copy`
+|Значок встроенного действия копирования.
+
+|`--jmix-ai-message-icon-check`
+|Значок, отображаемый при подтверждении копирования.
+
+|`--jmix-ai-message-icon-regenerate`
+|Значок встроенного действия повторной генерации.
+
+|`--jmix-ai-message-icon-file`
+|Значок, отображаемый на вложении, которое не является изображением.
+
+|`--jmix-ai-message-attachment-image-size`
+|Размер миниатюры вложения-изображения.
+
+|`--jmix-ai-markdown-link-color`
+|Цвет ссылок в сообщении ассистента.
+
+|`--jmix-ai-user-message-collapsed-max-height`
+|Высота, до которой сворачивается длинное сообщение пользователя. См. <<long-messages,Длинные сообщения>>.
+
+|`--jmix-ai-user-message-icon-chevron`
+|Значок переключателя *Show more*.
+
+|`--jmix-ai-thinking-indicator-color`
+|Цвет индикатора размышления.
+
+|`--jmix-ai-thinking-indicator-gap`
+|Расстояние между точками индикатора размышления.
+
+|`--jmix-ai-thinking-indicator-animation-duration`
+|Длительность одной пульсации индикатора размышления.
+
+|`--jmix-ai-thinking-status-max-height`
+|Высота, до которой увеличивается лента статусов, прежде чем в ней появляется прокрутка. См. <<thinking-status,Лента статусов размышления>>.
+|===
+
+Свойства значков содержат изображение, применяемое как маска, поэтому переопределение такого свойства заменяет соответствующий значок.
+
+Компоненты стилизованы для обеих тем Jmix, Aura и Lumo, и используют собственные токены темы для рамок фокуса, границ, радиусов скругления и отступов, поэтому у перечисленных выше свойств нет единого значения по умолчанию. Поддерживаются тёмный режим, режим высокой контрастности и режим уменьшенной анимации. Расположение элементов задаётся свойствами, не зависящими от направления, поэтому компоненты следуют направлению текста документа.
+
+[[attachments]]
+== Вложения
+
+Сообщения могут содержать файлы, которые отображаются под текстом сообщения как миниатюры (thumbnails) или «чипы». Вложения затрагивают несколько компонентов, поэтому они описаны вместе в разделе xref:ai-chat:attachments.adoc[].
+
+== Атрибуты
+
+`aiMessageList` имеет следующий уникальный атрибут:
+
+[cols="2,5,1", options="header"]
+|===
+|Имя
+|Описание
+|По умолчанию
+
+|[[announceMessages]]`announceMessages`
+|Определяет, сообщается ли о поступающих сообщениях программам чтения с экрана. См. <<accessibility,Доступность>>.
+|`false`
+|===
+
+`aiMessageList` имеет следующие общие атрибуты:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Обработчики
+
+`aiMessageList` имеет следующие уникальные обработчики:
+
+[cols="2,5", options="header"]
+|===
+|Имя
+|Описание
+
+|[[AttachmentClickEvent]]`AttachmentClickEvent`
+|Срабатывает, когда пользователь нажимает на вложение в сообщении. Содержит сообщение и файл. См. xref:ai-chat:attachments.adoc#downloading[Скачивание из диалога].
+
+|[[RetryEvent]]`RetryEvent`
+|Срабатывает, когда пользователь нажимает *Retry* на баннере ошибки. См. <<error-retry,Ошибка и повтор>>.
+|===
+
+`aiMessageList` имеет следующие общие обработчики:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Элементы
+
+Компонент `aiMessageList` может содержать следующие вложенные элементы: `thinkingIndicator`, `thinkingStages`, `userActions`, `assistantActions` и `i18n`.
+
+[[thinkingIndicator-element]]
+=== thinkingIndicator
+
+Элемент `thinkingIndicator` содержит один компонент, который заменяет встроенный индикатор. См. <<thinking-indicator,Индикатор размышления>>.
+
+[[thinkingStages-element]]
+=== thinkingStages
+
+Элемент `thinkingStages` содержит элементы `thinkingStage`, каждый из которых имеет обязательные атрибуты `delayMillis` и `text`. Они задают меняющуюся надпись рядом с индикатором. См. <<thinking-indicator,Индикатор размышления>>.
+
+[[userActions-element]]
+=== userActions, assistantActions
+
+Эти элементы содержат элементы `action`, доступные для сообщений пользователя и сообщений ассистента соответственно. Элемент `action` требует атрибут `id` и принимает атрибуты `type`, `description`, `classNames` и атрибуты значка. См. <<actions,Действия над сообщениями>>.
+
+[[i18n-element]]
+=== i18n
+
+Элемент `i18n` изменяет тексты этого списка. Он поддерживает атрибуты `error`, `retry`, `scrollToBottom`, `copy`, `copied`, `showMore` и `showLess`, каждый из которых принимает ключ сообщения, а также вложенный элемент `codeBlock` для блоков кода, отображаемых внутри сообщений списка. См. <<localization,Локализация>>.

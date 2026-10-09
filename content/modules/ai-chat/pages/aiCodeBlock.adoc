@@ -1,0 +1,282 @@
+= aiCodeBlock
+
+Компонент `aiCodeBlock` отображает фрагмент исходного кода с подсветкой синтаксиса, необязательной меткой языка и действиями для копирования и переноса строк кода.
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML-элемент
+|`aiCodeBlock`
+
+|Java-класс
+|`AiCodeBlock`
+|===
+
+Используйте его везде, где приложение показывает код. Внутри диалога он также используется автоматически: xref:ai-chat:aiMessageList.adoc[aiMessageList] отображает каждый блок кода из сообщения ассистента как `aiCodeBlock`, поэтому код в чате выглядит и ведет себя так же, как код в других местах приложения.
+
+image::aichat-code-block-overview.png[Блок кода, align="center", width="413"]
+
+[[basics]]
+== Основы
+
+Объявите пространство имен `aichat` в XML-дескрипторе экрана:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=namespaces]
+----
+
+TIP: Studio автоматически добавляет пространство имен, когда вы добавляете компонент с помощью действия *Add Component* на верхней панели действий. См. xref:studio:view-designer.adoc#component-palette[Палитра компонентов].
+
+Затем объявите блок и поместите исходный код во вложенный элемент `code`:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=basics]
+----
+
+[NOTE]
+====
+Записывайте вложенный элемент с префиксом `aichat`, то есть как `<aichat:code>`. В пространстве имен экрана по умолчанию тоже есть элемент с именем `code`, поэтому `<code>` без префикса внутри `aiCodeBlock` — это другой компонент, а не этот элемент, и экран может загрузиться без сообщения об ошибке.
+====
+
+Блок принимает ширину своего содержимого и никогда не превышает ширину своего контейнера.
+
+[[declaring-code]]
+== Код
+
+Задать код можно двумя способами.
+
+Вложенный элемент `code` содержит многострочный исходный код. Оберните его в `CDATA`, чтобы исходный код передавался без изменений, как в примере <<basics,выше>>.
+
+Атрибут `code` содержит одну строку и принимает ключ сообщения, что удобно, когда исходный код хранится в xref:localization:message-bundles.adoc[пакете сообщений]:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=code-from-bundle]
+----
+
+.Пакет сообщений
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-code]
+----
+
+Если заданы оба способа, приоритет имеет вложенный элемент. Если элемент `code` присутствует, но пуст, загрузка экрана завершается ошибкой, чтобы такой элемент не мог незаметно перекрыть код, объявленный в атрибуте.
+
+Можно не задавать ни один из них. Тогда блок отображается пустым. Это обычное состояние блока, который позже заполняет контроллер.
+
+[[setting-language]]
+== Язык
+
+Атрибут `language` выполняет две функции: он выводит метку в заголовке блока и сообщает механизму подсветки, какую грамматику применять.
+
+`AiCodeBlockLanguage` содержит распространенные идентификаторы языков в виде констант:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/codeblock/CodeBlockView.java[tags=programmatic]
+----
+
+Константы введены для удобства и не ограничивают набор допустимых значений: атрибут принимает любую строку. Значение, которое механизм подсветки не распознает, не является ошибкой: код отображается как простой текст.
+
+Без языка у блока совсем нет строки заголовка. Вместо этого действия располагаются поверх кода в верхнем углу со стороны конца строки, а код получает отступ, чтобы под ними ничего не отображалось:
+
+image::aichat-code-block-no-language.png[Блок кода без языка, align="center", width="501"]
+
+Для подсветки нужен язык, но эти две настройки не взаимозаменяемы. Если задать `highlight="false"` для блока с языком, заголовок и метка сохранятся, а код отобразится без подсветки. Если не задавать язык, исчезнет и заголовок.
+
+[[actions]]
+== Действия копирования и переноса строк
+
+Действие копирования копирует исходный код блока в буфер обмена, всегда исходный текст и никогда разметку подсветки, и на короткое время показывает подтверждение.
+
+Действие переноса строк переключает блок между горизонтальной прокруткой и мягким переносом строк. Его значок и всплывающая подсказка описывают, что произойдет при следующем нажатии, а не текущее состояние. При замене кода блока перенос строк возвращается к объявленному значению.
+
+Любое из действий можно убрать с помощью `copyActionEnabled` или `wrapActionEnabled`. Отключенное действие вообще не отображается:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=actions-disabled]
+----
+
+[WARNING]
+====
+Действие копирования ничего не сообщает об ошибке, если браузер запрещает запись в буфер обмена: ничего не копируется, и пользователь об этом не узнает. Обычная причина — приложение работает по простому HTTP, а браузеры разрешают доступ к буферу обмена только в безопасных контекстах. Копирование работает по HTTPS и на `localhost`.
+====
+
+[[localization]]
+== Локализация
+
+Надписи действий копирования и переноса строк берутся из пакета сообщений дополнения, из ключей `+aiCodeBlock.i18n.*+`: `copy`, `copied`, `wrapOn` и `wrapOff`. Переопределите эти ключи в пакете сообщений приложения, чтобы изменить надписи действий везде.
+
+Чтобы изменить надписи действий одного блока, добавьте вложенный элемент `i18n`:
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=i18n]
+----
+
+.Пакет сообщений
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-i18n]
+----
+
+В примере выше действие переноса строк сохраняет стандартные надписи. О том, как сочетаются эти два уровня, см. xref:ai-chat:localization.adoc#precedence[Приоритет].
+
+[[styling]]
+== Стилизация
+
+Блок открывает свои внутренние элементы как shadow parts, к которым можно обращаться с помощью селектора `::part()`.
+
+Следующие свойства стилей можно использовать в таблицах стилей CSS, чтобы настроить внешний вид этого компонента.
+
+[cols="2,3", options="header"]
+|===
+|Имя
+|Описание
+
+|`--jmix-ai-code-block-background`
+|Фон блока.
+
+|`--jmix-ai-code-block-border-radius`
+|Радиус скругления углов блока.
+
+|`--jmix-ai-code-block-font-family`
+|Семейство шрифтов кода.
+
+|`--jmix-ai-code-block-font-size`
+|Размер шрифта кода.
+
+|`--jmix-ai-code-block-actions-gap`
+|Промежуток между кнопками действий.
+
+|`--jmix-ai-code-block-action-icon-size`
+|Размер значков действий.
+
+|`--jmix-ai-code-block-color-text`
+|Цвет кода, у которого нет синтаксической роли.
+
+|`--jmix-ai-code-block-color-keyword`
+|Цвет ключевых слов языка.
+
+|`--jmix-ai-code-block-color-string`
+|Цвет строковых литералов.
+
+|`--jmix-ai-code-block-color-number`
+|Цвет числовых литералов.
+
+|`--jmix-ai-code-block-color-comment`
+|Цвет комментариев.
+
+|`--jmix-ai-code-block-color-title`
+|Цвет имен в объявлениях, например функций и классов.
+
+|`--jmix-ai-code-block-color-type`
+|Цвет имен типов.
+
+|`--jmix-ai-code-block-color-built-in`
+|Цвет встроенных идентификаторов языка.
+
+|`--jmix-ai-code-block-color-attr`
+|Цвет имен атрибутов и свойств.
+
+|`--jmix-ai-code-block-color-tag`
+|Цвет тегов разметки.
+
+|`--jmix-ai-code-block-color-meta`
+|Цвет метаданных, например аннотаций и директив препроцессора.
+
+|`--jmix-ai-code-block-color-success`
+|Цвет галочки, которая подтверждает копирование.
+
+|`--jmix-ai-code-block-icon-copy`
+|Значок действия копирования.
+
+|`--jmix-ai-code-block-icon-check`
+|Значок, который отображается, пока показано подтверждение копирования.
+
+|`--jmix-ai-code-block-icon-wrap`
+|Значок действия переноса строк, когда перенос выключен.
+
+|`--jmix-ai-code-block-icon-no-wrap`
+|Значок действия переноса строк, когда перенос включен.
+|===
+
+Свойства значков содержат изображение, которое применяется как маска, поэтому переопределение такого свойства заменяет соответствующий значок.
+
+Компоненты стилизованы для обеих тем Jmix, Aura и Lumo, и используют собственные токены темы для рамок фокуса, границ, радиусов скругления и отступов, поэтому у перечисленных выше свойств нет единого значения по умолчанию. Поддерживаются темный режим, режим высокой контрастности и режим уменьшения движения, а разметка задана через свойства, не зависящие от направления, поэтому компоненты следуют направлению текста документа.
+
+== Атрибуты
+
+`aiCodeBlock` имеет следующие уникальные атрибуты:
+
+[cols="2,5,1", options="header"]
+|===
+|Имя
+|Описание
+|По умолчанию
+
+|[[code]]`code`
+|Задает код в виде однострочного значения, напрямую или из пакета сообщений. Вложенный элемент <<code-element,code>> имеет приоритет. См. <<declaring-code,Код>>.
+|—
+
+|[[codeWrapped]]`codeWrapped`
+|Задает, переносятся ли строки кода вместо горизонтальной прокрутки. См. <<actions,Действия копирования и переноса строк>>.
+|`false`
+
+|[[copyActionEnabled]]`copyActionEnabled`
+|Задает, есть ли у блока действие копирования.
+|`true`
+
+|[[highlight]]`highlight`
+|Задает, применяется ли подсветка синтаксиса. Для подсветки также нужно задать <<language,language>>.
+|`true`
+
+|[[language]]`language`
+|Задает язык кода, который отображается в виде метки и используется для подсветки. Допускается любая строка. См. <<setting-language,Язык>>.
+|—
+
+|[[wrapActionEnabled]]`wrapActionEnabled`
+|Задает, есть ли у блока действие переноса строк.
+|`true`
+|===
+
+`aiCodeBlock` имеет следующие общие атрибуты:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== Обработчики
+
+`aiCodeBlock` имеет следующие общие обработчики:
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== Элементы
+
+Компонент `aiCodeBlock` может содержать вложенные элементы <<code-element,code>> и <<i18n-element,i18n>>.
+
+[[code-element]]
+=== code
+
+Элемент `code` содержит исходный код блока. Его содержимое берется без изменений, поэтому оно может занимать несколько строк. См. <<declaring-code,Код>>.
+
+[[i18n-element]]
+=== i18n
+
+Элемент `i18n` изменяет надписи действий этого блока. Он поддерживает атрибуты `copy`, `copied`, `wrapOn` и `wrapOff`, каждый из которых принимает ключ сообщения. Для не заданных атрибутов сохраняются значения из пакета сообщений. См. <<localization,Локализация>>.

@@ -1,0 +1,180 @@
+= Вложения
+
+Сообщение может содержать файлы. Поле ввода сообщений собирает их, приложение сохраняет, список сообщений отображает, а нажатие на вложение извлекает файл из хранилища. Вложения затрагивают компоненты xref:ai-chat:aiChat.adoc[aiChat], xref:ai-chat:aiMessageInput.adoc[aiMessageInput] и xref:ai-chat:aiMessageList.adoc[aiMessageList], поэтому они описаны здесь, а не на странице одного из этих компонентов.
+
+[[enabling]]
+== Включение вложений
+
+По умолчанию вложения отключены. Включите их и задайте ограничения в чате или в поле ввода сообщений, если оно используется отдельно:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=limits]
+----
+
+Атрибуты `maxFiles` и `maxFileSize` ограничивают количество и размер файлов, прикрепляемых к одному сообщению, а `acceptedFileExtensions` или `acceptedMimeTypes` ограничивают их тип. Ограничения проверяются и в браузере, и на сервере. Атрибут `uploadDropZoneEnabled` определяет, можно ли перетаскивать файлы на поле ввода сообщений.
+
+[WARNING]
+====
+Каждое значение в `acceptedFileExtensions` должно начинаться с точки: `.png`, а не `png`. Значение без точки отклоняется при открытии экрана, и пользователь видит диалог с ошибкой вместо чата.
+====
+
+[[choosing-files]]
+== Выбор файлов
+
+Если зона перетаскивания включена, файлы можно перетащить в любое место поля ввода сообщений. Пока файл находится над полем, оно подсвечивается.
+
+Чтобы файлы можно было выбрать нажатием, добавьте компонент `aiUploadTrigger`. Это отдельный компонент, потому что браузер открывает диалог выбора файлов только в ответ на реальное действие пользователя. Обычно его добавляют в выпадающее меню:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=upload-trigger-menu]
+----
+
+image::aichat-upload-trigger-menu.png[Открытое меню прикрепления файлов в поле ввода сообщений, align="center", width="868"]
+
+Вариант темы `menu-item` оформляет компонент как строку меню, а не как кнопку внутри меню: он убирает собственный фон, внутренние отступы и видимую границу и выравнивает содержимое по началу. Компонент можно активировать и с клавиатуры. Откройте меню и нажмите *Enter* — откроется диалог выбора файлов, потому что пункт меню передаёт такое же действие пользователя, как и кнопка.
+
+[IMPORTANT]
+====
+Компонент внутри `componentItem` должен указывать свой чат в атрибуте `aiChatId`, даже если само меню находится внутри этого чата. Автоматический поиск обходит дерево компонентов во время загрузки дескриптора, а дочерние компоненты пункта меню в этот момент ещё не являются частью чата.
+====
+
+Компоненту, размещённому непосредственно в чате, в `inputPrefix` или `inputSuffix`, а не внутри меню, атрибут `aiChatId` вообще не нужен: он сам находит окружающий его чат. Вне чата компонент можно разместить в любом месте экрана, указав идентификатор его чата.
+
+image::aichat-composer-attachments.png[Файлы, прикреплённые к сообщению, align="center", width="700"]
+
+Прикреплённые файлы отображаются как «чипы» над строкой ввода: миниатюра (thumbnail) для изображения и значок для любого другого файла. На каждом «чипе» есть кнопка, позволяющая удалить файл перед отправкой. Компонент `aiUploadTrigger` становится недоступным, если в его чате вложения отключены.
+
+[[rejected]]
+== Отклонённые файлы
+
+Файл, нарушающий одно из ограничений, отклоняется до добавления. Чтобы сообщить пользователю причину, обработайте событие отклонения:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=rejected]
+----
+
+Причина принимает одно из значений: `TOO_MANY_FILES`, `FILE_TOO_LARGE` или `INCORRECT_FILE_TYPE`.
+
+[[storing]]
+== Сохранение файлов
+
+Компонент передаёт приложению содержимое файлов в виде байтов и позволяет ему решить, где их хранить. В конфигурации без настройки дополнение само записывает их в файловое хранилище по умолчанию, но для чата, связанного с вашей собственной сущностью, нужна фабрика сообщений, которая это делает:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=attachment-factory]
+----
+
+Сущность хранит результаты в виде списка `FileRef`. Описание самой сущности см. в разделе xref:ai-chat:aiChat.adoc#data[Сообщения и данные].
+
+[IMPORTANT]
+====
+Укажите вложения в фетч-плане:
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=fetch-plan]
+----
+
+Коллекция вложений не входит в `_base`. Без этого файлы сохраняются правильно, но при повторной загрузке диалога нигде не отображаются. Содержимое файлов находится в хранилище, строки — в базе данных, но список сообщений не показывает вложений, и в журнал ничего не записывается.
+====
+
+[[sending-to-the-model]]
+== Отправка файлов модели
+
+Сохранение файла не делает его доступным модели. Чат передаёт вложения провайдеру, а пересылка их модели — задача провайдера.
+
+[IMPORTANT]
+====
+Модель должна принимать файлы. Модель, которая работает только с текстом, отклоняет весь запрос, поэтому чат показывает баннер ошибки, и ответ не формируется.
+
+Это относится к любому вложению, а не только к изображениям: Spring AI отправляет любое вложение как мультимодальные данные независимо от его типа, поэтому обычный текстовый файл вызывает ошибку на модели, работающей только с текстом, точно так же, как фотография. Чтобы попробовать пример ниже, подключите приложение к мультимодальной модели.
+====
+
+Запрос содержит вложения наряду с текстом сообщения. Провайдер в примере ниже пересылает их модели и задаёт текст для случая, когда сообщение содержит файлы и совсем не содержит текста:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=llm-provider-attachments]
+----
+<1> Сообщение с вложением и без текста допустимо, но `ChatClient.user(String)` отклоняет пустой текст и завершается ошибкой ещё до обращения к модели. Задайте текст для этого случая.
+<2> Вложения передаются в запросе наряду с текстом. Преобразование их в `Media` отправляет их модели.
+
+[[downloading]]
+== Скачивание из диалога
+
+Вложения остаются в списке сообщений после повторной загрузки: изображения — в виде миниатюр, остальные файлы — в виде «чипов». Нажатие на вложение сообщает приложению, какой файл был выбран, а остальное делает загрузчик файлов Jmix:
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=download]
+----
+
+[[upload-trigger-reference]]
+== aiUploadTrigger
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML-элемент
+|`aiUploadTrigger`
+
+|Java-класс
+|`AiUploadTrigger`
+|===
+
+`aiUploadTrigger` имеет следующие уникальные атрибуты:
+
+[cols="2,5,1", options="header"]
+|===
+|Имя
+|Описание
+|По умолчанию
+
+|[[aiChatId]]`aiChatId`
+|Указывает чат, к которому компонент прикрепляет файлы. Обязателен, если компонент не размещён непосредственно внутри чата. См. <<choosing-files,Выбор файлов>>.
+|—
+
+|[[triggerIcon]]`icon`
+|Задаёт значок компонента.
+|—
+
+|[[text]]`text`
+|Задаёт надпись компонента.
+|—
+
+|[[triggerThemeNames]]`themeNames`
+|Применяет варианты темы. `menu-item` оформляет компонент как строку выпадающего меню, а не как кнопку внутри меню.
+|—
+|===
+
+`aiUploadTrigger` имеет следующие общие атрибуты:
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabel[ariaLabel] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabelledBy[ariaLabelledBy] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#enabled[enabled] -
+xref:flow-ui:vc/common-attributes.adoc#focusShortcut[focusShortcut] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#tabIndex[tabIndex] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+Компонент становится недоступным, если в его чате вложения отключены, независимо от значения атрибута `enabled`.
+
+== Смотрите также
+
+* xref:ai-chat:aiChat.adoc#data[Сообщения и данные]: сущность, которая хранит вложения.
+* xref:ai-chat:aiMessageInput.adoc[aiMessageInput]: поле ввода сообщений, которое их собирает.
+* xref:ai-chat:aiMessageList.adoc[aiMessageList]: список сообщений, который их отображает.

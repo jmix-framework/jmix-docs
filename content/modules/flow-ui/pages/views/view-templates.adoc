@@ -1,8 +1,8 @@
 = Шаблоны экранов времени выполнения
 
-Шаблоны экранов времени выполнения позволяют генерировать стандартные экраны списка и деталей из шаблонов, объявленных в метаданных сущности, вместо того чтобы создавать их вручную на этапе разработки. Вы аннотируете класс сущности с помощью xref:#list-view-template[@ListViewTemplate] и/или xref:#detail-view-template[@DetailViewTemplate], и фреймворк генерирует соответствующие экраны, маршруты и пункты меню при запуске приложения.
+Шаблоны экранов времени выполнения позволяют генерировать стандартные экраны списка, деталей и чтения из шаблонов, объявленных в метаданных сущности, вместо того чтобы создавать их вручную на этапе разработки. Вы аннотируете класс сущности с помощью xref:#list-view-template[@ListViewTemplate], xref:#detail-view-template[@DetailViewTemplate] или xref:#read-view-template[@ReadViewTemplate], и фреймворк генерирует соответствующие экраны, маршруты и пункты меню при запуске приложения.
 
-Это удобно для быстрого отображения сущностей в UI – например, справочников или ссылочных данных – без написания классов экранов и XML-дескрипторов для каждой из них. Сгенерированные экраны регистрируются так же, как и обычные экраны: они участвуют в xref:views/opening-views.adoc#view-inference-conventions[выводе экранов], могут быть открыты по идентификатору или маршруту и могут служить основными экранами списка и деталей для сущности.
+Это удобно для быстрого отображения сущностей в UI – например, справочников или ссылочных данных – без написания классов экранов и XML-дескрипторов для каждой из них. Сгенерированные экраны регистрируются так же, как и обычные экраны: они участвуют в xref:views/opening-views.adoc#view-inference-conventions[выводе экранов], могут быть открыты по идентификатору или маршруту и могут служить основными экранами списка, деталей и чтения для сущности.
 
 CAUTION: Шаблоны экранов времени выполнения в настоящее время находятся в экспериментальном состоянии. API и встроенные шаблоны могут существенно измениться в следующем релизе Jmix.
 
@@ -52,10 +52,29 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 * `editedEntityContainerId` – идентификатор контейнера данных, содержащего редактируемую сущность, см. xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer]. По умолчанию `entityDc`.
 
+[[read-view-template]]
+== @ReadViewTemplate
+
+[.since]
+Начиная с Jmix 3.1
+
+`@ReadViewTemplate` объявляет генерируемый xref:views/view-classes.adoc#standard-read-view[экран чтения] для аннотированной сущности:
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=read]
+----
+
+Сгенерированный экран становится основным экраном чтения сущности, поэтому его открывают действия xref:actions/list-actions.adoc#list_read[list_read] и xref:actions/entity-picker-actions.adoc#entity_read[entity_read]. В экране списка, сгенерированном `@ListViewTemplate`, нет действия `list_read`.
+
+`@ReadViewTemplate` поддерживает xref:#common-attributes[общие атрибуты], кроме `parentMenu`, поэтому фреймворк не создаёт пункт меню для сгенерированного экрана чтения. Кроме того, аннотация поддерживает:
+
+* `readEntityContainerId` – идентификатор контейнера данных, содержащего отображаемую сущность, см. xref:views/view-annotations.adoc#read-entity-container[@ReadEntityContainer]. По умолчанию `entityDc`. Встроенный шаблон объявляет контейнер с идентификатором по умолчанию, поэтому задавайте другое значение только вместе с пользовательским шаблоном в атрибуте `path`.
+
 [[common-attributes]]
 == Общие атрибуты
 
-Обе аннотации используют следующие атрибуты:
+Аннотации используют следующие атрибуты:
 
 [cols="1,3"]
 |===
@@ -85,16 +104,18 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 Когда необязательные атрибуты опущены, фреймворк выводит их из имени сущности `<entityName>`:
 
-[cols="1,1,1"]
+[cols="1,1,1,1"]
 |===
-| |`@ListViewTemplate` |`@DetailViewTemplate`
+| |`@ListViewTemplate` |`@DetailViewTemplate` |`@ReadViewTemplate`
 
 |`viewId`
 |`<entityName>.list`
 |`<entityName>.detail`
+|`<entityName>.read`
 
 |`viewTitle`
 |`<entityName> list`
+|`<entityName>`
 |`<entityName>`
 |===
 
@@ -105,9 +126,10 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 * Для экрана списка `viewRoute` используется как есть.
 * Для экрана деталей `viewRoute` трактуется как базовый маршрут и всегда становится `.../:id`.
+* Для экрана чтения `viewRoute` трактуется как базовый маршрут и всегда становится `.../:id/read`.
 * Если `viewRoute` пуст, он выводится из `viewId`.
 
-В приведённом выше примере `Supplier` маршрут экрана списка – `suppliers`, а маршрут детального экрана – `suppliers/:id`.
+В приведённом выше примере `Supplier` маршрут экрана списка – `suppliers`, маршрут экрана деталей – `suppliers/:id`, а маршрут экрана чтения – `suppliers/:id/read`.
 
 [[built-in-templates]]
 == Встроенные шаблоны
@@ -115,12 +137,16 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 Когда `path` не указан, фреймворк использует встроенные шаблоны, которые генерируют содержимое экрана из свойств сущности:
 
 * шаблон экрана списка отображает `dataGrid` со столбцом для каждого свойства, `genericFilter`, постраничную навигацию и действия списка;
-* шаблон экрана деталей отображает `formLayout` с полем для каждого свойства.
+* шаблон экрана деталей отображает `formLayout` с полем для каждого свойства;
+* шаблон экрана чтения отображает `formLayout` с полем для каждого свойства и кнопку *Close*.
 
 Встроенные шаблоны расположены в следующих файлах ресурсов:
 
 * `io/jmix/flowui/view/template/list-view.ftl`
 * `io/jmix/flowui/view/template/detail-view.ftl`
+* `io/jmix/flowui/view/template/read-view.ftl`
+
+Для ссылочных атрибутов шаблоны экрана деталей и экрана чтения создают компонент, определённый аннотацией xref:data-model:entities.adoc#lookup-field[@LookupField]: `entityComboBox` или `entityPicker` с указанными действиями. Шаблоны также используют свойство xref:ui-properties.adoc#jmix.ui.component.entity-field-actions[jmix.ui.component.entity-field-actions], но не используют xref:ui-properties.adoc#jmix.ui.component.entity-field-fqn[jmix.ui.component.entity-field-fqn].
 
 [[property-filtering]]
 === Фильтрация свойств
@@ -167,6 +193,8 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Invoice
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/entity/InvoiceItem.java[tags=class]
 ----
+
+Экран, сгенерированный `@ReadViewTemplate`, показывает коллекции композиции в таких же вкладках, но у каждого `dataGrid` есть только действие *Read*. Действие открывает экран чтения сущности строки в диалоге. Если у сущности строки нет экрана чтения, действие открывает её экран деталей в режиме только для чтения.
 
 Поддерживаются только коллекции композиции. Коллекции ассоциаций, коллекции элементов и встроенные атрибуты не отображаются.
 

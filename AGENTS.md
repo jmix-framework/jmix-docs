@@ -96,14 +96,19 @@ See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-
 
 When asked to translate to Russian, translate the words:
 
+- access token -> access-токен
 - add-on -> дополнение
 - builder -> билдер
 - detail view -> экран деталей
 - endpoint -> эндпойнт
 - entity -> сущность
 - fetch plan -> фетч-план
+- in a bubble -> в пузырьке
 - inject -> инжектировать
 - list view -> экран списка
+- lookup view -> экран выбора
+- read view -> экран чтения
+- refresh token -> refresh-токен
 - release -> релиз
 - resource role -> ресурсная роль
 - row-level role -> роль уровня строк 
@@ -112,8 +117,26 @@ When asked to translate to Russian, translate the words:
 Do not translate:
 - changelog
 - fluent API
+- redirect URI
+- OAuth flow names, such as Authorization Code Flow and Device Code Flow
 
 Always keep AsciiDoc formatting.
+
+A diagram drawn with dark lines on a transparent background disappears in the dark theme. Give its image macro `role=light-background`, as in `image::transactions/transactions-1.png[,500,role=light-background]`, which puts a white plate behind it. Screenshots have their own background and need no role.
+
+## UI: styles, tokens and the pinned bundle
+
+The site uses the Antora default UI bundle pinned in `ui/ui-bundle.zip`. `ui/README.md` says which revision it is and how to update it. The styles are ours and live in `content/supplemental/css/`:
+
+- `tokens.css` holds the design tokens in three tiers: palette, semantic roles, components. The dark theme is the `:root[data-theme="dark"]` block at the end of the file, inside `@media screen` so print stays light. It sets the tier 2 colors and shadow, and the tier 3 colors that must differ in the dark theme (header logo, code, admonitions). No other stylesheet has a rule under `data-theme="dark"`. The only custom properties declared elsewhere are the `--adm-*` aliases in the Admonitions section of `site.css`.
+- `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes, and override it in part 2 otherwise. Part 2 holds the Jmix styles, one section per component. A section that needs forced colors rules keeps them in its own `@media (forced-colors: active)` block.
+- `search.css` and `dropdown-menu.css` style the search and the two header menus (version and color theme).
+- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when the toolbox would cover its first line), `dropdown-menu.js` (the version menu) and `theme-menu.js` (the color theme menu).
+- The color theme is the `data-theme` attribute (`light` or `dark`) on `<html>`, and `data-theme-preference` holds the reader's choice (`system`, `light` or `dark`). Only `light` and `dark` are saved, in `localStorage` under `jmix-docs-theme`; choosing System removes the key. An inline script at the start of `content/supplemental/partials/head-styles.hbs` sets both attributes and adds a `color-scheme` meta element before the stylesheets load, so the page never shows the wrong theme; keep it before the stylesheet links. `theme-menu.js` changes them later. The DocsBot chat widget that Google Tag Manager adds draws itself for a light page, so `site.css` keeps its host, `#docsbotai-root`, at `color-scheme: light`.
+
+Outside `tokens.css`, write colors as `var(--…)`. Keywords such as `transparent`, `currentColor` and `inherit`, `color-mix()` over keywords and tokens, and the CSS system colors in forced colors blocks are the only exceptions. `node tools/check-css.mjs` rejects other color literals and reports custom properties that are used but never declared. It also makes sure the dark block sets every `--color-*` and `--shadow-*` token of the light block, and only tokens that the light block declares. CI runs it, with its tests (`node --test tools/check-css.test.mjs`), on pull requests that change `content/supplemental/` or the check.
+
+After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, contrast and the expected styles in both themes, the skip link, accessible names, keyboard access to search results, fonts, forced colors mode, and the color theme: that it is set before the first stylesheet, and how the theme menu behaves. It needs Playwright with Chromium, which is not a dependency of this repository. Run `npx playwright@latest install chromium` once. The built pages load the production analytics container, so check them only through the audit or a Playwright script that blocks external hosts. Do not open them in a browser pane, because it does not block the container.
 
 ## Conventions
 
