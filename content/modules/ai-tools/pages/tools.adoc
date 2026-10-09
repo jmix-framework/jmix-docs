@@ -58,9 +58,31 @@ For example, to hide a specific entity from the assistant and cap the default nu
 include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
 ----
 
-Inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities. The `include-*` properties are additive and add entities to the default set, including entities hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. See xref:ai-tools:properties.adoc#dataload[Data-load properties] for the full list of options, including how to cap the number of rows that a single query can return.
+Inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities. The `include-*` properties are additive and add entities to the default set, including entities hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. Since Jmix 3.1, attributes that refer to a hidden entity are hidden too, for example, the `step` attribute of `UserStep` in the configuration above. To hide an entity or an attribute so that no property can expose it, use the <<exclude-from-ai,@ExcludeFromAi>> annotation. See xref:ai-tools:properties.adoc#dataload[Data-load properties] for the full list of options, including how to cap the number of rows that a single query can return.
 
 NOTE: Filtering by configuration changes only which entities are offered to the model. Regardless of configuration, every query still runs under the current user's xref:security:index.adoc[data access] permissions. A query over an entity the user cannot read is rejected, and attributes the user cannot read are removed from the result. A user can never read data they are not allowed to see.
+
+[[exclude-from-ai]]
+=== Excluding Data with @ExcludeFromAi
+
+[.since]
+Since Jmix 3.1
+
+The `jmix.aitools.dataload.*` properties can be changed at deployment time, for example, by an environment variable. For data that the assistant must never see, such as credentials or personal data, use the `io.jmix.aitools.ExcludeFromAi` annotation. It is set in the entity code, and no property can override it. The annotation affects only the Data Load tools. Views, the REST API and other parts of the application work with the data as before.
+
+You can put the annotation on an entity class or on an attribute:
+
+* On an entity class, it hides the whole entity. The Data Load tools do not return the entity, and validation rejects a generated query that uses it, as if the entity did not exist. Subclasses of the entity are hidden too, and queries over its ancestor entities do not return its records.
+* On an attribute, it hides only this attribute. The Data Load tools do not return the attribute, validation rejects a generated query that uses it, and the returned rows never contain its value.
+
+In the following example, the assistant can load users but does not see their email addresses:
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/entity/User.java[tags=exclude-from-ai]
+----
+
+NOTE: The predefined Data Load tools and the `AvailableEntityService` bean apply the annotation. If <<custom-tools,your own tool>> loads data through `DataManager`, it can still return the hidden data to the model.
 
 [[available-entity-filter]]
 === Customizing Availability

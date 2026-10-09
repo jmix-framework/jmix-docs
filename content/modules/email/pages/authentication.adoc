@@ -1,0 +1,198 @@
+= Mail Server Authentication
+:page-aliases: email:oauth-providers.adoc
+
+The add-on sends emails through the SMTP server defined by Spring Boot xref:configuration.adoc#spring-boot-mail-properties[mail properties]. The application can log in to the server in one of two ways:
+
+* <<basic-authentication,Basic authentication>> with a login and password.
+* <<oauth2-authentication,OAuth2 authentication>> with an access token. The add-on supports Gmail, Google Workspace and Microsoft 365 mail servers.
+
+[[basic-authentication]]
+== Basic Authentication
+
+The add-on uses basic authentication unless OAuth2 authentication is enabled by the xref:configuration.adoc#jmix.email.oauth2.enabled[jmix.email.oauth2.enabled] property. Set the login and password of the mailbox account and turn on SMTP authentication:
+
+.application.properties
+[source,properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=basic-authentication]
+----
+
+Google and Microsoft 365 restrict basic authentication for SMTP. Use <<oauth2-authentication,OAuth2 authentication>> for them.
+
+To check the connection, click *Test connection* in the xref:menu-views/email-connection.adoc[] view.
+
+[[oauth2-authentication]]
+== OAuth2 Authentication
+
+With OAuth2 authentication, the add-on passes an access token to the SMTP server instead of a password, using the `XOAUTH2` mechanism. The add-on gets access tokens from the provider using a refresh token.
+
+To set up OAuth2 authentication, follow the section for your mail provider:
+
+* <<google>>
+* <<microsoft>>
+
+Then <<connecting-mailbox,connect the mailbox account>>.
+
+See <<oauth2-details>> for how the add-on uses the mail properties and the refresh token.
+
+[[google]]
+=== Using a Gmail or Google Workspace Mailbox
+
+NOTE: The instructions below are based on the Google Developer documentation for https://developers.google.com/identity/protocols/oauth2/web-server[using OAuth 2.0 for web server applications^]. Check this page for the most up-to-date procedures.
+
+==== Register an OAuth Client in Google Cloud
+
+In the https://console.cloud.google.com/[Google Cloud console^], do the following:
+
+. Create or select a project.
+. Open the https://console.developers.google.com/auth/overview[Google Auth Platform^]. In a new project, click *Get started* and enter the app information and contact email. Select the audience: *Internal* for a Google Workspace mailbox or *External* for a Gmail account. In a project that already has an OAuth consent screen, the same settings are on the *Branding* and *Audience* pages.
+. If the audience is *External* and the app has the *Testing* publishing status, add the mailbox account as a test user on the *Audience* page. Authorizations of test users expire seven days after consent, and then you need to connect the account again.
+. Create an OAuth client of the *Web application* type with the `\http://localhost:8080/email/oauth2/callback` authorized redirect URI. Replace `\http://localhost:8080` with the address of your application, including the context path if the application has one.
+. Copy the *Client ID* and *Client secret* of the client.
+
+==== Configure Application Properties
+
+Use the credentials to configure the `application.properties` file of your Jmix application:
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=google
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+
+# Default sender address for emails that do not set their own sender
+jmix.email.from-address=<account_name>
+----
+
+Where `<account_name>` is the email address used for configuration. And `<client_id>`, `<client_secret>` are values obtained during the configuration process.
+
+==== Add Gradle Dependency
+
+Add the following dependency to your `build.gradle`:
+
+[source,groovy,indent=0]
+----
+implementation 'com.google.auth:google-auth-library-oauth2-http'
+----
+
+==== Connect Mailbox Account
+
+Run the application and connect the mailbox account using *Connect via authorization code*, as described in <<connecting-mailbox>>.
+
+[[microsoft]]
+=== Using a Microsoft 365 Mailbox
+
+NOTE: The instructions below combine the Microsoft Entra quickstart for https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app[registering an application^] with the Exchange Online documentation on https://learn.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth[authenticating SMTP connections with OAuth^]. Check these pages for the most up-to-date procedures.
+
+==== Register an App in Microsoft Entra
+
+In the https://entra.microsoft.com[Microsoft Entra admin center^], browse to *Entra ID* > *App registrations* and do the following:
+
+. Click *New registration*, enter a name, select the supported account types and click *Register*.
+. On the *Authentication* page, open the *Redirect URI configuration* tab, click *Add Redirect URI*, select *Web* and enter `\http://localhost:8080/email/oauth2/callback`. Replace `\http://localhost:8080` with the address of your application, including the context path if the application has one.
+. On the *Certificates & secrets* page of the application, create a client secret and copy its *Value*.
+. On the *API permissions* page, add the delegated *SMTP.Send* permission. If users in your tenant can't consent to applications, grant admin consent for it.
+. [[microsoft-public-client-flows]]To connect the mailbox account using *Connect via device code*, open the *Settings* tab of the *Authentication* page and enable *Allow public client flows*.
+. Copy the *Application (client) ID* and *Directory (tenant) ID* from the *Overview* page.
+
+SMTP AUTH must be enabled for the mailbox account: in the Microsoft 365 admin center, select *Authenticated SMTP* in the email app settings of the user. See https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission[Enable or disable SMTP AUTH in Exchange Online^].
+
+==== Configure Application Properties
+
+Use the credentials to configure the `application.properties` file of your Jmix application:
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.office365.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=microsoft
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+jmix.email.oauth2.tenant-id=<tenant_id>
+
+# Default sender address for emails that do not set their own sender
+jmix.email.from-address=<account_name>
+----
+
+Where `<account_name>` is the email address used for configuration. And `<client_id>`, `<client_secret>`, `<tenant_id>` are values obtained during the configuration process. Without `jmix.email.oauth2.tenant-id`, the add-on uses the `common` tenant, which Microsoft supports only for multitenant applications.
+
+==== Add Gradle Dependency
+
+Add the following dependency to your `build.gradle`:
+
+[source,groovy,indent=0]
+----
+implementation 'com.microsoft.azure:msal4j'
+----
+
+==== Connect Mailbox Account
+
+Run the application and connect the mailbox account using *Connect via authorization code* or *Connect via device code*, as described in <<connecting-mailbox>>.
+
+[[connecting-mailbox]]
+=== Connecting Mailbox Account
+
+[.since]
+Since Jmix 3.1
+
+After you configure the application, connect the mailbox account in the xref:menu-views/email-connection.adoc[] view:
+
+. Run the application and open *Email -> Email connection*.
+. Click *Connect via authorization code*. On the provider page, sign in to the mailbox account specified in `spring.mail.username` and grant access. When the application shows the result, click *Continue*.
++
+For Microsoft, you can click *Connect via device code* instead. Open the link shown in the dialog on any device, enter the code and sign in to the mailbox account. This flow requires <<microsoft-public-client-flows,public client flows>> to be allowed in the app registration.
+. Click *Test connection*.
+
+NOTE: The add-on builds the redirect URI from the address at which the server received the request: the scheme, host, port and context path. Behind a reverse proxy, this address can differ from the public one, and the provider rejects the request because the redirect URI doesn't match. In this case, set the registered redirect URI in the xref:configuration.adoc#jmix.email.oauth2.redirect-uri[jmix.email.oauth2.redirect-uri] property.
+
+[[manual-refresh-token]]
+==== Entering Refresh Token Manually
+
+If the provider doesn't accept the application address as a redirect URI, get a refresh token in another way (for example, in the https://developers.google.com/oauthplayground[OAuth 2.0 Playground^] for Google, in Postman or by sending requests to the provider manually). Add the address that receives the provider response to the redirect URIs of the OAuth client. Then do one of the following:
+
+* Click *Manual update* in the *Advanced* section of the xref:menu-views/email-connection.adoc[] view and enter the token.
+* Set the token in the xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token] property.
+
+The token must be issued to the client ID of the application with the following scopes:
+
+* Google: `\https://mail.google.com/`
+* Microsoft: `\https://outlook.office.com/SMTP.Send` and `offline_access`
+
+IMPORTANT: For Microsoft, a refresh token that you enter manually must be obtained with the client secret (for example, by the authorization code flow, but not by the device code flow). Otherwise, Microsoft rejects it when the add-on exchanges it for an access token.
+
+[[oauth2-details]]
+== OAuth2 Authentication Details
+
+[[oauth2-configuration]]
+=== OAuth2 Configuration Requirements
+
+When OAuth2 authentication is enabled, the add-on handles the mail properties as follows:
+
+* `spring.mail.username` is required. It is the mailbox account that the application logs in to.
+* `spring.mail.password` is ignored. If it is set, the add-on logs a warning.
+* The add-on sets the `mail.smtp.auth=true` and `mail.smtp.auth.mechanisms=XOAUTH2` JavaMail properties, unless you set them in `spring.mail.properties.*`.
+
+The application fails to start if `spring.mail.username`, xref:configuration.adoc#jmix.email.oauth2.provider[jmix.email.oauth2.provider], xref:configuration.adoc#jmix.email.oauth2.client-id[jmix.email.oauth2.client-id] or xref:configuration.adoc#jmix.email.oauth2.secret[jmix.email.oauth2.secret] is not set, or if the library of the provider is missing.
+
+[[refresh-token]]
+=== Refresh Token
+
+The add-on stores the refresh token in the database. The application has one stored token, and each connected account replaces it.
+
+The xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token] property sets an initial token value. The add-on uses it only while no token is stored in the database.
+
+When Microsoft returns a new refresh token, the add-on stores it.

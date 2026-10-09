@@ -1,0 +1,67 @@
+= UI Recovery
+
+The UI Recovery add-on protects users from losing unsaved changes in views. Users can spend a long time filling in a large form, and all their input is lost if the server node restarts or fails, the HTTP session expires, or the browser closes before they click *OK*.
+
+The add-on saves the unsaved changes of a view to the database while the user works. This saved state is called a _draft_. When the user opens the same view again, the add-on offers to restore the draft. Drafts are kept in the main data store, so they are available in a cluster and after a full restart of the application.
+
+You choose which views keep drafts by adding the xref:ui-recovery:drafts-facet.adoc[drafts facet] to their descriptors. No Java code is required.
+
+[[installation]]
+== Installation
+
+[NOTE]
+====
+This add-on requires the Enterprise https://www.jmix.io/subscription-plans-and-prices/[subscription^]. If you don't have the subscription, see the xref:ROOT:account-management.adoc#enterprise-trial[Enterprise Trial] section for how to get a trial version.
+====
+
+For automatic installation through Jmix Marketplace, follow instructions in the xref:ROOT:add-ons.adoc#installation[Add-ons] section.
+
+For manual installation, follow the steps below.
+
+. Configure access to the premium repository.
++
+include::ROOT:partial$premium-repo.adoc[]
+
+. Add dependencies to your `build.gradle`:
++
+[source,groovy,indent=0]
+----
+include::example$ui-recovery-ex1/build.gradle[tags=dependencies]
+----
+
+The add-on adds the `UIREC_VIEW_DRAFT` table to the main data store.
+
+[[how-it-works]]
+== How It Works
+
+When a view with the `drafts` facet is opened and the user changes data in it, the facet saves the changes to the database. It does this regularly, but not more often than once in a configured interval. When the user saves the changes or closes the view and discards them, the facet deletes the draft.
+
+If the work is interrupted, for example because the server was restarted, the draft stays in the database. When the user opens the view for the same record again, the facet finds the draft and shows a dialog that offers to restore it:
+
+image::restore-dialog.png[align="center",width="425"]
+
+The user can restore the changes, discard them, or postpone the decision until the next time the view is opened. The view can also be configured to restore drafts without asking.
+
+The add-on also provides the xref:ui-recovery:drafts-list.adoc[Unsaved drafts] view that shows all drafts of the current user. It can be opened automatically after login.
+
+[[drafts]]
+== Drafts
+
+A draft belongs to a user, a view and an edited record:
+
+* Only the latest state is kept. Each save replaces the previous draft of the same user, view and record. There is no history of drafts.
+* A detail view of an existing record has a draft for each record. A detail view of a new record has one draft at a time.
+* A draft is visible only to the user who created it.
+* A draft contains only the attributes that the user changed. When the draft is restored, the attributes that the user did not change keep their current values, even if another user changed them after the draft was saved.
+* A draft expires after the retention period, which is 30 days by default. An expired draft is not offered to the user and is deleted. See xref:ui-recovery:deleting-expired-drafts.adoc[].
+
+[[limitations]]
+== Limitations
+
+The add-on saves only the changes that reached the server and were registered in the view's xref:flow-ui:data/data-context.adoc[DataContext]. Keep in mind the following:
+
+* By default, a text field sends its value to the server when the field loses focus or the user presses *Enter*. A value that the user is still typing is not saved. You can send the value more often using the xref:flow-ui:vc/common-attributes.adoc#valueChangeMode[valueChangeMode] attribute. See xref:ui-recovery:drafts-facet.adoc#saving-typed-values[Saving Typed Values].
+* Values of components that are not bound to data are not saved.
+* A change of the order of elements in a collection is not saved if nothing else in the collection changed.
+* A change of an attribute of an embedded entity that is nested in another embedded entity is not saved.
+* The add-on does not merge changes made by different users. If the record was changed by another user after the draft was saved, the restore dialog warns about it. If the user restores the draft, the changed attributes are overwritten by the values from the draft. The same applies to the list of elements of a collection: restoring a draft replaces it.
