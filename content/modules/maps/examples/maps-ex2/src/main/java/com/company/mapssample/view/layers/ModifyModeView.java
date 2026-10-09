@@ -11,6 +11,7 @@ import io.jmix.mapsflowui.component.model.source.HasFeatureModify;
 import io.jmix.mapsflowui.component.model.source.HasGeoObjectModify;
 import io.jmix.mapsflowui.component.model.source.VectorSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import io.jmix.mapsflowui.component.model.source.HasFeatureDelete;
 
 @Route(value = "modify-mode-view", layout = MainView.class)
 @ViewController(id = "ModifyModeView")
@@ -69,7 +70,7 @@ public class ModifyModeView extends StandardView {
 
     // tag::featureDeleteEvent[]
     @Subscribe("map.featureLayer.featureSource")
-    public void onSourceFeatureDelete(final HasFeatureModify.SourceFeatureDeleteEvent event) {
+    public void onSourceFeatureDelete(final HasFeatureDelete.SourceFeatureDeleteEvent event) {
         notifications.create("SourceFeatureDeleteEvent", "Features: "
                         + event.getFeatures().size())
                 .show();

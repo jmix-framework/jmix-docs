@@ -12,7 +12,7 @@ the engine performs a depth-first search through the process graph
 and will return once it has reached <<waiting-states,waiting states>> on every branch of execution.
 This is illustrated in the following picture:
 
-image::transactions/transactions-1.png[,500]
+image::transactions/transactions-1.png[,500,role=light-background]
 
 We see a segment of a BPMN process with a user task, a service task and a timer event.
 Completing the user task and validating the address is part of the same unit of work,
@@ -52,7 +52,7 @@ in order to be able to scope logical units of work.
 This is where *asynchronous continuations* come into play.
 Consider the following process (fragment):
 
-image::bpm:/transactions/transactions-2.png[,800]
+image::bpm:/transactions/transactions-2.png[,800,role=light-background]
 
 In the next case, we are completing the user task, generating an invoice and then sending that invoice to the customer.
 This time the generation of the invoice is not part of the same unit of work,
@@ -67,25 +67,50 @@ Behind the scenes, when we reach the "generate invoice" task, we are creating a 
 to continue the process later and persisting it into the database.
 This job is then picked up by the job executor and executed.
 
-[NOTE]
-====
-To use this feature, set the *Asynchronous* property `true` for the corresponding element. This property is applicable to:
+To use this feature, set the `flowable:async` <<asynchronous-execution-properties,attribute>> of the element.
+In the modeler, select the *Asynchronous* checkbox in the element properties, for example, of a xref:bpmn/bpmn-service-task.adoc#properties[service task].
 
-* xref:bpmn/bpmn-service-task.adoc[]
-* xref:bpmn/bpmn-script-task.adoc[]
-* xref:bpmn/bpmn-business-rule-task.adoc[]
-* xref:bpmn/jmix-email-task.adoc[]
-* xref:bpmn/bpmn-subprocesses.adoc#embedded-subprocess[Embedded subprocess]
-* xref:bpmn/bpmn-subprocesses.adoc#call-activity[Call activity]
-====
+For details, see https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#asynchronous-continuations[Asynchronous Continuations^] in the Flowable documentation.
 
-In the XML, it is presented by the attribute `flowable:async="true"`.
+[[asynchronous-execution-properties]]
+=== Asynchronous Execution Properties
+
+The process engine supports the following attributes for activities, gateways, and events.
+In the modeler, you can set them in the *Asynchronous execution* section of the element properties:
+
+* *Asynchronous* (`flowable:async`) -- the process engine commits the current transaction before the element. Then the job executor executes the element and continues the process in a new transaction.
+* *Exclusive* (`flowable:exclusive`) -- the job created for *Asynchronous* is <<exclusive-jobs,exclusive>>: the job executor doesn't execute it concurrently with other exclusive jobs of the same process instance. Selected by default. Enabled only when *Asynchronous* is selected.
+* *Asynchronous leave* (`flowable:asyncLeave`) -- the element is executed in the current transaction. The process engine commits the transaction before leaving the element. Then the job executor completes the element and continues the process in a new transaction.
+* *Asynchronous leave exclusive* (`flowable:asyncLeaveExclusive`) -- the same as *Exclusive*, for the job created for *Asynchronous leave*. Selected by default. Enabled only when *Asynchronous leave* is selected.
+
+For example, the following service task has both `flowable:async` and `flowable:asyncLeave`, so it is executed in its own transaction, separately from the preceding and following parts of the process:
 
 [source,xml]
 ----
-<serviceTask id="Activity_0pzv18b" name="Generate invoice"
- flowable:async="true" />
+<serviceTask id="generateInvoiceTask" name="Generate invoice"
+    flowable:async="true"
+    flowable:asyncLeave="true" />
 ----
+
+[[exclusive-jobs]]
+=== Exclusive Jobs
+
+By default, asynchronous jobs are exclusive: the job executor does not execute exclusive jobs of the same process instance concurrently.
+Jobs of different process instances are executed concurrently.
+
+To allow the job executor to execute a job concurrently with other jobs of the same process instance, set `flowable:exclusive` or `flowable:asyncLeaveExclusive` to `false`.
+For example, the following service task is on one of the parallel paths after a xref:bpmn/bpmn-gateways.adoc#parallel-gateway[parallel gateway]:
+
+[source,xml]
+----
+<serviceTask id="reserveStockTask" name="Reserve stock"
+    flowable:async="true"
+    flowable:exclusive="false" />
+----
+
+When parallel paths with non-exclusive jobs arrive at the joining gateway at the same time, one of the transactions can fail with an optimistic locking exception, and the job executor retries the failed job.
+So, make jobs non-exclusive only if the work of the element can be safely repeated.
+For details, see https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#exclusive-jobs[Exclusive Jobs^] in the Flowable documentation.
 
 [[fail-retry]]
 == Fail Retry

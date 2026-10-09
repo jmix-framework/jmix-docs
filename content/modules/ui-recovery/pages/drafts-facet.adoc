@@ -1,0 +1,150 @@
+= Drafts Facet
+
+The `drafts` facet saves unsaved changes of a view as a draft and offers to restore the draft when the user opens the view again. See xref:ui-recovery:index.adoc#how-it-works[How It Works] for an overview.
+
+[[adding-facet]]
+== Adding the Facet
+
+Declare the add-on namespace in the view descriptor:
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=namespace]
+----
+
+Then add the `uirec:drafts` element to the `facets` element:
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=facet]
+----
+
+In Jmix Studio, you can add the facet from the *Facets* section of the component palette.
+
+The facet works in any view that has a xref:flow-ui:data/data-context.adoc[DataContext] and saves the changes registered in it. In a detail view, the draft belongs to the edited record. In other views, for example in a list view with an editable data grid, the view has one draft.
+
+include::flow-ui:page$facets/facet-tip.adoc[]
+
+[[attributes]]
+== Attributes
+
+You can change the behavior of the facet in a particular view with the following attributes:
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/customer/customer-detail-view.xml[tags=facet-attributes]
+----
+
+[[minSaveInterval]]
+`minSaveInterval`::
+The minimum time between two saves of the draft of the view, for example `5s` or `1m`. Changes made during this time are saved when the interval ends. The default value is set by the xref:ui-recovery:app-properties.adoc#jmix.uirecovery.drafts.default-min-save-interval[jmix.uirecovery.drafts.default-min-save-interval] property.
+
+[[restoreMode]]
+`restoreMode`::
+How a draft is restored when the view is opened: `ASK` or `AUTO`. See <<restore-modes>>. The default value is set by the xref:ui-recovery:app-properties.adoc#jmix.uirecovery.drafts.default-restore-mode[jmix.uirecovery.drafts.default-restore-mode] property.
+
+[[saving-and-deleting]]
+== Saving and Deleting Drafts
+
+The facet saves a draft after the user changes data in the view, but not more often than <<minSaveInterval,minSaveInterval>> allows. When the view is detached, for example because the user closed the browser tab, the facet saves the remaining changes at once.
+
+The facet deletes the draft when:
+
+* The user saves the changes.
+* The user closes the view and confirms that the changes should be discarded.
+
+If saving a draft fails, the error is written to the log and the view keeps working.
+
+[[saving-typed-values]]
+== Saving Typed Values
+
+By default, a text field sends its value to the server when the field loses focus or the user presses *Enter*. Until then, the typed value is not in the data model and cannot be saved in a draft. If the user types a long text into a single field, a failure can lose all of it.
+
+To send the value while the user types, set the xref:flow-ui:vc/common-attributes.adoc#valueChangeMode[valueChangeMode] attribute of the field to `LAZY` or `TIMEOUT`:
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=value-change-mode]
+----
+
+In this example, the text area sends its value when the user stops typing for one second. The value is then saved in the next draft. Each sent value is a request to the server, so use this setting for fields where users type a lot of text.
+
+[[restore-modes]]
+== Restore Modes
+
+When the view is opened and a draft is found for it, the facet restores the draft according to the <<restoreMode,restore mode>>.
+
+[[ask-mode]]
+=== ASK
+
+This is the default mode. The facet shows a dialog with the date of the draft:
+
+image::restore-dialog.png[align="center",width="425"]
+
+* *Restore* puts the changes from the draft into the view. The changes are not saved to the database until the user saves the view.
+* *Discard* deletes the draft.
+* *Not now* closes the dialog and keeps the draft. The dialog is shown again the next time the user opens the view.
+
+If the record was changed by another user after the draft was saved, the dialog warns that restoring the draft will overwrite those changes:
+
+image::restore-dialog-version-differs.png[align="center",width="560"]
+
+The warning is shown for entities with optimistic locking, that is entities with a version attribute.
+
+[[auto-mode]]
+=== AUTO
+
+The facet restores the draft without asking and shows a notification. The draft is kept in the database until the user saves the view or discards the changes. If the work is interrupted again before that, the draft is still available.
+
+[[restoring-details]]
+== What Is Restored
+
+The facet restores only the attributes that the user changed. Other attributes keep their current values.
+
+The facet skips the parts of a draft that can no longer be applied and restores the rest. For example, it skips:
+
+* An attribute that was removed from the entity in a new version of the application.
+* A record that was deleted after the draft was saved.
+
+If the draft cannot be read at all, the facet deletes it and the view opens without restoring anything. The user is not notified. Details are written to the log.
+
+[[custom-restore]]
+== Custom Restore Logic
+
+To decide in code whether and how a draft is restored, set a restore delegate. The facet calls it before the standard restore. The delegate receives a `DraftRestoreContext` object with the found draft and the view. If the delegate calls `preventRestore()`, the facet does not restore the draft and does not show the dialog.
+
+In the following example, the view does not offer drafts older than one day and deletes them:
+
+[source,java,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/java/com/company/sample/view/order/OrderDetailView.java[tags=restore-delegate]
+----
+<1> The facet doesn't restore the draft and doesn't show the dialog.
+<2> Deletes the draft of the current view and record.
+
+[[draft-restored-event]]
+== DraftRestoredEvent
+
+The facet sends `DraftRestoredEvent` after it restores a draft. The event is sent in both restore modes. At this moment, the restored values are in the view, so you can update the UI or check the data. Changes that you make in the event handler are saved in the next draft.
+
+The `getDraft()` method of the event returns the restored draft, and `getRestoredEntities()` returns the entity instances that were changed by restoring.
+
+The event is not sent if the user discarded the draft or postponed the decision, if the restore delegate prevented the restore, or if nothing from the draft could be restored.
+
+In the following example, the view validates the restored values and shows the validation errors:
+
+[source,java,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/java/com/company/sample/view/customer/CustomerDetailView.java[tags=draft-restored-event]
+----
+
+[[methods]]
+== Methods
+
+The `DraftsFacet` interface has the following methods:
+
+* `saveDraftNow()` saves the draft immediately, without waiting for the <<minSaveInterval,minSaveInterval>>.
+* `deleteDrafts()` deletes the draft of the current view and record.
+* `setMinSaveInterval()` and `setRestoreMode()` change the values of the <<attributes,attributes>>.
+* `setRestoreDelegate()` sets the <<custom-restore,restore delegate>>.
+* `addDraftRestoredListener()` adds a <<draft-restored-event,DraftRestoredEvent>> listener.

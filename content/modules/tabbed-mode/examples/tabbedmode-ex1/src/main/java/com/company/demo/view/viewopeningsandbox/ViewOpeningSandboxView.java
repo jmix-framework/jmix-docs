@@ -175,6 +175,36 @@ public class ViewOpeningSandboxView extends StandardView {
     }
     // end::openLookupViewDialog[]
 
+    @Subscribe(id = "readUserBtn", subject = "clickListener")
+    public void onReadUserBtnClick(final ClickEvent<JmixButton> event) {
+        User user = userPicker.getValue();
+        if (user != null) {
+            openReadView(user);
+        }
+    }
+
+    // tag::openReadView[]
+    private void openReadView(User user) {
+        viewBuilders.read(this, User.class)
+                .readEntity(user)
+                .open();
+    }
+    // end::openReadView[]
+
+    @Subscribe(id = "readBtn", subject = "clickListener")
+    public void onReadBtnClick(final ClickEvent<JmixButton> event) {
+        if (usersDataGrid.getSingleSelectedItem() != null) {
+            openReadViewDataGrid();
+        }
+    }
+
+    // tag::openReadViewDataGrid[]
+    private void openReadViewDataGrid() {
+        viewBuilders.read(usersDataGrid)
+                .open();
+    }
+    // end::openReadViewDataGrid[]
+
 
     @Subscribe(id = "openViewWithParametersBtn", subject = "clickListener")
     public void onOpenViewWithParametersBtnClick(final ClickEvent<JmixButton> event) {

@@ -92,8 +92,42 @@ git config core.hooksPath .githooks
 Optimize PNG screenshots with `pngquant --quality=65-85 --strip --force --ext .png <file>`.
 See `CONTRIBUTING.md` for the full table. Bypass (rarely) with `git commit --no-verify`.
 
+Screenshots are captured at **2x** and declared at half their pixel width (`image::foo.png[width="413"]` for an 826px-wide file), so they stay sharp on high-DPI displays. `tools/screenshot-2x.mjs` does this: it drives Playwright directly with `deviceScaleFactor: 2` and captures a single element, which the Playwright MCP tool cannot do — its resize action takes a width and a height only, so every capture it makes is 1x. Run it with `--url`, `--selector` and `--out`; it prints the resulting pixel size and the width to declare. See the comment at the top of the file for the rest of its options.
+
+A rectangular capture of a rounded element, such as a dialog or a card, shows the app's page background outside the corners, and these pixels look wrong on the docs page and in its dark theme. Pass `--round-corners auto` to make them transparent. A Playwright script of your own, for a capture that needs several steps, can import `captureRounded` from `tools/lib/round-corners.mjs`, which explains the details.
+
+A diagram drawn with dark lines on a transparent background disappears in the dark theme. Give its image macro `role=light-background`, as in `image::transactions/transactions-1.png[,500,role=light-background]`, which puts a white plate behind it. Screenshots have their own background and need no role.
+
+## UI: styles, tokens and the pinned bundle
+
+The site uses the Antora default UI bundle pinned in `ui/ui-bundle.zip`. `ui/README.md` says which revision it is and how to update it. The styles are ours and live in `content/supplemental/css/`:
+
+- `tokens.css` holds the design tokens in three tiers: palette, semantic roles, components. The dark theme is the `:root[data-theme="dark"]` block at the end of the file, inside `@media screen` so print stays light. It sets the tier 2 colors and shadow, and the tier 3 colors that must differ in the dark theme (header logo, code, admonitions). No other stylesheet has a rule under `data-theme="dark"`. The only custom properties declared elsewhere are the `--adm-*` aliases in the Admonitions section of `site.css`.
+- `site.css` replaces the bundle stylesheet. Part 1 is the upstream `src/css` of the bundle's revision; change it only to port upstream changes, and override it in part 2 otherwise. Part 2 holds the Jmix styles, one section per component. A section that needs forced colors rules keeps them in its own `@media (forced-colors: active)` block.
+- `search.css`, `dropdown-menu.css` and `feedback-form.css` style the search, the two header menus (version and color theme) and the feedback form.
+- `content/supplemental/js/` holds the scripts that add to the bundle's `site.js`: `a11y.js` (ARIA state, copy button names, the skip link and keyboard access to search results), `code-toolbox.js` (starts a code block below the copy toolbox when the toolbox would cover its first line), `dropdown-menu.js` (the version menu), `theme-menu.js` (the color theme menu) and `feedback-form.js`.
+- The color theme is the `data-theme` attribute (`light` or `dark`) on `<html>`, and `data-theme-preference` holds the reader's choice (`system`, `light` or `dark`). Only `light` and `dark` are saved, in `localStorage` under `jmix-docs-theme`; choosing System removes the key. An inline script at the start of `content/supplemental/partials/head-styles.hbs` sets both attributes and adds a `color-scheme` meta element before the stylesheets load, so the page never shows the wrong theme; keep it before the stylesheet links. `theme-menu.js` changes them later. The DocsBot chat widget that Google Tag Manager adds draws itself for a light page, so `site.css` keeps its host, `#docsbotai-root`, at `color-scheme: light`.
+
+Outside `tokens.css`, write colors as `var(--…)`. Keywords such as `transparent`, `currentColor` and `inherit`, `color-mix()` over keywords and tokens, and the CSS system colors in forced colors blocks are the only exceptions. `node tools/check-css.mjs` rejects other color literals and reports custom properties that are used but never declared. It also makes sure the dark block sets every `--color-*` and `--shadow-*` token of the light block, and only tokens that the light block declares. CI runs it, with its tests (`node --test tools/check-css.test.mjs`), on pull requests that change `content/supplemental/` or the check.
+
+After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks keyboard focus, contrast and the expected styles in both themes, the skip link, accessible names, keyboard access to search results, fonts, forced colors mode, and the color theme: that it is set before the first stylesheet, and how the theme menu behaves. It needs Playwright with Chromium, which is not a dependency of this repository. Run `npx playwright@latest install chromium` once. The built pages load the production analytics container, so check them only through the audit or a Playwright script that blocks external hosts. Do not open them in a browser pane or capture them with `tools/screenshot-2x.mjs`, because neither blocks the container.
+
 ## Conventions
 
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
-- Use bold text only for UI elements. Don't use bold for emphasis.
+- Give link text to a reference whose anchor is not a section heading, e.g. `<<minSaveInterval,minSaveInterval>>` for an anchor on a definition list item. A reference to a section can omit the text, because the section title is used.
+- Use bold text only for UI elements and keyboard shortcuts. Don't use bold for emphasis.
+- Write keyboard shortcuts in bold, e.g. `*Ctrl+Space*`. Don't use `kbd:[...]`.
+- Add `^` to the link text of external links so they open in a new tab, e.g. `{spring-framework-doc}/core/expressions.html[SpEL^]`.
+
+## Writing prose
+
+After you write or change prose that people read (`.adoc` pages, `README.md`, `CONTRIBUTING.md`, PR and issue descriptions), run the `no-ai-slop` skill in detect mode on the text you changed, then fix what it finds. The skill is written for personal writing, so apply it with these adjustments:
+
+- Check only the lines in your diff. Leave the surrounding text as it is unless asked to clean it up.
+- Keep AsciiDoc markup unchanged: `include::`, `xref:`, anchors, attributes, source blocks, admonition labels and UI element names.
+- The voice to keep is the existing style of the page.
+- Technical subjects with active verbs are correct here: "the component displays", "the method returns".
+- Keep short sections on reference pages. Readers reach them through anchors.
+- The readers are Jmix developers, and many of them are non-native English speakers. Use plain, common words.

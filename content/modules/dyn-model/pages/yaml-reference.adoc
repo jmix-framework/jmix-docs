@@ -27,6 +27,16 @@ The `model` root contains these top-level fields:
 | Static entity extensions and dynamic entity definitions. Missing or `null` becomes an empty list.
 |===
 
+[[writing-yaml]]
+=== Writing YAML by Hand
+
+The visual editor always writes text values in quotes. If you edit the YAML in the *Code* presentation, the following rules apply:
+
+* A text value is read exactly as written, even without quotes. For example, `id: 007` is the text `007`, and `en: no` is the text `no`.
+* Boolean fields, such as `lob`, `required`, `unique`, `instanceName` and `collection`, accept only `true` and `false`. Values like `yes`, `no`, `on`, `off`, `1` and `0` are rejected.
+* In fields that contain any YAML values, such as `templateParams` and constraint `parameters`, numbers and `true`/`false` keep their types. `yes`, `no`, `on` and `off` are read as text.
+* A duplicate key is rejected in any place of the model.
+
 [[names-and-resolution]]
 === Names and Resolution
 
@@ -251,7 +261,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `instanceName`
 | boolean
 | no
-| Marks the attribute as an instance-name property. If several attributes are marked, the first one is used and later ones are ignored with a warning.
+| Marks the attribute as the instance name property. An entity can have one instance name attribute. If several attributes are marked, the first one is used and later ones are ignored with a warning. A calculated attribute can be the instance name.
 
 | `collection`
 | boolean
@@ -272,6 +282,16 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | object
 | no
 | Attribute view/modify grants.
+
+| `lookup`
+| object
+| no
+| UI component for selecting a single-valued reference. See <<lookup>>.
+
+| `searchable`
+| boolean
+| no
+| Indexes the attribute for full-text search. Requires the Search add-on. See xref:dyn-model:search.adoc[].
 
 | `messages`
 | map
@@ -446,6 +466,39 @@ Rules:
 * Static targets with composite primary keys are not supported.
 * Owner and target must be in the same physical store.
 
+[[lookup]]
+==== Lookup Field
+
+[.since]
+Since Jmix 3.1
+
+The `lookup` object sets the UI component that generated views use for a single-valued reference:
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=lookup]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `type`
+| string
+| yes
+| `DROPDOWN` for an `entityComboBox` with items loaded by the instance name, or `VIEW` for an `entityPicker` that opens a lookup view.
+
+| `actions`
+| list
+| no
+| Field actions: `entity_lookup`, `entity_open`, `entity_clear`. Without actions, a `VIEW` field gets the lookup and clear actions.
+|===
+
+Rules:
+
+* `lookup` is supported only for single-valued references. It is rejected for datatype, enumeration, collection and calculated attributes.
+* If the instance name of the referenced entity is not based on string attributes, a `DROPDOWN` field uses a lookup view instead.
+
 [[collections]]
 === Collections
 
@@ -532,7 +585,7 @@ Constraint fields:
 | `parameters`
 | map
 | no
-| YAML scalar/list/object values. Parameter names depend on the constraint. Missing becomes an empty map.
+| YAML scalar/list/object values. Parameter names depend on the constraint. Missing becomes an empty map. When the model is applied, `inclusive` must be a boolean, and `min`, `max`, `integer` and `fraction` must be numbers.
 
 | `groups`
 | list
@@ -812,7 +865,7 @@ View fields:
 | `type`
 | string
 | dynamic entities
-| `list` or `detail`. Case-insensitive during deserialization. Required for dynamic entity views. Static entity views can infer it from the registered base view.
+| `list`, `detail` or `read`. Case-insensitive during deserialization. Required for dynamic entity views. Static entity views can infer it from the registered base view.
 
 | `viewId`
 | string
@@ -822,7 +875,7 @@ View fields:
 | `viewRoute`
 | string
 | no
-| Dynamic entity route segment. Defaults to a slug made from `viewId`; detail views append `/:id`. Static entity views do not support this field.
+| Dynamic entity route segment. Defaults to a slug made from `viewId`; detail views append `/:id`, read views append `/:id/read`. Static entity views do not support this field.
 
 | `viewTitle`
 | localized value
@@ -847,7 +900,7 @@ View fields:
 | `descriptor`
 | object
 | static entities
-| Descriptor declaration. Dynamic entity views can omit it to use the default template. Static entity views must provide `descriptor.source`.
+| Descriptor declaration. Dynamic entity views can omit it to use the default template. Static entity views must provide `descriptor.source`, unless the declaration has `handlers`.
 
 | `lookupComponentId`
 | string
@@ -858,17 +911,29 @@ View fields:
 | string
 | no
 | Dynamic detail view edited entity container ID. Default is `entityDc`. Static entity views do not support this field.
+
+| `readEntityContainerId`
+| string
+| no
+| Dynamic read view container ID of the shown entity. Default is `entityDc`. Takes effect only with a custom descriptor that declares a container with this ID. Static entity views do not support this field.
+
+| `handlers`
+| list
+| no
+| UI handlers of the view. See <<handlers>>.
 |===
 
+[[dynamic-entity-views]]
 === Dynamic Entity Views
 
 Rules:
 
-* `type` must be `list` or `detail`.
+* `type` must be `list`, `detail` or `read`.
 * `viewId` must be set explicitly and must be unique.
 * If `viewRoute` is omitted, it is generated from `viewId` by lowercasing and replacing non-alphanumeric sequences with `-`.
-* Detail routes automatically append `/:id`; therefore `viewRoute` itself must not end with `/:id`.
+* Detail routes automatically append `/:id`; therefore `viewRoute` itself must not end with `/:id`. Read routes append `/:id/read`.
 * The first declared list view becomes the primary list view for the dynamic entity. The first declared detail view becomes the primary detail view.
+* A read view cannot have a `menuItem`.
 * `descriptor` may be omitted, use `template: "default"`, use a custom template resource path, or provide literal `source`.
 * If `descriptor.source` is used, it must be valid XML with root `<view xmlns="http://jmix.io/schema/flowui/view">`.
 * Explicit list descriptors must contain the lookup component ID, default `dataGrid`.
@@ -877,7 +942,8 @@ Rules:
 Default templates are:
 
 * `io/jmix/flowui/view/template/list-view.ftl` for list views;
-* `io/jmix/flowui/view/template/detail-template.ftl` for detail views.
+* `io/jmix/flowui/view/template/detail-view.ftl` for detail views;
+* `io/jmix/flowui/view/template/read-view.ftl` for read views.
 
 `templateParams` is a YAML object passed to descriptor template rendering. Dynamic Model does not define a fixed schema for it; supported keys depend on the selected template. For example, a template can consume list-of-string property filters:
 
@@ -886,6 +952,7 @@ Default templates are:
 include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=template-params]
 ----
 
+[[static-entity-view-overrides]]
 === Static Entity View Overrides
 
 Static entity view declarations override the XML descriptor of an already registered view:
@@ -899,10 +966,11 @@ Rules:
 
 * `viewId` is required and must reference a registered static view.
 * `type` may be omitted; it is inferred from the controller class.
-* Only `descriptor.source` is supported.
-* `descriptor.template`, `viewRoute`, `viewTitle`, `templateParams`, `resourceRoles`, `menuItem`, `lookupComponentId`, and `editedEntityContainerId` are rejected.
+* Only `descriptor.source` is supported. The `descriptor` can be omitted if the declaration has `handlers`; the view XML is not changed in this case.
+* `descriptor.template`, `viewRoute`, `viewTitle`, `templateParams`, `resourceRoles`, `menuItem`, `lookupComponentId`, `editedEntityContainerId`, and `readEntityContainerId` are rejected.
 * The generated controller subclasses the current registered controller and preserves its route.
 
+[[descriptor]]
 === Descriptor
 
 `descriptor` must contain exactly one of:
@@ -943,10 +1011,55 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | no
 | Defaults to the view title when omitted.
 
+| `icon`
+| string
+| no
+| Icon ID, for example `vaadin:star`. If the icon cannot be found, the menu item is shown without an icon.
+
 | `resourceRoles`
 | list
 | no
 | Role codes that can access the menu item.
 |===
 
-Detail view menu items receive the route parameter `id=new`.
+Detail view menu items receive the route parameter `id=new`. Read views cannot have menu items.
+
+[[handlers]]
+=== Handlers
+
+[.since]
+Since Jmix 3.1
+
+UI handlers are declared under `entities[].views[].handlers`. See xref:dyn-model:handlers.adoc[] for the events and the objects that expressions can use.
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view-handlers]
+----
+
+Handler fields:
+
+[cols="1,1,1,3",options="header"]
+|===
+| Field | Type | Required | Notes
+
+| `name`
+| string
+| no
+| Handler name, unique in the view. Required if `event` is omitted.
+
+| `event`
+| string
+| no
+| `click`, `valueChange`, `init`, `initEntity`, `beforeShow` or `ready`. A handler without an event runs only when a confirmation dialog calls it by name.
+
+| `componentId`
+| string
+| for component events
+| ID of the component. Required for `click` and `valueChange`, not allowed for other events.
+
+| `expression`
+| string
+| yes
+| A single SpEL expression.
+|===
