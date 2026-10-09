@@ -74,6 +74,7 @@ Key methods:
 * `setMessageInputEnabled(boolean)` / `focusMessageInput()` – controls the composer.
 * `isAwaitingResponse()` – indicates whether a reply is currently being generated.
 * `setAiAvatarIconSupplier(SerializableSupplier<Component>)` – customizes the assistant avatar.
+* `setTitleMode(AiConversationTitleMode)` – selects how the title of a new conversation is set. When unset or `null`, the mode comes from the xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] application property. See <<conversation-titles>>.
 
 [[ai-chat-input-fragment]]
 === AiChatInputFragment
@@ -127,6 +128,41 @@ To use the chat with non-default storage, provide your own beans that implement 
 === Icon Provider
 
 The brand icon shown on the hub and the assistant avatar is supplied by the `AiIconProvider` bean. Replace this bean to change the add-on's iconography globally, or override it per fragment with the icon supplier setters shown above.
+
+[[conversation-titles]]
+== Conversation Titles
+
+[.since]
+Since Jmix 3.1
+
+A new conversation has the default title `New AI Conversation`. The xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] application property defines which title it gets when the user sends the first message.
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|Mode |Title
+
+|`FIRST_MESSAGE`
+|The first user message. A message longer than 255 characters is cut at a word boundary. The model is not called. This is the default mode.
+
+|`GENERATED`
+|A short title that the model generates from the first user message, in the language of the current user's locale. The model is called in the background. Until the generated title is ready, or if no title is generated, the conversation has the first-message title.
+
+|`NONE`
+|The conversation keeps its default title.
+|===
+
+The generated title is saved even if the user leaves the conversation before it is ready. It does not replace a title that the user has entered in the meantime.
+
+If your view gives a conversation its own title before the first message, call `setTitleMode(AiConversationTitleMode.NONE)` on the <<ai-chat-fragment,AiChatFragment>>. Otherwise, the first message replaces this title.
+
+[[title-generation]]
+=== Customizing Title Generation
+
+In the `GENERATED` mode, the title comes from the `AiConversationTitleGenerator` bean. The default implementation from `jmix-aitools-flowui-data-starter` sends the first user message to the xref:ai-tools:getting-started.adoc#configure-model[configured model]. With only `jmix-aitools-flowui-starter`, the generator returns no title.
+
+To generate titles in another way, register a bean that implements `io.jmix.aitoolsflowui.service.AiConversationTitleGenerator`. Its `generateTitle(String firstUserMessage)` method returns the title or an empty `Optional`. The method runs in a background thread with the current user's authentication. The returned title is saved as is, so keep it within 255 characters.
+
+To change only the system prompt of the default generator, register a bean that implements `io.jmix.aitoolsflowuidata.service.prompt.AiConversationTitleSystemPromptProvider` and returns your template. The template can use the `\{responseLanguage}` parameter, which contains the language of the current user's locale, for example, `German / Deutsch (de)`.
 
 [[roles]]
 == Security Role
