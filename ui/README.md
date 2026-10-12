@@ -4,6 +4,18 @@
 
 The bundle provides the layouts, the Handlebars helpers, the partials that `content/supplemental/partials` does not override, `js/site.js` and the images. It also holds fonts and `js/vendor/highlight.js`, which the site does not use. The site has its own fonts in `content/supplemental/font` and loads highlight.js from cdnjs. `content/supplemental/css/site.css` replaces the bundle's `css/site.css`, so the stylesheet is ours. Part 1 of that file is the upstream `src/css` of the same revision, part 2 holds the Jmix styles, and the design tokens live in `content/supplemental/css/tokens.css`.
 
+## Asset URLs
+
+The stylesheet and script URLs carry a content hash, such as `css/site.css?v=2eca4c9a57`, so a browser that cached an old copy loads the new one after a release. The IntelliJ IDEA built-in browser keeps old copies until the user invalidates its caches. `asset-hash-extension.js` hashes every CSS and JS file of the UI and registers the `asset` Handlebars helper. Both playbooks register the extension after the Lunr extension, whose files it hashes too.
+
+Reference a UI stylesheet or script through the helper, not through `uiRootPath`:
+
+```hbs
+<link rel="stylesheet" href="{{{asset 'css/site.css'}}}">
+```
+
+The helper fails the build when the UI has no such file. `search-index.js` is not a UI file and has no hash.
+
 ## Updating the bundle
 
 1. Download the new bundle, the `bundle-stable` job artifact of upstream master: `https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable`. Download the upstream sources of the commit that job ran on: `https://gitlab.com/antora/antora-ui-default/-/archive/<sha>/antora-ui-default-<sha>.tar.gz`.
