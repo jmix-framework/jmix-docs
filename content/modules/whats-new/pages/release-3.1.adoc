@@ -280,6 +280,22 @@ for (Map<String, Object> row : result.getRows()) {
 * Метод `UnoConverter.createAny(Object)`. Вместо него используйте `new Any(new Type(XCell.class), value)`.
 * Поля `AbstractFormatter.SIMPLE_ALIAS_REGEXP` и `DataExtractorImpl.EMPTY_MAP`.
 
+Дополнение больше не меняет XML-процессоры всего приложения (см. https://github.com/jmix-framework/jmix/issues/5755[#5755^]). Раньше Xalan 2.7.3 и Xerces 2.12.2 из зависимостей дополнения становились JAXP `TransformerFactory` и `SchemaFactory` по умолчанию, и из-за этого приложение с Hazelcast не запускалось. Теперь приложение получает эти фабрики из JDK. Это может привести к следующим проблемам:
+
+* Код, который использует специфичные для Xalan возможности XSLT, может перестать работать.
+* Обработка XML, который превышает ограничения обработки JDK, может завершаться ошибкой.
+* В Java 21 валидация `StAXSource` с пустой секцией CDATA завершается ошибкой из-за бага https://bugs.openjdk.org/browse/JDK-8349516[JDK-8349516^]. Например, BPM не может развернуть такой DMN-файл (см. https://github.com/jmix-framework/jmix/issues/5778[#5778^]).
+
+Чтобы сохранить прежние фабрики, задайте системные свойства до запуска приложения, например в методе `main()` перед `SpringApplication.run()`. В этом случае приложение с Hazelcast, как и раньше, не запустится.
+
+[source,java]
+----
+System.setProperty("javax.xml.transform.TransformerFactory",
+        "org.apache.xalan.processor.TransformerFactoryImpl");
+System.setProperty("javax.xml.validation.SchemaFactory:" + XMLConstants.W3C_XML_SCHEMA_NS_URI,
+        "org.apache.xerces.jaxp.validation.XMLSchemaFactory");
+----
+
 [[dynamic-model-yaml]]
 === Дополнение Dynamic Model
 
