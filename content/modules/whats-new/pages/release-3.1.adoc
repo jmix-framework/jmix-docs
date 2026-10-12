@@ -283,6 +283,22 @@ Unused code that came from the YARG library is removed from the xref:reports:ind
 * The `UnoConverter.createAny(Object)` method. Use `new Any(new Type(XCell.class), value)` instead.
 * The `AbstractFormatter.SIMPLE_ALIAS_REGEXP` and `DataExtractorImpl.EMPTY_MAP` fields.
 
+The add-on doesn't change the XML processors of the whole application anymore (see https://github.com/jmix-framework/jmix/issues/5755[#5755^]). Before, Xalan 2.7.3 and Xerces 2.12.2 from the add-on dependencies became the default JAXP `TransformerFactory` and `SchemaFactory`, and because of this an application with Hazelcast failed to start. Now the application gets these factories from the JDK. This can cause the following problems:
+
+* Code that relies on Xalan-specific XSLT features may fail.
+* Processing of XML that exceeds the JDK processing limits may fail.
+* On Java 21, validation of a `StAXSource` with an empty CDATA section fails because of the https://bugs.openjdk.org/browse/JDK-8349516[JDK-8349516^] bug. For example, BPM can't deploy such a DMN file (see https://github.com/jmix-framework/jmix/issues/5778[#5778^]).
+
+To keep the previous factories, set the system properties before the application starts, for example in the `main()` method before `SpringApplication.run()`. In this case, an application with Hazelcast fails to start, as before.
+
+[source,java]
+----
+System.setProperty("javax.xml.transform.TransformerFactory",
+        "org.apache.xalan.processor.TransformerFactoryImpl");
+System.setProperty("javax.xml.validation.SchemaFactory:" + XMLConstants.W3C_XML_SCHEMA_NS_URI,
+        "org.apache.xerces.jaxp.validation.XMLSchemaFactory");
+----
+
 [[dynamic-model-yaml]]
 === Dynamic Model Add-on
 
