@@ -11,7 +11,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.function.SerializableFunction;
 import com.vaadin.flow.router.Route;
 import io.jmix.core.security.CurrentAuthentication;
 import io.jmix.flowui.UiComponents;
@@ -23,7 +22,6 @@ import io.jmix.flowui.model.DataContext;
 import io.jmix.flowui.model.InstanceContainer;
 import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 
@@ -31,10 +29,12 @@ import java.time.LocalDate;
 @ViewController("MyOnboardingView")
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
-@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT)
+// tag::maximizable-dialog[]
+@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT,
+        resizable = true, maximizable = true)
 public class MyOnboardingView extends StandardView {
-// end::annotations[]
-
+    // end::maximizable-dialog[]
+    // end::annotations[]
     @Autowired
     private CurrentAuthentication currentAuthentication;
     @Autowired
