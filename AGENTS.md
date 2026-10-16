@@ -98,6 +98,7 @@ When asked to translate to Russian, translate the words:
 
 - access token -> access-токен
 - add-on -> дополнение
+- badge -> бейдж
 - builder -> билдер
 - detail view -> экран деталей
 - endpoint -> эндпойнт
