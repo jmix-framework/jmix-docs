@@ -50,6 +50,51 @@ Unlike entity and entity attribute policies, the UI component policy is "denying
 
 UI component policies are applied at the end of the view opening process, after sending the xref:flow-ui:views/view-events.adoc#ready-event[ReadyEvent]. By this moment, all view initialization is complete and other policies are applied.
 
+Policies also apply to the content of a xref:flow-ui:vc/layouts/tabSheet.adoc#lazy-tabs[lazy tab] when it is first selected. For other components created after the view opens, apply the policies <<runtime-content,programmatically>>.
+
+[[checking-policies]]
+== Checking UI Component Policies
+
+Use `UiComponentPolicyContext` with the `AccessManager` bean to check whether the current user's UI component policies permit showing or editing a component or action. Pass the view ID and the component path in the same format as the <<component-ids,componentIds>> attribute, for example `emailField`, `addressFragment.streetField`, or `userGrid.edit`.
+
+The following example checks whether the policies permit showing and editing `emailField` in the `Customer.detail` view:
+
+[source,java,indent=0]
+----
+include::example$uiconstraints-ex1/src/main/java/com/company/demo/view/customer/CustomerDetailView.java[tags=accessManager;check-policies]
+----
+
+After calling `applyRegisteredConstraints()`, use `isVisiblePermitted()` and `isEnabledPermitted()` to read the permissions. Both are `true` initially; a component not mentioned by any policy is permitted unless another registered constraint denies access.
+
+The context checks policy permissions, not the component's current state or its entity attribute permissions. A permitted result does not make a component visible or editable if it was hidden, disabled, or made read-only for another reason.
+
+The built-in `UiComponentPolicyConstraint` evaluates the current user's effective policies. `UiComponentPolicyApplier` uses the same context when applying them. An application can register an `AccessConstraint<UiComponentPolicyContext>` to restrict access further, using `setVisibleDenied()` or `setEnabledDenied()`. Denied checks are recorded by `AccessLogger`.
+
+[[runtime-content]]
+== Applying Policies to Dynamic Content
+
+For components created after a view opens, inject `UiComponentPolicyApplier` and call `applyUiComponentPolicies(view, content)` after adding the content to the view. This applies the view's policies to the component and its children. Components and actions must have IDs matching their policy paths.
+
+[source,java,indent=0]
+----
+include::example$uiconstraints-ex1/src/main/java/com/company/demo/view/customer/CustomerDetailView.java[tags=policyApplier;runtime-content]
+----
+
+The single-argument `applyUiComponentPolicies(content)` method finds the owning view through the component tree. If it cannot find the view, no policies are applied.
+
+For content installed into a `tabSheet` tab, use the two-argument `applyUiComponentPolicies(view, content)` method. `JmixTabSheet` keeps only the selected tab's content in the component tree and attaches it before the client response, so the single-argument method cannot reliably find the owning view there.
+
+[[tab-selection]]
+=== Tab Selection
+
+By default, the add-on applies policies to a tab's content when the tab is selected. This includes components and actions in `<tab lazy="true">`, whose content is created only at that moment. Lazy tabs require no application code to apply policies.
+
+Each content component is processed once. Selecting the same tab again does not reapply policies over changes the application has made to its components. Content passed to `applyUiComponentPolicies()` is also marked as processed for tab selection.
+
+If a policy hides the selected tab, another tab may become selected while the user is working with the view.
+
+To disable automatic policy application on tab selection, set <<jmix.uiconstraints.apply-policies-on-tab-selection,jmix.uiconstraints.apply-policies-on-tab-selection>> to `false`. This leaves content created after view opening, including lazy tab content, without automatic policy application.
+
 [[ui-component-policy-annotation]]
 == UiComponentPolicy Annotation
 
@@ -99,3 +144,15 @@ If the `DENY` effect is specified in a UI component policy, it hides or disables
 The `ALLOW` effect can be used if you need to override the effect of another UI component policy that has been applied to the same component by a different role. For example, if a user has already been assigned the A role and this role prevents access to a certain UI component, using the B role with the `ALLOW` effect will restore access to that component.
 
 NOTE: The `ALLOW` effect cannot show or enable a component that was hidden or disabled by its initial state or because by the absence of an enabling entity or entity attribute policy.
+
+[[application-properties]]
+== Application Properties
+
+[[jmix.uiconstraints.apply-policies-on-tab-selection]]
+=== jmix.uiconstraints.apply-policies-on-tab-selection
+
+Controls whether UI component policies are applied to tab content when a tab is selected, including content created for lazy tabs. See <<tab-selection>>.
+
+Default value: `true`.
+
+Set to `false` to disable this handling. Policies are still applied when the view opens, and can be applied programmatically using `UiComponentPolicyApplier`.
