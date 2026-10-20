@@ -350,6 +350,17 @@ This has the following visible effects:
 
 If your code relied on a reference reporting all attributes as loaded, update it.
 
+[[ui-tests-breaking-changes]]
+=== UI Integration Tests
+
+`JmixUiTestExtension`, which runs xref:testing:ui-integration-tests.adoc[UI integration tests] marked with `@UiTest`, now destroys the Vaadin servlet, service and servlet context after each test (see https://github.com/jmix-framework/jmix/issues/5794[#5794^]). Before, they were never destroyed and kept closed Spring application contexts in memory until the end of the test run. This has the following effects:
+
+* `ServiceDestroyListener` listeners are called after each test. If such a listener, for example one added in a `VaadinServiceInitListener`, shuts down shared resources such as executors or beans, it now does it after the first test, and the next tests that use the same Spring context work with closed resources.
+
+* After each test, `UI.getCurrent()`, `VaadinSession.getCurrent()`, `VaadinService.getCurrent()` and `RequestContextHolder.getRequestAttributes()` return `null`. This affects `@AfterAll` methods, JUnit extensions registered before `@UiTest`, and the `afterTestMethod()` method of Spring test execution listeners. `@AfterEach` methods of the test class still get these objects.
+
+* `JmixUiTestExtension` is now annotated with `@NullMarked`. In Kotlin, code that calls `getViewBasePackages()` without a null check may fail to compile. The same applies to subclasses of the extension that use the `ui`, `vaadinSession`, `uiTestAuthenticator`, `initialView` or `viewBasePackages` fields as non-null, or override its methods with nullable return types.
+
 [[changelog]]
 == Changelog
 
