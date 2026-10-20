@@ -347,6 +347,17 @@ System.setProperty("javax.xml.validation.SchemaFactory:" + XMLConstants.W3C_XML_
 
 Если ваш код рассчитывал на то, что ссылка сообщает все атрибуты как загруженные, обновите его.
 
+[[ui-tests-breaking-changes]]
+=== Интеграционные тесты UI
+
+`JmixUiTestExtension`, который запускает xref:testing:ui-integration-tests.adoc[интеграционные тесты UI], отмеченные аннотацией `@UiTest`, теперь уничтожает сервлет, сервис и контекст сервлета Vaadin после каждого теста (см. https://github.com/jmix-framework/jmix/issues/5794[#5794^]). Раньше они никогда не уничтожались и удерживали в памяти закрытые контексты приложения Spring до конца прогона тестов. Данное изменение приводит к следующим последствиям:
+
+* Слушатели `ServiceDestroyListener` вызываются после каждого теста. Если такой слушатель, например добавленный в `VaadinServiceInitListener`, освобождает общие ресурсы, такие как исполнители (executors) или бины, то теперь он делает это после первого теста, и следующие тесты, использующие тот же контекст Spring, работают с закрытыми ресурсами.
+
+* После каждого теста `UI.getCurrent()`, `VaadinSession.getCurrent()`, `VaadinService.getCurrent()` и `RequestContextHolder.getRequestAttributes()` возвращают `null`. Это касается методов `@AfterAll`, расширений JUnit, зарегистрированных до `@UiTest`, и метода `afterTestMethod()` слушателей выполнения тестов Spring. Методы `@AfterEach` тестового класса по-прежнему получают эти объекты.
+
+* `JmixUiTestExtension` теперь отмечен аннотацией `@NullMarked`. В Kotlin код, который вызывает `getViewBasePackages()` без проверки на null, может перестать компилироваться. То же относится к подклассам расширения, которые используют поля `ui`, `vaadinSession`, `uiTestAuthenticator`, `initialView` или `viewBasePackages` как non-null или переопределяют его методы с nullable-типами возвращаемых значений.
+
 [[changelog]]
 == Список изменений
 
