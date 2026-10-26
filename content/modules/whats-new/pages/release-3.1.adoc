@@ -1,0 +1,366 @@
+= 3.1 版本说明
+
+[[upgrade]]
+== 如何升级
+
+[IMPORTANT]
+====
+如需使用 Jmix 3.1 创建新项目或升级已有项目，需要 Studio 3.1 或更高版本，因此请先 xref:studio:update.adoc[更新] Jmix Studio 插件。
+
+Jmix Studio 3.1 需要 IntelliJ IDEA 2026.1 或更高版本。
+====
+
+有关如何使用 Studio 升级项目，请参阅 xref:studio:project.adoc#upgrading-project[升级项目] 部分。自动迁移程序会对项目进行以下更改：
+
+* 更新 Jmix BOM 的版本，以及所有依赖库的版本。
+* 更新 Jmix Gradle 插件的版本。
+* 将 Gradle wrapper 更新到 9.8.0
+* 在 `application.properties` 添加一下应用程序属性，以保持扩展组件之前的行为：
+** `jmix.uiconstraints.apply-policies-on-tab-selection = false`（需安装 UI 约束扩展组件）。策略不会在懒加载的标签页应用。参考 <<ui-constraints>>。
+** `jmix.maps.ui.feature-modify-includes-delete = true`（需安装地图扩展组件）。启用编辑模式也同时启用删除功能。参考 <<maps-breaking-changes>>。
+** `jmix.aitools.ui.conversation-title-mode = NONE`（需安装 AI 工具扩展组件）。新的对话使用默认标题。参考 <<ai-tools-breaking-changes>>。
+
+You can remove these properties later to get the new behavior.
+
+另请参阅升级后可能影响项目的完整 <<breaking-changes,破坏性变更>> 列表。
+
+[[updated-dependencies]]
+== 更新的依赖
+
+以下主要依赖已更新：
+
+* Spring Boot 4.1
+* Vaadin 25.3
+
+[[new-features]]
+== 新功能和改进
+
+[[jmix-cli]]
+=== Jmix CLI
+
+https://github.com/jmix-framework/jmix-cli[Jmix CLI^] 是一个新的命令行工具，无需 IDE 即可创建 Jmix 项目：可在终端、脚本中或由 AI 编码 agent 使用。该工具使用与 Studio 相同的项目模板，并在新项目中添加 Jmix Agent Toolkit。有关如何安装和使用，请参阅 xref:ROOT:setup.adoc#jmix-cli[使用 Jmix CLI]。
+
+[[studio-improvements]]
+=== Studio 改进
+
+* xref:studio:view-wizard.adoc#creating-entity-based-views[视图创建向导] 新增了一个列表和主从视图的步骤，可以在其中选择用户如何过滤数据：xref:flow-ui:vc/components/genericFilter.adoc[genericFilter]（默认）、为选择的属性生成的一组 xref:flow-ui:vc/components/propertyFilter.adoc[propertyFilter] 组件、如果项目中包含 Search 扩展组件则使用 xref:flow-ui:vc/components/fullTextFilter.adoc[fullTextFilter]，或者不使用过滤器。
+
+* xref:studio:entity-designer.adoc[实体设计器] 支持为实体或实体引用属性定义 xref:data-model:entities.adoc#lookup-field[@LookupField] 注解。视图创建向导在为引用属性生成选择组件时会使用此注解。
+
+* 实体设计器中新加的 *Views with Attribute* 操作会显示绑定到实体属性的视图组件，并在所选组件处打开视图 XML。还支持将属性添加到实体的视图中。该操作可在属性表格工具栏和每个属性行中使用。
+
+* 新的 *Copy View* 操作会复制一个视图，包括其控制器、XML 和消息。
+
+* *New -> Advanced -> Custom Component* 操作会创建 xref:flow-ui:vc/creating-components/creating-web-component.adoc[自定义 UI 组件] 的文件：组件类、XML 加载器以及注册加载器的 Spring 配置。还可以为组件的 XML 元素创建 XSD schema、创建 Studio 元数据，以及创建一个包含 Lit Web 组件的 JavaScript 文件。
+
+* 包含未应用的 Liquibase 变更日志的对话框现在会显示所选变更日志的内容。可以用来查看新加扩展组件中包含的变更日志。
+
+* 可以从 `LoadContext.Query` 和 `setQueryString()` 方法中查询语句的侧边栏图标打开 xref:studio:jpql-designer.adoc[JPQL 设计器]。
+
+* Studio 检查会检查 Java 代码中定义的有 xref:reports:creation/bands.adoc#streaming-bands[流式带区] 的报表结构。会报告报表引擎不支持的结构，例如，包含多个个流式带区、流式带区的子带区，或者不是 SQL 或 JPQL 的数据集。
+
+[[ai-chat]]
+=== 新增 AI Chat 扩展组件
+
+新的 xref:ai-chat:index.adoc[AI Chat] 扩展组件可用于构建 AI 聊天界面。AI 的回答来自应用程序实现的 `LLMProvider` 接口，因此这些聊天 UI 组件可与 Spring AI、供应商 SDK 或自己的 LLM 服务配合使用。
+
+* xref:ai-chat:aiChat.adoc[aiChat] 是一个完整的聊天组件，支持流式回答、Markdown 消息、文件附件和对消息的操作。可以与自定义的聊天消息实体集合绑定，从而实现保存对话。
+* xref:ai-chat:aiMessageList.adoc[aiMessageList] 和 xref:ai-chat:aiMessageInput.adoc[aiMessageInput] 可以单独使用，构建 `aiChat` 自定义的聊天界面。
+* xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock] 支持在聊天消息和其他任何视图中显示源代码。
+
+[[ui-recovery]]
+=== 新增 UI 恢复扩展组件
+
+新的 xref:ui-recovery:index.adoc[UI 恢复] 扩展组件在服务器节点重启、HTTP 会话过期或浏览器关闭时保留视图中未保存的更改。在用户操作期间将更改作为草稿保存到数据库，并在用户再次打开视图时提示恢复草稿。草稿在集群中以及应用程序完全重启后仍然可用。
+
+[[dynamic-model]]
+=== 动态模型扩展组件
+
+xref:dyn-model:index.adoc[动态模型] 扩展组件不再处于实验阶段。并提供以下新功能：
+
+* xref:dyn-model:handlers.adoc[UI 处理器] 为视图添加行为：在按钮点击、值更改和视图事件发生时运行定义的表达式，并且可以调用带 `@DynamicModelOperation` 注解的应用程序方法。
+* xref:dyn-model:search.adoc[全文搜索]：可搜索的动态属性会被索引。
+* xref:dyn-model:concepts.adoc#cluster[集群支持]：在一个节点上发布的模型会自动发布到所有其他节点。
+* xref:dyn-model:defining-model.adoc#safe-modify-role[Dynamic model: modify settings without data loss] 角色支持用户仅发布不会丢失数据的更改。
+* xref:dyn-model:defining-model.adoc#model-history[模型历史] 显示模型的所有已发布版本。
+* 可以更改 xref:dyn-model:defining-model.adoc#attribute-order[属性顺序]。
+* 可以为引用属性设置 xref:dyn-model:defining-model.adoc#lookup-field[查找字段类型和操作]。
+* 动态视图的菜单项可以有 xref:dyn-model:views.adoc#menu-items[图标]。
+* *Generate XML* 按钮会 xref:dyn-model:views.adoc#generate-xml[将视图模板渲染为 XML]，然后可以进行编辑。
+* 模型中授予某个角色的访问权限也适用于该角色的子角色。参考 xref:dyn-model:defining-model.adoc#inherited-roles[继承角色]。
+* 动态实体和属性会显示在 xref:dyn-model:concepts.adoc#data-tools[数据工具] 的视图中。
+
+[[ai-tools]]
+=== AI 工具扩展组件
+
+xref:ai-tools:index.adoc[AI 工具] 扩展组件具有以下新功能：
+
+* 新的 xref:ai-tools:tools.adoc#exclude-from-ai[@ExcludeFromAi] 注解在代码级别对数据加载工具隐藏实体或属性。与 `jmix.aitools.dataload.*` 包含和排除属性不同，该注解无法在部署时被覆盖，因此只能通过更改代码并重新构建应用程序来开放隐藏数据。
+* 聊天 UI 会 xref:ai-tools:ui.adoc#conversation-titles[自动设置会话标题]。默认情况下，使用第一条用户消息作为标题。新的 xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] 属性定义标题的规则。
+
+[[bpm]]
+=== BPM 扩展组件
+
+xref:bpm:index.adoc[BPM] 扩展组件的 xref:bpm:menu-views/modeler-web.adoc[BPMN 建模器] 有以下新功能：
+
+* 可以编辑流程的 *History level* 以及其他 xref:bpm:bpmn/bpmn-process.adoc#properties[流程属性]。所选级别会覆盖流程引擎的 xref:bpm:history.adoc#history-levels[历史级别]。
+* 可以为任务、嵌入式子流程、调用活动、网关和大多数事件设置 `flowable:exclusive`、`flowable:asyncLeave` 和 `flowable:asyncLeaveExclusive` 属性。对于用户任务、网关和事件，现在还可以使用 `flowable:async`。请参阅 xref:bpm:bpmn/transactions.adoc#asynchronous-execution-properties[异步执行属性]。
+* 可以为流程添加 xref:bpm:bpmn/bpmn-events.adoc#escalation-events[升级事件]、设置其属性，并在 xref:bpm:bpmn/bpmn-process.adoc#escalation-definition[流程属性] 中管理 *Escalation definitions*。
+
+[[reports]]
+=== 报表扩展组件
+
+xref:reports:index.adoc[报表] 扩展组件有以下新功能：
+
+* 报表带区现在可以是 xref:reports:creation/bands.adoc#streaming-bands[流式] 的：通过数据库游标按行读取并写入 XLSX 文档，而不是加载到内存中。如需配置流式带区，请在报表详情视图中勾选 *Streaming*，或在 `@BandDef` 注解中设置 `streaming = true`。
+* 新的 xref:reports:creation/bands.adoc#structure_llm[AI 生成的 JPQL] 数据集类型支持用自然语言描述带区数据。在报表详情视图中，LLM 根据提示生成 JPQL 查询语句，视图将其存储在报表定义中。报表运行通过 `DataManager` 执行存储的语句，并应用当前用户的数据访问权限。
+
+[[ui-constraints]]
+=== UI 约束扩展组件
+
+xref:uiconstraints:index.adoc[UI 约束] 扩展组件提供了 `UiComponentPolicyContext`，用于 xref:uiconstraints:index.adoc#checking-policies[检查组件权限]，并为 xref:uiconstraints:index.adoc#runtime-content[视图打开后创建的内容] 提供了新的 `UiComponentPolicyApplier` 方法。
+
+懒加载标签页中的组件和操作现在会在标签页被选中时遵循 UI 组件策略。隐藏标签页也可能在视图打开期间选中另一个标签页。标签页选择时的自动策略应用默认启用，可以通过 xref:uiconstraints:index.adoc#jmix.uiconstraints.apply-policies-on-tab-selection[jmix.uiconstraints.apply-policies-on-tab-selection] 禁用。
+
+[[grouping-data-grid]]
+=== 分组数据网格扩展组件
+
+通过将 xref:flow-ui:facets/urlQueryParameters.adoc#groupDataGridFilter[`groupDataGridFilter`] 元素添加到 xref:flow-ui:facets/urlQueryParameters.adoc[`urlQueryParameters`] facet，可以将已生效的 xref:flow-ui:vc/components/groupDataGrid.adoc#column-filtering[表头过滤器] 保留在 URL 查询参数中。
+
+[[email]]
+=== 电子邮件发送扩展组件
+
+xref:email:index.adoc[电子邮件发送] 扩展组件简化了使用 Google 和 Microsoft 邮件服务设置 xref:email:authentication.adoc#oauth2-authentication[OAuth2 认证] 的过程：
+
+* 新的 xref:email:menu-views/email-connection.adoc[电子邮件连接] 视图替代了 *OAuth2 token* 视图。使用授权码流程连接邮箱账户，对于 Microsoft 则使用设备码流程，并存储刷新令牌。该视图还显示连接参数，可以测试与邮件服务器的连接。
+* 新的 xref:email:configuration.adoc#jmix.email.oauth2.redirect-uri[jmix.email.oauth2.redirect-uri] 属性可以设置授权码流程的重定向 URI，例如当应用程序在反向代理后运行时。
+* 扩展组件会自动设置 `XOAUTH2` 认证机制，因此无需添加 `spring.mail.properties.*` 配置。
+
+[[read-views]]
+=== 只读视图
+
+新的 xref:flow-ui:views/view-classes.adoc#standard-read-view[只读视图] 显示用户无法编辑的实体实例。只读视图继承 `StandardReadView`，按 id 加载实体，并且视图的 `DataContext` 也是只读的。
+
+* 可以在 Studio 中使用 xref:studio:view-wizard.adoc#creating-entity-based-views[视图创建向导] 的 *Entity read view* 和 *DTO entity read view* 模板创建只读视图。
+* 可以使用 xref:flow-ui:views/opening-views.adoc#navigation[ViewNavigators] 和 xref:flow-ui:views/opening-views.adoc#reading-entities[DialogWindows] bean，以及标签页模式扩展组件的 xref:tabbed-mode:opening-views.adoc#opening-read-views[ViewBuilders] bean 打开只读视图。
+* 如果实体有只读视图，则 xref:flow-ui:actions/list-actions.adoc#list_read[list_read] 操作会以只读模式打开，而不是打开详情视图。新的 xref:flow-ui:actions/entity-picker-actions.adoc#entity_read[entity_read] 操作可以显示在实体选择器中选中的实体。
+* xref:flow-ui:views/view-templates.adoc#read-view-template[@ReadViewTemplate] 注解在运行时为实体生成只读视图。动态模型扩展组件为声明了 xref:dyn-model:yaml-reference.adoc#dynamic-entity-views[只读类型视图] 的动态实体生成只读视图。
+
+[[resizable-side-panel]]
+=== 可调整大小的侧面板
+
+用户现在可以在运行时通过拖动侧面板内边缘的手柄来 xref:flow-ui:vc/layouts/sidePanelLayout.adoc#resizing[调整侧边面板组件的大小]。水平和垂直位置的侧面板都支持该功能，并遵循配置的最小和最大尺寸。xref:flow-ui:facets/settings.adoc[`settings`] facet 可以保存和恢复当前用户选择的尺寸。
+
+[[svg-component]]
+=== SVG 组件
+
+新的 xref:flow-ui:vc/components/svg.adoc[svg] 组件直接在视图中渲染 SVG。SVG 内容可以在内部的 `content` 元素中设置，使用 `file` 属性从文件加载，或在视图控制器中设置。
+
+[[popover-component]]
+=== 浮窗组件
+
+新的 xref:flow-ui:vc/components/popover.adoc[popover] 组件是一个浮窗，在目标组件旁边打开，浮窗能包含任何组件。可以在视图或 fragment XML 中声明，并将 `target` 属性设置为目标组件的 id。通过 UI 的点击、鼠标悬停或聚焦打开，也可以从视图控制器打开，并且支持模态窗。
+
+[[popover-renderer]]
+=== 数据网格的浮窗渲染器
+
+使用新的 xref:flow-ui:vc/components/dataGrid.adoc#popover-renderer[浮窗渲染器] 可以在 `dataGrid` 列中显示长文本。如果单元格文本过长，则用省略号截断，点击单元格会在浮窗中显示完整文本。在 XML 中为列添加 `popoverRenderer` 元素，或在 Java 中创建 `PopoverRenderer`。
+
+[[sliders]]
+=== 滑块组件
+
+新的组件支持用户沿轨道拖动手柄来选择单个数字或数字范围：
+
+* xref:flow-ui:vc/components/integerSlider.adoc[integerSlider] 和 xref:flow-ui:vc/components/decimalSlider.adoc[decimalSlider] 支持选择 `Integer` 或 `Double` 值。与其他字段一样，可以与实体属性绑定并支持验证器。
+* xref:flow-ui:vc/components/integerRangeSlider.adoc[integerRangeSlider] 和 xref:flow-ui:vc/components/decimalRangeSlider.adoc[decimalRangeSlider] 支持选择值的范围，例如过滤数据。
+
+[[badge-component]]
+=== 徽标组件
+
+新的 xref:flow-ui:vc/components/badge.adoc[badge] 组件用于显示一个简短信息，例如状态、计数或标签。徽标可以显示文本、图标和数字，主题样式可设置颜色和大小。可以使用 `dataContainer` 和 `property` 属性将徽标绑定到实体属性，以显示属性值。
+
+[[lookup-field]]
+=== 查找字段注解
+
+新的 xref:data-model:entities.adoc#lookup-field[@LookupField] 实体注解定义了框架为选择引用而生成的组件：带下拉列表的 `entityComboBox`，或打开查找视图的 `entityPicker`。用于 `genericFilter` 和 `propertyFilter` 参数、可编辑的 `dataGrid` 单元格以及运行时视图模板。将该注解放在实体类上，则对所有该实体的引用有效；或放在引用属性上，仅对该属性有效。还可以设置组件的操作，并在用户输入时分页加载下拉列表，使用 JPQL 查询语句或按实例名称搜索。
+
+`entityComboBox` 的 `itemsQuery` 元素新增了 xref:flow-ui:vc/components/entityComboBox.adoc#items-query-by-instance-name[byInstanceName] 属性，无需 JPQL 查询即可按实例名称查找项。
+
+[[annotated-base-roles]]
+=== 注解角色的基础角色
+
+注解资源角色和行级角色接口现在会将其扩展的角色接口保留为基础角色。此类角色在安全视图中的 *Base roles* 标签页会以只读模式列出。用户的权限不会改变。
+
+[[breaking-changes]]
+== 破坏性变更
+
+[[vaadin-25-3]]
+=== Vaadin 25.3
+
+更新到 Vaadin 25.3 带来以下更改（见 https://github.com/jmix-framework/jmix/issues/5720[#5720^]）：
+
+* xref:flow-ui:vc/html-components/image.adoc[image] 组件不能再包含其他组件。`JmixImage` 不再提供 `setText()`/`getText()`、`setWhiteSpace()`、`setEnabled()`/`isEnabled()`、`add()` 和 `remove()` 方法。在 XML 中，`image` 的 `enabled`、`text` 和 `whiteSpace` 属性以及内部组件将被忽略。
+
+* `JmixMenuBarRootItem.updateClassName()` 方法已移除。
+
+* `InMemoryUploadHandler` 和 `FileTemporaryStorageUploadHandler` 现在继承 Vaadin 的 `AbstractUploadHandler`，而不是 `TransferProgressAwareHandler`。`FileTemporaryStorageUploadHandler` 在上传失败或被拒绝时删除临时文件，其 `getFileInfo()` 方法在当前上传组件创建文件之前返回 `null`。
+
+* 在 xref:tabbed-mode:index.adoc[标签页模式] 扩展组件中，app shell 的 `@Push` 配置在调用 `UIInitListener` 监听器之前应用，因此监听器可以覆盖该配置。
+
+* `Anchor.setHref()` 和 `IFrame.setSrc()`，以及 `anchor` 和 `iframe` 的 `href` 和 `src` XML 属性，对于 Vaadin 认为不安全的 URL scheme（例如 `javascript:`）会抛出 `IllegalArgumentException`。将该 scheme 添加到 Vaadin 的 `safeUrlSchemes` 配置参数，或在代码中使用 `setUnsafeHref()` 和 `setUnsafeSrc()`。
+
+* `addThemeName("")` 抛出 `IllegalArgumentException`。
+
+* `TreeGrid` 方法 `expand()`、`collapse()`、`expandRecursively()` 和 `collapseRecursively()` 现在接收 `Collection<? extends T>` 和 `Stream<? extends T>` 参数。如果在 `TreeDataGrid` 子类中重写了这些方法，请更新方法签名。
+
+* 许多 `VaadinIcon` 常量和对应的 `JmixFontIcon` 常量已弃用。`JmixSideDialog` 的 `setRole()` 已弃用，改用 `setAriaRole()`；`Dialogs.SideDialogBuilder` 的 `withOverlayRole()` 已弃用，改用 `withAriaRole()`。
+
+[[ai-tools-breaking-changes]]
+=== AI 工具扩展组件
+
+* `JpqlExecutionResult.getRows()` 和 `EntityDataLoadResult.getRows()` 的返回的行现在对于没有值的列包含 `null`（见 https://github.com/jmix-framework/jmix/issues/5598[#5598^]）。以前这种情况是包含空字符串。工具返回给模型的行也包含 `null` 而不是空字符串。方法签名相同，因此编译器不会显示需要修复的位置。读取行时请检查值是否为 `null`：
++
+[source,java]
+----
+EntityDataLoadResult result = aiDataLoadService.loadData("customers with their email");
+for (Map<String, Object> row : result.getRows()) {
+    Object email = row.get("email");
+    String text = email != null ? email.toString() : ""; // email can be null
+}
+----
+
+* `EntityDataLoadResult.getQuery()` 现在返回实际执行或验证失败的查询语句（见 https://github.com/jmix-framework/jmix/issues/5749[#5749^]）。如果生成的查询语句被修复，该方法返回修复后的查询，其解释、警告、`maxResults` 和 `firstResult` 都来自修复后的结果。LLM 生成的原始查询无法从结果中获取。
+
+* `AiChatMessageService` 接口新增了 `loadLatestMessages()` 方法（见 https://github.com/jmix-framework/jmix/issues/5649[#5649^]）。如果有自己实现，请实现该方法。聊天中心现在按最后一条消息的时间而不是创建时间对对话进行排序和分组。
+
+* 新对话现在会将第一条用户消息作为标题（见 https://github.com/jmix-framework/jmix/issues/5648[#5648^]）。以前会保留 `New AI Conversation` 标题。如果代码在第一条消息之前为对话设置了自定义标题，第一条消息会替换该标题。如需保留自定义的标题，请在显示该对话的 `AiChatFragment` 上调用 `setTitleMode(AiConversationTitleMode.NONE)`。如需在整个应用程序中保留以前的行为，请将 xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] 属性设置为 `NONE`。
+
+[[charts-breaking-changes]]
+=== 图表扩展组件
+
+xref:charts:index.adoc[Charts] 扩展组件现在使用 Apache ECharts 6.1 而不是 5.4（见 https://github.com/jmix-framework/jmix/issues/5699[#5699^]）。已有视图无需更改代码即可工作，但图表可能看起来不同：
+
+* 默认主题具有新的调色板和间距。图例位于底部居中，标题位于顶部居中。如需让外观更接近之前的版本，请在 `charts:chart` 上设置 `colorPalette="#5470c6, #91cc75, #fac858, #ee6666, #73c0de, #3ba272, #fc8452, #9a60b4, #ea7ccc"`，在 `charts:legend` 上设置 `top="0"`，并在 `charts:title` 上设置 `left="0" top="0"`。检查顶部或底部有组件的图表，例如滑块 `dataZoom`：可能与标题或图例重叠。
+
+* 轴标签和名称保留在图表内部，轴名称会移动以避免与轴标签重叠。如需恢复以前的行为，请在 `charts:gridItem` 上设置 `outerBoundsMode="NONE"`，或在轴上设置 `nameMoveOverlap="false"`。
+
+* 富文本样式继承普通标签的字体和文本阴影设置。如需恢复以前的行为，请将 `"richInheritPlainLabel": false` 添加到 `nativeJson`。
+
+* 条形图、象形条形图、K线图和箱线图的形状不再超出网格。如需恢复以前的行为，请在轴上设置 `containShape="false"`。
+
+* tooltip `valueFormatter` 函数的第二个参数现在是原始系列数据中的索引，而不是 `dataZoom` 过滤后的索引。请更新用到这个参数的 JavaScript 函数。
+
+* `Grid.containLabel` 已弃用。请改用 `outerBoundsMode="SAME"` 和 `outerBoundsContain="AXIS_LABEL"`。启用 `containLabel` 时，`outerBounds*` 选项将被忽略。
+
+[[email-breaking-changes]]
+=== 电子邮件发送扩展组件
+
+* *OAuth2 token* 视图替换为新的连接视图，视图 id 从 `email_tokenView` 更改为 `email_connectionView`（见 https://github.com/jmix-framework/jmix/issues/5546[#5546^]）。旧的 `email/token` 路由仍然有效。请在以下位置替换旧视图 id：
+** 如果应用程序使用单菜单模式，则在 `menu.xml` 中替换。否则，主视图会因 `NoSuchViewException` 而失败。
+** 在资源角色的 `@ViewPolicy` 和 `@MenuPolicy` 注解中替换。否则，用户将无法访问该视图。
+
+* 扩展组件不再定义 `mailSendTaskExecutor` bean（见 https://github.com/jmix-framework/jmix/issues/5703[#5703^]）。以前，Vaadin 可能将此 bean 用于异步工作，并且如果应用程序有另一个 `TaskExecutor` bean，则启动失败。现在：
+** 按名称注入 `mailSendTaskExecutor` bean 的代码会在启动时因 `NoSuchBeanDefinitionException` 而失败。请移除这类注入。
+** 自定义代码中名为 `mailSendTaskExecutor` 的 bean 不再替换电子邮件发送池。扩展组件会忽略这个 bean，并在启动时记录警告。
+** `@Async` 方法和 Vaadin 异步任务在 Spring Boot 的 `applicationTaskExecutor` bean 运行，而不是在电子邮件发送池运行。该池有不同的大小和无界队列。
+
+* 启用 OAuth2 认证时，扩展组件会更严格地检查配置（见 https://github.com/jmix-framework/jmix/issues/5539[#5539^]）：
+** 忽略 `spring.mail.password` 属性，扩展组件会记录警告。以前，与 OAuth2 认证一起设置的密码会使扩展组件使用基本认证。
+** 如果未设置 `spring.mail.username`、`jmix.email.oauth2.client-id` 或 `jmix.email.oauth2.secret`，应用程序将无法启动。以前，这些错误仅在发送电子邮件时出现。
+
+[[maps-breaking-changes]]
+=== 地图扩展组件
+
+删除地图对象现在由矢量源的 `featureDeleteEnabled` 属性控制，与修改模式分开控制了（见 https://github.com/jmix-framework/jmix/issues/5576[#5576^] 和 xref:maps:editing-geometries.adoc#delete-mode[删除模式]）：
+
+* 有 `featureModifyEnabled="true"` 的源默认不再显示 *Delete* 操作。在源上设置 `featureDeleteEnabled="true"`，或将 xref:maps:editing-geometries.adoc#jmix.maps.ui.feature-modify-includes-delete[jmix.maps.ui.feature-modify-includes-delete] 应用程序属性设置为 `true`，可以为所有未设置 `featureDeleteEnabled` 的源保留以前的行为。
+
+* `SourceFeatureDeleteEvent` 和 `addSourceFeatureDeleteListener()` 已从 `HasFeatureModify` 移到 `HasFeatureDelete`。请在代码中将 `HasFeatureModify.SourceFeatureDeleteEvent` 替换为 `HasFeatureDelete.SourceFeatureDeleteEvent`。
+
+[[oidc-saml-breaking-changes]]
+=== OIDC 和 SAML 扩展组件
+
+自动配置的以下元素已重命名（见 https://github.com/jmix-framework/jmix/issues/5484[#5484^]）：
+
+* `OidcAutoConfiguration.DefaulOidcVaadinWebSecurity` -> `DefaultOidcVaadinWebSecurity`
+* `SamlAutoConfiguration.DefaulSamlVaadinWebSecurity` -> `DefaultSamlVaadinWebSecurity`
+* `SamlAutoConfiguration` 中的 `claimsRoleMapper` bean -> `samlAssertionRolesMapper`
+
+请更新继承这些类或按名称引用该 bean 的代码。
+
+[[reports-breaking-changes]]
+=== 报表扩展组件
+
+从 YARG 库引入的未使用代码已从 xref:reports:index.adoc[Reports] 扩展组件中移除（见 https://github.com/jmix-framework/jmix/issues/2774[#2774^]）：
+
+* `io.jmix.reports.yarg.loaders.impl.GroovyDataLoader` 类。扩展组件对 `groovy` 加载器类型使用 `JmixGroovyDataLoader`。与被移除的类不同，新的类会检查 `jmix.core.unsafe-runtime-features-enabled` 和 `jmix.reports.groovy-enabled` 属性。
+* `io.jmix.reports.yarg.exception` 包中的 `InitializationException` 和 `ReportingXmlException` 类。
+* `io.jmix.reports.yarg.util.db.QueryRunner` 的 `update()` 和 `batch()` 方法。请改用 Spring `JdbcTemplate` 或 JDBC。
+* `io.jmix.reports.yarg.util.db.DbUtils` 的 `commitAndClose()`、`commitAndCloseQuietly()`、`rollback()`、`rollbackAndClose()`、`rollbackAndCloseQuietly()`、`loadDriver()`、`printStackTrace()` 和 `printWarnings()` 方法。
+* `UnoConverter.createAny(Object)` 方法。请改用 `new Any(new Type(XCell.class), value)`。
+* `AbstractFormatter.SIMPLE_ALIAS_REGEXP` 和 `DataExtractorImpl.EMPTY_MAP` 字段。
+
+扩展组件不再修改整个应用程序的 XML 处理器（见 https://github.com/jmix-framework/jmix/issues/5755[#5755^]）。以前，扩展组件依赖中的 Xalan 2.7.3 和 Xerces 2.12.2 会成为默认的 JAXP `TransformerFactory` 和 `SchemaFactory`，因此使用 Hazelcast 的应用程序无法启动。现在，应用程序从 JDK 获取这些工厂。可能导致以下问题：
+
+* 依赖 Xalan 特有 XSLT 功能的代码可能会失败。
+* 处理超出 JDK 限制的 XML 可能会失败。
+* 在 Java 21 上，由于 https://bugs.openjdk.org/browse/JDK-8349516[JDK-8349516^] 缺陷，校验带有空 CDATA 的 `StAXSource` 会失败。例如，BPM 无法部署此类 DMN 文件（见 https://github.com/jmix-framework/jmix/issues/5778[#5778^]）。
+
+如需保留以前的工厂，请在应用程序启动前设置系统属性，例如在 `main()` 方法中、`SpringApplication.run()` 之前设置。在这种情况下，使用 Hazelcast 的应用程序会像以前一样无法启动。
+
+[source,java]
+----
+System.setProperty("javax.xml.transform.TransformerFactory",
+        "org.apache.xalan.processor.TransformerFactoryImpl");
+System.setProperty("javax.xml.validation.SchemaFactory:" + XMLConstants.W3C_XML_SCHEMA_NS_URI,
+        "org.apache.xerces.jaxp.validation.XMLSchemaFactory");
+----
+
+[[dynamic-model-yaml]]
+=== 动态模型扩展组件
+
+动态模型扩展组件现在严格读取 YAML 模型定义（见 https://github.com/jmix-framework/jmix/issues/5731[#5731^]）。规则在 xref:dyn-model:yaml-reference.adoc#writing-yaml[手动编写 YAML] 中介绍。
+
+只影响在 *Code* 呈现中手动编写或编辑的模型。从可视化编辑器保存的模型始终有带引号的值，读取时没问题。
+
+[[entity-reference-loaded-state]]
+=== 实体引用的加载状态
+
+`DataManager.getReference()` 返回的实体实例现在仅将 id 和之后设置的属性报告为已加载（见 https://github.com/jmix-framework/jmix/issues/5660[#5660^]）。以前，`EntityStates.isLoaded()` 对此类实例的每个属性都返回 `true`。
+
+现在对于实体引用：
+
+* `isLoaded()` 对除 id 和创建后设置的属性之外的所有属性返回 `false`。
+* `isLoadedSafe()` 返回 `YES` 或 `NO`，并且不调用 getter。
+* `isLoadedWithFetchPlan()` 对于包含其他属性的 fetch plan 返回 `false`。
+* `getCurrentFetchPlan()` 返回包含 id 和创建后设置的属性的 fetch plan。
+
+这有以下效果：
+
+* 引用在序列化时（在 REST、BPM 流程变量等中）仅包含 id 和设置了值的属性。
+* 引用不包含在 `@PostConstruct` 方法或字段初始化器中创建时分配的默认值。
+* 将引用 `DataContext.merge()` 到有已加载实例的上下文中时，不会用 null 替换已加载的值。
+
+如果你的代码依赖引用将所有属性报告为已加载，则需要更新。
+
+[[ui-tests-breaking-changes]]
+=== UI 集成测试
+
+运行带 `@UiTest` 的 xref:testing:ui-integration-tests.adoc[UI 集成测试] 的 `JmixUiTestExtension` 现在会在每个测试后销毁 Vaadin servlet、服务上下文和 servlet 上下文（见 https://github.com/jmix-framework/jmix/issues/5794[#5794^]）。以前是不会被销毁的，并会在内存中保留已关闭的 Spring 应用程序上下文，直到测试运行结束。这会产生以下影响：
+
+* 每个测试后会调用 `ServiceDestroyListener` 监听器。如果此类监听器（例如在 `VaadinServiceInitListener` 中添加的监听器）关闭了执行器或 bean 等共享资源，那么现在会在第一个测试后执行关闭，而后续使用同一 Spring 上下文的测试将使用已关闭的资源。
+
+* 每个测试后，`UI.getCurrent()`、`VaadinSession.getCurrent()`、`VaadinService.getCurrent()` 和 `RequestContextHolder.getRequestAttributes()` 会返回 `null`。这会影响 `@AfterAll` 方法、在 `@UiTest` 之前注册的 JUnit 扩展，以及 Spring 测试执行监听器的 `afterTestMethod()` 方法。测试类的 `@AfterEach` 方法仍能获取这些对象。
+
+* `JmixUiTestExtension` 现在带有 `@NullMarked` 注解。在 Kotlin 中，未做 null 检查就调用 `getViewBasePackages()` 的代码可能无法编译。对于将该扩展的 `ui`、`vaadinSession`、`uiTestAuthenticator`、`initialView` 或 `viewBasePackages` 字段作为非空使用，或用可空返回类型重写其方法的子类，也是如此。
+
+[[changelog]]
+== 变更日志
+
+* Jmix Framework 中解决的问题：
+
+** https://github.com/jmix-framework/jmix/issues?q=is%3Aclosed+milestone%3A3.1.0[3.1.0^]
+
+* Jmix Studio 中解决的问题：
+
+** https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%203.1.0,-3.0.*%20Affected%20versions:%20-SNAPSHOT[3.1.0^]

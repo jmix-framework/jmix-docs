@@ -1,9 +1,19 @@
 = 版本控制
 
+当文档启用了版本控制，扩展组件则不会覆盖任何内容。每次更改都会存储为单独的 `WebdavDocumentVersion` 实例，因此文档会保留完整历史记录，较早版本仍然可使用。
+
+文档版本通过两种方式创建：
+
+* 自动创建：每次文档内容写入服务端时，即用户在桌面应用中保存文档，或 WebDAV 客户端有新上传内容时。会在当前最新版本之后添加新版本。
+
+* 手动创建：在下面介绍的 *WebDAV 文档版本* 视图中进行操作。
+
+默认情况下，`WebdavDocument` 类型的所有属性都会启用版本控制。可以通过 xref:webdav:features.adoc#webdav-support-annotation[@WebdavSupport] 注解为特定属性禁用版本控制，也可以通过 xref:webdav:webdav-properties.adoc#jmix.webdav.versioning-enabled[jmix.webdav.versioning-enabled] 属性全局禁用。
+
 [[webdav-document-versions]]
 == WebDAV 文档版本
 
-当启用文档版本时，可以使用 *WebDAV document versions* 视图管理文档的版本。
+*WebDAV document versions* 视图显示文档的历史记录，并支持用户进行管理：添加版本、以旧版本为基础创建新版本、打开特定版本以及将某个版本作为文件下载。这是用户界面中除了编辑文档本身之外，唯一可以直接处理版本历史的地方。
 
 有两种方式可以打开 *WebDAV document versions* 视图：
 
@@ -17,50 +27,86 @@ image::link-for-open-versions.png[align="center", width="631"]
 
 image::web-dav-document-versions.png[align="center", width="1026"]
 
-其中可以进行下列操作：
+[[pending-versions]]
+=== 待定版本
 
-. *创建新版本*：点击 *Upload* 可以选择需要上传到系统的文件。上传的文件将根据最新的版本号进行编号，新版本的编号带有 * 符号，表示已上传但还没有与文档进行链接。保存更改后，版本号才更新。如果在不保存的情况下关闭对话框，则在 xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] 任务运行时，会删除所有标记 * 的版本。
+在此对话框中添加的版本不会立即存储，而是仅存在于对话框中。其编号会带有 `*` 符号，表示还未与文档关联。
 
-. *基于已有版本创建新版*: 选择一个文档版本，然后单击 *Copy to head* 按钮进行复制，并根据最新的文档版本号为其分配一个编号。新版本的编号带有 * 符号，表示已上传但还没有与文档进行链接。保存更改后，版本号才更新。如果在不保存的情况下关闭对话框，则在 xref:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] 任务运行时，会删除所有标记 * 的版本。
+保存时，会存储待定版本，且编号也会最终确定。如果关闭对话框而不保存，那待定版本将永远不会与文档关联，最终被 xref:webdav:configuration.adoc#webdav-document-versions-cleaning-job[WebdavDocumentVersionsCleaningJob] 删除。
 
-. *编辑文档*: 选择一个文档版本，然后点击 *Open* 按钮打开文档进行编辑。每次在外部应用程序中保存文档时，都会在数据库同时保存文档的新版本。使用 *Refresh* 按钮可以刷新对话框中显示的文档版本列表。
-+
-CAUTION: 点击 *Refresh* 会删除所有未保存的版本，请小心操作。
+CAUTION: *Refresh* 按钮会从数据库重新加载历史记录，并丢弃所有待定版本。如果已复制或上传了某个版本，但尚未保存，那这些版本将会丢失。
 
-. *查看文档（只读）*: 如需查看文档，点击文件名链接。
+[[versions-operations]]
+=== 操作
 
-. *下载单一版本或多版本文档的 ZIP 包*: *Download* 按钮提供了两个用于下载所选文档/版本的功能。第一个功能是可以将文档下载为单独的文件。而 *Download as ZIP* 则可以将所有选定的文档打包为 ZIP 并下载。压缩包内的文件会包含 `-v` 的后缀显示版本号，例如 `example-v3.docx`、`document-v1.docx`。
+*WebDAV document versions* 对话框可以进行下列操作：
+
+. *创建新版本*：点击 *Upload* 选择需要上传的文件。上传的文件将根据最新的版本号进行编号并标记为 <<pending-versions,待定版本>>。
+
+. *基于已有版本创建新版*: 选择一个文档版本，然后单击 *Copy to head* 按钮进行复制，并根据最新的文档版本号为其分配一个编号并标记为 <<pending-versions,待定版本>>。该功能可以将文档回退至较早的版本而不丢失这期间的改动。
+
+. *编辑文档*: 点击 *Open* 按钮在关联的桌面应用中打开文档进行编辑。该操作总是打开最新的版本，无论表格中选择的哪个版本。每次在桌面应用中保存文档时，都会往服务端发送一个新版本，然后通过 *Refresh* 可以查看。
+
+. *查看文档（只读）*: 点击文件名链接。选择的版本以只读模式打开。
+
+. *下载版本*: *Download* 按钮将选择的版本分别下载为文件。*Download as ZIP* 选项可以将这些版本打包成单一 `files.zip` 文件。两种情况下，都会在文件名中加入版本号，例如，`example-v3.docx`、`document-v1.docx`。
 
 [[conflict-resolution-policies]]
 == 解决冲突策略
 
-多个用户同时编辑同一文档时可能会发生冲突，我们有多种策略可用于解决这种冲突。
+当在 *WebDAV document versions* 对话框中添加新版本时，如果在对话框打开期间数据库中出现了新版本，那么就会出现冲突。冲突解决策略就是定义在这种情况下，如何协调版本。
 
-例如，假设同时有两个用户在 *WebDAV document versions* 中打开同一文档并添加多个新版本。第一个用户完成工作后保存更改。随后，第二个用户也保存了更改。此时，数据库包含两个用户各自创建的版本。但是，每个用户只能在 *WebDAV document versions* 中看到自己的版本，并不知道有其他人也提交了新版本。
+冲突只能在保存时才可能发生。如果文档在对话框加载后被修改，就会发生冲突，无论修改是怎么发生的：可能是另一个用户在对话框中操作，也可能桌面应用保存文档，又或者 WebDAV 客户端或应用程序代码调用扩展组件的服务。
 
-在这种情况下，对文档进行排序和保存时有可能会出现问题。要解决此类冲突，可以使用下面描述的策略。
+扩展组件提供以下冲突解决策略：
 
-默认情况下，使用 `RejectMergePolicy`（拒绝合并策略）。
+[cols="1,3", options="header"]
+|===
+|策略
+|描述
 
-[[rebase-merge-policy]]
-=== RebaseMergePolicy
+|[[reject-merge-policy]]`RejectMergePolicy`
+|拒绝合并（默认使用）。不保存任何内容，显示警告，当前用户在对话框中添加的版本被丢弃。存储的历史记录保持不变。
 
-`RebaseMergePolicy` 策略允许在数据库中已有的文档版本之后插入新的文档版本。新版本根据数据库中已有的最新文档版本号进行编号。
+|[[rebase-merge-policy]]`RebaseMergePolicy`
+|保留两组版本。后保存的版本会重新编号，排在数据库中存储的最后一个版本之后，因此不会丢失任何内容。
 
-[[cancel-my-merge-policy]]
-=== CancelMyMergePolicy
+|[[cancel-their-merge-policy]]`CancelTheirMergePolicy`
+|保留当前用户在对话框中添加的版本，并删除期间存储在数据库中的其他新版本。
 
-如果在 *WebDAV document versions* 中操作时文档版本发生了变更，则将删除所有非持久化版本（标有 * 的版本）。
+|[[cancel-my-merge-policy]]`CancelMyMergePolicy`
+|保留数据库中存储的版本，并删除当前用户在对话框中添加的版本。
 
-[[cancel-their-merge-policy]]
-=== CancelTheirMergePolicy
+|`FastForwardMergePolicy`
+|没有冲突时自动使用。对话框中的所有版本都会被保存。不能作为冲突解决策略。
+|===
 
-如果在 *WebDAV document versions* 中操作时文档版本发生了变更，则将保存所有标有 * 的版本，而不是其他人在 *WebDAV document versions* 中添加的版本。
+[[comparing-policy-outcomes]]
+=== 比较策略结果
 
-[[reject-merge-policy]]
-=== RejectMergePolicy
+为说明各策略之间的差异，假设一个文档有版本 1、2 和 3。你打开 *WebDAV document versions* 对话框并上传一个文件，该文件显示为 <<pending-versions,待定>> 版本 `4*`。与此同时，另一个用户从桌面应用程序两次保存了同一文档，因此数据库中的文档现在有版本 4 和 5。然后你保存对话框。
 
-如果发生冲突，则会显示警告，并丢弃所有新版本。
+最后结果由策略决定：
+
+[cols="1,2", options="header"]
+|===
+|策略
+|保存后的版本
+
+|`RejectMergePolicy`
+|`1, 2, 3, 4, 5` - 你的上传未保存，并显示警告
+
+|`RebaseMergePolicy`
+|`1, 2, 3, 4, 5, 6` - 你的上传保存为版本 6
+
+|`CancelTheirMergePolicy`
+|`1, 2, 3, 4` - 版本 4 是你的上传，而另一个用户保存的版本 4 和 5 被删除
+
+|`CancelMyMergePolicy`
+|`1, 2, 3, 4, 5` - 你的上传被删除
+|===
+
+如果另一个用户没有保存文档，就不会有冲突：将应用 `FastForwardMergePolicy`，你的上传会保存为版本 4。
 
 [[overriding-conflict-resolution-policy]]
 === 覆盖默认策略

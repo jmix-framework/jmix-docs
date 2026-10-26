@@ -50,6 +50,51 @@ image::ui-component-policy.png[align="center",width=776]
 
 UI 组件策略在视图打开过程的最后应用，即在 xref:flow-ui:views/view-events.adoc#ready-event[ReadyEvent] 发送之后。此时，视图的所有初始化工作都已完成，且已经应用了其他策略。
 
+策略也适用于 xref:flow-ui:vc/layouts/tabSheet.adoc#lazy-tabs[懒加载标签页] 的内容，会在首次打开标签页时执行策略。对于视图打开后创建的其他组件，请以编程方式应用策略，参见 <<runtime-content,运行时使用策略>>。
+
+[[checking-policies]]
+== 检查 UI 组件策略
+
+使用 `UiComponentPolicyContext` 和 `AccessManager` bean 检查当前用户的策略是否允许显示或编辑某个组件或操作。传入视图 ID 和组件路径，格式与 <<component-ids,componentIds>> 属性相同，例如 `emailField`、`addressFragment.streetField` 或 `userGrid.edit`。
+
+以下示例检查策略是否允许在 `Customer.detail` 视图中显示和编辑 `emailField`：
+
+[source,java,indent=0]
+----
+include::example$uiconstraints-ex1/src/main/java/com/company/demo/view/customer/CustomerDetailView.java[tags=accessManager;check-policies]
+----
+
+调用 `applyRegisteredConstraints()` 后，使用 `isVisiblePermitted()` 和 `isEnabledPermitted()` 读取权限。这两种权限初始均为 `true`；除非另一个约束拒绝访问，否则未被任何策略提及的组件都是允许的。
+
+该上下文检查的是策略权限，而不是组件当前状态或其实体属性权限。即使组件因其他原因被隐藏、禁用或设为只读，该策略判定允许也不会使其可见或可编辑。
+
+内置的 `UiComponentPolicyConstraint` 会评估当前用户的有效策略。`UiComponentPolicyApplier` 在应用策略时使用相同的上下文。应用程序可以注册 `AccessConstraint<UiComponentPolicyContext>`，通过 `setVisibleDenied()` 或 `setEnabledDenied()` 进一步限制访问。拒绝的结果会由 `AccessLogger` 记录。
+
+[[runtime-content]]
+== 对动态内容应用策略
+
+对于视图打开后创建的组件，请注入 `UiComponentPolicyApplier`，然后在将组件添加到视图后调用 `applyUiComponentPolicies(view, content)`，将视图的策略应用于该组件及其子组件。组件和操作的 ID 必须与其策略路径匹配。
+
+[source,java,indent=0]
+----
+include::example$uiconstraints-ex1/src/main/java/com/company/demo/view/customer/CustomerDetailView.java[tags=policyApplier;runtime-content]
+----
+
+单参数方法 `applyUiComponentPolicies(content)` 会通过组件树查找组件的所属视图。如果找不到视图，则不会应用任何策略。
+
+对于 `tabSheet` 标签页中的内容，请使用双参数方法 `applyUiComponentPolicies(view, content)`。`JmixTabSheet` 仅在组件树中保留选中标签页的内容，并在客户端响应之前才 attach，因此单参数方法无法可靠地找到所属视图。
+
+[[tab-selection]]
+=== 标签页选择
+
+默认情况下，扩展组件在标签页被选中时对其内容应用策略。也包括 `<tab lazy="true">` 中的组件和操作，其内容仅在首次选中时创建。懒加载标签页无需应用程序代码即可应用策略。
+
+每个内容组件只处理一次。再次选择同一标签页不会对应用程序已做的组件更改重新应用策略，传递给 `applyUiComponentPolicies()` 的内容也会标记为已处理。
+
+如果某个策略隐藏了选中的标签页，则用户在使用视图时可能会选中另一个标签页。
+
+如需禁用标签页选择时自动应用策略，请将 <<jmix.uiconstraints.apply-policies-on-tab-selection,jmix.uiconstraints.apply-policies-on-tab-selection>> 设置为 `false`。此时，视图打开后创建的内容（包括懒加载标签页内容）不会自动应用策略。
+
 [[ui-component-policy-annotation]]
 == UiComponentPolicy 注解
 
@@ -99,3 +144,18 @@ UI 组件策略支持两种 `action`：
 如果需要覆盖由其他角色对同一组件应用的另一个 UI 组件策略，则可以使用 `ALLOW` 效果。例如，如果已为用户分配了 A 角色，并且此角色禁止访问某个 UI 组件，则可以配置一个 B 角色，对同一组件配置 `ALLOW` 效果即可恢复对该组件的访问。
 
 NOTE: `ALLOW` 效果无法显示/启用由于初始状态或对应实体或实体属性权限缺失而隐藏/禁用的组件。
+
+[[application-properties]]
+== Application Properties
+
+[[jmix.uiconstraints.apply-policies-on-tab-selection]]
+=== jmix.uiconstraints.apply-policies-on-tab-selection
+
+[.since]
+Jmix 3.1+
+
+控制是否在选择标签页时应用 UI 组件策略，也包括懒加载标签页中的内容。参考 <<tab-selection>>。
+
+默认值：`true`。
+
+设置为 `false` 禁用此处理。当视图打开时，策略仍然会应用，也可以使用 `UiComponentPolicyApplier` 以编程方式应用策略。

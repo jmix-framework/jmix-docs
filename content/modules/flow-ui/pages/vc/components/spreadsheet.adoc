@@ -1,0 +1,394 @@
+= spreadsheet 电子表格
+:page-aliases: vaadin-spreadsheet:spreadsheet-component.adoc
+
+[NOTE.addon-component]
+====
+该组件需要安装商业版 xref:vaadin-spreadsheet:index.adoc#installation[Vaadin Spreadsheet 插件]。
+====
+
+`spreadsheet` 组件可以在视图中嵌入兼容 Excel 的电子表格。在浏览器中渲染 https://poi.apache.org[Apache POI^] 工作簿，支持用户编辑，并为视图提供对底层 POI 模型的完整编程式访问。
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`spreadsheet`
+
+|Java 类
+|`Spreadsheet`
+|===
+
+[[basics]]
+== 基本用法
+
+在视图 XML 中声明 `sprd` 命名空间并添加 `spreadsheet` 组件：
+
+[source,xml,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/resources/com/company/vaadinspreadsheetex1/view/basics/spreadsheet-basics-view.xml[tags=basics]
+----
+
+[TIP]
+====
+当使用顶部操作面板中的 *Add Component* 操作添加组件时，Studio 会自动添加该命名空间。请参见 xref:studio:view-designer.adoc#component-palette[组件面板]。
+====
+
+以常规方式在控制器中注入组件：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/basics/SpreadsheetBasicsView.java[tags=injection]
+----
+
+电子表格不与 xref:flow-ui:data/data-containers.adoc[数据容器] 绑定。其内容可以从 <<loading, XLSX 文件>> 加载，或是将 <<filling-from-data, 实体数据>> 填充到单元格。这两种情况下，都在内存中保存工作簿，页面刷新后编辑内容会丢失。
+
+[[loading]]
+== 加载 XLSX
+
+使用 `read()` 方法可以将文件内容加载到组件中，并替换其当前内容。该方法接收 `InputStream`，因此可以是从任何来源读取的文件：如下例中的应用程序资源、xref:files:file-storage.adoc[文件存储]，或使用 xref:flow-ui:vc/components/fileStorageUploadField.adoc[fileStorageUploadField] 上传的文件。
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/loading/SpreadsheetLoadingView.java[tags=read]
+----
+
+而 `write()` 方法则相反，将工作簿写入输出流。然后将字节传递给 xref:files:downloading-files.adoc#downloader[下载器]，即可让用户保存当前文档：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/loading/SpreadsheetLoadingView.java[tags=write]
+----
+
+[[filling-from-data]]
+== 使用实体数据
+
+电子表格还可以使用实体的数据填充。单元格没有与属性绑定，因此在打开时需要填充工作表，在保存时中表中读取值。
+
+下面的示例中，从 xref:flow-ui:data/collection-container.adoc[集合容器] 读取实体然后填充单元格：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/entitydata/SpreadsheetEntityDataView.java[tags=fill]
+----
+
+保存时，遍历每一行获取单元格的值，设置给相应的属性。实体在数据容器中，因此视图的 xref:flow-ui:data/data-context.adoc[数据上下文] 可以跟踪实体的改动，调用其 `save()` 保存所有更改：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/entitydata/SpreadsheetEntityDataView.java[tags=save-to-entities]
+----
+
+NOTE: 这种方式只保存值。对工作表本身的更改（例如新列、格式或公式）在视图关闭时会丢失。
+
+[[cells]]
+== 配置单元格
+
+通过组件（而不是 POI）创建单元格，以便组件知晓渲染的内容。行和列的索引从零开始，下面的代码填充范围 `A1:B2`：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=create-cells]
+----
+
+值可以是 `String`、`Double`、`Boolean`、`Date` 或 `Calendar` 类型。
+
+已有单元格通过 `getCell()` 获取，可以按索引或按 A1 表示法中的地址获取。如果通过 POI API 更改单元格，需要刷新以显示新值。`refreshCells()` 的参数可以是多个单元格或一个集合：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=get-cell]
+----
+
+公式由单独的方法创建并在服务器上计算。编写时不需要以 `=` 开头：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=formula]
+----
+
+若要一次性重新计算所有公式（例如在替换一组值之后），请调用 `refreshAllCellValues()`。
+
+[[styles]]
+== 设置单元格样式
+
+字体、颜色、边框和数字格式属于工作簿，因此使用 POI API。创建样式，然后应用在单元格，最后刷新单元格：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=styles]
+----
+
+CAUTION: 工作簿对单元格样式有数量上的限制，因此，每种样式仅创建一次，而不是每个单元格都新建样式。
+
+[[working-with-selection]]
+== 选择
+
+初始选中的单元格或范围由 <<selection,selection>> 属性以 A1 表示法设置，例如 `A1` 或 `B2:D8`。每次用户选择其他内容时，组件都会通知视图：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/selection/SpreadsheetSelectionView.java[tags=selection-event]
+----
+
+事件还包含：`getIndividualSelectedCells()` 返回单独选中的单元格，`getCellRangeAddresses()` 返回选中的范围。
+
+[[embedded-components]]
+== 在单元格添加组件
+
+单元格可以显示 UI 组件，例如布尔列显示复选框。电子表格会询问工厂在单元格中放置什么组件，提供一个 <<spreadsheetComponentFactory,spreadsheetComponentFactory>> 并为需要组件的单元格返回一个组件：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/handlers/SpreadsheetHandlersView.java[tags=component-factory]
+----
+
+先调用 `getCustomComponentForCell()`，仅当返回 `null` 时才调用 `getCustomEditorForCell()`。
+
+包含组件的行高不会低于 <<minimumRowHeightForComponents,minimumRowHeightForComponents>>，因此组件总是可见。
+
+[[sheets]]
+== 添加和删除工作表
+
+工作簿包含一个或多个工作表（Sheet），组件一次显示其中一个。新工作表通过名称、行数和列数创建：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/sheets/SpreadsheetSheetsView.java[tags=sheets]
+----
+
+工作表的删除：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/sheets/SpreadsheetSheetsView.java[tags=delete-sheet]
+----
+
+工作表按索引寻址，有两种索引。不带 `POIIndex` 后缀的方法仅计算可见工作表，即用户在工作表选择栏中看到的内容。带后缀的方法（如 `setActiveSheetWithPOIIndex()` 和 `deleteSheetWithPOIIndex()`）计算工作簿的所有工作表，包括隐藏的。<<activeSheetIndex,activeSheetIndex>> 和 <<activeSheetWithPOIIndex,activeSheetWithPOIIndex>> 属性也是同样的工作原理。
+
+[[freeze-panes]]
+== 锁定行列
+
+锁定的行和列在其他工作表滚动时保持不动，能在长表格中保持标题行可见：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/cells/SpreadsheetCellsView.java[tags=freeze-pane]
+----
+
+NOTE: 参数依次是锁定的行数和列数。POI 的 `Sheet.createFreezePane()` 方法参数顺序相反。
+
+[[grouping]]
+== 行列分组
+
+如果加载的文档使用了分组，则在应用程序中保留。分组会以标题旁的大纲控件显示，用户在浏览器中可以像在 Excel 中一样折叠和展开。
+
+下面的示例加载一个将国家按地区分组的文档：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/grouping/SpreadsheetGroupingView.java[tags=load-grouped]
+----
+
+分组也可以通过代码创建。需要使用 POI API（组件没有自己的分组 API），然后重新加载组件。重新加载才能显示大纲控件：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/grouping/SpreadsheetGroupingView.java[tags=grouping]
+----
+
+NOTE: 分组仅适用于 XLSX 文档。
+
+[[report-style]]
+== 报表模式
+
+<<reportStyle,reportStyle>> 属性隐藏组件的两个工具栏：工作表上方的函数栏和下方的工作表选择栏。
+
+[source,xml,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/resources/com/company/vaadinspreadsheetex1/view/reportstyle/spreadsheet-report-style-view.xml[tags=report-style]
+----
+
+网格线以及行和列标题不属于报表模式。它们属于工作表，从源文档中加载。每次加载或激活另一个工作表时，组件都会再次加载这些信息。加载文档后调用 `setGridlinesVisible(false)` 和 `setRowColHeadingsVisible(false)` 将其关闭，如果不希望用户更改工作表，还可以保护工作表：
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/reportstyle/SpreadsheetReportStyleView.java[tags=clean-output]
+----
+
+[[charts-within-spreadsheet]]
+== 电子表格中的图表
+
+`spreadsheet` 组件可以渲染 Excel 工作簿中已包含的图表。图表默认显示。设置 <<chartsEnabled,chartsEnabled>> 为 `false` 可隐藏。组件可以反映图表数据点的变化，但不支持更改图表配置、源单元格范围或位置。需要在原始 Excel 文件中进行此类更改。
+
+更多信息，请参考 Vaadin 文档中的 https://vaadin.com/docs/latest/components/spreadsheet#charts-within-spreadsheets[电子表格中的图表^]。
+
+[[attributes]]
+== XML 属性
+
+下面是 `spreadsheet` 的特殊属性：
+
+[cols="2,5,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[activeSheetIndex]]`activeSheetIndex`
+|最初显示的工作表索引，仅计算可见工作表。
+|—
+
+|[[activeSheetWithPOIIndex]]`activeSheetWithPOIIndex`
+|最初显示的工作表索引，计算底层 POI 工作簿的所有工作表，包括隐藏的。
+|—
+
+|[[chartsEnabled]]`chartsEnabled`
+|如果为 `true`，则渲染加载的工作簿中包含的图表。
+|`true`
+
+|[[colBufferSize]]`colBufferSize`
+|在可见区域左右渲染的水平缓冲区大小，单位为像素。较大的缓冲区使滚动更平滑，但会增加负载。
+|`200`
+
+|[[defaultColumnCount]]`defaultColumnCount`
+|新建工作表的列数。
+|`52`
+
+|[[defaultColumnWidth]]`defaultColumnWidth`
+|列的默认宽度，单位为像素。
+|—
+
+|[[defaultPercentageFormat]]`defaultPercentageFormat`
+|默认的百分比值格式。
+|`0.00%`
+
+|[[defaultRowCount]]`defaultRowCount`
+|新建工作表的行数。
+|`200`
+
+|[[defaultRowHeight]]`defaultRowHeight`
+|行的默认高度，单位为磅。
+|—
+
+|[[functionBarVisible]]`functionBarVisible`
+|如果为 `true`，则在工作表上方显示公式栏。
+|`true`
+
+|[[invalidFormulaErrorMessage]]`invalidFormulaErrorMessage`
+|用户输入无法解析的公式时显示的消息。支持消息键值。
+|—
+
+|[[maxColumns]]`maxColumns`
+|活跃工作表中渲染的列数。
+|—
+
+|[[maxRows]]`maxRows`
+|活跃工作表中渲染的行数。
+|—
+
+|[[minimumRowHeightForComponents]]`minimumRowHeightForComponents`
+|包含嵌入组件的行的最小高度（单位为磅），需要保持组件可见。请参见 <<embedded-components,在单元格添加组件>>。
+|`30`
+
+|[[reportStyle]]`reportStyle`
+|如果为 `true`，则隐藏函数栏和工作表选择栏。请参见 <<report-style,报表模式>>。
+|`false`
+
+|[[rowBufferSize]]`rowBufferSize`
+|在可见区域上下渲染的垂直缓冲区大小，单位为像素。
+|`200`
+
+|[[selection]]`selection`
+|初始选中的单元格或范围，使用 A1 表示法，例如 `A1` 或 `B2:D8`。请参见 <<working-with-selection,选择>>。
+|—
+
+|[[sheetSelectionBarVisible]]`sheetSelectionBarVisible`
+|如果为 `true`，则在组件底部显示工作表标签页。
+|`true`
+
+|[[statusLabelValue]]`statusLabelValue`
+|组件状态区域中显示的文本。支持消息键值。
+|—
+
+|[[theme]]`theme`
+|电子表格的主题。支持：`LUMO`、`VALO`。`LUMO` 使组件与应用程序其他样式一致；`VALO` 是经典的电子表格外观。
+|`VALO`
+|===
+
+下面是 `spreadsheet` 支持的其他通用属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+[[handlers]]
+== 事件和处理器
+
+下面是 `spreadsheet` 的特殊事件和处理器：
+
+include::flow-ui:vc/handler-generation-tip.adoc[]
+
+[cols="2,5", options="header"]
+|===
+|名称
+|描述
+
+|[[CellValueChangeEvent]]`CellValueChangeEvent`
+|当用户更改了一个或多个单元格的值时发送。
+
+|[[cellValueHandler]]`cellValueHandler`
+|当用户通过默认文本编辑器更新单元格时调用 `Spreadsheet.CellValueHandler`。可以自定义输入值如何应用于单元格。返回 `true` 继续按组件的默认值解析，如果处理器有自定义逻辑处理该值则返回 `false`。
+
+|[[cellDeletionHandler]]`cellDeletionHandler`
+|`Spreadsheet.CellDeletionHandler`，决定用户是否可以清除单元格的内容。主要用来保护计算单元格或引用单元格不被清空。
+
+|[[FormulaValueChangeEvent]]`FormulaValueChangeEvent`
+|当用户更改了一个或多个单元格中的公式时发送。
+
+|[[hyperlinkCellClickHandler]]`hyperlinkCellClickHandler`
+|`Spreadsheet.HyperlinkCellClickHandler`，定义用户点击包含超链接的单元格时如何处理。可以用来导航到应用视图而不是打开外部 URL。
+
+|[[ProtectedEditEvent]]`ProtectedEditEvent`
+|当用户尝试编辑受保护工作表上的锁定单元格时发送。
+
+|[[RowHeaderDoubleClickEvent]]`RowHeaderDoubleClickEvent`
+|当用户双击行标题时发送。事件的 `getRowIndex()` 方法提供行的索引。
+
+|[[SelectionChangeEvent]]`SelectionChangeEvent`
+|当选中的单元格或范围发生变化时发送。请参见 <<working-with-selection,选择>>。
+
+|[[SheetChangeEvent]]`SheetChangeEvent`
+|当用户切换到另一个工作表时发送。
+
+|[[spreadsheetComponentFactory]]`spreadsheetComponentFactory`
+|`SpreadsheetComponentFactory`，提供单元格内渲染的组件，用于显示或编辑。请参见 <<embedded-components,在单元格添加组件>>。
+
+|[[spreadsheetHandler]]`spreadsheetHandler`
+|`SpreadsheetHandlerImpl`，处理组件的客户端-服务端协议。仅当无法通过任何其他扩展点实现所需行为时才使用。
+|===
+
+下面是 `spreadsheet` 支持的其他通用事件：
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== 参考
+
+* https://vaadin.com/docs/v25/components/spreadsheet[Vaadin Spreadsheet 文档^]
+* https://poi.apache.org/components/spreadsheet/[Apache POI Spreadsheet 文档^]
+
+
+To fill the sheet, create cells from the items of a xref:flow-ui:data/collection-container.adoc[collection container]:
+
+[source,java,indent=0]
+----
+include::vaadin-spreadsheet:example$/vaadin-spreadsheet-ex1/src/main/java/com/company/vaadinspreadsheetex1/view/entitydata/SpreadsheetEntityDataView.java[tags=fill]
+----

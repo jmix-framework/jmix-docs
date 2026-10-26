@@ -22,7 +22,7 @@
 [[versioning-and-deployment]]
 == 版本化与部署
 
-模型定义作为一组版本化配置存储在数据库中。一次只有一个版本处于激活状态。保留旧版本的目的在于，可以随时间审查变更，并在需要时可以通过激活较早版本来回滚。
+模型定义作为一组版本化配置存储在数据库中。每次部署会保存一个新版本，只能有一个版本处于激活状态。之前的版本都会保留，可以在 xref:dyn-model:defining-model.adoc#model-history[模型历史] 里查看。若要退回一个早期的版本，可以从历史里复制其 YAML 然后重新部署。
 
 应用程序启动时，框架可以自动使用激活的版本，从而运行中的应用程序能反映最新部署的模型。此行为由 xref:dyn-model:app-properties.adoc#jmix.dynmodel.deploy-on-app-start[jmix.dynmodel.deploy-on-app-start] 属性控制。
 
@@ -35,6 +35,27 @@
 
 已打开的视图不会自动切换，需要重新加载后才会获取变更。
 
+框架还会检查在打开模型编辑时，没人发布其他的模型。如果有人在你编辑过程中发布了，则会拒绝你的发布，从而不会静默覆盖别人的改动。此时，需要你重新加载模型配置并重复你个改动。
+
+[[cluster]]
+== 集群
+
+[.since]
+Jmix 3.1+
+
+动态模型可以在应用程序集群中运行。当启用集群支持时：
+
+* 在一个节点发布的模型会发布至其他节点，无需重新启动。
+* 整个集群中，同一时刻只能运行一个发布。如果一个用户尝试发布一个正在其他节点发布的模型，则会拒绝当前的发布，并告知用户此时谁正在发布模型。需要等待对方完成后再尝试。
+
+启用集群支持：
+
+. 将 xref:dyn-model:app-properties.adoc#jmix.dynmodel.cluster.enabled[jmix.dynmodel.cluster.enabled] 属性设置为 `true`。
+. 将 xref:pessimistic-lock:index.adoc[悲观锁] 扩展组件添加到项目。其中包含集群的发布锁。如果启用了集群支持而缺少该扩展组件，应用程序不会启动。
+. 按照 xref:features:cluster-communication.adoc[] 中的说明配置节点之间的集群通信。已发布模型和发布锁的消息都需要走这个通道。如果没配置，则在一个节点上发布的模型只有在其他节点重启时才会到达。
+
+xref:dyn-model:app-properties.adoc#jmix.dynmodel.cluster.apply-lock-timeout-sec[jmix.dynmodel.cluster.apply-lock-timeout-sec] 属性设置发布期间持有发布锁的节点停止的超时时限。请将其设置为大于应用程序中最长发布耗时的值。
+
 [[storage]]
 == 存储
 
@@ -46,6 +67,17 @@
 每个实体可以通过其 `store` 属性指定物理存储；当省略时，实体使用 `main` 数据存储。实体引用和实体集合属性仅支持在同一物理存储的实体。
 
 表名前缀是可配置的；相关设置请参见 xref:dyn-model:yaml-reference.adoc[] 和 xref:dyn-model:app-properties.adoc[]。
+
+[[data-tools]]
+== 数据工具
+
+[.since]
+Jmix 3.1+
+
+动态实体和动态属性显示在 xref:data-tools:index.adoc[数据工具] 扩展组件的视图中：
+
+* xref:data-tools:data-model.adoc[数据模型] 视图中显示动态实体及其数据存储和表，以及静态实体的动态属性及其副表列。计算属性和集合属性也列出，但是没有表格列。图表会显示哪些实体和属性是动态的。
+* xref:data-tools:entity-inspector.adoc[实体探查] 支持浏览、创建、编辑和删除动态实体的实例，并编辑静态实体的动态属性。可以在通用过滤器中按动态属性进行过滤和排序。
 
 [[supported-databases]]
 == 支持的数据库

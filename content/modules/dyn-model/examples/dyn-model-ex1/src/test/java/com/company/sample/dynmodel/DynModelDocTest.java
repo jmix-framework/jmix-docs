@@ -7,6 +7,7 @@ import io.jmix.core.metamodel.model.MetaClass;
 import io.jmix.dynmodel.DynamicModelSettingsService;
 import io.jmix.dynmodel.entity.DynamicModelSettings;
 import io.jmix.flowui.testassist.FlowuiTestAssistConfiguration;
+import io.jmix.flowui.view.ViewRegistry;
 import io.jmix.flowui.testassist.UiTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +57,9 @@ public class DynModelDocTest {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    ViewRegistry viewRegistry;
 
     @BeforeEach
     void setUp() {
@@ -109,5 +113,10 @@ public class DynModelDocTest {
 
         MetaClass benefit = metadata.findClass("Benefit");
         assertThat(benefit).isNotNull();
+
+        // Dynamic views are deployed, including the read view
+        assertThat(viewRegistry.hasView("LoyaltyLevel.list")).isTrue();
+        assertThat(viewRegistry.hasView("LoyaltyLevel.detail")).isTrue();
+        assertThat(viewRegistry.hasView("LoyaltyLevel.read")).isTrue();
     }
 }

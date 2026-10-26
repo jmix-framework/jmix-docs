@@ -1,0 +1,180 @@
+= 附件
+
+消息可以携带文件。文件在消息输入框收集、在应用程序存储、在消息列表渲染，点击则可将文件从存储中取回。附件涉及 xref:ai-chat:aiChat.adoc[aiChat]、xref:ai-chat:aiMessageInput.adoc[aiMessageInput] 和 xref:ai-chat:aiMessageList.adoc[aiMessageList]，因此在这里统一介绍。
+
+[[enabling]]
+== 启用附件
+
+附件默认关闭。可以在聊天中开启并设置限制，如果是单独使用消息输入组件，则在消息输入中设置：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=limits]
+----
+
+`maxFiles` 和 `maxFileSize` 限制一条消息可最多携带的文件，而 `acceptedFileExtensions` 或 `acceptedMimeTypes` 限制可以添加的文件类型。两个配置都会在浏览器端和服务端上强制执行。`uploadDropZoneEnabled` 控制是否支持以拖拽的方式添加。
+
+[WARNING]
+====
+`acceptedFileExtensions` 的每个条目都必须以点开头：`.png`，而不是 `png`。如果配置了没有带点的后缀，则视图会报错，用户看不到聊天界面。
+====
+
+[[choosing-files]]
+== 选择文件
+
+启用拖放区域后，可以将文件拖放到消息输入框体的任意位置，当文件悬停在其上方时，框体会高亮显示。
+
+若要提供点击选择文件的功能，需要一个 `aiUploadTrigger` 触发器。浏览器只能从用户真实的手势打开文件选择器，因而需单独添加。通常添加到下拉菜单中：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=upload-trigger-menu]
+----
+
+image::aichat-upload-trigger-menu.png[消息输入框中打开的附加菜单, align="center", width="868"]
+
+`menu-item` 主题会将该触发器的样式设置为菜单的一行，而不是菜单中的按钮：去掉自身的背景、填充和可见边框，并将其内容对齐到起始位置。可以通过键盘激活。打开菜单并按 *Enter*，文件选择器就会打开，因为菜单项与用户点击按钮激活一样。
+
+[IMPORTANT]
+====
+`componentItem` 内部的触发器必须用 `aiChatId` 指定其所属的聊天组件，即使菜单本身位于该聊天内部也需要设置。组件的自动查找程序会在加载 XML 时遍历组件树，而该项的子级在此时并不属于聊天组件的一部分。
+====
+
+而如果触发器是直接放在聊天中，或位于 `inputPrefix` 或 `inputSuffix` 内，则不需要指定 `aiChatId`，因为此时能找到父聊天组件。在聊天组件之外，可以位于视图中的任何位置，并通过 id 指定其聊天组件。
+
+image::aichat-composer-attachments.png[附加到消息的文件, align="center", width="700"]
+
+添加的文件会在输入行上方显示为标签：图片显示为缩略图，其他文件显示为图标。每个标签都有一个按钮，可在发送前将其移除。当触发器所属的聊天组件关闭了附件功能时，触发器会禁用。
+
+[[rejected]]
+== 拒绝的文件
+
+违反某项限制的文件会在添加之前被拒绝。通过监听拒绝事件可以通知用户：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=rejected]
+----
+
+文件被拒绝的原因可能是 `TOO_MANY_FILES`、`FILE_TOO_LARGE` 或 `INCORRECT_FILE_TYPE` 之一。
+
+[[storing]]
+== 存储文件
+
+组件将文件的原始字节交给应用程序，并由应用程序决定如何存储池。默认情况下，扩展组件会将文件写入默认文件存储，但绑定到自定义实体的聊天需要一个消息工厂完成对应的工作：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=attachment-factory]
+----
+
+实体将结果保存为 `FileRef` 列表。关于实体本身，参见 xref:ai-chat:aiChat.adoc#data[消息与数据]。
+
+[IMPORTANT]
+====
+请在 fetch plan 中设置读取附件：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/attachments/attachments-view.xml[tags=fetch-plan]
+----
+
+附件集合不属于 `_base` fetch plan。如果没配置，文件虽然能正确保存到文件存储，且数据库也有记录，但在对话再次加载时不会渲染，因为实体中没有读取文件列表。
+====
+
+[[sending-to-the-model]]
+== 将文件发送到模型
+
+存储文件并不会将其展示给模型。聊天将附件传递给 provider，而 provider 负责将文件发送给模型。
+
+[IMPORTANT]
+====
+模型必须是能处理文件的模型。仅处理文本的模型会拒绝整个请求，因此聊天会显示其错误横幅，且不会生成答案。
+
+所有类型附件都会通过 Spring AI 以多模态数据的形式发送，因此即便是纯文本文件，也会在纯文本模型上失败。如需尝试下面的示例，请在应用程序内配置多模态模型。
+====
+
+示例中，当请求中没有用户消息时，提供一个默认的消息，然后 provider 将请求中的附件与文本一同发送：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=llm-provider-attachments]
+----
+<1> 带有附件且没有文本的消息是有效的，但 `ChatClient.user(String)` 会拒绝空白文本，并在到达模型之前失败。这里提供默认描述。
+<2> 附件与文本一起随请求传递。将附件映射为 `Media` 发送到模型。
+
+[[downloading]]
+== 从对话中下载
+
+在重新加载消息列表后，附件仍然保留，图片显示为缩略图，其他文件显示为标签。点击其中一个时，会告知应用程序点击了哪个文件，其余工作由 Jmix 的下载器完成：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/attachments/AttachmentsView.java[tags=download]
+----
+
+[[upload-trigger-reference]]
+== aiUploadTrigger
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`aiUploadTrigger`
+
+|Java 类
+|`AiUploadTrigger`
+|===
+
+下面是 `aiUploadTrigger` 的特殊属性：
+
+[cols="2,5,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[aiChatId]]`aiChatId`
+|标识触发器所属的聊天组件。除非触发器直接放置在聊天内部，否则必需。参见 <<choosing-files,选择文件>>。
+|—
+
+|[[triggerIcon]]`icon`
+|设置触发器的图标。
+|—
+
+|[[text]]`text`
+|设置触发器的标签。
+|—
+
+|[[triggerThemeNames]]`themeNames`
+|设置主题。`menu-item` 将触发器样式设置为下拉菜单的一行，而不是菜单中的按钮。
+|—
+|===
+
+下面是 `aiUploadTrigger` 支持的通用组件属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabel[ariaLabel] -
+xref:flow-ui:vc/common-attributes.adoc#ariaLabelledBy[ariaLabelledBy] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#enabled[enabled] -
+xref:flow-ui:vc/common-attributes.adoc#focusShortcut[focusShortcut] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#tabIndex[tabIndex] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+当触发器所属的聊天关闭了附件功能时，触发器会禁用，这优先于 `enabled` 设置。
+
+== 参考
+
+* xref:ai-chat:aiChat.adoc#data[消息与数据]：带附件的实体。
+* xref:ai-chat:aiMessageInput.adoc[aiMessageInput]：收集附件的消息输入框。
+* xref:ai-chat:aiMessageList.adoc[aiMessageList]：渲染附件的消息列表。

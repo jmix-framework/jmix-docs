@@ -1,5 +1,6 @@
 package com.company.onboarding.entity;
 
+import io.jmix.aitools.ExcludeFromAi;
 import io.jmix.core.FileRef;
 import io.jmix.core.HasTimeZone;
 import io.jmix.core.annotation.Secret;
@@ -51,9 +52,12 @@ public class User implements JmixUserDetails, HasTimeZone {
     @Column(name = "LAST_NAME")
     protected String lastName;
 
+    // tag::exclude-from-ai[]
+    @ExcludeFromAi
     @Email
     @Column(name = "EMAIL")
     protected String email;
+    // end::exclude-from-ai[]
 
     @Column(name = "ACTIVE")
     protected Boolean active = true;

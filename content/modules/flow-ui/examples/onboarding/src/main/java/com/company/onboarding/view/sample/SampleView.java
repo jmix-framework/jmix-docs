@@ -17,6 +17,8 @@ import io.jmix.flowui.UiComponents;
 import io.jmix.flowui.ViewNavigators;
 import io.jmix.flowui.kit.component.button.JmixButton;
 import io.jmix.flowui.view.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @ViewController("SampleView")
@@ -24,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Route(value = "sample", layout = MainView.class)
 @DialogMode(width = "AUTO", height = "AUTO")
 public class SampleView extends StandardView {
+
+    private static final Logger log = LoggerFactory.getLogger(SampleView.class);
 
     @Autowired
     protected DataManager dataManager;
@@ -112,6 +116,20 @@ public class SampleView extends StandardView {
                 .navigate();
     }
     // end::navigateToEditEntity[]
+
+    @Subscribe("navigateToReadViewBtn")
+    protected void onNavigateToReadViewBtnClick(ClickEvent<Button> event) {
+        Department department = dataManager.load(Department.class).all().one();
+        navigateToReadEntity(department);
+    }
+
+    // tag::navigateToReadEntity[]
+    private void navigateToReadEntity(Department entity) {
+        viewNavigators.readView(this, Department.class)
+                .readEntity(entity)
+                .navigate();
+    }
+    // end::navigateToReadEntity[]
 
     @Subscribe("openViewBtn")
     protected void onOpenViewBtnClick(ClickEvent<Button> event) {
@@ -210,6 +228,20 @@ public class SampleView extends StandardView {
     }
     // end::openDetailViewToEditEntity[]
 
+    @Subscribe("openReadView")
+    protected void onOpenReadViewClick(ClickEvent<Button> event) {
+        Department department = dataManager.load(Department.class).all().one();
+        openReadViewToReadEntity(department);
+    }
+
+    // tag::openReadViewToReadEntity[]
+    private void openReadViewToReadEntity(Department department) {
+        dialogWindows.read(this, Department.class)
+                .readEntity(department)
+                .open();
+    }
+    // end::openReadViewToReadEntity[]
+
 
     @Subscribe("withAfterNavigationHandlerBtn")
     public void onWithAfterNavigationHandlerBtnClick(final ClickEvent<JmixButton> event) {
@@ -266,4 +298,33 @@ public class SampleView extends StandardView {
         window.open();
     }
     // end::openViewWithSize[]
+
+    // tag::openMaximizedDialog[]
+    private void openMaximizedDialog() {
+        DialogWindow<MyOnboardingView> window =
+                dialogWindows.view(this, MyOnboardingView.class).build();
+        window.setMaximizable(true);
+        window.addMaximizedChangeListener(event ->
+                log.debug("Maximized: {}, from client: {}",
+                        event.isMaximized(), event.isFromClient()));
+        window.setMaximized(true);
+        window.open();
+    }
+    // end::openMaximizedDialog[]
+
+    @Subscribe(id = "openedDialogWindows", subject = "clickListener")
+    public void onOpenedDialogWindowsClick(final ClickEvent<JmixButton> event) {
+        DepartmentDetailView detailView = getOpenedDepartmentDetailView();
+    }
+    // tag::openDialogWindows[]
+    private DepartmentDetailView getOpenedDepartmentDetailView() {
+        return dialogWindows.getOpenedDialogWindows()
+                .getDialogs()
+                .stream()
+                .filter(DepartmentDetailView.class::isInstance)
+                .map(DepartmentDetailView.class::cast)
+                .reduce((previous, current) -> current)
+                .orElseThrow();
+    }
+    // end::openDialogWindows[]
 }

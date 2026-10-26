@@ -1,0 +1,430 @@
+= aiChat
+
+`aiChat` 包含与 AI 对话所需的全部组件：消息列表、消息输入框、空状态，以及将与语言模型连接的生成周期。
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`aiChat`
+
+|Java 类
+|`AiChat`
+|===
+
+该组件组合并配置了 xref:ai-chat:aiMessageList.adoc[aiMessageList] 和 xref:ai-chat:aiMessageInput.adoc[aiMessageInput]：
+
+image::aichat-chat-conversation.png[一个聊天, align="center", width="1068"]
+
+[[basics]]
+== 基本用法
+
+一个基础的聊天需要一个 UI 元素和一个 provider。UI 元素：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/quickstart/quick-start-view.xml[tags=basics]
+----
+
+Provider 提供组件所需的一个函数，参考 xref:ai-chat:getting-started.adoc#connecting-a-model[连接模型]：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/quickstart/QuickStartView.java[tags=llm-provider]
+----
+
+这就是一个可用的聊天。对话保存在内存中，当视图关闭时就会丢失。参考 <<data,绑定到数据>>，让对话在视图关闭后仍然存在。
+
+[[system-prompt]]
+== 系统提示词
+
+系统提示词告诉模型它是什么：它的角色、用来回答的语言、以及必须拒绝什么等。将其声明为内部元素，会原封不动地使用配置的内容：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=system-prompt]
+----
+
+如果通过 `systemPrompt` 属性配置，则接受单行值，并可以使用消息键。
+
+[IMPORTANT]
+====
+声明的系统提示词本身不会起任何作用。聊天将其放入请求，由 provider 决定是否发送。只读取用户消息的 provider 会丢弃系统提示词，模型就会像不存在提示词一样作答。
+
+如需发送系统提示词：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/chat/ChatView.java[tags=system-prompt]
+----
+<1> 获取声明的提示词，由 provider 将其发送至模型。未声明任何内容时该值不存在，而 `ChatClient.system(String)` 会拒绝空白文本。
+====
+
+附件也是如此，与提示词和消息一起随请求传递。参考 xref:ai-chat:attachments.adoc#sending-to-the-model[将文件发送到模型]。
+
+[[data]]
+== 消息与数据
+
+消息就是数据。聊天通过 `AiChatMessage` 契约读取：角色、文本、时间（可选）以及附件。聊天 UI 不直接写入消息。
+
+使用开箱即用的聊天时，会在内存中保存一个内置消息列表。如需持久化对话，请提供你自己实现该契约的实体：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/entity/ChatMessage.java[tags=entity]
+----
+<1> 由于契约要求的是一个列表而不是 `null`，所以这里需要将数据返回的 `null` 转为空列表。
+
+然后将其加载到聊天关联的集合容器中：
+
+.数据
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=data]
+----
+
+.布局
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat]
+----
+
+[IMPORTANT]
+====
+如上所示，按持久化属性对查询结果排序。契约的 `time` 由自定义实体内的 `createDate` 提供，因而 JPQL 无法解析。在同一秒内保存的消息需要一个决胜策略（通常指唯一的辅助排序字段），才能在重新加载后依然保持其原本的先后顺序。
+====
+
+该组件无法创建实体，因此需要安装一个能创建的工厂：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/chat/ChatView.java[tags=message-factory]
+----
+
+工厂会为每条已提交的消息调用一次：用户消息在提交时调用，答案在完成时调用。
+
+[[persistence]]
+== 持久化
+
+上面示例中展示的 `autoSave="true"` 会让聊天通过视图的 `DataContext` 进行持久化：每条已提交消息都会被合并然后保存，而回退操作移除的消息会被删除。
+
+[NOTE]
+====
+`autoSave` 会保存整个 `DataContext`，而不仅仅是当前的消息，因此发送消息也会同时提交在视图其他地方所做的、与此无关的修改。它也是一个只有 XML 属性而没有等价 Java 实现的配置：在控制器中，通常需要改为安装一个保存委托（save delegate）和一个移除委托（remove delegate），这也是应用程序在需要以不同方式进行持久化时所采用的做法。
+====
+
+不使用 `autoSave` 时，可以通过安装这两个委托进行消息的持久化。每条已提交消息都会运行 `saveDelegate`，在它进入对话之前运行，聊天会采用委托返回的实例。持久化层返回的对象通常与传入的对象不同，而容器和 `DataContext` 会继续跟踪返回的那个对象。回退丢弃的每条消息也都会运行 `removeDelegate`，最新的先执行。
+
+如果需要用自己的方式持久化，也可以两个都不安装，转而监听 `MessageChangeEvent`，该事件会报告每一条添加或移除的消息。
+
+[[empty-state]]
+== 空状态
+
+空状态是在第一条消息之前，聊天会将消息输入框居中显示在该空间中，并在其上下提供两个插槽，用于显示问候语、建议或免责声明：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=empty-state]
+----
+
+image::aichat-chat-empty-state.png[The empty state, align="center", width="1068"]
+
+一旦第一条消息到达，空状态就会折叠为正常的底部固定布局。
+
+[[bands]]
+== 消息输入区域
+
+`inputHeader` 和 `inputFooter` 将应用程序的特定内容放入消息输入框内部，但在其框体之外，例如字段上方的上下文行或下方的免责声明：
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=bands]
+----
+
+.消息包
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=chat-bands]
+----
+
+[NOTE]
+====
+当聊天为空时，这两个区域都会隐藏，因为空状态中已经提供了特定的插槽。发送一条消息后，该区域就会显示。如需在聊天为空时保持某个区域可见，请使用 `input-header-component-always-visible` 或 `input-footer-component-always-visible` 主题样式。
+====
+
+[[generation]]
+== 生成
+
+聊天在三种状态之间切换（空闲、生成中和错误），并在每一次转换时发送事件：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=state-listener]
+----
+
+image::aichat-chat-generating.png[正在生成消息的聊天, align="center", width="1068"]
+
+停止和重新生成无需任何代码改动即可供用户使用：当答案正在生成时，消息输入框的发送按钮会变成停止按钮，错误横幅上会出现 *重试* 按钮。已停止生成的未完成答案会保留在屏幕上，并且不会提交。
+
+还可以从应用程序中调用这些操作，适用于在其他地方为聊天提供这些操作，例如对话上方的工具栏、菜单或快捷键。下面的示例将操作与两个按钮关联，不需要多余的代码即可完成功能：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=regenerate]
+----
+
+要让用户能够重新生成聊天中任意位置的答案，而不仅仅是最新的，需要声明内置消息操作。该操作会将对话回退到特定消息并再次运行：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/generation/generation-view.xml[tags=regenerate-action]
+----
+
+当生成失败时，消息列表会显示一个带有 *重试* 按钮的错误横幅，并且应用程序会收到错误通知以及错误发生前已经收到的文本：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/generation/GenerationView.java[tags=failed-listener]
+----
+
+NOTE: 保存失败和生成失败都会使用相同的错误状态，而 *重试* 会重新生成答案，而不是重试保存。
+
+[[actions]]
+== 聊天操作
+
+聊天组件中有常规的 Jmix 操作，可以与视图中的任意组件绑定：
+
+.声明
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat-action-declaration]
+----
+
+.绑定
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/chat/chat-view.xml[tags=chat-action]
+----
+
+这些是聊天组件自己的操作，而不是 xref:ai-chat:aiMessageList.adoc#actions[消息操作] 中描述的对每条消息的操作。
+
+[[configuring]]
+== 配置各个部分
+
+消息列表和消息输入框提供的所有功能都可以从聊天中访问。`maxRows`、`enterAction` 和附件属性用于配置消息输入框；`announceMessages` 用于配置消息列表；`thinkingIndicator`、`thinkingStages`、`userActions` 和 `assistantActions` 元素在聊天上声明并用于消息列表；`inputPrefix` 和 `inputSuffix` 填充消息输入框的插槽。每个功能的作用参见 xref:ai-chat:aiMessageList.adoc[] 和 xref:ai-chat:aiMessageInput.adoc[]。
+
+[[styling]]
+== 样式
+
+`aiChat` 没有自定义 HTML 元素，而是渲染为一个普通的 `div`，其中包含消息列表和消息输入框。因此不开放任何 shadow part，也无法通过标签名在 CSS 中选择，或在浏览器检查器中通过标签名找到。需要通过配置的 class 或 id 设置样式，并通过其中的组件来定位各个部分：
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/styling/styling-view.xml[tags=styled-chat]
+----
+
+.CSS
+[source,css,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/META-INF/resources/themes/ai-chat-ex1-aura/view/styling-view.css[tags=part]
+----
+
+可以在 CSS 样式表中使用下面的样式属性自定义其组件的外观。
+
+[cols="2,3", options="header"]
+|===
+|名称
+|描述
+
+|`--jmix-ai-chat-max-width`
+|对话列的宽度。该属性会投射到消息列表和消息输入框上，因此会一并调整对话、输入框和空状态的大小。
+|===
+
+其余样式需要对包含的组件单独设置。参考 xref:ai-chat:aiMessageList.adoc#styling[aiMessageList]、xref:ai-chat:aiMessageInput.adoc#styling[aiMessageInput] 和 xref:ai-chat:aiCodeBlock.adoc#styling[aiCodeBlock]。
+
+[[chat-theme-variants]]
+=== 主题样式
+
+[cols="2,3", options="header"]
+|===
+|主题名称
+|效果
+
+|`fixed-toolbar`
+|始终将消息输入框的控件保持在单独的一行中。同样也用于消息输入框。
+
+|`input-footer-component-always-visible`
+|在聊天为空时保持 `inputFooter` 区域可见。参见 <<bands,消息输入框区域>>。
+
+|`input-header-component-always-visible`
+|在聊天为空时保持 `inputHeader` 区域可见。参见 <<bands,消息输入框区域>>。
+
+|`no-header-footer-gap`
+|移除区域与输入框之间的间隙。同样也用于消息输入框。
+|===
+
+[[localization]]
+== 本地化
+
+聊天自身的文本在扩展组件的消息包中定义，使用 `+aiChat.i18n.*+` 键。其嵌套的 `i18n` 元素与组件树对应：元素本身的属性可以用来重写聊天组件的文本，而嵌套的 `messageList`、`messageInput` 和 `codeBlock` 元素则可定义其组合的各个部分的文本。参见 xref:ai-chat:localization.adoc[]。
+
+[[attachments]]
+== 附件
+
+聊天组件可以端到端地处理附件：消息输入框收集，消息工厂存储，消息列表渲染。参见 xref:ai-chat:attachments.adoc[]。
+
+== XML 属性
+
+下面是 `aiChat` 的特殊属性：
+
+[cols="2,5,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[acceptedFileExtensions]]`acceptedFileExtensions`
+|仅允许上传所配置文件扩展名类型的附件。参见 xref:ai-chat:attachments.adoc[]。
+|—
+
+|[[acceptedMimeTypes]]`acceptedMimeTypes`
+|限制附件的媒体类型。参见 xref:ai-chat:attachments.adoc[]。
+|—
+
+|[[announceMessages]]`announceMessages`
+|设置到达的消息是否向屏幕阅读器播报。参见 xref:ai-chat:aiMessageList.adoc#accessibility[无障碍]。
+|`false`
+
+|[[attachmentsEnabled]]`attachmentsEnabled`
+|设置消息输入框是否可以接受附件。参见 xref:ai-chat:attachments.adoc[]。
+|`false`
+
+|[[autoSave]]`autoSave`
+|通过视图的 `DataContext` 持久化已提交消息。参见 <<persistence,持久化>>。
+|`false`
+
+|[[dataContainer]]`dataContainer`
+|将聊天绑定到消息的集合容器。参见 <<data,消息与数据>>。
+|—
+
+|[[enterAction]]`enterAction`
+|设置 *Enter* 在消息输入框中的作用。参见 xref:ai-chat:aiMessageInput.adoc#text-area[文本域]。
+|`SEND`
+
+|[[maxFileSize]]`maxFileSize`
+|设置单个附件的最大大小，以字节为单位。参见 xref:ai-chat:attachments.adoc[]。
+|`26214400`
+
+|[[maxFiles]]`maxFiles`
+|设置一条消息可以携带多少个附件。参见 xref:ai-chat:attachments.adoc[]。
+|`10`
+
+|[[maxRows]]`maxRows`
+|设置消息输入框在滚动之前可以增长到多少行。参见 xref:ai-chat:aiMessageInput.adoc#text-area[文本区域]。
+|`10`
+
+|[[systemPrompt]]`systemPrompt`
+|设置随每个请求发送的系统提示词。也可以声明为嵌套元素以提供多行值。
+|—
+
+|[[themeNames]]`themeNames`
+|应用主题样式，包括 `input-header-component-always-visible` 和 `input-footer-component-always-visible`，用于配置在聊天为空时保持某个区域可见。参见 <<bands,消息输入框区域>>。
+|—
+
+|[[uploadDropZoneEnabled]]`uploadDropZoneEnabled`
+|设置是否可以将文件拖放到消息输入框上。参见 xref:ai-chat:attachments.adoc[]。
+|`true`
+|===
+
+下面是 `aiChat` 支持的通用组件属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== 事件和处理器
+
+下面是 `aiChat` 的特殊事件和处理器：
+
+[cols="2,5", options="header"]
+|===
+|名称
+|描述
+
+|[[AttachmentClickEvent]]`AttachmentClickEvent`
+|当用户点击消息中的附件时触发。参见 xref:ai-chat:attachments.adoc#downloading[从对话中下载]。
+
+|[[AttachmentRejectedEvent]]`AttachmentRejectedEvent`
+|当文件由于附件限制被拒绝时触发。参见 xref:ai-chat:attachments.adoc#rejected[被拒绝的文件]。
+
+|[[GenerationFailedEvent]]`GenerationFailedEvent`
+|当生成失败时触发。携带错误内容以及出错之前收到的文本。参见 <<generation,生成>>。
+
+|[[GenerationStateChangeEvent]]`GenerationStateChangeEvent`
+|在空闲、生成中和错误之间的每次转换时触发。参见 <<generation,生成>>。
+
+|[[MessageChangeEvent]]`MessageChangeEvent`
+|当消息被提交或移除时触发。参见 <<persistence,持久化>>。
+
+|[[llmProvider]]`llmProvider`
+|必需参数。为请求提供答案，以文本流的形式。参见 <<basics,基础用法>>。
+
+|[[messageFactory]]`messageFactory`
+|为绑定的源创建消息实例。当聊天绑定到自定义实体时必需。参见 <<data,消息与数据>>。
+
+|[[removeDelegate]]`removeDelegate`
+|删除回退操作从对话中丢弃的消息。参见 <<persistence,持久化>>。
+
+|[[saveDelegate]]`saveDelegate`
+|持久化已提交消息，并返回聊天此后应持有的实例。参见 <<persistence,持久化>>。
+|===
+
+下面是 `aiChat` 支持的其他 Jmix 事件：
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== XML 内部元素
+
+一个 `aiChat` 元素内可以包含 `actions`、`systemPrompt`、`inputPrefix`、`inputSuffix`、`inputHeader`、`inputFooter`、`thinkingIndicator`、`thinkingStages`、`userActions`、`assistantActions`、`emptyStateHeader`、`emptyStateFooter` 和 `i18n` 作为嵌套元素。
+
+[[actions-element]]
+=== actions
+
+`actions` 元素包含聊天自有的 `action` 元素。参建 <<actions,聊天操作>>。
+
+[[systemPrompt-element]]
+=== systemPrompt
+
+`systemPrompt` 元素可以配置多行的系统提示词，与同名 XML 属性的作用一致。
+
+[[input-slots-elements]]
+=== inputPrefix、inputSuffix、inputHeader、inputFooter
+
+这些元素用于填充消息输入框的插槽：前两个位于其框体内部，后两个作为其外部的区域。参见 <<bands,消息输入框区域>> 和 xref:ai-chat:aiMessageInput.adoc#slots[前缀和后缀]。
+
+[[empty-state-elements]]
+=== emptyStateHeader、emptyStateFooter
+
+这些元素配置聊天为空时显示在消息输入框上方和下方的内容。参见 <<empty-state,空状态>>。
+
+[[message-list-elements]]
+=== thinkingIndicator、thinkingStages、userActions、assistantActions
+
+这些元素配置消息列表，详情参考 xref:ai-chat:aiMessageList.adoc#thinking-indicator[aiMessageList]。
+
+[[i18n-element]]
+=== i18n
+
+`i18n` 元素重新配置该聊天的本地化文本，并通过其嵌套的 `messageList`、`messageInput` 和 `codeBlock` 元素配置各个部分的文本。参见 <<localization,本地化>>。

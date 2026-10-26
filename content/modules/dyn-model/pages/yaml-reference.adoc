@@ -27,6 +27,16 @@
 | 静态实体扩展和动态实体定义。缺失或 `null` 则为空列表。
 |===
 
+[[writing-yaml]]
+=== 手动编写 YAML
+
+可视化编辑器将文本值写在引号中。如果在 *Code* 视图中编辑 YAML，则有以下规则：
+
+* 文本值按原样读取，即使没有引号。例如，`id: 007` 是文本 `007`，`en: no` 是文本 `no`。
+* 布尔字段（如 `lob`、`required`、`unique`、`instanceName` 和 `collection`）只接受 `true` 和 `false`。像 `yes`、`no`、`on`、`off`、`1` 和 `0` 这样的值会被拒绝。
+* 在包含任意 YAML 值的字段中（如 `templateParams` 和约束 `parameters`），数字和 `true`/`false` 会保留其类型。`yes`、`no`、`on` 和 `off` 会被读取为文本。
+* 模型中的任何位置都不允许出现重复键。
+
 [[names-and-resolution]]
 === 名称与解析
 
@@ -231,7 +241,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `length`
 | integer
 | 否
-| 字符串、URI 值、字节数组和字符串 ID 枚举的长度。
+| 字符串、URI 值、`FileRef` 类型的值、字节数组和字符串 ID 枚举的长度。
 
 | `lob`
 | boolean
@@ -251,7 +261,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `instanceName`
 | boolean
 | 否
-| 将该属性标记为实例名称属性。如果标记了多个属性，则使用第一个，后面的会被忽略并发出警告。
+| 将该属性标记为实例名称属性。实体只能有一个实例名称属性。如果标记了多个属性，则使用第一个，后面的会被忽略并发出警告。计算属性也可以作为实例名称。
 
 | `collection`
 | boolean
@@ -273,6 +283,16 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | 否
 | 查看/修改属性的角色。
 
+| `lookup`
+| object
+| 否
+| 选择单值引用的 UI 组件。参考 <<lookup>>。
+
+| `searchable`
+| boolean
+| 否
+| 添加属性索引以支持全文搜索。需要安装搜索扩展组件。参考 xref:dyn-model:search.adoc[]。
+
 | `messages`
 | map
 | 否
@@ -290,15 +310,19 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 
 | `java.lang.String`
 | `String`
-| `varchar(255)`；`length` 覆盖大小
+| `varchar(255)`；`length` 覆盖长度
 
 | `java.net.URI`
 | `URI`
-| `varchar(1024)`；`length` 覆盖大小
+| `varchar(1024)`；`length` 覆盖长度
+
+| `io.jmix.core.FileRef`（Jmix 3.1+）
+| `FileRef`
+| `varchar(1024)`; `length` 覆盖长度
 
 | `[B`
 | `byte[]`
-| `varbinary(255)`；`length` 覆盖大小
+| `varbinary(255)`；`length` 覆盖长度
 
 | `java.lang.Boolean` 或 `boolean`
 | `Boolean`
@@ -364,6 +388,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 注意事项：
 
 * 序列化器存储 Java 的 `Class#getName()` 值。对于字节数组，是 `[B`；如果不确定，请复制序列化后的值。
+* `FileRef` 保存为 `FileRef#toString()` 的结果，反之，读取时使用 `FileRef.fromString()`。
 * 除非扩展了 DB 类型映射，否则动态模型存储不支持其他 Java 类。
 
 数据库特定差异：
@@ -379,7 +404,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `uniqueidentifier`
 | `char(32)`
 
-| `String`
+| `String`、`FileRef`
 | `varchar(n)`
 | `varchar(n)`
 | `varchar(n)`
@@ -445,6 +470,39 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 * 动态引用存储子类的主键。
 * 不支持具有复合主键的静态子类。
 * 父类和子类必须在同一物理存储中。
+
+[[lookup]]
+==== Lookup Field
+
+[.since]
+Jmix 3.1+
+
+`lookup` 对象设置一个 UI 组件，生成的视图会使用这个组件选择单值引用实体：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=lookup]
+----
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 是否必需 | 备注
+
+| `type`
+| string
+| 是
+| `DROPDOWN` - 使用 `entityComboBox`，条目按实例名称加载。`VIEW` - 使用 `entityPicker` 打开查找视图。
+
+| `actions`
+| list
+| 否
+| 操作：`entity_lookup`、`entity_open`、`entity_clear`。如未设置，`VIEW` 字段默认带有查找和清除操作。
+|===
+
+Rules:
+
+* `lookup` 仅支持单一值的实体引用属性。不支持 datatype、枚举、集合和计算属性。
+* 如果引用实体的实例名称不是基于字符串属性，则 `DROPDOWN` 字段也使用查找视图。
 
 [[collections]]
 === 集合
@@ -532,7 +590,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `parameters`
 | map
 | 否
-| YAML 标量/列表/对象值。参数名称取决于约束。缺失则为空映射。
+| YAML 标量/列表/对象值。参数名称取决于约束。缺失则为空映射。当模型发布时，`inclusive` 必须是一个 boolean，而 `min`、`max`、`integer` 和 `fraction` 必须是数字。
 
 | `groups`
 | list
@@ -768,7 +826,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 [[resource-roles]]
 == 资源角色
 
-动态的 `resourceRoles` 声明会在运行时创建叠加性质的资源策略。如果没有声明则不授予访问权限。在 xref:dyn-model:app-properties.adoc#jmix.dynmodel.security.full-access-roles[jmix.dynmodel.security.full-access-roles] 中列出的角色会授予对所有动态模型资源的完全访问权限；默认为 `system-full-access`。
+动态的 `resourceRoles` 声明会在运行时创建叠加性质的资源策略。如果没有声明则不授予访问权限。在 xref:dyn-model:app-properties.adoc#jmix.dynmodel.security.full-access-roles[jmix.dynmodel.security.full-access-roles] 中列出的角色会授予对所有动态模型资源的完全访问权限；默认为 `system-full-access`。拥有某个角色的子角色的用户，也会被授予该父角色的权限。参考 xref:dyn-model:defining-model.adoc#inherited-roles[继承角色]。
 
 角色代码必须非空。错误的角色代码会在日志记录且不授予访问权限。
 
@@ -812,7 +870,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `type`
 | string
 | 动态实体的 UI
-| `list` 或 `detail`。反序列化时不区分大小写。动态实体视图必填。静态实体视图可以从已注册的基础视图推断。
+| `list`、`detail` 或 `read`。反序列化时不区分大小写。动态实体视图必填。静态实体视图可以从已注册的基础视图推断。
 
 | `viewId`
 | string
@@ -822,7 +880,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `viewRoute`
 | string
 | 否
-| 动态实体路由段。默认从 `viewId` 生成；详情视图附加 `/:id`。静态实体视图不支持此字段。
+| 动态实体路由段。默认从 `viewId` 生成；详情视图附加 `/:id`；只读视图添加 `/:id/read`。静态实体视图不支持此字段。
 
 | `viewTitle`
 | 本地化值
@@ -847,7 +905,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | `descriptor`
 | object
 | 静态实体
-| XML 描述符声明。动态实体视图可以省略以使用默认模板。静态实体视图必须提供 `descriptor.source`。
+| XML 描述符声明。动态实体视图可以省略以使用默认模板。静态实体视图必须提供 `descriptor.source`，除非声明中包含 `handlers`。
 
 | `lookupComponentId`
 | string
@@ -858,17 +916,29 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | string
 | 否
 | 动态详情视图被编辑实体容器 ID。默认为 `entityDc`。静态实体视图不支持此字段。
+
+| `readEntityContainerId`
+| string
+| 否
+| 展示动态只读实体的视图中数据容器的 ID。默认为 `entityDc`。仅在自定义视图描述中用这个 ID 定义数据容器时有效。静态实体视图不支持该字段。
+
+| `handlers`
+| list
+| 否
+| 视图的 UI 处理器。参考 <<handlers>>。
 |===
 
+[[dynamic-entity-views]]
 === 动态实体视图
 
 规则：
 
-* `type` 必须为 `list` 或 `detail`。
+* `type` 必须为 `list`、`detail` 或 `read`。
 * `viewId` 必须显式设置且必须唯一。
 * 如果省略 `viewRoute`，则通过将 `viewId` 小写并将非字母数字序列替换为 `-` 来生成。
-* 详情路由自动添加 `/:id`；因此 `viewRoute` 本身不能以 `/:id` 结尾。
+* 详情路由自动添加 `/:id`；因此 `viewRoute` 本身不能以 `/:id` 结尾。只读路由添加`/:id/read`。
 * 第一个声明的列表视图成为动态实体的主列表视图。第一个声明的详情视图成为主详情视图。
+* 只读视图不能有 `menuItem`。
 * `descriptor` 可以省略、使用 `template: "default"`、使用自定义模板资源路径或提供字面 `source`。
 * 如果使用 `descriptor.source`，则内容必须是有效的 XML，根元素为 `<view xmlns="http://jmix.io/schema/flowui/view">`。
 * 显式列表视图的 XML 必须包含查找组件 ID，默认为 `dataGrid`。
@@ -877,7 +947,8 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 默认模板为：
 
 * `io/jmix/flowui/view/template/list-view.ftl` 用于列表视图；
-* `io/jmix/flowui/view/template/detail-template.ftl` 用于详情视图。
+* `io/jmix/flowui/view/template/detail-view.ftl` 用于详情视图；
+* `io/jmix/flowui/view/template/read-view.ftl` 用于只读视图。
 
 `templateParams` 是传递给 XML 模板渲染的 YAML 对象。动态模型组件没有为其定义固定结构；支持的键值取决于所选模板。例如，模板可以使用字符串列表的属性过滤器：
 
@@ -886,6 +957,7 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=template-params]
 ----
 
+[[static-entity-view-overrides]]
 === 静态实体视图覆盖
 
 静态实体覆盖已注册视图的 XML：
@@ -899,10 +971,11 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 
 * `viewId` 是必填的，且必须使用已注册的静态视图 ID。
 * `type` 可以省略；从控制器类推断。
-* 仅支持 `descriptor.source`。
-* 不支持 `descriptor.template`、`viewRoute`、`viewTitle`、`templateParams`、`resourceRoles`、`menuItem`、`lookupComponentId` 和 `editedEntityContainerId`。
+* 仅支持 `descriptor.source`。如果声明中包含了 `handlers`，则 `descriptor` 可以省略；视图的 XML 不变。
+* 不支持 `descriptor.template`、`viewRoute`、`viewTitle`、`templateParams`、`resourceRoles`、`menuItem`、`lookupComponentId`、`editedEntityContainerId` 和 `readEntityContainerId`。
 * 生成的控制器继承当前注册的控制器并保留其路由。
 
+[[descriptor]]
 === XML 描述
 
 `descriptor` 必须使用以下配置之一：
@@ -943,10 +1016,55 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 | 否
 | 省略时默认为视图标题。
 
+| `icon`
+| string
+| 否
+| 图标 ID，例如 `vaadin:star`。如果图标未找到，菜单项显示则不带图标。
+
 | `resourceRoles`
 | list
 | 否
 | 可以访问该菜单项的角色代码。
 |===
 
-详情视图菜单项接收路由参数 `id=new`。
+详情视图菜单项接收路由参数 `id=new`。只读视图不能有菜单项。
+
+[[handlers]]
+=== 处理器
+
+[.since]
+Jmix 3.1+
+
+UI 处理器在 `entities[].views[].handlers` 下声明。有关事件以及表达式可以使用的对象，请参见 xref:dyn-model:handlers.adoc[]。
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view-handlers]
+----
+
+处理器字段：
+
+[cols="1,1,1,3",options="header"]
+|===
+| 字段 | 类型 | 必需 | 说明
+
+| `name`
+| string
+| 否
+| 处理器名称，在视图中唯一。如果省略 `event`，则为必填。
+
+| `event`
+| string
+| 否
+| `click`、`valueChange`、`init`、`initEntity`、`beforeShow` 或 `ready`。没有事件的处理器仅在确认对话框按名称调用时运行。
+
+| `componentId`
+| string
+| 对于组件事件必需
+| 组件的 ID。对于 `click` 和 `valueChange` 为必填，对于其他事件不允许。
+
+| `expression`
+| string
+| 是
+| 单一 SpEL 表达式。
+|===

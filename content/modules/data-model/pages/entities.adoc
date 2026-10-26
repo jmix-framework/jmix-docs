@@ -657,6 +657,74 @@ private UUID id;
 
 `@ListViewTemplate` 注解指示框架在运行时为该实体生成一个列表视图。参见 xref:flow-ui:views/view-templates.adoc[]。
 
+[[lookup-field]]
+=== @LookupField
+
+[.since]
+Jmix 3.1+
+
+`@LookupField` 注解指定当框架需要生成选择关联实体的控件时所使用的 UI 组件。仅影响框架在运行时创建的字段：包括 xref:flow-ui:vc/components/genericFilter.adoc[genericFilter] 和 xref:flow-ui:vc/components/propertyFilter.adoc[propertyFilter] 的参数、可编辑的 xref:flow-ui:vc/components/dataGrid.adoc[dataGrid] 单元格，以及 xref:flow-ui:views/view-templates.adoc[运行时视图模板] 的字段。在视图 XML 中定义的组件不受影响。
+
+可以将注解放在实体类或引用属性上：
+
+* 在实体类上，适用于对此实体的每个引用。子类也能继承。
+* 在引用属性上，仅适用于该属性。
+
+注解具有以下参数：
+
+* `type` – 要生成的组件：
+** `LookupType.DROPDOWN` – 一个 xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox]，显示实体实例的下拉列表。
+** `LookupType.VIEW` – 一个 xref:flow-ui:vc/components/entityPicker.adoc[entityPicker]，打开查找视图。
+* `actions` – 可选。配置需要添加到组件的 xref:flow-ui:actions/entity-picker-actions.adoc[实体选择器操作] id，例如 `entity_lookup`、`entity_open`、`entity_clear`。如果未设置，组件使用默认操作。
+* `itemsQuery` – 可选。`@LookupItemsQuery` 注解，定义如何为 `DROPDOWN` 类型加载下拉项。
+
+如果未设置 `itemsQuery`，`DROPDOWN` 组件会一次性加载实体的所有实例。仅对小型实体使用此方式，例如城市或类别的引用表。例如：
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/City.java[tags=lookup-field-class]
+----
+
+对于较大的实体，设置 `itemsQuery` 在用户输入时分页加载条目。有两种实现方式：
+
+第一种方式是按实例名称搜索。设置 `byInstanceName = true`，组件会查找 `String` 类型的 <<instance-name,实例名称>> 属性包含输入文本（忽略大小写）的实例。适用于任何数据存储，包括自定义数据存储中的 <<dto,DTO 实体>>。例如：
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-instance-name]
+----
+
+第二种方式是定义 JPQL 查询语句，必须包含 `:searchString` 参数，该参数接收输入的文本。例如：
+
+[source,java,indent=0]
+----
+include::flow-ui:example$/onboarding/src/main/java/com/company/onboarding/entity/Department.java[tags=lookup-field-query]
+----
+
+`@LookupItemsQuery` 注解有以下参数：
+
+`byInstanceName`:: 如果为 `true`，则按实例名称查找。但如果设置了 `query`，则优先使用查询语句。
+
+`query`:: 带有 `:searchString` 参数的 JPQL 查询语句。
+
+`searchStringFormat`:: `:searchString` 参数值的格式。`+${inputString}+` 占位符会替换为输入的文本，例如 `+(?i)%${inputString}%+`。仅适用于 `query`。
+
+`escapeValueForLike`:: 如果为 `true`，则为 `like` 运算符转义输入文本中的特殊字符。此时查询必须包含 `escape '\'` 子句。仅适用于 `query`。
+
+`fetchPlan`:: 加载引用实体的 fetch plan 名称。使用 `byInstanceName` 时，默认为 `_instance_name`。
+
+条目通过 `DataManager` 加载，因此会考虑用户的 xref:security:row-level-roles.adoc[行级角色]。
+
+如果同一引用存在多个设置，框架按以下优先级：
+
+. 引用属性上的 `@LookupField`。
+. xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-fqn[jmix.ui.component.entity-field-fqn] 和 xref:flow-ui:ui-properties.adoc#jmix.ui.component.entity-field-actions[jmix.ui.component.entity-field-actions] 应用程序属性。
+. 引用实体类上的 `@LookupField`。
+
+应用程序属性优先于类上的注解，因此可以修改来自扩展组件实体的组件。
+
+如果配置无效，框架不会抛出异常。而是记录警告，忽略无效设置，并创建一个能正常工作的组件。
+
 [[number-format]]
 === @NumberFormat
 

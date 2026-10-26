@@ -17,6 +17,26 @@
 
 检查完列表的改动后，点击 *Apply changes* 确认。模型将进行验证，如果没问题，则变更生效并发布为新的模型版本。如果直接关闭 *Dynamic model changes* 视图，将丢弃待处理的变更，系统中激活的模型保持不变。
 
+[[attribute-order]]
+=== 属性顺序
+
+[.since]
+Jmix 3.1+
+
+在 *Attributes* 标签页，选择一个属性，然后使用 *Move the attribute up* 和 *Move the attribute down* 按钮更改其位置。属性的顺序保存在模型中。会按照这个顺序生成详情视图中字段的顺序、列表视图中列的顺序，以及元数据中属性的顺序，REST API、实体探查和通用过滤器也会使用该顺序。新顺序在发布模型时生效。
+
+只能移动动态属性。静态实体自身的属性和动态实体的标识符位置不变。数据库中列的顺序也不会改变。
+
+[[model-history]]
+=== 模型历史
+
+[.since]
+Jmix 3.1+
+
+在 *Code* 展示中，点击 *History* 查看保存的模型所有版本，最新的在前面。对于每个版本，对话框显示日期、发布的用户以及是否为激活版本。选择一个版本可以查看 YAML，然后点击 *Copy to clipboard* 复制。
+
+该对话框不会发布较早的模型。如需返回到较早版本，请复制其 YAML，然后粘贴到 *Code* 展示中，然后发布模型。
+
 [[extending-static-entities]]
 == 扩展静态实体
 
@@ -52,6 +72,24 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 
 有关支持类型的完整列表，请参见 xref:dyn-model:yaml-reference.adoc#javaclass[支持的类型]。
 
+[[file-ref-attributes]]
+==== 文件引用属性
+
+[.since]
+Jmix 3.1+
+
+`FileRef` 类型的属性保存 xref:files:file-storage.adoc[文件存储] 中文件的引用。静态实体的动态属性和动态实体的属性都可以设置为此类型。值存储在字符串字段中。
+
+在属性对话框中，选择 `FileRef` 类型。此类型下 *Length* 和 *Lob* 字段会被隐藏，因此该列的默认长度为 1024 个字符。在 YAML 中，`javaClass` 为 `io.jmix.core.FileRef`。
+
+生成的视图以及从 xref:dyn-model:views.adoc#generate-xml[模板] 创建的 XML，都会使用 xref:flow-ui:vc/components/fileStorageUploadField.adoc[fileStorageUploadField] 作为此类属性的 UI 组件。
+
+[[instance-name]]
+=== 实例名称
+
+为属性勾选 *Instance name*，以将其值用作实体的 xref:data-model:entities.adoc#instance-name[实例名称]。一个实体只能有一个实例名称属性。如果另一个属性已经有了该标志，属性对话框会显示其名称，选择该标志会将其移动到当前属性。计算属性也可以作为实例名称。
+
+[[reference-attributes]]
 === 引用属性
 
 引用属性是关联另一个实体的单值链接属性。选择目标实体，在运行时该属性存储为关联实体实例的引用。
@@ -60,6 +98,25 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 ----
 include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=reference-attr]
 ----
+
+[[lookup-field]]
+==== 查找字段
+
+[.since]
+Jmix 3.1+
+
+对于单值引用属性，可以选择使用特定的组件在生成的视图中选择实体实例。在属性对话框的 *Lookup field type* 和 *Lookup actions* 字段中进行设置。上面示例中的 `loyaltyLevel` 属性使用下拉列表。
+
+*Lookup field type* 可以有以下值：
+
+* `DROPDOWN` – 一个 xref:flow-ui:vc/components/entityComboBox.adoc[entityComboBox]。条目在用户输入时按引用实体的实例名称加载，因此该类型适用于大型表。如果被引用实体的实例名称不基于字符串属性，则该控件改用查找视图。
+* `VIEW` – 一个 xref:flow-ui:vc/components/entityPicker.adoc[entityPicker]，打开查找视图。如果未设置操作，则该控件使用标准查找和清除操作。
+
+如果未设置类型，则使用默认组件。
+
+*Lookup actions* 设置控件的按钮：`entity_lookup`、`entity_open`、`entity_clear`。
+
+这些设置的作用类似于常规实体引用属性上的 xref:data-model:entities.adoc#lookup-field[@LookupField] 注解。
 
 === 集合属性
 
@@ -154,3 +211,59 @@ include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/c
 ----
 
 有关资源角色的更多信息，请参见 xref:security:resource-roles.adoc[]。
+
+[[inherited-roles]]
+=== 继承角色
+
+[.since]
+Jmix 3.1+
+
+为某个角色授予的访问权限也会在该角色的子角色中生效（无论层级多深），因此，有子角色的用户也会拥有父角色的权限。例如，如果模型授予 `employee` 角色读取权限，而 `employee` 是 `manager` 的父角色，那么仅拥有 `manager` 角色的用户会获得此权限。这个规则对以下类型的角色有效：
+
+* 运行时创建的，有 xref:security:combining-roles.adoc[父角色] 的角色。
+* 设计时创建的，扩展其他角色接口的角色接口。
+
+同样的规则适用于模型中的所有 `resourceRoles` 角色的分配，包括对视图和菜单项的权限，以及 xref:dyn-model:app-properties.adoc#jmix.dynmodel.security.full-access-roles[jmix.dynmodel.security.full-access-roles] 属性中列出的角色。
+
+xref:security:resource-roles.adoc#role-scope[角色作用域] 仅针对分配给用户的角色进行检查。父角色的作用域不会检查。
+
+[[settings-access]]
+== 模型配置的访问权限
+
+扩展组件为 *Dynamic model settings* 视图提供以下资源角色。可以为需要配置模型的用户分配所需的角色。
+
+[cols="1,1,2",options="header"]
+|===
+| 角色名称 | 代码 | 访问权限
+
+| Dynamic model: view settings
+| `dynmod-view-settings`
+| 打开模型设置和模型历史。不能更改模型。
+
+| Dynamic model: modify settings
+| `dynmod-modify-settings`
+| 完全访问权限。可以做任何更改，包括删除数据。
+
+| Dynamic model: modify settings without data loss
+| `dynmod-safe-modify-settings`
+| 仅支持不会丢失数据的更改。
+|===
+
+[[safe-modify-role]]
+=== 不丢失数据的更改
+
+[.since]
+Jmix 3.1+
+
+"Dynamic model: modify settings without data loss" 角色允许用户扩展模型而不会产生丢失数据的风险。有此角色的用户可以在 *Visual* 和 *Code* 展示中编辑模型，并发布以下更改：新实体、属性、枚举和枚举值，以及对验证、视图、菜单项、消息和资源角色的更改。
+
+用户不能发布可能丢失数据的更改：
+
+* 移除已发布的实体或属性；
+* 在 YAML 中重命名已发布的实体或属性，因为重命名会发布为移除和创建两个动作；
+* 移除已发布的枚举；
+* 从已发布的枚举中移除值。
+
+在 *Visual* 展示中，已发布的内容不能被移除。在最后一次发布后添加的内容仍然可以被移除。如果编辑后的模型包含不允许的改动，*Dynamic model changes* 视图会列出这些改动，并且在移除这些改动之前无法发布模型。
+
+该限制在服务器端检查。因此无法通过以另一种方式保存模型来规避，例如通过实体检查。

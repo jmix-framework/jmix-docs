@@ -1,0 +1,173 @@
+= supersetDashboard superset 仪表盘
+:page-aliases: superset:dashboard-component.adoc
+
+[NOTE.addon-component]
+====
+此组件需要安装免费的 xref:superset:index.adoc#installation[Superset 扩展组件]。
+====
+
+`supersetDashboard` 可以在应用程序视图中嵌入 Apache Superset 配置的仪表盘。
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`dashboard`
+
+|Java 类
+|`SupersetDashboard`
+|===
+
+[[basics]]
+== [[usage]]基本用法
+
+在视图的 XML 中声明 `superset` 命名空间：
+
+[source,xml,indent=0]
+----
+include::superset:example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=superset-schema]
+----
+
+[TIP]
+====
+当使用顶部操作面板中的 *Add Component* 操作添加组件时，Studio 会自动添加该命名空间。请参见 xref:studio:view-designer.adoc#component-palette[组件面板]。
+====
+
+然后将 `supersetDashboard` 添加到视图，并指定 `id`、大小以及从 Apache Superset 获取的 <<embeddedId,embeddedId>>：
+
+[source,xml,indent=0]
+----
+include::superset:example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/dashboard/dashboard-view.xml[tags=dashboard]
+----
+
+此外，还可以将组件注入控制器以编程方式交互：
+
+[source, java, indent=0]
+----
+include::superset:example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/dashboard/DashboardView.java[tags=setting-embedded-id]
+----
+
+[[dataset-constraints]]
+== 数据集约束
+
+Superset 中的仪表盘可以包含多个图表，显示来自不同数据集的数据。`SupersetDashboard` 组件可以对这些数据集设置约束。约束可以在组件的 XML 元素中静态定义，也可以在运行时动态计算。
+
+如需使用约束，先定义数据集的 ID，再编写一个原生 SQL 条件，该条件将追加到数据集查询的 *WHERE* 子句中。
+
+TIP: 无法直观地从 Superset UI 中找到数据集 ID。当从数据集列表打开数据集时，可以从地址栏显示的 URL 的 `datasource_id` 参数中获取。
+
+[[static-dataset-constraints]]
+=== 静态约束
+
+考虑在 xref:superset:getting-started.adoc[superset 入门] 部分创建的 `Employees' salaries` 仪表盘中使用静态数据集约束。它使用的数据集加载员工、部门和薪资。假设需要限制薪资的下限，例如薪资 `80,000` 及以上员工。
+
+约束在 `dashboard` 组件的 `datasetConstraint` 内部元素定义。可以在 Studio 中通过组件的 *Add* 操作添加，也可以在 XML 中手动添加。
+
+所需的约束定义如下所示：
+
+[source, xml, indent=0]
+----
+include::superset:example$superset-ex2/src/main/resources/com/company/supersetsample/view/samples/staticdatasetconstraint/static-datasetconstraint-view.xml[tags=static-datasetconstraint]
+----
+
+这里的 `salary` 是数据集的列。
+
+[[dataset-constraints-provider]]
+=== 约束 provider
+
+数据集约束还可以在运行时动态计算，并在 Jmix 应用中打开仪表盘时传递给 Superset。通过这种方式可以根据当前用户权限或其他条件过滤仪表盘数据。
+
+数据集约束由 `DatasetConstraint` Java 类表示。可以通过下列方式为 `SupersetDashboard` 组件提供约束列表：
+
+* 在视图中创建 `datasetConstraintsProvider` 处理器并返回约束列表。
+
+* 创建一个实现 `DatasetConstraintsProvider` 接口的 Spring bean，并使用 `setDatasetConstraintsProvider()` 方法将其传递给组件。
+
+假设现在有一个需求：部门经理只能查看自己部门的薪资信息。数据集约束可以使用分配给当前用户的行级角色。
+
+在下面的示例中，使用第一种方法，在视图中定义 `datasetConstraintsProvider` 处理器，但逻辑被提取到 Spring bean 中：
+
+[source, java, indent=0]
+----
+include::superset:example$superset-ex2/src/main/java/com/company/supersetsample/app/DepartmentDatasetConstraintProvider.java[]
+----
+
+然后在视图的 `datasetConstraintsProvider` 处理器中使用上面定义的 bean，该处理器 方法可以通过 Jmix UI 组件属性面板生成：
+
+[source, java, indent=0]
+----
+include::superset:example$superset-ex2/src/main/java/com/company/supersetsample/view/samples/staticdatasetconstraint/StaticDatasetconstraintView.java[tags=dataset-constraint-provider]
+----
+
+== XML 属性
+
+下面是 `dashboard` 的特殊属性：
+
+[cols="2,5a,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[chartControlsVisible]]`chartControlsVisible`
+|设置图表控件是否可见。
+
+image::superset:chart-controls-example.png[]
+|`false`
+
+|[[embeddedId]]`embeddedId`
+|设置 Superset 的嵌入式仪表盘 ID。请参见 xref:superset:dashboard.adoc#create-dashboard[创建仪表盘]。
+
+获取访客令牌和加载仪表盘需要该 ID。如果更改会重新加载仪表盘；没有配置 ID 时，组件会显示一个占位图像。
+
+NOTE: 按照 xref:superset:configuration.adoc#enable-embedding-dashboards[嵌入式仪表盘] 中的说明启用 `EMBEDDED_SUPERSET` 标志。
+|—
+
+|[[filtersExpanded]]`filtersExpanded`
+|设置过滤器栏是否展开。
+|`false`
+
+|[[titleVisible]]`titleVisible`
+|设置标题栏是否可见。
+
+image::superset:title-visible-example.png[align="center"]
+|`false`
+|===
+
+下面是 `dashboard` 支持的其他通用属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== 事件和处理器
+
+下面是 `dashboard` 的特殊事件和处理器：
+
+include::flow-ui:vc/handler-generation-tip.adoc[]
+
+[cols="2,5", options="header"]
+|===
+|名称
+|描述
+
+|[[datasetConstraintsProvider]]`datasetConstraintsProvider`
+|当仪表盘请求访客令牌时动态提供数据集约束。请参见 <<dataset-constraints-provider,约束 provider>>。
+|===
+
+下面是 `dashboard` 支持的其他通用事件：
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== 元素
+
+一个 `dashboard` 可以包含 `datasetConstraints` 元素，其中包含零个或多个 `datasetConstraint` 元素。每个 `datasetConstraint` 需要一个 `datasetId` 属性，并将其中的文本内容作为 SQL 条件。请参见 <<static-dataset-constraints,静态数据集约束>>。

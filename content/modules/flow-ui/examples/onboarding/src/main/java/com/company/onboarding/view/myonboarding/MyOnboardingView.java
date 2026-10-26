@@ -28,8 +28,11 @@ import java.time.LocalDate;
 @ViewController("MyOnboardingView")
 @ViewDescriptor("my-onboarding-view.xml")
 @Route(value = "my-onboarding", layout = MainView.class)
-@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT)
+// tag::maximizable-dialog[]
+@DialogMode(width = "50em", height = "40em", modality = DialogModalityMode.STRICT,
+        resizable = true, maximizable = true)
 public class MyOnboardingView extends StandardView {
+    // end::maximizable-dialog[]
     // end::annotations[]
     @Autowired
     private CurrentAuthentication currentAuthentication;

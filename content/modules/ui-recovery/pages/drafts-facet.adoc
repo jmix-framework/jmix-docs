@@ -1,0 +1,150 @@
+= 草稿的 Facet
+
+`drafts` facet 会将视图中未保存的更改保存为草稿，并在用户再次打开视图时提示恢复草稿。请参阅 xref:ui-recovery:index.adoc#how-it-works[工作原理]。
+
+[[adding-facet]]
+== 添加 Facet
+
+在视图 XML 中声明扩展组件命名空间：
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=namespace]
+----
+
+然后将 `uirec:drafts` 元素添加到 `facets` 元素中：
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=facet]
+----
+
+在 Jmix Studio 中，可以从组件面板的 *Facets* 部分添加该 facet。
+
+该 facet 可在任何有 xref:flow-ui:data/data-context.adoc[DataContext] 的视图中使用，并保存 DataContext 中注册的更改。在详情视图中，草稿基于编辑的记录，同一个视图可能有多个草稿。在其他视图中，例如带有可编辑数据网格的列表视图，该视图只有一个草稿。
+
+include::flow-ui:page$facets/facet-tip.adoc[]
+
+[[attributes]]
+== 属性
+
+可以使用以下属性更改 facet 在特定视图中的行为：
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/customer/customer-detail-view.xml[tags=facet-attributes]
+----
+
+[[minSaveInterval]]
+`minSaveInterval`::
+视图草稿两次保存之间的最短时间，例如 `5s` 或 `1m`。在此期间所做的更改会在间隔结束时保存。默认值由 xref:ui-recovery:app-properties.adoc#jmix.uirecovery.drafts.default-min-save-interval[jmix.uirecovery.drafts.default-min-save-interval] 属性设置。
+
+[[restoreMode]]
+`restoreMode`::
+打开视图时如何恢复草稿：`ASK` 或 `AUTO`。请参阅 <<restore-modes>>。默认值由 xref:ui-recovery:app-properties.adoc#jmix.uirecovery.drafts.default-restore-mode[jmix.uirecovery.drafts.default-restore-mode] 属性设置。
+
+[[saving-and-deleting]]
+== 保存和删除草稿
+
+facet 在用户更改视图中的数据后保存草稿，保存频率不超过 <<minSaveInterval,minSaveInterval>> 的设置。当视图被卸载时（例如用户关闭浏览器标签页），facet 会一次保存所以剩余的更改。
+
+facet 会在以下情况删除草稿：
+
+* 用户保存更改。
+* 用户关闭视图并确认放弃更改。
+
+如果保存草稿失败，错误会写入日志，视图继续工作。
+
+[[saving-typed-values]]
+== 保存已输入的值
+
+默认情况下，文本字段会在字段失去焦点或用户按下 *Enter* 时将值发送到服务端。在此之前，已输入的值不在数据模型中，无法保存到草稿。如果用户在单个字段控件中输入长文本，发生故障可能会丢失全部内容。
+
+因此，如果需要在用户输入时发送值，请将字段控件的 xref:flow-ui:vc/common-attributes.adoc#valueChangeMode[valueChangeMode] 属性设置为 `LAZY` 或 `TIMEOUT`：
+
+[source,xml,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/resources/com/company/sample/view/order/order-detail-view.xml[tags=value-change-mode]
+----
+
+在此示例中，文本区域的值会在用户停止输入一秒后发送。该值随后会保存在下一个草稿中。每次发送值都是一次服务端请求，因此建议仅对用户输入大量文本的字段使用此设置。
+
+[[restore-modes]]
+== 恢复模式
+
+当视图打开，且找到该视图的草稿时，facet 会根据 <<restoreMode,恢复模式>> 恢复草稿。
+
+[[ask-mode]]
+=== ASK
+
+这是默认模式。facet 会弹出一个对话框，并显示草稿的日期：
+
+image::restore-dialog.png[align="center",width="425"]
+
+* *Restore* 加载草稿的更改。在用户保存视图之前，更改不会保存到数据库。
+* *Discard* 删除草稿。
+* *Not now* 关闭对话框并保留草稿。下次用户打开视图时会再次显示。
+
+如果记录在草稿保存后被其他用户更改，对话框会警告恢复草稿将覆盖这些更改：
+
+image::restore-dialog-version-differs.png[align="center",width="560"]
+
+该警告仅对具有乐观锁的实体显示，即具有版本属性的实体。
+
+[[auto-mode]]
+=== AUTO
+
+会直接恢复草稿而不询问，并显示通知。草稿会保留在数据库中，直到用户保存视图或放弃更改。如果在此之前工作中断，草稿仍然可用。
+
+[[restoring-details]]
+== 恢复的内容
+
+facet 仅恢复用户更改过的属性。其他属性保留其当前值。
+
+facet 会跳过草稿中无法再使用的部分，然后恢复其余部分。例如，会跳过：
+
+* 在应用程序新版本中已从实体移除的属性。
+* 草稿保存后被删除的记录。
+
+facet 会删除完全无法读取的草稿，视图打开时不恢复任何内容。用户不会收到通知。详细信息会写入日志。
+
+[[custom-restore]]
+== 自定义恢复逻辑
+
+如需在代码中决定是否以及如何恢复草稿，请设置一个恢复委托方法。facet 会在标准恢复操作之前调用委托方法。委托会收到一个 `DraftRestoreContext` 对象，其中包含找到的草稿和视图。如果委托调用 `preventRestore()`，facet 不会恢复草稿，也不会显示对话框。
+
+以下示例中，视图不提供超过一天的草稿，并将其删除：
+
+[source,java,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/java/com/company/sample/view/order/OrderDetailView.java[tags=restore-delegate]
+----
+<1> facet 不恢复草稿，也不显示对话框。
+<2> 删除关于当前视图和记录的草稿。
+
+[[draft-restored-event]]
+== DraftRestoredEvent
+
+facet 在恢复草稿后发送 `DraftRestoredEvent`。两种恢复模式都会发送该事件。此时，恢复的值已载入视图，因此可以更新 UI 或检查数据。在事件处理器中所做的更改会保存在下一个草稿中。
+
+事件的 `getDraft()` 方法返回恢复的草稿，`getRestoredEntities()` 返回因恢复而更改的实体实例。
+
+这些情况不会发送该事件：用户放弃草稿或推迟决定、恢复委托方法阻止了恢复，或者草稿中没有任何可恢复的内容。
+
+以下示例中，视图会校验恢复的值并显示校验错误：
+
+[source,java,indent=0]
+----
+include::example$ui-recovery-ex1/src/main/java/com/company/sample/view/customer/CustomerDetailView.java[tags=draft-restored-event]
+----
+
+[[methods]]
+== 方法
+
+`DraftsFacet` 接口有以下方法：
+
+* `saveDraftNow()` 立即保存草稿，不等待 <<minSaveInterval,minSaveInterval>>。
+* `deleteDrafts()` 删除关于当前视图和记录的草稿。
+* `setMinSaveInterval()` 和 `setRestoreMode()`，更改 <<attributes,属性>> 的值。
+* `setRestoreDelegate()` 设置 <<custom-restore,恢复委托>>。
+* `addDraftRestoredListener()` 添加 <<draft-restored-event,DraftRestoredEvent>> 监听器。

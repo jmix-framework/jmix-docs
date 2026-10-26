@@ -195,6 +195,10 @@ REST 数据存储依赖服务端 REST 的 xref:rest:capabilities-api.adoc[] 确�
 
 `EntityStates.isLoaded(entity, property)` 方法能正确检查 REST 实体的特定属性是否加载。
 
+以上规则适用于通过 `DataManager` 保存实体。REST 数据存储会发送所有已加载的属性，包括值为 `null` 的属性，并且服务应用程序只更新现有实体的已接收属性。未发送的属性在数据库中保持其原有值。
+
+将实体传递给 `@RemoteService` 方法的方式不同：值为 `null` 的属性不会被发送，并且服务会收到一个新建的分离实例。详情请参见 <<passing-entities-to-services>> 部分。
+
 [[filtering-loaded-data]]
 == 数据的过滤
 
@@ -326,11 +330,57 @@ include::example$rest-ds-client/src/main/java/com/company/clientapp/view/custome
 `@RemoteService` 接口的方法参数和返回值必须是下列类型之一：
 
 * 简单类型：基本类型（`int`、`double` 等），或包装类型（`Integer`、`Double` 等），以及 `String`。
-* xref:data-model:entities.adoc[实体]
+* xref:data-model:entities.adoc[实体] - 参考 <<passing-entities-to-services,以下内容>> 了解重要的限制。
 * xref:data-model:enumerations.adoc[枚举]
 * 有对应 xref:data-model:datatype.adoc[Datatype] 的类型。包括 xref:data-model:entities.adoc#attributes[实体属性] 支持的类型，以及自定义的数据类型。
 * 任意 POJO 或 Java record 类型，但是属性需要是上面这些类型。
 * 参数化的 `java.util.List` 类型，列表必须包含上面的类型。
+====
+
+[[passing-entities-to-services]]
+=== 将实体传递给服务
+
+服务方法接收到的实体与从数据库加载的实体并不相同。当客户端应用程序使用实体参数调用远程服务时，会发生以下情况：
+
+* 只发送客户端实体中已 <<loaded-state,加载>> 的非空属性。客户端实体中不存在的属性或未被 fetch plan 加载的属性不会发送。因此，服务无法区分未加载的属性和用户已清空的属性。
+
+* 服务端应用程序会创建一个新的实体实例，并用接收到的属性填充。即使数据库中已存在具有相同标识符的实体，`EntityStates.isNew()` 对该实例也返回 `true`。`EntityStates.isLoaded()` 对此类实例的所有属性都返回 `true`，于是无法确定实际发送了哪些属性。
+
+因此，实体参数在服务方法内应当仅用于读取，即，获取标识符或执行计算。不要保存此类实体。
+
+例如，以下方法看起来正常，但不会按预期工作：
+
+[source,java]
+----
+@RestMethod
+public void updateCustomer(Customer customer) {
+    // 错误：DataManager 会尝试插入新记录
+    // 而不是更新现有记录
+    dataManager.save(customer);
+}
+----
+
+相反，应将方法定义为接受实体的标识符和需要更改的值：
+
+[source,java,indent=0]
+.服务应用中的 CustomerService.java
+----
+include::example$rest-ds-service/src/main/java/com/company/serviceapp/service/CustomerService.java[tags=update-service]
+----
+
+客户端接口中对应的方法：
+
+[source,java,indent=0]
+.客户端应用中的 CustomerService.java
+----
+include::example$rest-ds-client/src/main/java/com/company/clientapp/service/CustomerService.java[tags=update-service]
+----
+
+如果方法需要多个值，请使用 Java record 或 POJO 作为参数类型，而不是实体。
+
+[TIP]
+====
+如需保存在客户端应用程序在 UI 中所做的更改，请使用 `DataManager`。它会发送所有已加载的属性（包括其 null 值），服务应用仅更新现有实体的已接收属性。详情请参见 <<loaded-state>> 部分。
 ====
 
 [[using-rest-client]]
@@ -349,7 +399,7 @@ include::example$rest-ds-client/src/main/java/com/company/clientapp/view/custome
 
 使用这种方法，共享代码放置在一个单独的扩展组件中，供客户端和服务应用程序共同使用。共享代码可以包含 JPA 实体、业务服务接口、安全角色以及任何常见的工具类。
 
-下面我们将以 Products 和 Orders 应用程序为例，介绍共享实体、服务接口和角色所需的步骤。Products 应用程序通过 REST API 暴露其 `Product` 和 `ProductCategory` 实体以及 `InventoryService`。Orders 应用程序使用这些实体并通过 REST 数据存储调用服务。
+下面我们将以 Products 和 Orders 应用程序为例，介绍共享实体、服务接口和角色所需的步骤。Products 应用程序通过 REST API 开放其 `Product` 和 `ProductCategory` 实体以及 `InventoryService`。Orders 应用程序使用这些实体并通过 REST 数据存储调用服务。
 
 [[shared-add-on]]
 === 共享扩展组件

@@ -1,0 +1,80 @@
+= 开始使用
+
+本节介绍如何将可用的 AI 聊天放入应用程序：启用服务器推送、连接模型，并添加组件。
+
+[[prerequisites]]
+== 前提条件
+
+按照 xref:ai-chat:index.adoc#installation[安装] 中的说明安装该扩展组件。
+
+[[push]]
+== 启用服务端推送
+
+AI 回答的答案是从其他线程逐个 token 传递而来，因此应用程序必须启用服务端推送。在应用程序类上添加 `@Push`：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/AiChatEx1Application.java[tags=push;app-class]
+----
+
+如果不添加，组件仍会渲染，但答案产生的任何内容都不会到达浏览器。
+
+[[connecting-a-model]]
+== 连接模型
+
+聊天本身不与模型通信，而是向应用程序请求一个函数：给定请求，以文本流的形式返回答案。该函数就是 `LLMProvider`，配置了 provider 之后聊天才能回答问题。
+
+本示例使用 https://ollama.com[Ollama^] 在本地运行模型，不需要 API 密钥。首先添加 Spring AI starter：
+
+[source,groovy,indent=0]
+----
+include::example$/ai-chat-ex1/build.gradle[tags=provider-dependencies]
+----
+
+并在 `application.properties` 中配置：
+
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/application.properties[tags=provider-properties]
+----
+
+然后为聊天提供一个 provider。Spring AI 会自动配置一个 `ChatClient.Builder`，在视图中可以用这个 builder 构建自己的 AI 客户端：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/quickstart/QuickStartView.java[tags=llm-provider]
+----
+
+示例使用 `@Install` 声明 provider，这是视图中的常用方式。如需以编程方式创建聊天，请使用 `setLlmProvider(...)` 实现。
+
+`LLMProvider` 来自 `com.vaadin.flow.component.ai.provider`，而不是 Jmix 包。
+
+请求中携带的内容不仅包含用户输入的文本，还包含系统提示词和任何添加的附件。provider 决定其中哪些内容会到达模型。未读取的内容不会被发送。上面的方法只转发消息，这对于不需要系统提示词和附件的聊天来说已经足够。参考 xref:ai-chat:aiChat.adoc#system-prompt[系统提示词] 和 xref:ai-chat:attachments.adoc#sending-to-the-model[将文件发送到模型]。
+
+TIP: 除了 starter 和配置之外，上面的内容都不是 Ollama 独有的。也就是说，如需使用 OpenAI、Anthropic、Azure OpenAI 或任何其他 https://docs.spring.io/spring-ai/reference/api/index.html[Spring AI 模型^]，只需替换 starter 和配置即可，provider 方法保持不变。
+
+[[adding-the-chat]]
+== 添加聊天
+
+在视图描述符中声明该组件。为其指定宽度和高度，如未指定则聊天会根据内容调整自身大小（在视图的根布局中显示狭窄的列）：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/quickstart/quick-start-view.xml[tags=basics]
+----
+
+这就是全部配置。聊天将对话保存在内存中，渲染答案，不需要其他任何配置即可工作：
+
+image::aichat-quickstart.png[可用的聊天, align="center", width="1068"]
+
+[NOTE]
+====
+当没有可访问的模型时，应用程序也能正常启动，视图也会照常打开。但发送第一条消息就会失败，表现为聊天中的生成失败，而不是启动错误。
+====
+
+[[next-steps]]
+== 后续步骤
+
+上面的聊天将对话保存在内存中，因此当视图关闭时对话就会消失。参考 xref:ai-chat:aiChat.adoc[]，了解如何将聊天绑定到自定义的消息实体、持久化对话、控制生成，以及配置聊天的各个部分。
+
+聊天中的组件也可以单独使用：xref:ai-chat:aiMessageList.adoc[aiMessageList] 用于显示对话或自行驱动对话，xref:ai-chat:aiMessageInput.adoc[aiMessageInput] 用于输入消息，xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock] 用于在应用程序的任何位置显示代码。

@@ -18,24 +18,46 @@ image::bpmn-service-task/service-task.png[,150]
 [[properties]]
 == 属性
 
-服务任务有下列属性：
+在 BPMN 建模器中，可以为服务任务配置下列属性：
 
 image::bpmn-service-task/service-task-properties.png[,460]
 
-设置任务属性：
-
-* 首先需要设置 xref:bpmn/bpmn-tasks.adoc#common-task-properties[通用任务属性]。
-* 然后，定义一个 _任务类型（Task type）_ 并根据所选的 xref:task-type[类型] 设置必要的参数。
-* 配置 xref:fail-retry[失败重试] 或者使用默认设置（留空）。
-* 如果需要，创建 _执行监听器（Execution listeners）_。参阅 xref:bpm:listeners.adoc[监听器]。
-* 确定是否需要 xref:bpmn/bpmn-tasks.adoc#extension-properties[扩展属性]。
-* 如果需要创建多实例，参阅 xref:bpm:bpmn/multi-instance-activities.adoc[多实例]。
-* 关于 _异步（Async）_，参阅 xref:bpmn/transactions.adoc[事务]。
+[cols="1,6", grid=rows, frame=none]
+|===
+|*属性*
+|*描述*
+include::partial$element-properties.adoc[tags=id;task-name]
+|Task type
+|任务如何调用 Java 逻辑。后续字段的配置取决于该字段的选择。参考 <<task-type>>。
+|Bean name, Method
+|类型为 *Spring Bean* 时，设置 Bean 名称和方法名。参考 <<spring-bean-service-task>>。
+|JavaDelegate class
+|类型为 *Java Delegate Class* 时，设置类名。参考 <<java-delegate-service-task>>。
+|Expression
+|类型为 *Expression* 时，设置表达式。参考 <<expression-service-task>>。
+|Delegate expression
+|类型为 *Delegate Expression* 时，设置表达式。参考 <<delegate-expression-service-task>>。
+|Topic
+|类型为 *External Worker* 时，设置 topic 类。参考 <<external-worker-service-task>>。
+|Result variable, Use local scope for result variable
+|保存方法或表达式结果的变量。参考 <<result-variable>>。
+|Fields
+|参考 <<field-injections>>。
+|Multi instance
+|参考 xref:bpm:bpmn/multi-instance-activities.adoc[多实例]。
+include::partial$element-properties.adoc[tag=execution-listeners]
+|Extension properties
+|参考 xref:bpmn/bpmn-tasks.adoc#extension-properties[扩展属性]。
+include::partial$async-execution-properties.adoc[tags=row;leave;updated]
+|Failed job retry time cycle
+|当选择 *Asynchronous* 或 *Asynchronous leave* 时可设置。参考 <<fail-retry>>。
+include::partial$element-properties.adoc[tag=documentation]
+|===
 
 [TIP]
 ====
-事实上，建议总是使用 _Async_ 任务。
-在某些情况下，可以提升性能。
+如果选择 *Asynchronous* 且任务失败，之前的步骤（例如用户任务的完成）不会回滚，作业执行器会 <<fail-retry,重试>> 该任务。
+任务稍后在作业执行器线程中运行，因此调用方不会等待其结果。
 ====
 
 [[task-type]]
@@ -113,7 +135,7 @@ image::bpmn-service-task/service-task-properties.png[,460]
   </extensionElements>
 </serviceTask>
 ----
-<1> -- _异步（Async）_ 标记，默认是 `false` 并省略。
+<1> -- 异步标记，默认是 `false` 并省略。
 <2> -- 通用表达式，单引号用 `&#39;` 转义。
 <3> -- 结果变量。
 <4> -- 本地变量，默认是 `false` 并省略。
@@ -199,7 +221,7 @@ _Java Delegate_ 类型的服务任务中使用的类 *在部署期间不会实�
 那么将为每个服务任务创建一个单独的代理类实例。
 所有流程实例共享任务的对应代理类实例。
 
-image::bpmn-service-task/java-delegate-instantiating.png[,600]
+image::bpmn-service-task/java-delegate-instantiating.png[,600,role=light-background]
 
 也就是说，不同线程可能会同时执行同一个代理类，因此代理类中不能使用任何成员变量，且必须保证线程安全。
 可能也会影响 xref:field-injections[字段注入]。
@@ -294,7 +316,9 @@ image::bpmn-service-task/expression-service-task.png[,460]
 
 [[configuring-fail-retry]]
 ==== 配置
-设置失败重试参数时，首先在 *BPMN Inspector* 中找到对应的属性：
+设置 *Fail retry（失败重试）* 参数时，使用服务任务属性中 *Asynchronous execution* 部分的 *Failed job retry time cycle* 字段配置。
+该字段仅在选择 *Asynchronous* 或 *Asynchronous leave* 时显示。
+如果取消勾选这两个选项，字段值会被清空。
 
 image::bpmn-service-task/fail-retry-property.png[,460]
 

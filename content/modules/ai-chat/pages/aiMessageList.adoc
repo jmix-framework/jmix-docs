@@ -1,0 +1,396 @@
+= aiMessageList
+
+`aiMessageList` 组件显示一个聊天中的对话。将用户消息渲染为气泡中的纯文本，将助手消息渲染为 Markdown，并带有每条消息的操作、思考指示器和错误横幅。
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`aiMessageList`
+
+|Java 类
+|`AiMessageList`
+|===
+
+xref:ai-chat:aiChat.adoc[aiChat] 中嵌入了该组件，因此，在 `aiChat` 中可以使用本页介绍的所有功能。也可单独用来显示已存储的对话，或用基础组件构建自定义的聊天。应用程序可以端到端地显示该列表，如 <<driving,驱动生成的内容>> 所述。
+
+image::aichat-message-list-transcript.png[A conversation in the message list, align="center", width="672"]
+
+[[basics]]
+== 基本用法
+
+在视图的 XML 中声明 `aichat` 命名空间：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=namespaces]
+----
+
+TIP: 如果是通过 Studio 顶部操作栏的 *Add Component* 添加该组件，则会自动添加所需的命名空间。参见 xref:studio:view-designer.adoc#component-palette[组件工具箱]。
+
+声明消息列表的元素：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=basics]
+----
+
+[[messages]]
+== 消息
+
+消息是通过 `AiMessageListItem` 工厂方法构建的条目：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=items]
+----
+
+助手的消息渲染为 Markdown：标题、列表、表格、链接和行内代码。围栏代码块使用 xref:ai-chat:aiCodeBlock.adoc[aiCodeBlock] 渲染，带有语言标签、高亮以及内部的复制和换行操作。用户消息渲染为气泡中的纯文本，因此用户消息中的 Markdown 会按输入原样显示。
+
+`addItem` 可将单条消息追加到已显示的列表中：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=add-item]
+----
+
+NOTE: 一个条目的实例属于一个消息列表，因此只能显示一次。如果在列表中反复添加同一个实例，或将同一个实例添加到另一个列表中，都会被拒绝。
+
+[[driving]]
+== 驱动生成的内容
+
+应用程序可以针对列表本身完整运行一轮，而无需 `aiChat`。顺序是：追加用户消息，追加一条空的助手消息用于流式写入，将列表切换为 `GENERATING`，在答案回来时追加答案，然后将列表恢复为 `IDLE`。
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=driving]
+----
+<1> `progress` 在 UI 线程上运行，因为 `appendText` 需要如此。各个块从后台任务发布，并在此处追加。
+
+[IMPORTANT]
+====
+每一轮的两个环节有不同的线程规则。
+
+`appendText`、`addItem` 和 `setState` 必须在 UI 线程上调用。直接从后台线程调用 `appendText` 会失败，并报出关于会话锁的错误。在上面的示例中，答案块从后台任务发布，并在 `progress` 中追加，而 Jmix 会在 UI 线程上运行 `progress`。
+
+<<thinking-status,下文>> 描述的思考动态是个例外：它会自行获取 UI 锁，因此可以从任何线程调用。
+====
+
+[NOTE]
+====
+思考指示器会附加到正在生成的消息上。当最后一条消息是用户消息时，将列表设置为 `GENERATING`，且不会显示任何内容：没有指示器，也没有错误。然后会先追加一个空的助手消息，指示器就会出现在这个空消息的上面。
+====
+
+当列表正在生成时，`getActiveItem()` 返回末尾的助手消息，否则返回 `null`。
+
+[[thinking-indicator]]
+== 思考指示器
+
+当正在生成列表而答案还是空时，会显示一个三个点的动态指示器，并附带一个文本：
+
+image::aichat-message-list-thinking-default.png[The built-in thinking indicator, align="center", width="968"]
+
+可以通过 `thinkingIndicator` 元素用任意组件替换该指示器。但仅能替换动画图片，文本标签还是保留：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-indicator]
+----
+
+image::aichat-message-list-thinking-custom.png[A replaced thinking indicator, align="center", width="672"]
+
+标签会随着生成时间变长而升级，这样生成慢的答案就不会看起来像是停滞了。通过 `thinkingStages` 元素定义级别。每个级别配置一个延迟，时间到了就用其文本替换前一个文本：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=thinking-stages]
+----
+
+[[thinking-status]]
+== 思考动态
+
+思考动态可以报告助手正在做什么，每个步骤一行，渲染在思考指示器上方。每行都有一个旋转指示器，当步骤完成时会变成对勾：
+
+image::aichat-message-list-thinking.png[思考状态动态, align="center", width="672"]
+
+从列表获取 publisher，在步骤开始时启动状态，在步骤结束时完成，附带一个可选的简短结果：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=thinking-status]
+----
+
+Publisher 会自行获取 UI 锁，因此从后台线程调用也是安全的，如上所示，代码在后台任务的 `run` 方法中运行。statuses 变量是临时的，因此在一轮结束时会自动清除。
+
+[[error-retry]]
+== 错误和重试
+
+将列表设置为 `ERROR` 会显示一个带有 *Retry* 按钮的横幅。该横幅是组件自带的，应用程序无需配置 XML：
+
+image::aichat-message-list-error.png[The error banner, align="center", width="672"]
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=retry]
+----
+
+[NOTE]
+====
+`getUserMessage()` 返回点击 *Retry* 时列表中的最后一条用户消息，而不是生成失败的那条消息。一般情况下，两者是同一条。但如果应用程序在失败后又追加了另一条用户消息，则会不同。
+====
+
+[[actions]]
+== 消息操作
+
+按照对话中角色的不同，定义不同的消息操作。当鼠标悬停或消息获得焦点时，显示在消息上：
+
+image::aichat-message-list-actions.png[Message actions, align="center", width="672"]
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=actions]
+----
+
+`aichat_messageCopy` 是内置操作，会将消息源复制到剪贴板。任何其他操作都是普通的 Jmix 操作：需要指定 id、图标和描述，并在控制器中处理。事件携带调用该操作时所对应的消息：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/messagelist/MessageListView.java[tags=action-handler]
+----
+
+[WARNING]
+====
+另一种内置操作类型 `aichat_messageRegenerate` 仅在 xref:ai-chat:aiChat.adoc[aiChat] 内部有效，aiChat 会将自身作为该操作的目标。在单独的列表中声明时，虽然会正常渲染，但点击时抛出异常。
+====
+
+[[long-messages]]
+== 长消息
+
+较长的用户消息会折叠到一个固定的高度，并带有渐隐效果和 *Show more* 按钮。不折叠助手的消息。
+
+image::aichat-message-list-collapsed.png[已折叠的用户消息, align="center", width="642"]
+
+高度阈值是渲染的高度，而不是字符数，略微超过阈值的消息会完整显示，而不会为了少数几行就折叠。因此，同样的文本可能在窄容器中折叠，而在宽容器中不折叠，因为宽度会决定如何换行。
+
+[[scrolling]]
+== 滚动
+
+当答案正在进行流式传输时，列表会将视口保持在底部，以便能显示新出现的文本。
+
+image::aichat-scroll-to-bottom.png[滚动到底部按钮, align="center", width="968"]
+
+当向上滚动时，会脱离这种状态：列表停止跟随，无论期间到达多少内容，都不会强行跳转至新的内容。列表底部会出现一个圆形按钮，用于返回底部；点击后会向下滚动并重新启用跟随，手动向下滚动也会重新启用。但是，以编程方式滚动不会产生状态脱离。
+
+方向键可以将焦点从一条消息移动到另一条消息，并将每条消息滚动到视野中，因此无需鼠标即可阅读对话。
+
+[[accessibility]]
+== 可访问性
+
+设置 `announceMessages` 可使列表通过 ARIA live region 向屏幕阅读器播报到达的消息：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=announce]
+----
+
+[[localization]]
+== 本地化
+
+列表自身的标签来自该扩展组件的消息包，位于 `+aiMessageList.i18n.*+` 键值中，包括错误横幅、*Retry* 按钮、滚动到底部按钮、复制操作以及 *Show more* / *Show less* 切换按钮。在应用程序的消息包中覆盖，即可对文本进行本地化。
+
+如需修改独立使用的列表文本，请在 XML 中添加内部的 `i18n` 元素。该元素带有一个内部的 `codeBlock` 元素，用于修改此列表的助手消息中渲染的代码块的文本：
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/messagelist/message-list-view.xml[tags=i18n]
+----
+
+.消息包
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=message-list-i18n]
+----
+
+参考 xref:ai-chat:localization.adoc#precedence[优先级] 了解这两种配置的组合。
+
+[[styling]]
+== 样式
+
+消息列表将其内部结构作为 shadow part 开放出来，可通过 `::part()` 选择器定位。
+
+可通过以下样式属性在 CSS 样式表中自定义该组件的外观。
+
+[cols="2,3", options="header"]
+|===
+|名称
+|描述
+
+|`--jmix-ai-message-list-max-width`
+|最大宽度，对话列在其中居中。
+
+|`--jmix-ai-message-list-padding`
+|对话周围的内边距。
+
+|`--jmix-ai-message-list-scrollbar-color`
+|滚动条的颜色。
+
+|`--jmix-ai-message-list-scroll-button-icon-size`
+|滚动到底部按钮中字形的大小。
+
+|`--jmix-ai-message-list-icon-scroll-down`
+|滚动到底部按钮的字形。
+
+|`--jmix-ai-message-list-icon-error`
+|错误横幅中显示的字形。
+
+|`--jmix-ai-message-list-icon-retry`
+|*Retry* 按钮的字形。
+
+|`--jmix-ai-message-list-icon-check`
+|标记已完成思考状态的字形。
+
+|`--jmix-ai-message-text-color`
+|消息文本的颜色。
+
+|`--jmix-ai-message-font-size`
+|消息文本的字体大小。
+
+|`--jmix-ai-message-line-height`
+|消息文本的行高。
+
+|`--jmix-ai-message-padding`
+|消息文本的内边距。
+
+|`--jmix-ai-message-success-color`
+|确认复制完成的对勾颜色。
+
+|`--jmix-ai-message-action-padding`
+|消息操作按钮的内边距。
+
+|`--jmix-ai-message-action-icon-size`
+|消息操作图标的大小。
+
+|`--jmix-ai-message-action-border-radius`
+|消息操作按钮的圆角半径。
+
+|`--jmix-ai-message-icon-copy`
+|内置复制操作的字形。
+
+|`--jmix-ai-message-icon-check`
+|复制确认时显示的字形。
+
+|`--jmix-ai-message-icon-regenerate`
+|重新生成操作的字形。
+
+|`--jmix-ai-message-icon-file`
+|非图片附件上显示的字形。
+
+|`--jmix-ai-message-attachment-image-size`
+|图片附件缩略图的大小。
+
+|`--jmix-ai-markdown-link-color`
+|助手消息中链接的颜色。
+
+|`--jmix-ai-user-message-collapsed-max-height`
+|较长用户消息折叠后的高度。参见 <<long-messages,长消息>>。
+
+|`--jmix-ai-user-message-icon-chevron`
+|*Show more* 切换按钮的字形。
+
+|`--jmix-ai-thinking-indicator-color`
+|思考指示器的颜色。
+
+|`--jmix-ai-thinking-indicator-gap`
+|思考指示器每个点之间的间隙。
+
+|`--jmix-ai-thinking-indicator-animation-duration`
+|思考指示器一次脉冲动画的持续时间。
+
+|`--jmix-ai-thinking-status-max-height`
+|思考动态在滚动之前增长到的高度。参见 <<thinking-status,思考动态>>。
+|===
+
+图标属性保存的是作为遮罩的图像，因此覆盖其中一个就会替换该字形。
+
+这些组件针对 Jmix 的两种主题 Aura 和 Lumo 都进行了样式设置，并遵循主题自身的焦点环、边框、圆角和间距方面的样式变量，因此上面的属性没有单一的默认值。此外，组件还处理了暗黑模式、高对比度模式以及减弱动画效果，并且其布局采用了与文本方向无关的属性来表示，从而能够自动适应文档的文本书写方向。
+
+[[attachments]]
+== 附件
+
+消息可以携带文件，在消息文本下方显示为缩略图或标签。附件涉及到多个方面的内容，因此在 xref:ai-chat:attachments.adoc[] 中一并介绍。
+
+== XML 属性
+
+下面是 `aiMessageList` 的特殊属性：
+
+[cols="2,5,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[announceMessages]]`announceMessages`
+|设置收到的消息是否向屏幕阅读器播报。参见 <<accessibility,可访问性>>。
+|`false`
+|===
+
+下面是 `aiMessageList` 支持的通用组件属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== 事件和处理器
+
+下面是 `aiMessageList` 的特殊事件和处理器：
+
+[cols="2,5", options="header"]
+|===
+|名称
+|描述
+
+|[[AttachmentClickEvent]]`AttachmentClickEvent`
+|当用户点击消息中的附件时触发。携带消息和文件。参见 xref:ai-chat:attachments.adoc#downloading[从对话中下载]。
+
+|[[RetryEvent]]`RetryEvent`
+|当用户点击错误横幅上的 *Retry* 时触发。参见 <<error-retry,错误与重试>>。
+|===
+
+下面是 `aiMessageList` 支持的通用组件事件：
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== XML 内部元素
+
+一个 `aiMessageList` 可以包含 `thinkingIndicator`、`thinkingStages`、`userActions`、`assistantActions` 和 `i18n` 作为其内部元素。
+
+[[thinkingIndicator-element]]
+=== thinkingIndicator
+
+`thinkingIndicator` 元素包含一个组件，用于替换内置的默认指示器。参见 <<thinking-indicator,思考指示器>>。
+
+[[thinkingStages-element]]
+=== thinkingStages
+
+`thinkingStages` 元素包含 `thinkingStage` 元素，每个都有一个必需的 `delayMillis` 和一个必需的 `text`，用于定义指示器旁逐步升级的标签。参见 <<thinking-indicator,思考指示器>>。
+
+[[userActions-element]]
+=== userActions、assistantActions
+
+这些元素分别包含在用户消息和助手消息上提供的 `action` 元素。每个 `action` 需要一个 `id`，并支持 `type`、`description`、`classNames` 和图标属性。参见 <<actions,消息操作>>。
+
+[[i18n-element]]
+=== i18n
+
+`i18n` 元素用于对列表文本进行本地化。支持 `error`、`retry`、`scrollToBottom`、`copy`、`copied`、`showMore` 和 `showLess` 属性，每个属性都支持消息键值，还支持内部的 `codeBlock` 元素，用于对消息内部渲染的代码块进行本地化。参见 <<localization,本地化>>。

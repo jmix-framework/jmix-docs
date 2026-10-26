@@ -1,0 +1,147 @@
+= 响应式
+
+响应式视图在可用空间变化时仍然易于理解和使用。需要能在可调整大小的桌面窗口、平板电脑或手机上，以及这其中的每种尺寸下正常工作。
+
+Jmix 通过标准视图、布局和自适应可视化组件提供了大部分所需的行为。当需要更多控制时，请使用下面介绍的技术。
+
+[[built-in-responsiveness]]
+== 内置响应式
+
+标准 Jmix 视图中的可视化组件能够适应可用空间和响应方式的变化。例如：
+
+* 主菜单在窄屏幕上折叠。
+* 在触摸屏设备上，xref:flow-ui:vc/components/datePicker.adoc[] 和 xref:flow-ui:vc/components/select.adoc[] 在屏幕底部显示浮层。
+* 当水平空间有限时，对话框的操作按钮可以垂直堆叠。
+* xref:flow-ui:vc/layouts/tabSheet.adoc[] 和 xref:flow-ui:vc/components/tabs.adoc[] 变为可滚动。
+* xref:flow-ui:vc/layouts/formLayout.adoc[] 可以更改列数。
+
+[[designing-responsive-views]]
+== 设计响应式视图
+
+如需从头构建响应式视图，先从适用于最窄屏幕的简单布局开始，在可用空间增加时再添加列、上下文或操作。优先使用布局组件，再考虑添加自定义 CSS。
+
+[[layouts]]
+=== 布局
+
+布局组件控制内容如何随可用空间变化而增长、收缩和移动。使用 xref:flow-ui:vc/layouts/formLayout.adoc[] 构建响应式表单。使用 xref:flow-ui:vc/layouts/gridLayout.adoc[] 将组件排列在响应式网格中。`gridLayout` 在可用宽度允许的范围内放置尽可能多的列，并将剩余项移到新行。
+
+有关组合布局和设置内容大小，请参见 xref:flow-ui:vc/layout-rules.adoc[布局规则]。
+
+[[css-media-and-container-queries]]
+=== CSS 媒体查询和容器查询
+
+https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design#media_queries[媒体查询^] 检查某个条件（例如浏览器窗口的宽度是否大于给定值），并在条件为真时应用一组 CSS 规则。
+
+当组件和布局无法提供所需的变化时，使用媒体查询。首先，在视图 XML 中添加类名：
+
+[source,xml]
+----
+<hbox classNames="view-toolbar" width="100%">
+    <!-- Content -->
+</hbox>
+----
+
+然后在 xref:flow-ui:themes/themes.adoc#application-theme-files[应用程序主题 CSS] 中定义窄布局及其宽屏样式：
+
+[source,css]
+----
+.view-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+@media (min-width: 48rem) {
+    .view-toolbar {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+----
+
+`48rem` 值是一个 _断点_ — 布局发生变化的宽度。低于 `48rem` 时，控件垂直堆叠并拉伸至全宽。在 `48rem` 及以上时，控件水平排列并垂直居中对齐。当布局需要不止一次变化时，可以定义多个媒体查询。
+
+媒体查询使用浏览器窗口的宽度。在大小可变的内容区域中，请使用 https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Containment/Container_queries[容器查询^]，改为根据包含元素的宽度应用 CSS。这样组件无论放置在何处都能自适应。
+
+[[wrapping]]
+=== 中间尺寸换行
+
+在中间宽度下，组件可能需要共享行空间但无法放在一行中，则允许换行：
+
+[source,xml]
+----
+<hbox id="viewToolbar" width="100%" wrap="true">
+    <!-- Content -->
+</hbox>
+----
+
+在 Java 中，调用 `viewToolbar.setWrap(true)`。
+
+TIP: 测试时慢慢调整浏览器大小。检查中间宽度、浏览器缩放、分屏窗口、较长的翻译标签，以及纵向和横向方向。
+
+[[lumo-utility-classes]]
+=== Lumo 工具类
+
+使用 xref:flow-ui:themes/lumo.adoc[] 的应用程序可以通过工具类而无需自定义 CSS 来处理一些常见的响应式变化。
+
+在视图 XML 中使用响应式类：
+
+[source,xml]
+----
+<hbox classNames="flex-col md:flex-row" width="100%">
+    <!-- Content -->
+</hbox>
+----
+
+在此示例中，开始时为列布局，在 `md` 断点处变为行布局。
+
+有关设置，请参见 xref:flow-ui:themes/lumo.adoc#utility-classes[Lumo 工具类]；有关可用断点，请参见 https://vaadin.com/docs/latest/styling/themes/lumo/lumo-breakpoint[响应式工具类参考^]。
+
+[[dedicated-mobile-views]]
+== 移动端专用视图
+
+尽可能为桌面和移动设备使用单个响应式视图。这样更易于维护，并在各种屏幕尺寸下提供一致的行为。然而，一些数据密集型视图无法通过一种布局提供同样有效的桌面和移动端体验。当两者都需要精心打磨的界面，或者交互方式确实不同时，请考虑使用单独的桌面和移动视图。例如，现场工作人员可能需要更短的工作流、更少的操作、访问相机或滑动手势。
+
+单独的视图会增加开发和维护工作。使用 xref:flow-ui:fragments/fragments.adoc[fragment] 可以在不同的视图中复用字段、表单和其他 UI 部分，并最大限度地减少重复的展示代码。将共享的业务逻辑保留在服务中。
+
+NOTE: Jmix 不会根据屏幕尺寸自动在桌面和移动端视图之间进行选择。应用程序必须显式地 xref:flow-ui:views/opening-views.adoc[打开相应的视图]。
+
+[[designing-responsive-views-for-mobile]]
+== 为移动设备设计响应式视图
+
+如果确实需要专用的移动端视图，请使用 <<designing-responsive-views,常规视图的响应式模式>> 来设计。此外，还要针对触摸输入和有限的屏幕空间调整常见的交互。
+
+[[virtual-list]]
+=== 虚拟列表
+
+在小屏幕上，xref:flow-ui:vc/components/dataGrid.adoc[] 可能需要太多水平空间，并且难以使用触摸输入。对于需要用户打开其中某一项的列表，xref:flow-ui:vc/components/virtualList.adoc[] 通常更合适。使用 fragment 渲染器为每个条目创建紧凑的卡片布局。
+
+https://demo.jmix.io/windturbines[Wind Turbines^] 示例项目在其风机列表中使用了此模式：
+
+[source,xml]
+----
+<virtualList itemsContainer="turbinesDc" width="100%">
+    <fragmentRenderer class="io.jmix.windturbines.view.turbine.TurbineCard"/>
+</virtualList>
+----
+
+[[side-panels]]
+=== 侧边栏
+
+将次要元素安排在主工作流之外，直到用户需要时才显示。一个可关闭的面板不会永久占用屏幕空间但在需要时能提供访问界面。页面 XML 中可以使用 xref:flow-ui:vc/layouts/sidePanelLayout.adoc[]。Java 端使用 xref:flow-ui:dialogs.adoc#side-dialog[侧边对话框]。
+
+[[switch]]
+=== 开关
+
+xref:flow-ui:vc/components/switch.adoc[] 是适用于触摸屏的设置控件。用于当应用程序需要配置立即生效的设置而无需单独确认时。其较大的控件易于点击，并且无需额外的确认按钮节省屏幕空间。
+
+[[step-by-step-wizard]]
+=== 分步向导
+
+对于较长的输入表单，一次显示一个步骤。提供清晰的 *Back*、*Next* 和 *Complete* 操作，并在前进至下一步之前验证当前步骤。这可以让用户保持专注，避免出现一长页的输入控件。
+
+NOTE: Jmix 没有专用的向导组件。https://demo.jmix.io/ui-samples/sample/wizard[向导示例^] 使用 xref:flow-ui:vc/layouts/tabSheet.adoc[] 进行导航，并为每个步骤使用 xref:flow-ui:fragments/fragments.adoc[fragment] 来构建。
+
+[[drag-and-drop]]
+=== 拖放
+
+拖放为在触摸屏上移动、分组或重新排序提供了更加直接的方式，并且可以减少操作按钮的数量。Vaadin 支持将组件设为拖动源和放置目标。请参见 https://demo.jmix.ru/ui-samples/sample/dnd-components[拖放^] 示例。

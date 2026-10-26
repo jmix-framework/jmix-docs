@@ -1,6 +1,7 @@
 package com.company.onboarding.view.component.datagrid;
 
 
+import com.company.onboarding.entity.Hobby;
 // tag::import-user[]
 import com.company.onboarding.entity.User;
 // end::import-user[]
@@ -19,6 +20,7 @@ import com.vaadin.flow.component.html.Image;
 // tag::import-span[]
 import com.vaadin.flow.component.html.Span;
 // end::import-span[]
+import com.vaadin.flow.component.popover.PopoverPosition;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.data.renderer.LocalDateRenderer;
 import com.vaadin.flow.data.renderer.Renderer;
@@ -49,6 +51,7 @@ import io.jmix.flowui.component.grid.DataGrid;
 // end::import-data-grid[]
 
 import io.jmix.flowui.component.grid.editor.DataGridEditor;
+import io.jmix.flowui.component.grid.renderer.PopoverRenderer;
 import io.jmix.flowui.data.grid.ContainerDataGridItems;
 
 import io.jmix.flowui.model.CollectionContainer;
@@ -216,6 +219,18 @@ public class DataGridView extends StandardView {
                 isOverdue(userStep) ? "Overdue!" : "");
     }
     // end::textRenderer[]
+
+    // tag::popoverRendererSupply[]
+    @Supply(to = "hobbiesKeyDataGrid.details", subject = "renderer")
+    private Renderer<Hobby> hobbiesKeyDataGridDetailsRenderer() {
+        return new PopoverRenderer<Hobby>(hobby ->
+                hobby.getDescription() == null
+                        ? null
+                        : hobby.getName() + ": " + hobby.getDescription())
+                .withPosition(PopoverPosition.END)
+                .withClassNames("hobby-description");
+    }
+    // end::popoverRendererSupply[]
 
     private boolean isOverdue(UserStep userStep) {
         return true;

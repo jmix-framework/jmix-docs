@@ -10,6 +10,9 @@
 * 克隆本仓库并在 IntelliJ IDEA 中打开项目的根目录。
 * 导入 Gradle 项目。
 * 指南示例项目的仓库会自动克隆到 `external` 目录。
+  分支通过 `gradle.properties` 文件中的 `samplesBranch` 属性定义，
+  因此，即使在一个未发布的功能分支工作时，示例项目仍然使用的是 release 分支。
+  使用 `-PsamplesBranch=<branch>` 可以修改所有示例项目的分支，或 `-PsamplesBranch.<repo-name>=<branch>` 修改某个项目的分支。
 
 主文档的模块位于 `content` 文件夹。指南位于各个 `external/<sample>/doc` 文件夹中。
 

@@ -12,7 +12,7 @@
 并且在每个执行分支上都达到 <<waiting-states,等待状态>> 时返回。所有途径的活动都在一个事务中。
 下图对此进行了说明：
 
-image::transactions/transactions-1.png[,500]
+image::transactions/transactions-1.png[,500,role=light-background]
 
 我们可以看到，这是 BPMN 流程图的一部分，其中包含了一个用户任务、一个服务任务以及一个定时器任务。
 用户任务和服务任务是同一工作单元的内容，
@@ -52,7 +52,7 @@ image::transactions/transactions-1.png[,500]
 这就是 *异步延续（asynchronous continuations）* 的作用。
 在以下流程片段中：
 
-image::bpm:/transactions/transactions-2.png[,800]
+image::bpm:/transactions/transactions-2.png[,800,role=light-background]
 
 在这个案例中，我们先完成用户任务，然后生成发票，最后将发票发送给客户。
 这次，生成发票的任务与用户任务不在同一工作单元，
@@ -67,25 +67,50 @@ image::bpm:/transactions/transactions-2.png[,800]
 告诉流程引擎稍后再继续流程并将作业写入数据库。
 然后，该作业由作业执行器加载并执行。
 
-[NOTE]
-====
-如需使用这个功能，请设置相应元素的 *Asynchronous* 为 `true`。这个属性可用于：
+要使用此功能，请设置该元素的 `flowable:async` <<asynchronous-execution-properties,属性>>。
+在建模器中，勾选元素属性中的 *Asynchronous* 复选框，例如，对于 xref:bpmn/bpmn-service-task.adoc#properties[服务任务]。
 
-* xref:bpmn/bpmn-service-task.adoc[]
-* xref:bpmn/bpmn-script-task.adoc[]
-* xref:bpmn/bpmn-business-rule-task.adoc[]
-* xref:bpmn/jmix-email-task.adoc[]
-* xref:bpmn/bpmn-subprocesses.adoc#embedded-subprocess[Embedded subprocess]
-* xref:bpmn/bpmn-subprocesses.adoc#call-activity[Call activity]
-====
+更多详情，请参考 Flowable 的文档： https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#asynchronous-continuations[异步延续^]。
 
-在 XML 中，设置 `flowable:async="true"`。
+[[asynchronous-execution-properties]]
+=== 异步执行属性
+
+流程引擎支持活动、网关、事件的下列属性。
+在建模器中，可以在元素属性的 *Asynchronous execution* 部分设置：
+
+* *Asynchronous* (`flowable:async`) -- 流程引擎在元素执行之前提交当前事务。然后作业执行器执行该元素，并在一个新事务中继续推进流程。
+* *Exclusive* (`flowable:exclusive`) -- 为 *Asynchronous* 创建的作业是 <<exclusive-jobs,排他性的>>：作业执行器不会将其与同一流程实例的其他排他性作业并发执行。默认选中。仅在选中 *Asynchronous* 时启用。
+* *Asynchronous leave* (`flowable:asyncLeave`) -- 该元素在当前事务中执行。流程引擎在离开该元素之前提交事务。然后作业执行器完成该元素，并在一个新事务中继续推进流程。
+* *Asynchronous leave exclusive* (`flowable:asyncLeaveExclusive`) -- 与 *Exclusive* 相同，适用于为 *Asynchronous leave* 创建的作业。默认选中。仅在选中 *Asynchronous leave* 时启用。
+
+例如，以下服务任务同时具有 `flowable:async` 和 `flowable:asyncLeave`，因此将在其专属的独立事务中执行，与流程的前续和后续部分完全隔离开来：
 
 [source,xml]
 ----
-<serviceTask id="Activity_0pzv18b" name="Generate invoice"
- flowable:async="true" />
+<serviceTask id="generateInvoiceTask" name="Generate invoice"
+    flowable:async="true"
+    flowable:asyncLeave="true" />
 ----
+
+[[exclusive-jobs]]
+=== 排他作业
+
+默认情况下，异步作业都是排他性的：作业执行器不会并发执行属于同一个流程实例的多个排他作业。
+但不同流程实例的作业是可以并发执行的。
+
+若要允许作业执行器并发执行属于同一流程实例的某个作业，请将 `flowable:exclusive` 或 `flowable:asyncLeaveExclusive` 设置为 `false`。
+例如，以下服务任务位于 xref:bpmn/bpmn-gateways.adoc#parallel-gateway[并行网关] 之后的某条并行路径上：
+
+[source,xml]
+----
+<serviceTask id="reserveStockTask" name="Reserve stock"
+    flowable:async="true"
+    flowable:exclusive="false" />
+----
+
+当带有非排他作业的各条并行路径同时到达汇聚网关，其中某个事务可能会因为触发乐观锁异常而失败，随后作业执行器会重新尝试执行该失败的作业。
+因此，请务必确保只有在元素中的工作允许被安全地重复执行时，才将作业设置为非排他性。
+更多详情，请参考 Flowable 的文档： https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#exclusive-jobs[排他作业^]。
 
 [[fail-retry]]
 == 失败重试

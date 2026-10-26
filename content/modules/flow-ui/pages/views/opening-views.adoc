@@ -9,7 +9,7 @@
 
 当通过对话框窗口的形式打开视图时，浏览器 URL 不会有变化，但是调用方代码可以访问打开的视图实例。因此，可以支持给视图实例传递参数或者在关闭视图时返回一些结果值。例如，在选择控件中打开列表视图选择并返回实体实例时就使用了这种方式。
 
-主菜单通过导航的方式打开视图。标准操作 xref:actions/list-actions.adoc#list_create[list_create] 和 xref:actions/list-actions.adoc#list_edit[list_edit] 也是通过导航方式打开详情视图，但是可以配置使用对话框方式。The xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] 标准操作始终使用对话框的方式打开列表视图，以便能返回选中的实体。
+主菜单通过导航的方式打开视图。标准操作 xref:actions/list-actions.adoc#list_create[list_create]、xref:actions/list-actions.adoc#list_edit[list_edit] 和 xref:actions/list-actions.adoc#list_read[list_read] 也是通过导航方式打开详情视图，但是可以配置使用对话框方式打开。The xref:actions/entity-picker-actions.adoc#entity_lookup[entity_lookup] 标准操作始终使用对话框的方式打开列表视图，以便能返回选中的实体。xref:actions/entity-picker-actions.adoc#entity_read[entity_read] 操作也始终使用对话框。
 
 下面我们介绍如何在应用程序代码中以编程的方式打开视图。
 
@@ -78,6 +78,18 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 ----
 
 也可以显式指定详情视图类或 id，使用 `withViewId()` 和 `withViewClass()` 方法。
+
+[.since]
+Jmix 3.1+
+
+若要导航到 xref:views/view-classes.adoc#standard-read-view[只读视图]，请使用 `readView()` 方法，该方法接收实体类或绑定到实体的可视化组件。只读视图类将通过 <<view-inference-conventions,约定>> 选择。调用 `readEntity()` 设置需要显示的实体实例。例如：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=viewNavigators;navigateToReadEntity]
+----
+
+如果将列表组件（如 `dataGrid`）或实体选择器传递给 `readView()`，导航会读取表格中选中的实体或组件的值。可以使用 `withViewId()` 和 `withViewClass()` 方法显式指定只读视图的 id 或类。
 
 [[passing-parameters]]
 === 传递参数
@@ -180,6 +192,40 @@ TIP: 如果当前视图不是以对话框形式打开的，则 `findDialog()` �
 include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithSize]
 ----
 
+[[maximizing-dialog-windows]]
+=== 对话框窗口的最大化显示和还原
+
+在 `DialogWindow` 中打开的视图可以最大化以填满视口，并可以还原到之前的大小和位置。默认情况下，最大化按钮是隐藏的。在 `@DialogMode` 中设置 `maximizable = true`，即可在对话框顶部关闭按钮旁边显示该按钮：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/myonboarding/MyOnboardingView.java[tags=maximizable-dialog]
+----
+
+点击该按钮会最大化对话框。再次点击会还原对话框为最大化之前通过拖动或调整大小设置的尺寸和位置。
+
+如需以编程方式配置该行为，请使用 `setMaximizable(boolean)`。`setMaximized(true)` 最大化对话框，而 `setMaximized(false)` 还原。这些方法在 `AbstractDialogWindow`（`DialogWindow` 的基类）上可用。`isMaximizable()` 和 `isMaximized()` 方法返回相应的设置。
+
+以下示例打开一个最大化的对话框，并在更改状态之前注册监听器：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openMaximizedDialog]
+----
+
+`MaximizedChangeEvent` 的 `isMaximized()` 方法提供当前状态。当用户点击顶部按钮时，事件的 `isFromClient()` 方法返回 `true`；当状态以编程方式更改时，返回 `false`。使用 `getSource()` 可获取对话框窗口对象，使用 `getView()` 获取视图。
+
+对话框最大化时，会禁用拖动和调整大小的功能。如果在此时调用 `setDraggable()` 和 `setResizable()`，这些设置会在对话框还原后生效。相应的 getter 返回这些配置的设置。
+
+Aura 和 Lumo 主题支持以下用于 CSS 自定义属性：
+
+* `--jmix-dialog-maximized-position`
+* `--jmix-dialog-maximized-inset`
+* `--jmix-dialog-maximized-width`
+* `--jmix-dialog-maximized-height`
+
+当对话框元素有 `jmix-maximized` 属性（即，最大化后）时，这些样式会生效。
+
 [[passing-parameters-into-dialog]]
 === 传递参数
 
@@ -210,6 +256,22 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openViewWithResults]
 ----
+
+[[opened-dialog-windows]]
+=== 获取已打开的对话框窗口
+
+`DialogWindows` bean 也支持获取 `OpenedDialogWindows`，该对象包含以对话框形式打开的视图列表。例如，在 UI 集成测试中需要访问以 `OpenMode.DIALOG` 打开的视图时，可以用该方法。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openDialogWindows]
+----
+
+`getDialogs()` 方法返回当前 UI 的所有对话框视图。`getDialogs(UI)` 方法返回 `UI` 参数中的对话框视图。
+
+对话框视图按打开顺序添加到列表中，因此最后打开的对话框是列表中的最后一项。
+
+NOTE: `OpenedDialogWindows` 有 Vaadin 会话作用域，仅在 Vaadin 会话处于活动状态时可用。
 
 [[entity-selection]]
 === 选择实体
@@ -283,10 +345,27 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 
 具体设置取决于视图数据模型和实体关系配置。完整示例请参考 xref:data-modeling-composition-guide:index.adoc[组合指南]。有关父子数据上下文的更多信息，请参考 xref:data/data-context.adoc#parent-data-context[父数据上下文]。其他示例可在 https://demo.jmix.io/ui-samples[UI 示例^] 中找到。
 
+[[reading-entities]]
+=== 在只读视图中显示实体
+
+[.since]
+Jmix 3.1+
+
+如需在 xref:views/view-classes.adoc#standard-read-view[只读视图] 中显示实体实例，调用 `read()` 方法并使用 `readEntity()` 设置实体实例。
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/SampleView.java[tags=dialogWindows;openReadViewToReadEntity]
+----
+
+`read()` 方法也可以使用列表组件作为参数，例如 `dataGrid` 或实体选择器。此时，builder 会从中读取选中的实体或组件值。
+
+只读视图的类通过 <<view-inference-conventions,约定>> 确定。如果需要打开特定的视图，使用 builder 的 `withViewId()` 或 `withViewClass()` 方法。
+
 [[view-inference-conventions]]
 == 视图推断约定
 
-框架支持从实体类推断列表或详情视图。
+框架支持从实体类推断列表、详情或只读视图。
 
 当使用 `viewNavigators.listView(this, SomeEntity.class)` 方法导航至列表视图时，框架会按照下列顺序选择视图类：
 
@@ -304,3 +383,12 @@ include::example$/onboarding/src/main/java/com/company/onboarding/view/sample/Sa
 
 . 视图使用了注解 `@PrimaryDetailView(SomeEntity.class)`。
 . 视图的 id 为 `SomeEntity.detail`。
+
+当导航至一个只读视图，或者在对话框打开只读视图时，框架会按照下列顺序选择视图类：
+
+. 视图使用了注解 `@PrimaryReadView(SomeEntity.class)`。
+. 视图的 id 为 `SomeEntity.read`。
+. 视图使用了注解 `@PrimaryDetailView(SomeEntity.class)`。
+. 视图的 id 为 `SomeEntity.detail`。
+
+如果框架选中了一个详情视图，则会以只读模式打开。

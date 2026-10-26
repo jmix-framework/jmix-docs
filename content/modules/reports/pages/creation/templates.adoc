@@ -124,6 +124,37 @@ image::report_template_xls.png[align="center"]
 XLSX 报表可以自动转换为 CSV 和 PDF。转换成 PDF 需要安装 xref:configuration.adoc#libre_office[LibreOffice]。
 ====
 
+[[template_xlsx_streaming]]
+==== 流式带区模板
+
+[.since]
+Jmix 3.1+
+
+有 xref:creation/bands.adoc#streaming-bands[流式带区] 的报表由流式 XLSX 格式化器渲染。从上至下依次写入文档：按工作表上命名区域的顺序输出相应的带区，命名区域之外的行按原位置复制到结果中。这种类型报表的模板必须遵循以下规则：
+
+* 模板只有一个工作表。
+* 不同带区的命名区域不共享行，因此带区不能并排放置。
+* 流式带区的命名区域不包含合并单元格。
+* 带区中的公式不使用带区下方的行。
+* 命名区域之外的公式不使用公式下方的带区或行。但允许使用整列（如 `=SUM(C:C)`），并且不会更改。
+* 字段的 xref:creation/value-formats.adoc[值格式] 不能插入图像或 HTML，例如 `++${image:WxH}++` 和 `++${html}++`。
+
+如果模板违反这些规则，报表会失败，并报告相应错误。
+
+// TODO - Known defect pinned in jmix-reports StreamingXlsxFormulaTest: "an aggregate inside a totals band is NOT grown".
+如需计算总数，请将公式放在流式带区下方且不在命名区域之内的行中，并将带区单元格作为范围引用，例如，如果带区占第 2 行，则使用 `=SUM(C2:C2)`。格式化器会将范围扩展到带区的所有输出行。单一单元格引用（如 `=C2`）指向最后一个输出行。带区内部的公式（例如在 `Total` 带区中）对其他带区的引用保持不变，因此这种总计值不覆盖流式行。
+
+格式化器不计算公式值。XLSX 文档要求电子表格应用在打开文件时重新计算所有公式。
+
+CSV 输出从 XLSX 文档转换而来，不加载到内存中，其中的公式单元格为空。PDF 和 HTML 输出将整个 XLSX 文档加载到内存中并传递给 LibreOffice。结果不能超过 1,048,576 行，即 XLSX 格式的行限制。
+
+以下模板功能会丢失或以不同方式工作：
+
+* 图表、数据透视表和超链接不会复制到结果中。
+* 使用主题颜色的单元格会使用默认的 Office 颜色。需改用 RGB 颜色。
+* 打印区域和数据验证维持配置模板单元格范围，不会扩展到输出行。
+* `hint_rowAutoHeight` 命名区域为每行设置固定高度，并会减慢大型报表的渲染速度。
+
 [[template_csv]]
 === CSV 模板
 
@@ -557,7 +588,11 @@ image::report-template-table.png[align="center",width="642"]
 
 表格列显示 SQL 和 JPQL 数据集的所有属性。如果使用实体/实体列表数据集，则表格仅显示选择的属性。
 
-表格结果可通过应用程序的 *Reports（报表） -> Show tables（展示报表表格）* 视图查看。使用 *Excel（生成 Excel）* 按钮可以将显示的表格导出为 Excel 文件。
+表格结果在 `ReportTableView` 视图中显示。默认情况下，打开一个对话框。如需打开完整的页面，设置 xref:reports:configuration.adoc#jmix.reports.client.table-output-open-mode[jmix.reports.client.table-output-open-mode] 属性为 `NAVIGATION`。
+
+默认隐藏 *Reports -> Show tables* 菜单项。设置 xref:reports:configuration.adoc#jmix.reports.client.show-report-table-view-in-menu[jmix.reports.client.show-report-table-view-in-menu] 为 `true` 可以显示。
+
+使用 *Excel* 按钮将显示的表格下载为 Excel。
 
 image::show-report-table.png[align="center"]
 

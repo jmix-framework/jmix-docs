@@ -1,0 +1,282 @@
+= aiCodeBlock
+
+`aiCodeBlock` 组件显示一段源代码，带有语法高亮、语言标签，以及用于复制和代码换行的操作。
+
+[cols="1h,1", options="autowidth", grid=none, frame=none]
+|===
+|XML 元素
+|`aiCodeBlock`
+
+|Java 类
+|`AiCodeBlock`
+|===
+
+可以在应用程序中任何需要显示代码位置使用。在 `aiChat` 内部，会自动使用该组件：xref:ai-chat:aiMessageList.adoc[aiMessageList] 会将助手消息的每个围栏代码块渲染为 `aiCodeBlock`，因此聊天中的代码外观和行为都与应用程序中其他位置的代码相同。
+
+image::aichat-code-block-overview.png[Code block, align="center", width="413"]
+
+[[basics]]
+== 基本用法
+
+在视图的 XML 中声明 `aichat` 命名空间：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=namespaces]
+----
+
+TIP: 如果是通过 Studio 顶部操作栏的 *Add Component* 添加该组件，则会自动添加所需的命名空间。参见 xref:studio:view-designer.adoc#component-palette[组件工具箱]。
+
+然后声明一个代码块元素，并在内部的 `code` 元素内写入源代码：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=basics]
+----
+
+[NOTE]
+====
+需要使用 `aichat` 前缀编写内部元素，即 `<aichat:code>`。默认视图命名空间中也有一个名为 `code` 的元素，因此在 `aiCodeBlock` 内部，未加前缀的 `<code>` 是另一个组件，而不是该元素，并且视图可能会正常加载而不报错。
+====
+
+代码块采用其内容的宽度，并且不会超过其容器的宽度。
+
+[[declaring-code]]
+== 代码
+
+有两种方式提供代码。
+
+使用内部的 `code` 元素设置多行源代码。用 `CDATA` 将其包裹，以便源代码原样传入，如 <<basics,上文>> 示例所示。
+
+使用 `code` 属性设置单行内容，并接受消息键值，当源代码保存在 xref:localization:message-bundles.adoc[消息包] 中时很有用：
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=code-from-bundle]
+----
+
+.消息包
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-code]
+----
+
+当两者都存在时，内部元素优先。一个存在但为空的 `code` 元素会导致视图加载失败，这样就无法静默地掩盖属性中声明的代码。
+
+两者都可以省略。此时代码块会渲染为空，在视图控制器中可以稍后填充源代码。
+
+[[setting-language]]
+== 语言
+
+`language` 属性有两个作用：在代码块的头部放置一个标签，并告诉高亮器该使用哪种语法。
+
+常用语言的 id 常量通过 `AiCodeBlockLanguage` 获取：
+
+[source,java,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/java/com/company/demo/view/codeblock/CodeBlockView.java[tags=programmatic]
+----
+
+这些常量只是为了方便使用，并非属性可接受的集合：该属性接受任何字符串。高亮器无法识别的值不会报错，而是将代码作为纯文本渲染。
+
+没有设置语言时，代码块中没有头部行。操作会浮在代码的右上角：
+
+image::aichat-code-block-no-language.png[没有语言的代码块, align="center", width="501"]
+
+语法高亮需要设置语言，但是设置语言和设置高亮是两个单独的属性，不可互换。是否设置语言决定头部栏是否存在，如果在具有语言的块上设置 `highlight="false"` 会保留头部和标签，并将代码渲染为纯文本。
+
+[[actions]]
+== 复制和换行操作
+
+复制操作是将源代码复制到剪贴板，注意，复制的是原始的代码，而不是带高亮的标记语言。
+
+换行操作设置代码是否换行显示，在代码水平滚动和软换行之间切换。其图标和提示描述的是下一次点击的作用，而不是当前状态。当替换代码块中的代码时，会将换行重置为初始声明的值。
+
+可以通过 `copyActionEnabled` 或 `wrapActionEnabled` 禁用操作。禁用的操作完全不渲染：
+
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=actions-disabled]
+----
+
+[WARNING]
+====
+当浏览器拒绝写入剪贴板时，复制操作会静默失败：不会复制任何内容，也不会告知用户。常见原因是通过应用程序是通过 HTTP 提供服务的，因为浏览器将剪贴板访问限制在安全上下文中。因此，只能在 HTTPS 和 `localhost` 上有效。
+====
+
+[[localization]]
+== 本地化
+
+复制和换行操作的标签来自扩展组件的消息包，在 `+aiCodeBlock.i18n.*+` 键值下：`copy`、`copied`、`wrapOn` 和 `wrapOff`。在应用程序的消息包中覆盖这些键值可以对操作标签文本进行本地化。
+
+如需对单一代码块的操作标签本地化，添加内部的 `i18n` 元素：
+
+.XML
+[source,xml,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/view/codeblock/code-block-view.xml[tags=i18n]
+----
+
+.消息包
+[source,properties,indent=0]
+----
+include::example$/ai-chat-ex1/src/main/resources/com/company/demo/messages_en.properties[tags=code-block-i18n]
+----
+
+上面的示例中，换行操作仍使用标准的标签，参考 xref:ai-chat:localization.adoc#precedence[优先级] 了解这两种配置的组合。
+
+[[styling]]
+== 样式
+
+代码块将其内部结构作为 shadow part 开放出来，可通过 `::part()` 选择器定位。
+
+可通过以下样式属性在 CSS 样式表中自定义该组件的外观。
+
+[cols="2,3", options="header"]
+|===
+|名称
+|描述
+
+|`--jmix-ai-code-block-background`
+|代码块的背景。
+
+|`--jmix-ai-code-block-border-radius`
+|代码块的圆角半径。
+
+|`--jmix-ai-code-block-font-family`
+|代码的字体系列。
+
+|`--jmix-ai-code-block-font-size`
+|代码的字体大小。
+
+|`--jmix-ai-code-block-actions-gap`
+|操作按钮之间的间隙。
+
+|`--jmix-ai-code-block-action-icon-size`
+|操作图标的大小。
+
+|`--jmix-ai-code-block-color-text`
+|不带有语法角色的代码的颜色。
+
+|`--jmix-ai-code-block-color-keyword`
+|语言关键字的颜色。
+
+|`--jmix-ai-code-block-color-string`
+|字符串字面量的颜色。
+
+|`--jmix-ai-code-block-color-number`
+|数字字面量的颜色。
+
+|`--jmix-ai-code-block-color-comment`
+|注释的颜色。
+
+|`--jmix-ai-code-block-color-title`
+|声明名称的颜色，例如函数和类。
+
+|`--jmix-ai-code-block-color-type`
+|类型名称的颜色。
+
+|`--jmix-ai-code-block-color-built-in`
+|语言内置标识符的颜色。
+
+|`--jmix-ai-code-block-color-attr`
+|字段和属性名称的颜色。
+
+|`--jmix-ai-code-block-color-tag`
+|标记标签的颜色。
+
+|`--jmix-ai-code-block-color-meta`
+|元数据的颜色，例如注解和预处理器指令。
+
+|`--jmix-ai-code-block-color-success`
+|确认复制完成的对勾颜色。
+
+|`--jmix-ai-code-block-icon-copy`
+|复制操作的字形。
+
+|`--jmix-ai-code-block-icon-check`
+|复制确认显示的字形。
+
+|`--jmix-ai-code-block-icon-wrap`
+|关闭换行时操作的字形。
+
+|`--jmix-ai-code-block-icon-no-wrap`
+|开启换行时操作的字形。
+|===
+
+图标属性保存的是作为遮罩应用的图像，因此覆盖其中一个就会替换该字形。
+
+这些组件针对 Jmix 的两种主题 Aura 和 Lumo 都进行了样式设置，并遵循主题自身的焦点环、边框、圆角和间距方面的样式变量，因此上面的属性没有单一的默认值。此外，组件还处理了暗黑模式、高对比度模式以及减弱动画效果，并且其布局采用了与文本方向无关的属性来表示，从而能够自动适应文档的文本书写方向。
+
+== XML 属性
+
+下面是 `aiCodeBlock` 的特殊属性：
+
+[cols="2,5,1", options="header"]
+|===
+|名称
+|描述
+|默认值
+
+|[[code]]`code`
+|以单行代码设置值，可直接设置或从消息包中设置。内部的 <<code-element,code>> 元素优先。参见 <<declaring-code,代码>>。
+|—
+
+|[[codeWrapped]]`codeWrapped`
+|设置代码是否软换行而不是水平滚动。参见 <<actions,复制和换行操作>>。
+|`false`
+
+|[[copyActionEnabled]]`copyActionEnabled`
+|设置代码块是否具有复制操作。
+|`true`
+
+|[[highlight]]`highlight`
+|设置是否应用语法高亮。高亮还要求设置 <<language,语言>>。
+|`true`
+
+|[[language]]`language`
+|设置代码的语言，会显示为标签并用于高亮。接受任何字符串。参见 <<setting-language,语言>>。
+|—
+
+|[[wrapActionEnabled]]`wrapActionEnabled`
+|设置代码块是否具有换行操作。
+|`true`
+|===
+
+下面是 `aiCodeBlock` 支持的通用组件属性：
+
+xref:flow-ui:vc/common-attributes.adoc#id[id] -
+xref:flow-ui:vc/common-attributes.adoc#alignSelf[alignSelf] -
+xref:flow-ui:vc/common-attributes.adoc#classNames[classNames] -
+xref:flow-ui:vc/common-attributes.adoc#colspan[colspan] -
+xref:flow-ui:vc/common-attributes.adoc#css[css] -
+xref:flow-ui:vc/common-attributes.adoc#height[height] -
+xref:flow-ui:vc/common-attributes.adoc#justifySelf[justifySelf] -
+xref:flow-ui:vc/common-attributes.adoc#maxHeight[maxHeight] -
+xref:flow-ui:vc/common-attributes.adoc#maxWidth[maxWidth] -
+xref:flow-ui:vc/common-attributes.adoc#minHeight[minHeight] -
+xref:flow-ui:vc/common-attributes.adoc#minWidth[minWidth] -
+xref:flow-ui:vc/common-attributes.adoc#visible[visible] -
+xref:flow-ui:vc/common-attributes.adoc#width[width]
+
+== 事件和处理器
+
+下面是 `aiCodeBlock` 支持的通用组件事件：
+
+xref:flow-ui:vc/common-handlers.adoc#AttachEvent[AttachEvent] -
+xref:flow-ui:vc/common-handlers.adoc#DetachEvent[DetachEvent]
+
+== XML 内部元素
+
+一个 `aiCodeBlock` 可以包含 <<code-element,code>> 和 <<i18n-element,i18n>> 作为其内部元素。
+
+[[code-element]]
+=== code
+
+`code` 元素中设置代码块中显示的源代码。其内容按原样获取，因此可以跨越多行。参见 <<declaring-code,代码>>。
+
+[[i18n-element]]
+=== i18n
+
+`i18n` 元素用于对代码块的文本进行本地化。支持 `copy`、`copied`、`wrapOn` 和 `wrapOff` 属性，每个属性都支持消息键值。省略的属性使用其在扩展组件消息包中的值。参见 <<localization,本地化>>。

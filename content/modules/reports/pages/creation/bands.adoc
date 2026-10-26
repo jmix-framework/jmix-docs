@@ -18,6 +18,8 @@ TIP: 另请参阅 xref:reports-guide:index.adoc[] 指南，其中包含具有复
 [[bands]]
 == 带区
 
+运行时，可以在报表详情视图的 <<bands-tab, *Bands* 标签页>> 定义带区；设计时，使用 <<band-def, @BandDef>> 注解定义。
+
 [[bands-tab]]
 === 带区标签页
 
@@ -40,6 +42,8 @@ NOTE: 如果带区名称以 *header* 开头，则在使用 xref:creation/templat
 
 * *Multiple Datasets* -- 如果想为带区定义多个数据集，请勾选。
 
+* *Streaming* -- 勾选后将带区设置为 <<streaming-bands,流式带区>>。
+
 * *Dataset type* -- 数据集的 <<datasets,类型>>。
 
 每个报表带区包括一个或多个数据集。在运行报表时，数据集将转换为行的列表，其中每行都是包含名值对（name-value）的映射。报表中出现的带区的次数与其最长数据集中的行数一样多。
@@ -59,11 +63,35 @@ NOTE: 如果带区名称以 *header* 开头，则在使用 xref:creation/templat
 * `parent` -- 父带区的名称。只有 `Root` 带区可以省略。
 * `root` -- 对于 `Root` 带区必须设置为 `true`。默认为 `false`。
 * `orientation` -- 带区的方向，由 `Orientation` 枚举定义：`HORIZONTAL`、`VERTICAL`、`CROSS`。默认为 `HORIZONTAL`。
+* `streaming` -- 如果为 `true`，则带区为 <<streaming-bands,流式带区>>。默认为 `false`。
 * `dataSets` -- 由一组 `@DataSetDef` 注解定义的数据集。
 
 报表定义必须包含带有 `name = "Root"` 和 `root = true` 属性的 `Root` 带区。
 
 IMPORTANT: 报表定义 Java 类中 `@BandDef` 注解的顺序很重要。会影响同一层级带区的打印顺序。
+
+[[streaming-bands]]
+=== 流式带区
+
+[.since]
+Jmix 3.1+
+
+流式带区使用数据库游标逐行读取数据，并立即写入 XLSX 文档。报表引擎仅在内存中保留最后渲染的行，并将之前的行写入临时文件。其他带区的数据仍然加载到内存中。如需配置流式带区，在 <<bands-tab,*Bands* 标签页>> 中勾选 *Streaming* 复选框，或在 <<band-def,@BandDef>> 注解中设置 `streaming = true`。
+
+有流式带区的报表必须满足以下要求：
+
+* 报表只有一个流式带区。
+* 流式带区是一级带区，即 `Root` 带区的直接子级，并且没有子带区。
+* 流式带区有且只能有一个 <<structure_sql,SQL>> 或 <<structure_jpql,JPQL>> 类型的数据集。
+* 报表的所有带区都是水平方向。
+
+报表详情视图不会保存违反这些要求的报表定义。当报表引擎渲染流式带区时，也会检查这些要求，并在不满足时直接失败，并列出相关的错误信息。
+
+流式带区仅适用于非自定义的 `.xlsx` 模板。对于其他模板，报表引擎会忽略流式设置，向日志写入警告，并将所有数据加载到内存中。`.xlsx` 模板还必须遵循 xref:creation/templates.adoc#template_xlsx_streaming[具有流式带区的模板] 中描述的规则。
+
+流式带区的查询在独立的只读事务中运行，该事务在带区的写入期间保持开启。
+
+TIP: 如需微调流式读取的行为，可以使用 xref:configuration.adoc#jmix.reports.streaming.fetch-size[jmix.reports.streaming.fetch-size]、xref:configuration.adoc#jmix.reports.streaming.cursor-clear-interval[jmix.reports.streaming.cursor-clear-interval] 和 xref:configuration.adoc#jmix.reports.streaming.row-access-window-size[jmix.reports.streaming.row-access-window-size] 应用程序属性。
 
 [[datasets]]
 == 数据集
@@ -180,6 +208,115 @@ JPQL 查询自动支持软删除并仅返回未删除的记录。
 ====
 
 也可以使用 *Link field（链接字段）* <<link_field,合并多个数据集>>，使用 *Data store（数据存储）* 设置 <<data_store,查询附加数据存储>>，或者勾选 *Preprocess query as Groovy template（将查询语句预处理为 Groovy 模板）* 启用 <<query_preprocessing,查询语句预处理>>。
+
+[[structure_llm]]
+=== AI 生成的 JPQL 数据集
+
+[.since]
+Jmix 3.1+
+
+*AI 生成的 JPQL* 数据集也是执行 JPQL 查询语句的结果。查询语句本身由大型语言模型（LLM）根据自然语言描述生成。查询语句与数据集一起存储。报表运行时，存储的查询语句通过 xref:data-access:data-manager.adoc[DataManager] 执行，不会调用 LLM。
+
+[[llm-requirements]]
+==== 要求
+
+查询语句由 xref:ai-tools:index.adoc[AI 工具] 扩展组件生成。如果应用程序中安装了该扩展组件并且启用了 xref:ai-tools:properties.adoc#jmix.aitools.dataload.enabled[数据加载功能]，则报表详情视图中会提供 *AI 生成的 JPQL* 类型的数据集。*Generate query* 按钮还需要 xref:ai-tools:getting-started.adoc#configure-model[配置一个模型]。没有模型时，只能手动编辑存储的查询语句。
+
+而运行包含此类数据集的报表时，不需要 AI 工具扩展组件，例如在 xref:report-import-export.adoc[导入]之后。
+
+NOTE: 除了 AI 工具扩展组件之外，还可以使用实现 `io.jmix.reports.llm.LlmDataQueryService` 接口的自定义 bean 生成查询语句。
+
+[[llm-generating-query]]
+==== 生成查询语句
+
+模型通过 AI 工具扩展组件的 xref:ai-tools:tools.adoc#data-loading[数据加载工具] 读取数据模型，因此只能看到 AI 工具中 xref:ai-tools:tools.adoc#exposed-model[开放] 给当前用户的实体。扩展组件会检查生成的查询语句，如果有问题，则要求模型进行修复，修复次数由 xref:ai-tools:properties.adoc#jmix.aitools.dataload.max-repair-attempts[jmix.aitools.dataload.max-repair-attempts] 属性配置。
+
+如需创建该类型的数据集：
+
+. 在 *Dataset type* 字段中选择 *AI-generated JPQL*。
+. 在 *Prompt* 字段中描述带区需要的数据，例如：`Orders placed since :dateFrom with the customer name and the order amount`，其中 `dateFrom` 是报表参数。请按 <<llm-parameters>> 部分介绍的名称引用参数。
+. 点击 *Generate query*。最大生成时间由 xref:configuration.adoc#jmix.reports.client.llm-query-generation-timeout[jmix.reports.client.llm-query-generation-timeout] 属性定义。
+. 检查 *Generated query* 字段中的查询语句以及 *Columns* 列表中的带区字段。
+
+*Columns* 列表是报表模板中带区字段的名称，例如 `+${customerName}+`。每一列需要按位置与 `select` 子句的查询值匹配。
+
+如需手动修改查询语句和列，请点击 *Generate query* 按钮旁边的 *Edit* 按钮（铅笔图标）。如果在 `select` 子句中添加、删除值或调整了值的位置，需要以相同方式修改 *Columns* 列表。否则，带区字段会写入错误值或空值。视图不会检查这个问题。注意，如果再次生成查询语句，会覆盖手动做的修改。
+
+[[llm-parameters]]
+==== 参数
+
+查询语句通过 JPQL 命名参数引用值：
+
+* 报表 xref:creation/parameters.adoc[输入参数] 可通过别名使用，例如 `:dateFrom`。
+* 父带区的字段可通过 `:<band>_<field>` 使用，例如 `:Orders_customerId` 表示 `Orders` 带区的 `customerId` 字段。`Root` 带区的字段不可用。
++
+仅当父带区也有 AI 生成 JPQL 数据集且保存了查询语句时，模型才知道父带区的字段。对于其他父数据集（如 JPQL 或 SQL），请在提示词中命名参数。
+
+某些参数需要特殊处理：
+
+* 空的可选参数会作为 `null` 传递。如需使此类条件生效，查询语句必须检查该参数，例如 `(:customer is null or o.customer = :customer)`。系统会要求模型添加这种检查。保存报表定义时，如果有未检查就比较的可选参数，视图提示警告。否则，带区中对应的值会为空且没有任何错误。
+* *实体列表* 类型的参数使用 `in` 匹配。如果此类参数为空，报表运行会失败并报错。
+* 不支持不区分大小写的参数语法 `:(?i)name`，报表运行会失败并报错。请改用 `lower(...) like :name`。
+
+如果提示词中对对结果的行数有要求，例如 `the top 5 customers by revenue`，该限制会与查询语句一起存储。在子带区中，限制在父带区的每一行都会执行。
+
+在交叉表带区中，可以为单元格使用 AI 生成的 JPQL 数据集。列 header 数据集（`<band>_dynamic_header`）和行 header 数据集（`<band>_master_data`）的字段会作为列表参数传递给查询语句，命名为 `:<dataset>_<field>`，例如 `:Sales_dynamic_header_month` 表示 `Sales_dynamic_header` 数据集的 `month` 字段。为了让报表引擎将每个结果行与单元格关联，查询语句必须为列和行的 header 返回相同名称的列，例如 `Sales_dynamic_header_month`。
+
+[[llm-jpql-differences]]
+==== 与 JPQL 数据集的差异
+
+查询语句的语法和行为与 <<structure_jpql,JPQL 数据集>> 不同：
+
+[cols="1,2,2", options="header"]
+|===
+| |JPQL 数据集 |AI 生成的 JPQL 数据集
+
+|报表参数
+|`+${dateFrom}+`
+|`:dateFrom`
+
+|父带区字段
+|`+${Orders.customerId}+`
+|`:Orders_customerId`
+
+|字段名
+|别名在 `as` 之后，可以使用双引号。执行前会从查询语句中移除别名。
+|*Columns* 列表。别名保留在查询语句中，因此不能使用双引号，也不能是 JPQL 保留字，例如 `count`、`date` 或 `order`。如果将 JPQL 数据集替换为 AI 生成的数据集，需要对这一类别名进行重命名（例如将 `count` 改为 `orderCount`），并更新模板中的字段名。
+
+|查询预处理
+|<<query_preprocessing,Groovy 模板>>
+|不支持
+
+|数据存储
+|在 *Data store* 字段中设置。默认使用主数据存储。
+|从查询语句确定，`select` 中第一个值所属实体的数据存储。没有 *Data store* 字段。
+
+|数据访问检查
+|无，因为执行时绕过 `DataManager`
+|有，参见 <<llm-data-access-checks>>
+|===
+
+[[llm-data-access-checks]]
+==== 数据访问检查
+
+与 <<structure_jpql,JPQL 数据集>> 不同，AI 生成的 JPQL 数据集会使用当前用户的 xref:security:authorization.adoc#data-access-checks[数据访问权限]：
+
+* 用户必须对查询语句中使用的每个实体都有读权限，包括关联实体和子查询。否则，报表运行会失败并报访问错误。
+* 用户无法读取的属性会返回为 `null`。
+* 读取的所有实体的 xref:security:row-level-roles.adoc#jpql-policy[JPQL 策略]会添加到查询语句中。
+
+为了保证这些检查有效，如果存储的查询语句满足以下情况，报表运行会失败并报错：
+
+* 不是 `select` 查询，或使用了 EclipseLink 的 `SQL`、`FUNCTION`、`FUNC`、`OPERATOR`、`COLUMN` 或 `TABLE` 函数。
+* 查找整个实体（如 `select o` 或 `select o.customer`）而不是实体属性。
+* 读取有 `READ` 操作的 xref:security:row-level-roles.adoc#predicate-policy[谓词策略] 的实体。请改用 JPQL 策略。
+* 实体的行级策略无法应用于查询语句：该实体仅在子查询中使用或在多个别名下使用，或者其策略具有 join 子句且不是查询语句查找的实体。
+
+[[llm-limitations]]
+==== 限制
+
+* 具有 AI 生成 JPQL 数据集的带区不能是 <<streaming-bands,流式带区>>。
+* 设计时创建的报表不能使用该数据集类型，因为查询语句在报表详情视图中生成并存储在报表定义中。
 
 [[structure_groovy]]
 === Groovy
@@ -352,7 +489,7 @@ include::example$/library/src/main/resources/com/company/library/reports/bands/f
 ** 行标题：`$\{band_name}_master_data`
 ** 主要内容：`$\{band_name}`
 
-* `type` -- 数据集类型，由 `DataSetType` 枚举定义。此枚举的值与上述运行时数据集的类型相对应。
+* `type` -- 数据集类型，由 `DataSetType` 枚举定义。此枚举的值与上述运行时数据集的类型相对应。`LLM` 值（<<structure_llm,AI 生成的 JPQL 数据集>>）无法在设计时使用。
 +
 通常，设计时的报表使用 `DELEGATE` 类型的数据集。此时，通过名称与使用 `@DataSetDelegate` 注解的方法关联。
 

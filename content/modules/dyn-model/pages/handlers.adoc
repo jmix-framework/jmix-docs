@@ -1,0 +1,157 @@
+= UI 处理器
+
+[.since]
+Jmix 3.1+
+
+UI 处理器（handler）无需 Java 代码、无需重新部署即可为视图添加行为。它将 UI 事件（例如按钮点击、字段值更改或视图生命周期事件）与一段简短表达式关联。该表达式可以读取和更改正在编辑的实体、更改组件状态、显示通知和对话框、打开其他视图，以及调用开发者已开放的应用方法。
+
+处理器的声明位于视图的 `handlers` 列表中，可在 YAML 中声明，也可在视图对话框的 *Handlers* 标签页中声明。以下视图支持处理器：
+
+* 动态实体的视图；
+* 静态实体视图的覆盖视图；
+* 仅包含 `handlers` 而没有 `descriptor` 的静态实体视图声明。这样可以在不更改现有视图 XML 的情况下为其添加行为。
+
+[[declaring-handlers]]
+== 声明处理器
+
+每个处理器都有一个 `event`、一个用于组件事件的 `componentId`，以及一个 `expression`。下面的示例中，为 `LoyaltyLevel` 动态实体生成的详情视图添加了处理器。第一个处理器为新实例设置默认名称。第二个处理器在输入折扣时使 `description` 字段成为必填：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=dynamic-view-handlers]
+----
+
+由模板生成的视图，其组件 ID 由属性名加上 `Field` 构成，例如 `discountField`。
+
+下一个示例将处理器添加到 `Customer.detail` 视图。该声明没有 `descriptor`，因此不会更改视图 XML：
+
+[source,yaml,indent=0]
+----
+include::example$/dyn-model-ex1/src/test/resources/com/company/sample/dynmodel/customer-model.yaml[tags=static-view-handlers]
+----
+
+`beforeShow` 处理器使已有客户的名称字段变为只读。点击 `checkNameButton` 会打开确认对话框。当用户点击 *Yes* 时，对话框会运行 `doCheckName` 处理器，该处理器调用 `checkCustomerName` 应用程序操作并显示结果。有关该操作如何定义，请参见 <<operations>>。
+
+多个处理器可以使用相同的事件和组件，按声明顺序运行。
+
+[[events]]
+== 事件
+
+[cols="1,2,1",options="header"]
+|===
+| 事件 | 运行时机 | `componentId`
+
+| `click`
+| 组件被点击。
+| 必需
+
+| `valueChange`
+| 用户更改组件的值。
+| 必需
+
+| `init`
+| 视图已初始化。
+| 不允许
+
+| `initEntity`
+| 详情视图初始化新实体。仅在创建实体时运行。
+| 不允许
+
+| `beforeShow`
+| 视图显示之前。
+| 不允许
+
+| `ready`
+| 视图显示之后。
+| 不允许
+|===
+
+没有 `event` 的处理器必须有 `name`。这类处理器不与任何事件关联，仅在视图的确认对话框调用时运行。请参见下面的 `dialogs.confirm()`。
+
+[[expressions]]
+== 表达式
+
+表达式是单一 {spring-framework-doc}/core/expressions.html[SpEL^] 表达式。如需执行两个操作，请声明两个处理器。
+
+表达式可以使用以下对象：
+
+[cols="1,3",options="header"]
+|===
+| 名称 | 成员
+
+| `entity`
+| 详情视图中正在编辑的实体，或列表视图中唯一选中的行。可以读取和写入属性：`entity.discount`、`entity.customer.name`。
+
+| `isNew()`
+| 如果当前实体是新的且尚未保存，则为 `true`。
+
+| `components`
+| `setVisible(id, boolean)`、`setEnabled(id, boolean)`、`setRequired(id, boolean)`、`setReadOnly(id, boolean)`、`getValue(id)`、`setValue(id, value)`、`focus(id)`。
+
+| `notifications`
+| `show(text)`、`show(title, message)`。
+
+| `dialogs`
+| `message(header, text)` 显示消息。`confirm(header, text, handlerName)` 显示确认对话框；*Yes* 按钮会运行同一视图中指定名称的处理器。
+
+| `navigation`
+| `navigate(viewId)`、`navigateToDetail(entity)`、`close()`。
+
+| `services`
+| `call(operationName, args...)` 调用应用程序操作。请参见 <<operations>>。
+
+| `state`
+| `put(key, value)`、`get(key)`、`remove(key)`。在视图打开期间保留的状态值，例如用于将值传递给从确认对话框调用的处理器。
+
+| `event`
+| 对于 `valueChange`：`event.value` 和 `event.oldValue`。对于其他事件：`null`。
+|===
+
+表达式中不能使用其他任何内容。Spring bean、静态方法、构造函数和其他 Java 方法均不可用。
+
+[[operations]]
+== 调用应用代码
+
+处理器调用应用代码的唯一方式是 `services.call()`。开发者通过添加带有操作名称的 `@DynamicModelOperation` 注解，将方法开放给处理器使用：
+
+[source,java,indent=0]
+----
+include::example$/dyn-model-ex1/src/main/java/com/company/sample/app/CustomerOperations.java[tags=operation]
+----
+
+操作的定义规则：
+
+* 该方法必须是 public，并且属于 Spring bean。
+* 操作名称必须唯一。名称为空或重复会导致应用程序在启动时停止。
+* 参数会转换为声明的参数类型。例如，`services.call('checkCustomerName', entity)` 会将正在编辑的 `Customer` 实例传递给上面的方法。
+* 一个操作在当前用户的会话中运行。执行的所有操作都遵循用户权限，包括行级安全。
+* 返回值可以在表达式中使用。可以读取返回的数字、字符串、实体、DTO 和集合的属性，但不能对它们调用方法。
+
+[[handlers-tab]]
+== 在管理视图中编辑处理器
+
+处理器在视图对话框的 *Handlers* 标签页中编辑。处理器对话框包含以下字段：
+
+* *Event* – <<events,事件>>。`initEntity` 仅适用于详情视图。
+* *Component ID* – 视图组件的下拉列表，包含每个组件的 ID 和 XML 元素。该列表仅包含所选事件可以使用的组件：用于 `click` 的可点击组件，以及用于 `valueChange` 的有值组件。也可以键入不在列表中的 ID。该字段仅对 `click` 和 `valueChange` 启用。
+* *Name* – 可选的处理器名称，在视图中唯一。对于没有事件的处理器，该字段为必填。
+* *Expression* – 带代码补全的代码编辑器。代码补全支持 <<expressions>> 中列出的对象和成员、`entity.` 之后的实体属性、`components` 方法中的组件 ID、`services.call()` 中的操作名称，以及 `dialogs.confirm()` 中的处理器名称。在输入点号后或按 *Ctrl+Space* 时会打开补全。
+
+在处理器表格中，相同事件和组件的处理器会放在一起。使用向上和向下按钮可以更改顺序。
+
+[[checks]]
+== 检查与错误
+
+发布模型时会检查处理器。处理器如果有以下情况会导致发布失败，并显示错误：
+
+* 表达式为空或无法解析；
+* 缺少组件 ID，或者为不允许使用组件 ID 的事件设置了组件 ID；
+* 视图中不存在此 ID 的组件。仅当视图声明有 XML `source` 时才会检查该项；
+* 处理器既没有事件也没有名称；
+* 视图中有同名处理器；
+* `dialogs.confirm()` 引用了视图中不存在的处理器名称；
+* `services.call()` 引用了未知操作。
+
+对于使用模板生成的视图，以及没有 `descriptor` 的静态视图声明，无法在发布时发现错误的组件 ID。但是会在视图打开时报告到应用程序日志中。
+
+如果表达式在运行时失败，用户会看到操作失败的通知，视图会继续工作。应用日志中记录了视图 ID、处理器以及错误原因。

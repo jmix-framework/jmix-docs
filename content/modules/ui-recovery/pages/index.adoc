@@ -1,0 +1,67 @@
+= UI 恢复
+
+UI 恢复（Recovery）扩展组件可防止用户丢失视图中未保存的更改。用户可能花很长时间填写一个大表单，而如果服务器节点重启或发生故障、HTTP 会话过期，或者用户在点击 *OK* 之前关闭浏览器，那么所有输入的内容都会丢失。
+
+该扩展组件会在用户操作期间将视图中未保存的更改保存到数据库。这种保存的状态称为 _草稿（draft）_。当用户再次打开同一视图时，扩展组件会提示恢复草稿。草稿保存在主数据存储中，因此可在集群中使用，并且在应用程序完全重启后仍然可用。
+
+通过将 xref:ui-recovery:drafts-facet.adoc[drafts facet] 添加到视图 XML 中，可以选择哪些视图保留草稿。无需 Java 代码。
+
+[[installation]]
+== 安装
+
+[NOTE]
+====
+此扩展组件需要企业版 https://www.jmix.io/subscription-plans-and-prices/[订阅^]。如果没有订阅，可以按照 xref:ROOT:account-management.adoc#enterprise-trial[企业版试用] 介绍的方法试用。
+====
+
+请按照 xref:ROOT:add-ons.adoc#installation[扩展组件] 章节的介绍通过 Jmix 市场自动安装。
+
+手动安装步骤：
+
+. 配置 premium 仓库的访问
++
+include::ROOT:partial$premium-repo.adoc[]
+
+. 在 `build.gradle` 中添加依赖：
++
+[source,groovy,indent=0]
+----
+include::example$ui-recovery-ex1/build.gradle[tags=dependencies]
+----
+
+该扩展组件会向主数据存储添加 `UIREC_VIEW_DRAFT` 表。
+
+[[how-it-works]]
+== 工作原理
+
+当打开带有 `drafts` facet 的视图并且用户在视图中更改数据时，该 facet 会将更改保存到数据库。会定期保存数据，但在每个配置的间隔内最多执行一次。当用户保存更改，或者关闭视图并放弃更改时，该 facet 会删除草稿。
+
+如果工作中断，例如服务器重启，草稿会保留在数据库中。当用户再次打开同一条记录的视图时，该 facet 会找到草稿并显示一个对话框，提示恢复草稿：
+
+image::restore-dialog.png[align="center",width="425"]
+
+用户可以选择恢复、放弃，或下次打开视图再定。也可以将视图配置为无需询问直接恢复草稿。
+
+该扩展组件还提供 xref:ui-recovery:drafts-list.adoc[未保存的草稿] 视图，显示当前用户的所有草稿。该视图可以在登录后自动打开。
+
+[[drafts]]
+== 草稿
+
+草稿属于一个用户、一个视图和一条编辑的记录：
+
+* 仅保留最新状态。每次保存都会替换同一用户、视图和记录的旧草稿。草稿没有历史记录。
+* 已有记录的详情视图为每条记录保留一个草稿。新记录的详情视图一次只有一个草稿。
+* 草稿仅对创建人可见。
+* 草稿仅包含用户更改过的属性。恢复草稿时，用户未更改的属性会保留其当前值，即使其他用户在草稿保存后更改了这些属性也是如此。
+* 草稿在保留期后过期，默认保留期为 30 天。过期草稿不会提供给用户，并且会被删除。请参阅 xref:ui-recovery:deleting-expired-drafts.adoc[]。
+
+[[limitations]]
+== 限制
+
+该扩展组件仅保存已到达服务端并在视图的 xref:flow-ui:data/data-context.adoc[DataContext] 中注册的更改。请注意：
+
+* 默认情况下，文本字段会在字段失去焦点或用户按下 *Enter* 时将值发送到服务端。用户仍在输入的值不会被保存。可以使用 xref:flow-ui:vc/common-attributes.adoc#valueChangeMode[valueChangeMode] 属性更频繁地发送值。请参阅 xref:ui-recovery:drafts-facet.adoc#saving-typed-values[保存已输入的值]。
+* 未与数据绑定的组件值不会保存。
+* 如果集合中其他内容没有更改，则集合中元素顺序的更改不会被保存。
+* 二层嵌入实体的属性不会保存。即，A 的嵌入实体 B，B 的嵌入实体 C，对 C 的属性改动不会保存。
+* 该扩展组件不会合并不同用户所做的更改。如果记录在草稿保存后被其他用户更改，恢复对话框会对此发出警告。如果用户恢复草稿，更改过的属性会被草稿中的值覆盖。集合的元素列表也是如此：恢复草稿会替换该列表。

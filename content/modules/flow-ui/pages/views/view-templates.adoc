@@ -1,8 +1,8 @@
 = 运行时视图模板
 
-运行时视图模板可以在实体元数据上声明模板，然后应用程序运行时，根据声明的模板生成标准的列表视图和详情视图，而无需在设计时手动创建。可以使用 xref:#list-view-template[@ListViewTemplate] 和/或 xref:#detail-view-template[@DetailViewTemplate] 实体注解，框架会在应用程序启动时生成相应的视图、路由和菜单项。
+运行时视图模板可以在实体元数据上声明模板，然后应用程序运行时，根据声明的模板生成标准的列表视图、详情视图和只读视图，而无需在设计时手动创建。可以使用 xref:#list-view-template[@ListViewTemplate]、xref:#detail-view-template[@DetailViewTemplate] 或 xref:#read-view-template[@ReadViewTemplate] 实体注解，框架会在应用程序启动时生成相应的视图、路由和菜单项。
 
-该方法有助于需要快速在 UI 中操作实体（例如查找数据或引用数据），无需为每个实体编写视图类和 XML。生成的视图与常规视图一样在系统中注册：参与 xref:views/opening-views.adoc#view-inference-conventions[视图推断]，可以通过 id 或路由打开，并且可以作为实体的主列表视图和详情视图。
+该方法有助于需要快速在 UI 中操作实体（例如查找数据或引用数据），无需为每个实体编写视图类和 XML。生成的视图与常规视图一样在系统中注册：参与 xref:views/opening-views.adoc#view-inference-conventions[视图推断]，可以通过 id 或路由打开，并且可以作为实体的主列表视图、详情视图或只读视图。
 
 CAUTION: 运行时视图模板目前处于实验状态。API 和内置模板在下一个 Jmix 版本中可能会有重大变更。
 
@@ -52,10 +52,29 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 * `editedEntityContainerId` – 包含被编辑实体的数据容器 id，请参见 xref:views/view-annotations.adoc#edited-entity-container[@EditedEntityContainer]。默认为 `entityDc`。
 
+[[read-view-template]]
+== @ReadViewTemplate
+
+[.since]
+Jmix 3.1+
+
+`@ReadViewTemplate` 为实体声明生成的 xref:views/view-classes.adoc#standard-read-view[只读视图]：
+
+[source,java,indent=0]
+----
+include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplier.java[tags=read]
+----
+
+生成的视图成为实体的主要只读视图，因此 xref:actions/list-actions.adoc#list_read[list_read] 和 xref:actions/entity-picker-actions.adoc#entity_read[entity_read] 操作会打开该视图。由 `@ListViewTemplate` 生成的列表视图没有 `list_read` 操作。
+
+`@ReadViewTemplate` 支持除 `parentMenu` 之外的 xref:#common-attributes[通用属性]，因此框架不会为生成的只读视图创建菜单项。此外，该注解还支持：
+
+* `readEntityContainerId` – 保存显示实体的数据容器 id，请参见 xref:views/view-annotations.adoc#read-entity-container[@ReadEntityContainer]。默认为 `entityDc`。内置模板使用声明数据容器时使用默认 id。只有在使用 `path` 属性中的自定义模板时才设置其他 id。
+
 [[common-attributes]]
 == 通用属性
 
-两个注解具有以下相同属性：
+这些注解具有以下相同属性：
 
 [cols="1,3"]
 |===
@@ -85,16 +104,18 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 当可选属性省略时，框架会从实体名称 `<entityName>` 推导：
 
-[cols="1,1,1"]
+[cols="1,1,1,1"]
 |===
-| |`@ListViewTemplate` |`@DetailViewTemplate`
+| |`@ListViewTemplate` |`@DetailViewTemplate` |`@ReadViewTemplate`
 
 |`viewId`
 |`<entityName>.list`
 |`<entityName>.detail`
+|`<entityName>.read`
 
 |`viewTitle`
 |`<entityName> list`
+|`<entityName>`
 |`<entityName>`
 |===
 
@@ -105,9 +126,10 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 
 * 对于列表视图，使用 `viewRoute`。
 * 对于详情视图，将 `viewRoute` 作为基础路由，再添加 `.../:id`。
+* 对于只读视图，将 `viewRoute` 作为基础路由，再添加 `.../:id/read`。
 * 如果 `viewRoute` 为空，则从 `viewId` 推导。
 
-在上面 `Supplier` 示例中，列表视图路由为 `suppliers`，详情视图路由为 `suppliers/:id`。
+在上面 `Supplier` 示例中，列表视图路由为 `suppliers`，详情视图路由为 `suppliers/:id`，只读视图路由为 `suppliers/:id/read`。
 
 [[built-in-templates]]
 == 内置模板
@@ -115,12 +137,16 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Supplie
 当未指定 `path` 时，框架使用内置模板，从实体属性生成视图内容：
 
 * 列表视图模板渲染一个 `dataGrid`，每个属性一列，外加 `genericFilter`、分页和列表操作；
-* 详情视图模板渲染一个 `formLayout`，每个属性一个字段。
+* 详情视图模板渲染一个 `formLayout`，每个属性一个字段；
+* 只读视图模板渲染一个 `formLayout`，每个属性一个字段，以及一个 *Close* 按钮。
 
 内置模板位于：
 
 * `io/jmix/flowui/view/template/list-view.ftl`
 * `io/jmix/flowui/view/template/detail-view.ftl`
+* `io/jmix/flowui/view/template/read-view.ftl`
+
+对于引用属性，详情和只读视图模板创建由 xref:data-model:entities.adoc#lookup-field[@LookupField] 注解定义的组件：带指定操作的 `entityComboBox` 或 `entityPicker`。模板也会使用 xref:ui-properties.adoc#jmix.ui.component.entity-field-actions[jmix.ui.component.entity-field-actions] 属性，但不用 xref:ui-properties.adoc#jmix.ui.component.entity-field-fqn[jmix.ui.component.entity-field-fqn]。
 
 [[property-filtering]]
 === 属性过滤
@@ -167,6 +193,8 @@ include::example$/onboarding/src/main/java/com/company/onboarding/entity/Invoice
 ----
 include::example$/onboarding/src/main/java/com/company/onboarding/entity/InvoiceItem.java[tags=class]
 ----
+
+由 `@ReadViewTemplate` 生成的视图也在标签页中显示组合集合，但每个 `dataGrid` 只有 *Read* 操作。该操作在对话框中打开实体行的只读视图。如果行实体没有只读视图，该操作将在只读模式下打开其详情视图。
 
 仅支持组合集合。不支持关联集合、元素集合和嵌入式属性。
 

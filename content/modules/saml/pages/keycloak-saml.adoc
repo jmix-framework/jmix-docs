@@ -7,7 +7,7 @@ NOTE: 这些说明已在 Keycloak 26.5.6 版本上测试通过。其他版本（
 [[prerequisites]]
 == 前提条件
 
-* 一个可通过稳定 URL 访问的 Jmix 应用程序（例如 `\https://jmix-app.com`）。本指南使用占位符 `your-app-url` 来表示应用程序的 URL。
+* 一个可通过稳定 URL 访问的 Jmix 应用程序（例如 `\https://jmix-app.com`）。本指南使用占位符 `<your-app-url>` 来表示应用程序的 URL。
 * 一个有管理访问权限的 Keycloak 服务器（例如 `\https://keycloak.test.com`）。本指南使用占位符 `your-keycloak-server` 来表示该服务器。
 * 一个 Keycloak realm（例如 `master`）。本指南使用占位符 `your-realm` 来表示该 realm。
 
@@ -23,13 +23,20 @@ NOTE: 这些说明已在 Keycloak 26.5.6 版本上测试通过。其他版本（
 [source,properties]
 ----
 spring.security.saml2.relyingparty.registration.keycloak.entity-id=https://<your-app-url>/saml/sp
-spring.security.saml2.relyingparty.registration.keycloak.acs.location=https://<your-app-url>/login/saml2/sso/keycloak
+spring.security.saml2.relyingparty.registration.keycloak.acs.location={baseUrl}/login/saml2/sso/keycloak
 spring.security.saml2.relyingparty.registration.keycloak.assertingparty.metadata-uri=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor
-spring.security.saml2.relyingparty.registration.keycloak.singlelogout.url=https://<your-keycloak-server>/realms/<your-realm>/protocol/saml
-spring.security.saml2.relyingparty.registration.keycloak.singlelogout.response-url=https://<your-app-url>/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.url={baseUrl}/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.response-url={baseUrl}/logout/saml2/slo
+spring.security.saml2.relyingparty.registration.keycloak.singlelogout.binding=redirect
 ----
 
 NOTE: 属性键值中的 `keycloak` 表示 provider id。也可以是其他的值。
+
+pass:q[`{baseUrl}`] 占位符在运行时由 Spring Security 解析。在 Keycloak 设置中，请改用实际的应用程序 URL，例如 `\https://jmix-app.com`。
+
+`entity-id` 值必须等于 Keycloak 客户端 ID。`assertingparty.metadata-uri` 属性指向 Keycloak realm 描述符，并允许应用程序在启动时读取 IdP 实体的 ID、SSO/SLO 端点以及签名验证证书。
+
+`singlelogout.url` 和 `singlelogout.response-url` 都指向 Jmix 应用的 SLO 端点。`singlelogout.binding=redirect` 设置与默认的 `jmix.saml.force-redirect-binding-logout=true` 行为匹配，并允许 Spring Security 接收来自 Keycloak 的重定向绑定注销响应。
 
 [[configure-keycloak-client]]
 == 配置 Keycloak 客户端
@@ -41,8 +48,10 @@ NOTE: 属性键值中的 `keycloak` 表示 provider id。也可以是其他的�
 ** *Client type:* `SAML`。
 ** *Client ID:* `\https://<your-app-url>/saml/sp`（与 `entity-id` 属性值相同）。
 ** *Root URL:* 应用程序基础 URL，例如 `\https://jmix-app.com`。
-** *Valid redirect URIs*: 支持的重定向 URL 范式，例如 `\https://jmix-app.com/*`。
+** *Master SAML Processing URL:* `\https://<your-app-url>/login/saml2/sso/keycloak` 与 `acs.location` 一样的端点。
+** *Valid redirect URIs:* 支持的重定向 URL 范式。确保包含 assertion 消费者服务的 URL，例如 `\https://jmix-app.com/login/saml2/sso/keycloak`。
 ** *Valid post logout redirect URIs*: 支持的注销后重定向 URL 范式，例如 `\https://jmix-app.com/*`。
+. 在 *Fine Grain SAML Endpoint Configuration* 部分，设置 *Logout Service Redirect Binding URL* 为 `\https://<your-app-url>/logout/saml2/slo`.
 
 这些配置将 Keycloak 客户端与上一步中的 Jmix 服务 provider 进行关联。
 
@@ -109,7 +118,7 @@ openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in private.key -out priv
 ----
 ====
 +
-. 将这些文件放于应用程序能访问的位置，例如 `src/main/resources`，然后通过属性添加：
+. 将这些文件放于应用程序能访问的位置，例如 `src/main/resources`，然后通过属性添加。应用程序使用这些秘钥对出站的 `AuthnRequest` 和 `LogoutRequest` 消息进行签名：
 +
 .application.properties
 [source,properties]
@@ -132,7 +141,7 @@ spring.security.saml2.relyingparty.registration.keycloak.signing.credentials[0].
 [[verification-certificate]]
 == 提供验证证书（可选）
 
-某些环境可能还需要验证证书。请按以下步骤：
+IdP 签名验证证书通常从 `assertingparty.metadata-uri` 描述符中读取。仅在元数据不可用或需要覆盖证书时手动提供。提供证书的方法：
 
 . 打开 Keycloak 元数据描述符，地址为 `https://<your-keycloak-server>/realms/<your-realm>/protocol/saml/descriptor`
 . 复制 `X509Certificate` 的值。

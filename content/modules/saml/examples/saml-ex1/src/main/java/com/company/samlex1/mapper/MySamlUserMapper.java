@@ -7,7 +7,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -28,7 +28,7 @@ public class MySamlUserMapper extends BaseSamlUserMapper<MyUser> {
     }
 
     @Override
-    protected void populateUserAttributes(Assertion assertion, OpenSaml4AuthenticationProvider.ResponseToken responseToken, MyUser jmixUser) { // <2>
+    protected void populateUserAttributes(Assertion assertion, OpenSaml5AuthenticationProvider.ResponseToken responseToken, MyUser jmixUser) { // <2>
         Map<String, List<Object>> assertionAttributes = SamlAssertionUtils.getAssertionAttributes(assertion);
         List<Object> rawValues = assertionAttributes.get("Position");
         String positionValue = CollectionUtils.isNotEmpty(rawValues) ? rawValues.get(0).toString() : null;

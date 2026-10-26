@@ -1,22 +1,46 @@
 rootProject.name = 'jmix-docs'
 
-void cloneOrPull(String repoUrl, String targetDir) {
+/**
+ * Returns the branch to check out in an external sample repository, or null to use
+ * the default branch of that repository. Resolution order:
+ *   1. -PsamplesBranch.<repo-name>=<branch> - override for a single repository
+ *   2. the branch passed to cloneOrPull()   - branch pinned for a repository
+ *   3. -PsamplesBranch=<branch> or samplesBranch in gradle.properties
+ */
+String resolveSamplesBranch(String repoName, String pinnedBranch) {
+    def perRepoBranch = settings.providers.gradleProperty("samplesBranch.${repoName}").getOrNull()
+    return perRepoBranch ?: pinnedBranch ?: settings.providers.gradleProperty('samplesBranch').getOrNull()
+}
+
+void cloneOrPull(String repoUrl, String targetDir, String pinnedBranch = null) {
     File dir = file(targetDir)
+    def branch = resolveSamplesBranch(dir.name, pinnedBranch)
     if (!dir.exists()) {
-        def branch = 'git rev-parse --abbrev-ref HEAD'.execute().text.trim()
-        println "Cloning ${repoUrl} into ${dir.absolutePath} and switching to ${branch}"
+        println "Cloning ${repoUrl} into ${dir.absolutePath}" + (branch ? " and switching to ${branch}" : "")
         exec {
             commandLine 'git', 'clone', repoUrl, dir.absolutePath
         }
-        exec {
-            workingDir dir.absolutePath
-            commandLine 'git', 'checkout', branch
+        if (branch) {
+            exec {
+                workingDir dir.absolutePath
+                commandLine 'git', 'checkout', branch
+            }
         }
-    } else if (settings.ext.find('pullExamples')) {
-        println "Pulling the latest changes in ${dir.absolutePath}"
-        exec {
-            workingDir dir.absolutePath
-            commandLine 'git', 'pull'
+    } else {
+        if (branch) {
+            def currentBranch = ['git', '-C', dir.absolutePath, 'rev-parse', '--abbrev-ref', 'HEAD'].execute().text.trim()
+            if (currentBranch == 'HEAD') {
+                println "WARNING: ${targetDir} is not on a branch, expected '${branch}'"
+            } else if (currentBranch && currentBranch != branch) {
+                println "WARNING: ${targetDir} is on branch '${currentBranch}', expected '${branch}' (see samplesBranch in gradle.properties)"
+            }
+        }
+        if (settings.ext.find('pullExamples')) {
+            println "Pulling the latest changes in ${dir.absolutePath}"
+            exec {
+                workingDir dir.absolutePath
+                commandLine 'git', 'pull'
+            }
         }
     }
 }
@@ -63,8 +87,16 @@ includeBuild 'external/jmix-restds-oidc-sample'
 cloneOrPull('https://github.com/jmix-framework/jmix-observability-logging-sample', 'external/jmix-observability-logging-sample')
 includeBuild 'external/jmix-observability-logging-sample'
 
+cloneOrPull('https://github.com/jmix-framework/jmix-observability-tracing-sample', 'external/jmix-observability-tracing-sample')
+includeBuild 'external/jmix-observability-tracing-sample'
+
 cloneOrPull('https://github.com/jmix-framework/jmix-reports-sample', 'external/jmix-reports-sample')
 includeBuild 'external/jmix-reports-sample'
+
+cloneOrPull('https://github.com/jmix-framework/jmix-ui-samples', 'external/jmix-ui-samples', 'main')
+includeBuild 'external/jmix-ui-samples'
+
+includeBuild 'content/modules/ai-chat/examples/ai-chat-ex1'
 
 includeBuild 'content/modules/audit/examples/audit-ex1'
 
@@ -136,6 +168,8 @@ includeBuild 'content/modules/testing/examples/testing-ex1'
 
 includeBuild 'content/modules/uiconstraints/examples/uiconstraints-ex1'
 
+includeBuild 'content/modules/ui-recovery/examples/ui-recovery-ex1'
+
 includeBuild 'content/modules/webdav/examples/webdav-ex1'
 
 
@@ -155,3 +189,7 @@ includeBuild 'content/modules/saml/examples/saml-ex1'
 includeBuild 'content/modules/dyn-model/examples/dyn-model-ex1'
 
 includeBuild 'content/modules/ai-tools/examples/ai-tools-ex1'
+includeBuild 'content/modules/vaadin-dashboard/examples/vaadin-dashboard-ex1'
+includeBuild 'content/modules/vaadin-spreadsheet/examples/vaadin-spreadsheet-ex1'
+
+includeBuild 'content/modules/deployment/examples/depl-ex1'

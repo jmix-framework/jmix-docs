@@ -74,6 +74,7 @@ public void onInit(final InitEvent event) {
 * `setMessageInputEnabled(boolean)` / `focusMessageInput()` – 控制编辑器的只读和获取焦点。
 * `isAwaitingResponse()` – 设置当前是否正在生成回复。
 * `setAiAvatarIconSupplier(SerializableSupplier<Component>)` – 自定义助手头像。
+* `setTitleMode(AiConversationTitleMode)` – 选择如何设置新对话的标题。当未设置或设置为 `null` 时，从 xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] 读取配置。参考 <<conversation-titles>>。
 
 [[ai-chat-input-fragment]]
 === AiChatInputFragment
@@ -127,6 +128,41 @@ UI 有三个支撑服务。这些服务操作 UI 模型 `AiConversation` 和 `Ai
 === 图标 provider
 
 聊天中心显示的品牌图标和助手头像由 `AiIconProvider` bean 提供。替换此 bean 可全局更改扩展组件的图标，或者使用 fragment 的方法在替换局部的图标。
+
+[[conversation-titles]]
+== 对话标题
+
+[.since]
+Jmix 3.1+
+
+一个新的对话默认标题为 `New AI Conversation`。xref:ai-tools:properties.adoc#jmix.aitools.ui.conversation-title-mode[jmix.aitools.ui.conversation-title-mode] 应用程序属性定义当用户发送第一条消息时，如何获取对话的标题。
+
+[cols="1,3", grid=rows, frame=none]
+|===
+|模式 |标题
+
+|`FIRST_MESSAGE`
+|第一条用户消息。超过 255 个字符的消息会在单词边界处截断。不会调用模型。这是默认模式。
+
+|`GENERATED`
+|模型根据第一条用户消息生成简短标题，使用当前用户区域设置的语言。模型在后台调用。在标题生成之前，或者如果没有生成标题，对话将使用第一条消息作为标题。
+
+|`NONE`
+|对话使用默认标题。
+|===
+
+即使用户在标题生成之前离开对话，该标题也会被保存。并且不会替换用户在此期间输入的标题。
+
+如果你的视图需要在第一条消息之前为对话指定自定义标题，请在 <<ai-chat-fragment,AiChatFragment>> 上调用 `setTitleMode(AiConversationTitleMode.NONE)`。否则，第一条消息会替换此标题。
+
+[[title-generation]]
+=== 自定义标题生成
+
+在 `GENERATED` 模式下，`AiConversationTitleGenerator` bean 负责生成标题。其默认实现位于 `jmix-aitools-flowui-data-starter` 中，将第一条用户消息发送到 xref:ai-tools:getting-started.adoc#configure-model[已配置的模型]。仅使用 `jmix-aitools-flowui-starter` 时，生成器不返回标题。
+
+如需以不同的方式生成标题，注册一个实现 `io.jmix.aitoolsflowui.service.AiConversationTitleGenerator` 的 bean。其 `generateTitle(String firstUserMessage)` 方法返回标题或空的 `Optional`。该方法在带有当前用户身份验证的后台线程中运行。返回的标题按原样保存，因此需要控制在 255 个字符以内。
+
+如果仅需要更改默认生成器的系统提示词，注册一个实现 `io.jmix.aitoolsflowuidata.service.prompt.AiConversationTitleSystemPromptProvider` 的 bean 并返回自定义模板。模板可以使用 `\{responseLanguage}` 参数，其中包含当前用户区域设置的语言，例如 `German / Deutsch (de)`。
 
 [[roles]]
 == 安全角色

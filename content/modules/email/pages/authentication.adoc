@@ -1,0 +1,198 @@
+= 邮件服务器认证
+:page-aliases: email:oauth-providers.adoc
+
+扩展组件通过 Spring Boot xref:configuration.adoc#spring-boot-mail-properties[邮件属性] 定义的 SMTP 服务器发送邮件。应用程序可以通过以下两种方式之一登录服务器：
+
+* <<basic-authentication,基本认证>>，使用登录名和密码。
+* <<oauth2-authentication,OAuth2 认证>>，使用访问令牌。扩展组件支持 Gmail、Google Workspace 和 Microsoft 365 邮件服务器。
+
+[[basic-authentication]]
+== 基本认证
+
+在没有通过 xref:configuration.adoc#jmix.email.oauth2.enabled[jmix.email.oauth2.enabled] 属性启用 OAuth2 认证时，扩展组件使用基本认证。设置邮箱账户的登录名和密码，并开启 SMTP 认证：
+
+.application.properties
+[source,properties,indent=0]
+----
+include::example$/email-ex1/src/main/resources/application.properties[tags=basic-authentication]
+----
+
+Google 和 Microsoft 365 限制了 SMTP 的基本认证。因此需使用 <<oauth2-authentication,OAuth2 认证>>。
+
+在 xref:menu-views/email-connection.adoc[] 视图中点击 *Test connection* 可以检查连接状况。
+
+[[oauth2-authentication]]
+== OAuth2 认证
+
+使用 OAuth2 认证时，扩展组件通过 `XOAUTH2` 机制向 SMTP 服务器发送访问令牌而非密码。扩展组件使用刷新令牌从供应商处获取访问令牌。
+
+要设置 OAuth2 认证，请按照邮件供应商对应的章节操作：
+
+* <<google>>
+* <<microsoft>>
+
+然后 <<connecting-mailbox,连接邮箱账户>>。
+
+有关扩展组件如何使用邮件属性和刷新令牌，请参见 <<oauth2-details>>。
+
+[[google]]
+=== 使用 Gmail 或 Google Workspace 邮箱
+
+NOTE: 以下说明基于 Google 开发者文档 https://developers.google.com/identity/protocols/oauth2/web-server[在 Web 服务应用使用 OAuth 2.0^]。请查看该页面以获取最新流程。
+
+==== 在 Google Cloud 中注册 OAuth 客户端
+
+在 https://console.cloud.google.com/[Google Cloud 控制台^] 中执行以下操作：
+
+. 创建或选择一个项目。
+. 打开 https://console.developers.google.com/auth/overview[Google Auth Platform^]。在新项目中，点击 *Get started* 并输入应用信息和联系邮箱。选择 audience：Google Workspace 邮箱选择 *Internal*，Gmail 账户选择 *External*。在已有 OAuth 同意页面的项目中，同样的设置位于 *Branding* 和 *Audience* 页面。
+. 如果 audience 为 *External* 且应用处于 *Testing* 发布状态，请在 *Audience* 页面将邮箱账户添加为测试用户。测试用户的授权在同意后七天过期，之后需要重新连接账户。
+. 创建 *Web application* 类型的 OAuth 客户端，授权重定向 URI 为 `\http://localhost:8080/email/oauth2/callback`。将 `\http://localhost:8080` 替换为你的应用地址，如果应用有上下文路径，也需要包含在内。
+. 复制客户端的 *Client ID* 和 *Client secret*。
+
+==== 配置应用属性
+
+使用这些凭据配置 Jmix 应用的 `application.properties` 文件：
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=google
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+
+# 未设置发送人时使用的默认的发送人地址
+jmix.email.from-address=<account_name>
+----
+
+其中 `<account_name>` 是用于配置的电子邮件地址。`<client_id>`、`<client_secret>` 是配置过程中获得的值。
+
+==== 添加 Gradle 依赖
+
+将以下依赖添加到 `build.gradle`：
+
+[source,groovy,indent=0]
+----
+implementation 'com.google.auth:google-auth-library-oauth2-http'
+----
+
+==== 连接邮箱账户
+
+启动应用程序，并使用 *Connect via authorization code* 连接邮箱账户，如 <<connecting-mailbox>> 所述。
+
+[[microsoft]]
+=== 使用 Microsoft 365 邮箱
+
+NOTE: 以下说明结合了 Microsoft Entra 关于 https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app[注册应用^] 的快速入门和 Exchange Online 关于 https://learn.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth[使用 OAuth 认证 SMTP 连接^] 的文档。请查看这些页面以获取最新流程。
+
+==== 在 Microsoft Entra 中注册应用
+
+在 https://entra.microsoft.com[Microsoft Entra 管理中心^]，打开 *Entra ID* > *App registrations* 并执行以下操作：
+
+. 点击 *New registration*，输入名称，选择支持的账户类型并点击 *Register*。
+. 在 *Authentication* 页面，打开 *Redirect URI configuration* 标签页，点击 *Add Redirect URI*，选择 *Web* 并输入 `\http://localhost:8080/email/oauth2/callback`。将 `\http://localhost:8080` 替换为你的应用地址，如果应用有上下文路径，也许要包含。
+. 在应用的 *Certificates & secrets* 页面，创建客户端密钥并复制其 *Value*。
+. 在 *API permissions* 页面，添加委托的 *SMTP.Send* 权限。如果租户中的用户无法对应用程序表示同意，请为其授予管理员同意。
+. [[microsoft-public-client-flows]]要使用 *Connect via device code* 连接邮箱账户，请打开 *Authentication* 页面的 *Settings* 标签页并启用 *Allow public client flows*。
+. 从 *Overview* 页面复制 *Application (client) ID* 和 *Directory (tenant) ID*。
+
+必须为邮箱账户启用 SMTP AUTH：在 Microsoft 365 管理中心，在用户的电子邮件应用设置中选择 *Authenticated SMTP*。请参见 https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission[启用/禁用 Exchange Online 的 SMTP 认证 ^]。
+
+==== 配置应用属性
+
+使用这些凭据配置 Jmix 应用的 `application.properties` 文件：
+
+.application.properties
+[source,properties,indent=0]
+----
+spring.mail.host=smtp.office365.com
+spring.mail.port=587
+spring.mail.username=<account_name>
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+jmix.email.oauth2.enabled=true
+jmix.email.oauth2.provider=microsoft
+jmix.email.oauth2.client-id=<client_id>
+jmix.email.oauth2.secret=<client_secret>
+jmix.email.oauth2.tenant-id=<tenant_id>
+
+# 未设置发送人时使用的默认的发送人地址
+jmix.email.from-address=<account_name>
+----
+
+其中 `<account_name>` 是用于配置的电子邮件地址。`<client_id>`、`<client_secret>`、`<tenant_id>` 是配置过程中获得的值。如果不设置 `jmix.email.oauth2.tenant-id`，扩展组件使用 `common` 租户，Microsoft 仅对多租户应用支持该租户。
+
+==== 添加 Gradle 依赖
+
+将以下依赖添加到 `build.gradle`：
+
+[source,groovy,indent=0]
+----
+implementation 'com.microsoft.azure:msal4j'
+----
+
+==== 连接邮箱账户
+
+启动应用程序，并使用 *Connect via authorization code* 或 *Connect via device code* 连接邮箱账户，如 <<connecting-mailbox>> 所述。
+
+[[connecting-mailbox]]
+=== 连接邮箱账户
+
+[.since]
+Jmix 3.1+
+
+配置应用后，在 xref:menu-views/email-connection.adoc[] 视图中连接邮箱账户：
+
+. 运行应用并打开 *Email -> Email connection*。
+. 点击 *Connect via authorization code*。在供应商页面，登录 `spring.mail.username` 中指定的邮箱账户并授予访问权限。当应用程序显示结果时，点击 *Continue*。
++
+对于 Microsoft，可以改为点击 *Connect via device code*。在任何设备上打开对话框中显示的链接，输入代码并登录邮箱账户。此流程要求应用注册中允许 <<microsoft-public-client-flows,公共客户端流>>。
+. 点击 *Test connection*。
+
+NOTE: 扩展组件根据服务器接收请求的地址构建重定向 URI：scheme、host、port 和上下文路径。如果使用了反向代理，此地址可能与公共地址不同，供应商会因为重定向 URI 不匹配而拒绝请求。在这种情况下，需要在 xref:configuration.adoc#jmix.email.oauth2.redirect-uri[jmix.email.oauth2.redirect-uri] 属性中设置已注册的重定向 URI。
+
+[[manual-refresh-token]]
+==== 手动输入刷新令牌
+
+如果供应商不接受应用地址作为重定向 URI，请通过其他方式获取刷新令牌（例如，对于 Google 使用 https://developers.google.com/oauthplayground[OAuth 2.0 Playground^]，在 Postman 中，或手动向供应商发送请求）。将接收供应商响应的地址添加到 OAuth 客户端的重定向 URI 中。然后按下列方法之一配置令牌：
+
+* 在 xref:menu-views/email-connection.adoc[] 视图的 *Advanced* 部分点击 *Manual update* 并输入令牌。
+* 在 xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token] 属性中设置令牌。
+
+令牌必须颁发给应用的客户端 ID，并有以下作用域：
+
+* Google：`\https://mail.google.com/`
+* Microsoft：`\https://outlook.office.com/SMTP.Send` 和 `offline_access`
+
+IMPORTANT: 对于 Microsoft，手动输入的刷新令牌必须使用客户端密钥获取（例如通过授权码流程，而非设备代码流程）。否则，扩展组件在交换为访问令牌时，Microsoft 会拒绝该令牌。
+
+[[oauth2-details]]
+== OAuth2 认证详情
+
+[[oauth2-configuration]]
+=== OAuth2 配置要求
+
+启用 OAuth2 认证时，扩展组件按如下方式处理邮件属性：
+
+* `spring.mail.username` 为必填。是应用程序登录的邮箱账户。
+* `spring.mail.password` 忽略。如果设置了，扩展组件会记录警告。
+* 除非在 `spring.mail.properties.*` 中设置，否则扩展组件会设置 `mail.smtp.auth=true` 和 `mail.smtp.auth.mechanisms=XOAUTH2` JavaMail 属性。
+
+如果未设置 `spring.mail.username`、xref:configuration.adoc#jmix.email.oauth2.provider[jmix.email.oauth2.provider]、xref:configuration.adoc#jmix.email.oauth2.client-id[jmix.email.oauth2.client-id] 或 xref:configuration.adoc#jmix.email.oauth2.secret[jmix.email.oauth2.secret]，或者缺少供应商的库，应用程序将无法启动。
+
+[[refresh-token]]
+=== 刷新令牌
+
+扩展组件将刷新令牌存储在数据库中。应用程序有一个存储的令牌，每个连接的账户都会替换。
+
+xref:configuration.adoc#jmix.email.oauth2.refresh-token[jmix.email.oauth2.refresh-token] 属性设置初始令牌值。扩展组件仅在数据库中没有存储令牌时使用。
+
+当 Microsoft 返回新的刷新令牌时，扩展组件会存储。

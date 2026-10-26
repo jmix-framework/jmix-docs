@@ -1,6 +1,9 @@
 package com.company.onboarding.entity;
 
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
+import io.jmix.core.entity.annotation.LookupField;
+import io.jmix.core.entity.annotation.LookupItemsQuery;
+import io.jmix.core.entity.annotation.LookupType;
 import io.jmix.core.metamodel.annotation.InstanceName;
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import jakarta.persistence.*;
@@ -24,18 +27,30 @@ public class Department {
     @Version
     private Integer version;
 
+    // tag::lookup-field-query[]
+    @LookupField(type = LookupType.DROPDOWN,
+            actions = {"entity_lookup", "entity_clear"},
+            itemsQuery = @LookupItemsQuery(
+                    query = "select e from Department e where e.name like :searchString escape '\\' order by e.name",
+                    searchStringFormat = "(?i)%${inputString}%",
+                    escapeValueForLike = true))
     @JoinColumn(name = "PARENT_DEPARTMENT_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Department parentDepartment;
+    // end::lookup-field-query[]
 
     @InstanceName
     @Column(name = "NAME", nullable = false)
     @NotNull
     private String name;
 
+    // tag::lookup-field-instance-name[]
+    @LookupField(type = LookupType.DROPDOWN,
+            itemsQuery = @LookupItemsQuery(byInstanceName = true))
     @JoinColumn(name = "HR_MANAGER_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private User hrManager;
+    // end::lookup-field-instance-name[]
 
     @Column(name = "NUM")
     private String num;

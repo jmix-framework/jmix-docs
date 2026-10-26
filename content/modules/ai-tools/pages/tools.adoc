@@ -58,9 +58,31 @@
 include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
 ----
 
-包含和排除规则按每个实体进行评估。`+exclude-*+` 属性隐藏实体。`+include-*+` 属性是增量性质的属性，会将实体添加到默认集合中，包括默认隐藏的实体，例如框架或系统级实体。`exclude-entities` 仍然优先于任何包含规则。完整的选项列表（包括如何限制单个查询可以返回的行数）请参见 xref:ai-tools:properties.adoc#dataload[数据加载配置]。
+包含和排除规则按每个实体进行评估。`+exclude-*+` 属性隐藏实体。`+include-*+` 属性是增量性质的属性，会将实体添加到默认集合中，包括默认隐藏的实体，例如框架或系统级实体。`exclude-entities` 仍然优先于任何包含规则。从 Jmix 3.1 开始，关联隐藏实体的属性也会被隐藏，例如，上面示例中 `UserStep` 的 `step` 属性。如需将一个实体或属性设置成任何实体都无法暴露，请使用 <<exclude-from-ai,@ExcludeFromAi>> 注解。完整的选项列表（包括如何限制单个查询可以返回的行数）请参见 xref:ai-tools:properties.adoc#dataload[数据加载配置]。
 
 NOTE: 通过配置进行过滤只会改变提供给模型的实体类型。无论配置如何，每个查询语句仍然在当前用户的 xref:security:index.adoc[数据访问] 权限下运行。对用户无法读取的实体的查询语句会被拒绝，并且从结果中移除用户无法读取的属性。用户永远无法读取他们无权查看的数据。
+
+[[exclude-from-ai]]
+=== 使用 @ExcludeFromAi 排除数据
+
+[.since]
+Jmix 3.1+
+
+`jmix.aitools.dataload.*` 属性可以在部署时更改，例如通过环境变量。对于助手绝不能看到的数据，例如凭据或个人数据，请使用 `io.jmix.aitools.ExcludeFromAi` 注解。需要在实体代码中设置，并且没有任何属性可以覆盖。该注解仅影响数据加载工具。视图、REST API 和应用程序的其他部分处理数据还是维持原样。
+
+注解可以放在实体类或属性上：
+
+* 在实体类上时，会隐藏整个实体。数据加载工具不会返回该实体，并且验证器会拒绝使用此类实体生成查询，就像该实体不存在一样。该实体的子类也会被隐藏，并且对其祖先实体的查询也不会返回子实体的记录。
+* 在属性上时，仅隐藏此属性。数据加载工具不会返回该属性，验证器会拒绝使用此类属性的查询，并且返回的行永远不会包含这些属性的值。
+
+在以下示例中，助手可以加载用户，但看不到他们的电子邮件地址：
+
+[source, java, indent=0]
+----
+include::example$/ai-tools-ex1/src/main/java/com/company/onboarding/entity/User.java[tags=exclude-from-ai]
+----
+
+NOTE: 预定义的数据加载工具和 `AvailableEntityService` bean 会使用该注解。如果 <<custom-tools,自定义的工具>> 通过 `DataManager` 加载数据，仍然可以将隐藏的数据返回给模型。
 
 [[available-entity-filter]]
 === 自定义可用性

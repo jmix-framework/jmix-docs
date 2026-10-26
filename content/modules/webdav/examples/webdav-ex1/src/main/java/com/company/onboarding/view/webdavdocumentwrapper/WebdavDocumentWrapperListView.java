@@ -39,8 +39,10 @@ import java.util.Date;
 @LookupComponent("webdavDocumentWrappersDataGrid")
 @DialogMode(width = "64em")
 public class WebdavDocumentWrapperListView extends StandardListView<WebdavDocumentWrapper> {
+    // tag::uiComponents[]
     @Autowired
     private UiComponents uiComponents;
+    // end::uiComponents[]
     // tag::webdavDocumentWrappersDataGrid[]
     @ViewComponent
     private DataGrid<WebdavDocumentWrapper> webdavDocumentWrappersDataGrid;
