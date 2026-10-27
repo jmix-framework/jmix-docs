@@ -49,25 +49,26 @@ These three tools are bound together by the `DataLoadAiTool` marker interface, s
 [[exposed-model]]
 === Controlling the Exposed Model
 
-By default, the assistant can see every JPA entity in the application except framework entities, because the `io.jmix` packages are excluded, and system-level entities. You can narrow or widen this set with the `jmix.aitools.dataload.*` properties.
+The Data Load tools work within the current user's xref:security:index.adoc[data access] permissions. The assistant is offered only the entities that the user can read and the attributes that the user can view, and every query runs under the same permissions, as described in <<data-load-flow>>. No setting described below lets a user receive data they are not allowed to see.
 
-For example, to hide a specific entity from the assistant and cap the default number of rows per query:
+In addition, by default the Data Load tools hide the following from the assistant:
 
-[source, properties, indent=0]
-----
-include::example$/ai-tools-ex1/src/main/resources/application.properties[tags=data-load]
-----
+* Framework entities, that is, entities from the `io.jmix` packages.
+* Entities and attributes annotated with xref:data-model:entities.adoc#system-level[@SystemLevel]. A system-level entity is hidden completely. A system-level attribute is hidden only from the assistant's view of the data model, so a generated query can still use it.
+* Entities that are not JPA entities, such as DTO entities.
+* Attributes that refer to a hidden entity, for example, the `step` attribute of `UserStep` when the `Step` entity is excluded.
++
+[.since]
+Since Jmix 3.1
+* Attributes annotated with `@Secret`, such as the user password. The assistant can neither see nor query them, and no setting can change this.
 
-Inclusion and exclusion rules are evaluated per entity. The `exclude-*` properties hide entities. The `include-*` properties are additive and add entities to the default set, including entities hidden by default, such as framework or system-level entities. `exclude-entities` still takes precedence over any include. Since Jmix 3.1, attributes that refer to a hidden entity are hidden too, for example, the `step` attribute of `UserStep` in the configuration above. To hide an entity or an attribute so that no property can expose it, use the <<exclude-from-ai,@ExcludeFromAi>> annotation. See xref:ai-tools:properties.adoc#dataload[Data-load properties] for the full list of options, including how to cap the number of rows that a single query can return.
+You can change what the assistant sees:
 
-Some attributes are hidden even in entities that the assistant can see:
-
-* Attributes annotated with `@Secret`, such as the user password, are never exposed. The Data Load tools do not return them, validation rejects a generated query that uses them, and the returned rows never contain their values. No property can change this.
-* Attributes annotated with xref:data-model:entities.adoc#system-level[@SystemLevel] are not returned by <<aitls_getAvailableEntities,`aitls_getAvailableEntities`>> and <<aitls_getDomainModelForEntities,`aitls_getDomainModelForEntities`>>, so the model does not see them. A generated query can still use them, and their values are returned. To show these attributes to the model, set xref:ai-tools:properties.adoc#jmix.aitools.dataload.exclude-system-level-attributes[jmix.aitools.dataload.exclude-system-level-attributes] to `false`.
-
-If an attribute has both annotations, `@Secret` applies.
-
-NOTE: Filtering by configuration changes only which entities are offered to the model. Regardless of configuration, every query still runs under the current user's xref:security:index.adoc[data access] permissions. A query over an entity the user cannot read is rejected, and attributes the user cannot read are removed from the result. A user can never read data they are not allowed to see.
+* xref:ai-tools:properties.adoc#jmix.aitools.dataload.exclude-entities[exclude-entities] and xref:ai-tools:properties.adoc#jmix.aitools.dataload.exclude-packages[exclude-packages] hide entities by name or by package.
+* xref:ai-tools:properties.adoc#jmix.aitools.dataload.include-entities[include-entities] and xref:ai-tools:properties.adoc#jmix.aitools.dataload.include-packages[include-packages] expose entities that are hidden by default. `exclude-entities` takes precedence over them.
+* xref:ai-tools:properties.adoc#jmix.aitools.dataload.exclude-system-level-entities[exclude-system-level-entities] and xref:ai-tools:properties.adoc#jmix.aitools.dataload.exclude-system-level-attributes[exclude-system-level-attributes] set to `false` stop hiding system-level entities and attributes.
+* The <<exclude-from-ai,@ExcludeFromAi>> annotation hides an entity or an attribute so that no property can expose it.
+* Your own <<available-entity-filter,AvailableEntityFilter>> bean changes which entities and attributes are offered to the current user.
 
 [[exclude-from-ai]]
 === Excluding Data with @ExcludeFromAi
@@ -94,7 +95,7 @@ NOTE: The predefined Data Load tools and the `AvailableEntityService` bean apply
 [[available-entity-filter]]
 === Customizing Availability
 
-The set of entities offered to the model is resolved through an `AvailableEntityFilter` bean. The default implementation hides entities for which the current user has no read access. To change this behavior, for example to apply your own visibility rules, register your own bean that implements `io.jmix.aitools.dataload.introspection.AvailableEntityFilter`.
+The set of entities offered to the model is resolved through an `AvailableEntityFilter` bean. The default implementation hides entities for which the current user has no read access and attributes that the user is not allowed to view. To change this behavior, for example to apply your own visibility rules, register your own bean that implements `io.jmix.aitools.dataload.introspection.AvailableEntityFilter`.
 
 The configured entities and their metadata are served by the `AvailableEntityService` bean, which you can also use from your own tools. See the <<overriding,override example>>.
 
