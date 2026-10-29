@@ -55,7 +55,7 @@ include::partial$element-properties.adoc[tags=id;task-name]
 |Task listeners
 |Listeners triggered by task lifecycle events. See <<setting-task-listeners>>.
 |Notifications
-|Notifications sent to the task performers. Available if the xref:notifications:index.adoc[Notifications] add-on is installed.
+|Notifications sent on task events. See <<notifications>>.
 include::partial$element-properties.adoc[tag=execution-listeners]
 |Extension properties
 |See xref:bpmn/bpmn-tasks.adoc#extension-properties[Extension Properties].
@@ -704,6 +704,116 @@ or performing additional validations based on the events that occur during the l
 <2> Task event
 
 See details in  the xref:task-listeners.adoc[Task Listeners] section.
+
+[[notifications]]
+== Notifications
+
+[.since]
+Since Jmix 3.1
+
+A user task can send in-app and email notifications through the xref:notifications:index.adoc[Notifications] add-on, so the add-on is required. Without it, the modeler doesn't show the *Notifications* section of user tasks, and at runtime the process sends no notifications.
+
+Other add-ons enable more options:
+
+* xref:email:index.adoc[Email Sending] enables the *Email* channel. See xref:notifications:configuration.adoc#email-channel[Email Channel].
+* xref:message-templates:index.adoc[Message Templates] enables rendering the body from a template. See <<notification-templates>>.
+
+To choose a notification type in the modeler, register types as described in xref:notifications:configuration.adoc#notification-types[Notification Types]. To read in-app notifications, recipients need a role described in xref:notifications:configuration.adoc#roles[Security Roles].
+
+Each notification is sent on the task event selected in its *Event* property: *create*, *assignment*, *complete* or *delete*. These are the events of <<setting-task-listeners,task listeners>>, and Jmix BPM adds the listeners when the process is deployed. The engine fires *delete* when the task is completed, right after *complete*, and also when an interrupting boundary event cancels the task or the process instance is deleted.
+
+To send a notification at another moment, attach a boundary event to the task and connect it to a xref:bpmn/jmix-notification-task.adoc[Send Notification task]. For example, a non-interrupting xref:bpmn/bpmn-events.adoc#timer-events[timer] boundary event can notify the process initiator that the task is not completed in time.
+
+*XML representation*
+
+[source,xml]
+----
+<userTask id="approve-order" name="Approve order">
+  <extensionElements>
+    <jmix:notification event="assignment" recipientType="assignee"
+                       channels="in-app" contentType="plain">
+      <jmix:subject>Task assigned: ${context.taskName}</jmix:subject>
+      <jmix:body>Hello ${context.recipientUser.username}, please approve order ${order.number}.</jmix:body>
+    </jmix:notification>
+  </extensionElements>
+</userTask>
+----
+
+In user task notifications, the `context` object described in <<notification-expressions>> also has the `taskId` and `taskName` properties with the id and the name of the task, and the `taskAssigneeUser` property with its assignee.
+
+[[notification-properties]]
+=== Notification Properties
+
+The *Notifications* section shows a list of notifications. Use the *Create*, *Edit* and *Remove* buttons to manage them. A notification has the following properties:
+
+[cols="1,6", grid=rows, frame=none]
+|===
+|*Property*
+|*Description*
+
+|Subject
+|The notification subject, required. It can contain <<notification-expressions,expressions>>.
+
+|Type
+|An optional notification type. It sets the icon of the notification in the UI. The list shows the xref:notifications:configuration.adoc#notification-types[registered types], and you can also enter a type name.
+
+|Event
+|The task event that sends the notification, required. See <<notifications>>.
+
+|Recipient
+|Who receives the notification, required. See <<notification-recipients>>.
+
+|Recipient expression
+|The expression that returns the recipients. Shown when *Recipient* is *Expression*.
+
+|Channels
+|*In-app*, *Email* or both. At least one channel is required, *In-app* is selected by default. *Email* is available if the xref:email:index.adoc[Email Sending] add-on is installed.
+
+|Use message template, Message template
+|The template that renders the body. Available if the xref:message-templates:index.adoc[Message Templates] add-on is installed. See <<notification-templates>>.
+
+|Content type
+|*Plain text* or *HTML*. For HTML, the body editor is a rich text editor. If you switch from HTML to plain text, the modeler asks for confirmation and clears the body. Hidden when a message template is used.
+
+|Body
+|The notification text. It can contain <<notification-expressions,expressions>>. Hidden when a message template is used.
+|===
+
+In XML, each notification is a `jmix:notification` extension element. Its attributes are `recipientType`, `recipientExpression`, `channels`, `type`, `contentType` and `templateCode`, and its child elements are `jmix:subject` and `jmix:body`. The `event` attribute stores the event.
+
+[[notification-recipients]]
+=== Notification Recipients
+
+[cols="1,1,4", options=header]
+|===
+|Recipient
+|XML value
+|Description
+
+|Task assignee
+|`assignee`
+|If the task has no assignee, the notification is not sent.
+
+|Candidate users
+|`candidateUsers`
+|See <<task-candidate-users-and-groups>>.
+
+|Candidate groups
+|`candidateGroups`
+|All members of the candidate groups of the task, according to the xref:menu-views/user-groups.adoc#user-group-editor[group type].
+
+|Process initiator
+|`initiator`
+|The user stored in the xref:bpmn/bpmn-user-task.adoc#assign-task-by-process-variable[initiator] process variable.
+
+|Expression
+|`expression`
+|The result of the *Recipient expression*. The expression can return a username, a user, or a collection of them, for example, `+${order.manager}+` or `+${reviewers}+`.
+|===
+
+Each recipient receives a separate notification, and the subject and body are rendered for this recipient. A user receives one notification even if the user is found several times, for example, in two candidate groups. A username that doesn't belong to an existing user is skipped.
+
+include::partial$notification-content.adoc[]
 
 [[task-documentation]]
 == Documentation

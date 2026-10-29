@@ -1,0 +1,125 @@
+= Send Notification Task
+:page-aliases: bpm:sending-notifications.adoc
+
+[.since]
+Since Jmix 3.1
+
+[[overview]]
+== Overview
+
+A *Send Notification task* sends in-app and email notifications through the xref:notifications:index.adoc[Notifications] add-on. When the process reaches the task, it sends all its notifications, and then the process continues.
+
+This is a custom task developed by Jmix, not a BPMN standard task. To add it, click the *Change type* image:quick-start/change-type-icon.png[width="20"] icon of a task and select *Send Notification Task*.
+
+To send notifications on events of a user task, such as task assignment, use xref:bpmn/bpmn-user-task.adoc#notifications[user task notifications] instead.
+
+.*Graphical Notation*
+A Send Notification task is visualized as a rounded rectangle with a small bell icon in the top-left corner.
+
+image::jmix-notification-task/notification-task.png[,150]
+
+.*XML Representation*
+A Send Notification task is a service task with the `jmix-send-notification` type. Its notifications are `jmix:notification` extension elements.
+
+[source,xml]
+----
+<serviceTask id="notify-manager" name="Notify manager" flowable:type="jmix-send-notification">
+  <extensionElements>
+    <jmix:notification recipientType="expression" recipientExpression="${order.manager}"
+                       channels="in-app,email" contentType="plain">
+      <jmix:subject>New order ${order.number}</jmix:subject>
+      <jmix:body>Order ${order.number} is waiting for your approval.</jmix:body>
+    </jmix:notification>
+  </extensionElements>
+</serviceTask>
+----
+
+[[properties]]
+== Properties
+
+In the BPMN modeler, you can set the following properties of a Send Notification task:
+
+[cols="1,6", grid=rows, frame=none]
+|===
+|*Property*
+|*Description*
+include::partial$element-properties.adoc[tags=id;task-name]
+|Notifications
+|The notifications that the task sends. See <<notifications>>.
+include::partial$element-properties.adoc[tag=execution-listeners]
+include::partial$async-execution-properties.adoc[tags=row;leave]
+include::partial$element-properties.adoc[tag=documentation]
+|===
+
+The task has no multi-instance properties. To notify several users, use an *Expression* recipient that returns a collection.
+
+[[notifications]]
+== Notifications
+
+The task sends notifications through the xref:notifications:index.adoc[Notifications] add-on, so the add-on is required. Without it, the modeler shows an error message when you select a Send Notification task, and at runtime the task sends no notifications and the process continues.
+
+Other add-ons enable more options:
+
+* xref:email:index.adoc[Email Sending] enables the *Email* channel. See xref:notifications:configuration.adoc#email-channel[Email Channel].
+* xref:message-templates:index.adoc[Message Templates] enables rendering the body from a template. See <<notification-templates>>.
+
+To choose a notification type in the modeler, register types as described in xref:notifications:configuration.adoc#notification-types[Notification Types]. To read in-app notifications, recipients need a role described in xref:notifications:configuration.adoc#roles[Security Roles].
+
+[[notification-properties]]
+=== Notification Properties
+
+The *Notifications* section shows a list of notifications. Use the *Create*, *Edit* and *Remove* buttons to manage them. A notification has the following properties:
+
+[cols="1,6", grid=rows, frame=none]
+|===
+|*Property*
+|*Description*
+
+|Subject
+|The notification subject, required. It can contain <<notification-expressions,expressions>>.
+
+|Type
+|An optional notification type. It sets the icon of the notification in the UI. The list shows the xref:notifications:configuration.adoc#notification-types[registered types], and you can also enter a type name.
+
+|Recipient
+|Who receives the notification, required. See <<notification-recipients>>.
+
+|Recipient expression
+|The expression that returns the recipients. Shown when *Recipient* is *Expression*.
+
+|Channels
+|*In-app*, *Email* or both. At least one channel is required, *In-app* is selected by default. *Email* is available if the xref:email:index.adoc[Email Sending] add-on is installed.
+
+|Use message template, Message template
+|The template that renders the body. Available if the xref:message-templates:index.adoc[Message Templates] add-on is installed. See <<notification-templates>>.
+
+|Content type
+|*Plain text* or *HTML*. For HTML, the body editor is a rich text editor. If you switch from HTML to plain text, the modeler asks for confirmation and clears the body. Hidden when a message template is used.
+
+|Body
+|The notification text. It can contain <<notification-expressions,expressions>>. Hidden when a message template is used.
+|===
+
+In XML, each notification is a `jmix:notification` extension element. Its attributes are `recipientType`, `recipientExpression`, `channels`, `type`, `contentType` and `templateCode`, and its child elements are `jmix:subject` and `jmix:body`.
+
+[[notification-recipients]]
+=== Notification Recipients
+
+[cols="1,1,4", options=header]
+|===
+|Recipient
+|XML value
+|Description
+
+|Process initiator
+|`initiator`
+|The user stored in the xref:bpmn/bpmn-user-task.adoc#assign-task-by-process-variable[initiator] process variable.
+
+|Expression
+|`expression`
+|The result of the *Recipient expression*. The expression can return a username, a user, or a collection of them, for example, `+${order.manager}+` or `+${reviewers}+`.
+|===
+
+Each recipient receives a separate notification, and the subject and body are rendered for this recipient. A user receives one notification even if the expression returns the user several times. A username that doesn't belong to an existing user is skipped.
+
+include::partial$notification-content.adoc[]
