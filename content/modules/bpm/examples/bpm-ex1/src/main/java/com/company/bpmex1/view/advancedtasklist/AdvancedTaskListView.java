@@ -174,9 +174,9 @@ public class AdvancedTaskListView extends StandardListView<TaskData> {
     public void onFilterBtnClick(final ClickEvent<JmixButton> event) {
         filterContainer.setVisible(!filterContainer.isVisible());
         if (filterContainer.isVisible()) {
-            filterBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            filterBtn.addThemeVariants(ButtonVariant.PRIMARY);
         } else {
-            filterBtn.removeThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            filterBtn.removeThemeVariants(ButtonVariant.PRIMARY);
         }
     }
 
