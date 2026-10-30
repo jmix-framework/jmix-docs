@@ -1,30 +1,34 @@
 = Job Executor
 
-The *Job Executor* is a key component responsible for managing and executing asynchronous jobs within the  process engine.
-It handles tasks such as timers, asynchronous continuations, and other background processes that need to be executed outside the main process flow.
-By offloading these tasks, the job executor ensures that the main execution thread remains responsive and efficient.
-
-The job executor operates in a multithreaded environment, allowing it to process multiple jobs concurrently.
-It retrieves jobs from the database, executes them, and updates their status accordingly.
-This mechanism is essential for implementing features like delayed tasks and scheduled events in business processes.
+The job executor runs the jobs of the process engine in background threads.
+The Flowable documentation calls it the async executor and describes how it works, see https://www.flowable.com/open-source/docs/bpmn/ch18-Advanced#async-executor[Async Executor^].
 
 [[job-types]]
 == Job Types
 
-There are two primary types of jobs managed by the job executor:
+The process engine creates jobs for:
 
-* *Timer Jobs*: These are scheduled to trigger at specific times,
-often associated with boundary events in BPMN models.
-* *Async Jobs*: Created when an element is marked with the `flowable:async="true"` or `flowable:asyncLeave="true"` attribute,
-indicating that it should be executed or left asynchronously.
-See xref:bpm:bpmn/transactions.adoc#asynchronous-continuation[Asynchronous Continuation].
+* xref:bpm:bpmn/transactions.adoc#asynchronous-continuation[Asynchronous continuations]: elements with the *Asynchronous* or *Asynchronous leave* property.
+* xref:bpm:bpmn/bpmn-events.adoc#timer-events[Timer events].
 
-[[execution-flow]]
-== Execution Flow
+[[failed-jobs]]
+== Retries and Failed Jobs
 
-* When a process instance reaches a point where an async job or timer is necessary,
-the job executor inserts a corresponding entry into the `ACT_RU_JOB` table.
-* For timer jobs, a thread periodically checks for jobs that are due and triggers them accordingly.
-* For async jobs, once an API call that creates the job is successfully committed,
-a transaction listener activates the job executor to execute the job.
+If a job throws an exception, the process engine rolls back the job's transaction and retries the job later.
+By default, a job has 3 retries.
+To change the default, call `setAsyncExecutorNumberOfRetries()` in a xref:bpm:process-engine.adoc#process-engine-configuration[process engine configurer].
+To set the number of retries and the delay between them for a service task, use its xref:bpm:bpmn/bpmn-service-task.adoc#configuring-fail-retry[*Failed job retry time cycle*] property.
 
+When a job has no retries left, it becomes a failed job, which Flowable calls a dead letter job.
+The job executor doesn't execute failed jobs.
+To see, restore or delete them, use the *Failed jobs* tab of the xref:bpm:menu-views/process-instances.adoc#process-instance-detail[process instance detail view].
+
+Retries apply only to jobs.
+If an element runs in the transaction of an API call, for example, a service task that follows a user task, an exception rolls back this transaction to the last wait state and goes to the caller.
+See xref:bpm:bpmn/transactions.adoc[].
+
+[[job-executor-configuration]]
+== Job Executor Configuration
+
+To configure how the job executor acquires and locks jobs, use the `flowable.process.async.executor.*` application properties.
+See https://www.flowable.com/open-source/docs/bpmn/ch05a-Spring-Boot#configuring-async-executors[Configuring Async Executors^] in the Flowable documentation, which also explains which thread pool the job executor uses.

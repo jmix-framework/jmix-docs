@@ -1,9 +1,6 @@
 = Transactions
 
 The process engine executes processes in a transactional manner.
-A *BPMN transaction* is a logical unit of work that groups a set of activities together,
-ensuring that either all activities succeed or, if any activity fails,
-the effects of the completed activities are undone through compensating actions.
 
 It means when you trigger an action such as starting a process, completing a task, or signaling an execution,
 the engine advances through the process until it encounters waiting states on all active execution paths.
@@ -61,11 +58,7 @@ What we want process engine to do is complete user task (1),
 commit the transaction and return the control to the calling application.
 
 Then we want to generate the invoice asynchronously, in a background thread.
-This background thread is the xref:bpm:job-executor.adoc[Job Executor] (actually a thread pool)
-that periodically polls the database for jobs.
-Behind the scenes, when we reach the "generate invoice" task, we are creating a job "message" for the process engine
-to continue the process later and persisting it into the database.
-This job is then picked up by the job executor and executed.
+The process engine stores a job for the "generate invoice" task in the database, and the xref:bpm:job-executor.adoc[job executor] executes it after the transaction commits.
 
 To use this feature, set the `flowable:async` <<asynchronous-execution-properties,attribute>> of the element.
 In the modeler, select the *Asynchronous* checkbox in the element properties, for example, of a xref:bpmn/bpmn-service-task.adoc#properties[service task].
@@ -111,29 +104,3 @@ For example, the following service task is on one of the parallel paths after a 
 When parallel paths with non-exclusive jobs arrive at the joining gateway at the same time, one of the transactions can fail with an optimistic locking exception, and the job executor retries the failed job.
 So, make jobs non-exclusive only if the work of the element can be safely repeated.
 For details, see https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#exclusive-jobs[Exclusive Jobs^] in the Flowable documentation.
-
-[[fail-retry]]
-== Fail Retry
-
-In BPMN, the concept of *fail retry* refers to the mechanisms implemented to handle failures in service tasks.
-When a task fails due to an error,
-the BPMN engine can automatically retry the execution of that task based on predefined configurations.
-There are two parameters:
-
-* Number of retries
-* Delay between retries
-
-If the task returns BPMN error, Job Executor waits a specified time and tries to execute the task again.
-If the maximum number of retries is reached and the task still fails, an incident is created,
-allowing for manual intervention or further error handling.
-
-[IMPORTANT]
-====
-Fail retry is applicable to asynchronous tasks only.
-====
-
-[NOTE]
-====
-For synchronous service tasks, retries are not automatically handled by the process engine.
-If a synchronous task fails, it will throw an exception and stop the process instance.
-====
