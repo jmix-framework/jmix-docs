@@ -1,7 +1,217 @@
-= Gateways
+= Conditions and Gateways
+:page-aliases: bpm:bpmn/bpmn-sequence-flow.adoc
 
-[[overview]]
-== Overview
+Sequence flows connect the elements of a process. Conditions on sequence flows and gateways decide which path the process takes. In Jmix BPM, a condition can come from an expression, a user task outcome, or a business rule task result.
+
+[[sequence-flows]]
+== Sequence Flows
+
+Sequence flow is a BPMN element that represents the order in which activities are performed within a business process.
+It defines the logical flow of work or information from one activity to another,
+indicating the sequence in which tasks or subprocesses should be executed.
+
+Sequence flows connect two activities in a BPMN diagram,
+showing the direction in which the process flows and the dependencies between activities.
+They play a crucial role in visualizing and modeling the flow of work within a business process,
+helping to ensure clarity and consistency in process design.
+
+
+[[graphical-flows]]
+=== Graphical and XML Representation
+
+A sequence flow is visualized as an arrow going from the source element towards the target element.
+The arrow always points towards the target.
+
+image::bpmn-sequence-flows/graphical-flow.png[,100]
+
+In the XML file sequence flows are represented as separate objects among other BPMN elements:
+
+[source, xml]
+----
+    <sequenceFlow id="Flow_1sjggq6" sourceRef="Event_15w11z6" targetRef="Gateway_0r2ejfv" />
+----
+
+You can see two XML attributes in the sequence flow description: _sourceRef_ and _targetRef_
+that are referencing elements where the arrow begins and ends.
+
+[[incoming-and-outgoing]]
+=== Incoming and Outgoing Flows
+
+As a sequence flow connects two activities, for the first one it is _outgoing_ and for the second one -- _incoming_ flow.
+
+image::bpmn-sequence-flows/incoming-outgoing-flows.png[,300]
+
+Best practice is to have the only one incoming and the only one outgoing flow for each activity.
+
+In the XML file you can see references to sequence flows in the corresponding BPMN element description:
+
+[source,xml]
+----
+    <task id="Activity_1pncn0v" name="Activity">
+      <incoming>Flow_1tncfsd</incoming>
+      <outgoing>Flow_1nxsuoi</outgoing>
+    </task>
+----
+
+[[sequence-flow-properties]]
+=== Sequence Flow Properties
+
+In the BPMN modeler, you can set the following properties of a sequence flow:
+
+image::bpmn-sequence-flows/flow-properties.png[,463]
+
+[cols="1,6", grid=rows, frame=none]
+|===
+|*Property*
+|*Description*
+include::partial$element-properties.adoc[tags=id;name]
+|Condition source
+|The source of the <<conditional-flow,condition>>: *Expression*, *User task outcome*, or *Business rule task result*. See <<gateways-conditions,Conditions>>.
+|Condition expression
+|The condition for the *Expression* source. See <<expressions,Expressions>>.
+|User task id, User task outcome
+|The user task and its outcome for the *User task outcome* source. See <<user-task-outcomes,User Task Outcomes>>.
+|Condition type
+|The completion condition for a multi-instance user task. Available for the *User task outcome* source when the selected user task is multi-instance. See xref:bpmn/multi-instance-activities.adoc[Multi-Instance].
+|Business rule task, Decision table output variable name, Decision table output value
+|The business rule task and its result for the *Business rule task result* source. See <<business-rule-task-result,Business Rule Task Result>>.
+include::partial$element-properties.adoc[tag=execution-listeners]
+include::partial$element-properties.adoc[tag=documentation]
+|===
+
+[[conditional-flow]]
+=== Conditional Sequence Flow
+
+BPMN 2.0 defines a _conditional flow_ as a special element of notation.
+Graphically, it is represented as a regular sequence flow with a mini-diamond at the beginning of the connector line,
+see below:
+
+image::bpmn-sequence-flows/conditional-flow.png[,200]
+
+Conditional flow  can be used only as _outgoing_ flow for activity.
+The condition must be evaluated at runtime to determine whether the sequence flow will be used or not.
+
+In *Jmix BPM* all sequence flows may have a condition, but it will be evaluated and used only when required.
+
+image::bpmn-sequence-flows/conditional-flow-example.png[,250]
+
+[CAUTION]
+====
+It is highly *not recommended* to use conditional flows because of the risk of errors.
+For example, in the picture above, the process will stop if the condition is _false_ and no other paths are available.
+====
+
+
+[[default-flow]]
+==== Default Sequence Flow
+
+All BPMN 2.0 tasks and gateways can have a default sequence flow.
+This sequence flow is only selected as the _outgoing_ sequence flow for activity or gateway.
+
+A default sequence flow is visualized as a regular sequence flow, with a 'slash' marker at the beginning.
+
+image::bpmn-sequence-flows/default-flow.png[,150]
+
+Default flow's behavior depends on the element it is used with.
+Conditions on a default sequence flow are always ignored.
+
+
+[[using-conditional-default-flows]]
+==== Using Conditional and Default Sequence Flows
+
+Though BPMN specification allows using conditional and default flows as in the picture below, avoid using them such way.
+It makes the diagram worse readable and ambiguous.
+
+image::bpmn-sequence-flows/sequence-flow-bad-example.png[,350]
+
+Instead of conditional and default flows, outgoing from the activity, better use gateway:
+
+image::bpmn-sequence-flows/using-flows-good-example.png[,450]
+
+In this example, you can see an exclusive gateway, parallel and inclusive gateways are also possible.
+
+[[gateways-conditions]]
+== Conditions
+
+A condition defines when a flow is taken. In *Jmix BPM*, condition can be set from the following sources:
+
+* Expression
+* User task outcomes
+* Business rule task result
+
+image::bpmn-gateways/condition-source.png[,400]
+
+[CAUTION]
+====
+In an exclusive gateway, check that every outgoing flow except the default one has a condition.
+The gateway treats an empty condition as true and takes the first flow, in XML order, whose condition is true or empty.
+A text label over an arrow means nothing to the engine.
+====
+
+[[expressions]]
+=== Expressions
+
+It is a boolean expression that can access the process variables and compare them with literals or other variables.
+As well, it's possible to call Spring bean methods here.
+
+For example:
+
+ ${orderAmount > 1000}
+ ${price > 100 && price <= 500}
+ ${accountant.username == "jane"}
+ ${jbt_MyService.getRandom > 0.5}
+ ${jbt_MyService.evaluateCondition()}
+
+In the last case, method must return _boolean_ value.
+
+[[user-task-outcomes]]
+=== User Task Outcomes
+
+If there is in the process a user task with outcomes, you can select a certain outcome that activates the given flow.
+
+image::bpmn-gateways/exclisive-gateway-task-outcome.png[]
+
+To set up outcome-based condition, select a user task, then outcome.
+
+When selecting a user task for condition, be sure that it is to be executed *BEFORE* the condition is evaluated.
+Otherwise, it  causes an error at runtime.
+
+// image::exclusive-gateway-wrong-task.png[,300]
+// image::exclusive-gateway-wrong-condition.png[,300]
+
+*Conditions and Multi-instance user task*
+
+When a user task is xref:bpm:bpmn/multi-instance-activities.adoc[multi-instance],
+an additional parameter appears -- _condition type_:
+
+image::bpmn-gateways/outcome-based-condition-types.png[,300]
+
+There are the following options:
+
+* Anyone completed with the outcome
+* Everyone completed with the outcome
+* No one completed with the outcome
+
+Using this parameter, you can arrange some kind of voting.
+For example, this flow will be selected when at least one user has completed the task with the outcome 'yes'.
+
+image::bpmn-gateways/outcome-based-condition.png[,600]
+
+[[business-rule-task-result]]
+=== Business Rule Task Result
+
+A xref:bpm:bpmn/bpmn-business-rule-task.adoc[business rule] task returns a result
+that can be used in gateway's condition.
+
+image::bpmn-gateways/exclusive-gateway-business-rule.png[,600]
+
+To set up a condition, based on the business rule result,
+select a business rule task, decision table output variable, and output value.
+
+Be sure that selected business rule task is executed *BEFORE* the gateway.
+
+[[gateways]]
+== Gateways
 Gateways are used to control the flow of a process by determining under what conditions a process should proceed along different paths.
 Each type of gateway serves a specific purpose in directing the flow of a process based on certain conditions or events.
 
@@ -80,92 +290,9 @@ rather than the visual representation or textual description of the flows within
 
 People often use questions as a name of exclusive gateway.
 For example, "Is the document approved?" But the gateway itself doesn't have any internal logic.
-To make a gateway really work, conditions must be defined on the outgoing flows.
+To make a gateway really work, conditions must be defined on the outgoing flows. See <<gateways-conditions>>.
 
-'''
-
-[[gateways-conditions]]
-=== Conditions
-
-A condition defines when a flow is taken. In *Jmix BPM*, condition can be set from the following sources:
-
-* Expression
-* User task outcomes
-* Business rule task result
-
-image::bpmn-gateways/condition-source.png[,400]
-
-[CAUTION]
-====
-Double check if all required conditions on outgoing flows are defined.
-Otherwise, if they are empty, the first one be selected.
-Text label over arrows means nothing for the BPM engine.
-====
-
-[[expressions]]
-==== Expressions
-
-It is a boolean expression that can access the process variables and compare them with literals or other variables.
-As well, it's possible to call Spring bean methods here.
-
-For example:
-
- ${orderAmount > 1000}
- ${price > 100 && price <= 500}
- ${accountant.username == "jane"}
- ${jbt_MyService.getRandom > 0.5}
- ${jbt_MyService.evaluateCondition()}
-
-In the last case, method must return _boolean_ value.
-
-[[user-task-outcomes]]
-==== User Task Outcomes
-
-If there is in the process a user task with outcomes, you can select a certain outcome that activates the given flow.
-
-image::bpmn-gateways/exclisive-gateway-task-outcome.png[]
-
-To set up outcome-based condition, select a user task, then outcome.
-
-When selecting a user task for condition, be sure that it is to be executed *BEFORE* the condition is evaluated.
-Otherwise, it  causes an error at runtime.
-
-// image::exclusive-gateway-wrong-task.png[,300]
-// image::exclusive-gateway-wrong-condition.png[,300]
-
-*Conditions and Multi-instance user task*
-
-When a user task is xref:bpm:bpmn/multi-instance-activities.adoc[multi-instance],
-an additional parameter appears -- _condition type_:
-
-image::bpmn-gateways/outcome-based-condition-types.png[,300]
-
-There are the following options:
-
-* Anyone completed with the outcome
-* Everyone completed with the outcome
-* No one completed with the outcome
-
-Using this parameter, you can arrange some kind of voting.
-For example, this flow will be selected when at least one user has completed the task with the outcome 'yes'.
-
-image::bpmn-gateways/outcome-based-condition.png[,600]
-
-[[business-rule-task-result]]
-==== Business Rule Task Result
-
-A xref:bpm:bpmn/bpmn-business-rule-task.adoc[business rule] task returns a result
-that can be used in gateway's condition.
-
-image::bpmn-gateways/exclusive-gateway-business-rule.png[,600]
-
-To set up a condition, based on the business rule result,
-select a business rule task, decision table output variable, and output value.
-
-Be sure that selected business rule task is executed *BEFORE* the gateway.
-
-
-[[default-flow]]
+[[exclusive-gateway-default-flow]]
 === Default Flow
 
 If there is one of outgoing flows marked as default (by the slash line across),
