@@ -1,187 +1,153 @@
 = Observability
 
-Observability is the ability to understand application behavior through three types of signals: logs, metrics, and traces. Together, they help you investigate failures, analyze performance, and understand how requests move through the system.
+Observability is the ability to understand what happens inside a running application from four types of signals:
 
-Jmix does not introduce a separate observability model. Instead, it builds on the standard Spring Boot ecosystem, primarily Spring Boot Actuator, Micrometer, and Micrometer Observation / Tracing.
+* Metrics are statistics collected over many operations in a time interval: how many times an operation ran, its average and maximum duration, how much memory is used. A metric shows how the application behaves as a whole rather than individual operations.
+* Traces show the path of a single request through components and services, including requests handled by several applications: which operations the request consisted of and how long each of them took.
+* Logs are text records of events: what happened, for which user, with which error.
+* Profiles are samples of call stacks: in which methods the application spends CPU time, where it allocates memory and where threads wait for locks.
 
-Observability is different from xref:audit:index.adoc[Audit]. Audit is used to track who changed business data and when. Observability is used to analyze runtime behavior, performance, failures, and request flow.
+Jmix uses standard observability tools: logging through SLF4J and Logback, Spring Boot Actuator, Micrometer and Micrometer Observation, and the Pyroscope Java agent for profiles. The settings and export options for signals are the same as in any Spring Boot application.
 
-[[logging]]
-== Logging
+[[jmix-additions]]
+== Jmix-Specific Features
 
-Logs are the simplest way to observe a running application. They are useful for troubleshooting, diagnostics, and investigating production errors.
+[[framework-observations]]
+=== Observations of Data Loading, Views and UI Actions
 
-In Jmix applications, logging is configured in the same way as in Spring Boot. Log levels are usually set in `application.properties`, globally or for individual packages and classes. For example:
+Jmix wraps data loading and saving, the lifecycle stages of views, fragments and data loaders, and the execution of UI actions in Micrometer observations. A single observation produces both a metric and a trace span if the corresponding Spring Boot modules are added to the application.
 
-[source,properties]
-.application.properties
-----
-logging.level.eclipselink.logging.sql=debug
-logging.level.io.jmix=debug
-logging.level.org.springframework=info
-----
+The Jmix UI is built on Vaadin, and in a Vaadin application the standard Spring Boot metrics and traces are not enough: they do not show which view opens slowly or which user action takes long. The reason is that Vaadin sends all user actions, such as opening a view, clicking a button or typing in a field, as requests to a single URL. In the `http.server.requests` metric all these requests fall into one series `+POST /**+`, and their spans all have the same name `+http post /**+`. Jmix UI observations record the missing information: the view ID, its lifecycle stage, the data loader and the action.
 
-These settings can help focus on a particular part of the system. For example, `eclipselink.logging.sql` shows generated SQL, while `io.jmix` enables debug output for Jmix framework code.
+[cols="1,2,1"]
+|===
+|Observation |What is measured |Property that enables it
 
-Use `DEBUG` logging carefully in production. It is often useful for short troubleshooting sessions, but keeping it enabled permanently can produce excessive output and affect performance.
+|`jmix.data.load`
+|Loading entities and values and counting records through `DataManager`, and therefore through Jmix repositories, UI data loaders and the REST API. Direct queries through `EntityManager` and JDBC are not measured
+.2+|xref:ROOT:app-properties.adoc#jmix.core.data-observation-enabled[jmix.core.data-observation-enabled]
 
-For detailed logging configuration and centralized log collection, see the following guides:
+|`jmix.data.save`
+|Saving and removing entities through the same paths
+
+|`jmix.ui.views`
+|View lifecycle stages
+.4+|xref:flow-ui:ui-properties.adoc#jmix.ui.ui-observation-enabled[jmix.ui.ui-observation-enabled]
+
+|`jmix.ui.fragments`
+|Fragment lifecycle stages
+
+|`jmix.ui.data`
+|Data loader stages
+
+|`jmix.ui.actions`
+|Execution of UI actions
+|===
+
+Both properties are `false` by default.
+
+[[user-in-observations]]
+=== User and Tenant Attributes in Observations
+
+Observations get the username (`jmix.user.username`) and, in applications with xref:multitenancy:index.adoc[multitenancy], the tenant ID (`jmix.user.tenantId`). This is controlled by the xref:ROOT:app-properties.adoc#jmix.core.use-user-info-for-observation[jmix.core.use-user-info-for-observation] property, `true` by default.
+
+[[user-in-logs]]
+=== Username in MDC
+
+MDC (Mapped Diagnostic Context) is a set of key-value pairs that Logback keeps for the current thread and can output in every log line. Jmix puts the current username into MDC under the `jmixUser` key. If the log line format outputs this key, every line, including Jmix lines and SQL statements, shows on behalf of which user the code ran, and the lines of one user can be selected among the lines of concurrent requests from other users. See xref:observability/logging.adoc#mdc[].
+
+[[email-timer]]
+=== Email Sending Metric
+
+The xref:email:index.adoc[Email] add-on records the time of sending emails in the `jmix.EmailSender.send` timer.
+
+[[connecting-signals]]
+== Connecting Metrics, Traces and Logs
+
+Signals of different types complement each other, and when investigating a problem you move from one to another: from a metric to traces, from a trace to log lines and a profile. This is possible because the signals of one request share common identifiers: metrics and spans share tags, spans and log lines share trace and span IDs, and profiles carry the root span ID.
+
+The metrics and spans of one observation have common tags: for example, the `jmix.ui.views` metric with the `view.id=User.list` tag and the spans of the same view. The metric points to a slow view, and the traces point to particular slow requests to it and the longest operations inside them. If metrics are collected from the `prometheus` endpoint, the Prometheus registry attaches trace IDs (exemplars) to timer values, and Grafana opens a trace directly from a point on the metric graph, see xref:observability/metrics.adoc#exemplars[].
+
+If tracing is enabled in the application, Spring Boot adds the current trace and span IDs to every log line. The ID from a log line leads to the trace of the request, and the trace leads to all log lines written during its execution, including those in other services.
+
+Profiles are linked to spans. If the Pyroscope span processor is added to tracing, the root span of a request opens the CPU or memory allocation profile recorded during that span, see xref:observability/profiling.adoc#span-profiles[]. A problem is investigated along the chain: the metric shows a slow view, the trace shows the longest operation of a request, the log shows the details of that operation, and the profile shows the methods that used CPU time and allocated memory.
+
+This chain is used, in particular, for data access problems: an inefficient JPQL query, an incomplete fetch plan, loading in a loop (the N+1 problem), waiting for a connection from the pool, or a slow SQL query. The `+jmix.data.*+` metrics and the connection pool metrics show which entities are loaded often or slowly, the loading spans show the JPQL query and its parameters, and the EclipseLink log lines show the generated SQL statements and their execution time. See xref:observability/performance.adoc[] for details.
+
+The figure below shows the trace of one request in Grafana. One application opens a list view, and the data loader of the view gets records through xref:rest-ds:index.adoc[REST DataStore] from a second application. The spans of both applications are collected in one tree: of the 99 ms of the request, the view took 78 ms, of which the data loader took 42 ms and the request processing in the second application took 31 ms.
+
+.Trace of a request that passed through two Jmix applications
+image::observability/trace-portal-backend.png["Trace in Grafana: view lifecycle, data loader, REST request and entity loading in the second application"]
+
+[[grafana]]
+== Viewing Tools
+
+Signals are exported by standard Spring Boot means, so you can choose any storage and viewing system. The application publishes metrics on the Actuator `prometheus` endpoint or sends them over the OTLP protocol. Traces and logs are sent over OTLP only.
+
+The `prometheus` endpoint returns metrics in the Prometheus text format. Many monitoring systems support this format (VictoriaMetrics, Zabbix, OpenTelemetry Collector and others), so the endpoint can be scraped not only by Prometheus. Micrometer can also send metrics directly to other systems (Datadog, Elastic, InfluxDB and others), see xref:observability/metrics.adoc#prometheus[].
+
+The examples in the Jmix observability articles and guides use LGTM, a set of open source tools from Grafana Labs. Loki stores logs, Tempo stores traces, Prometheus stores metrics, and all three signal types are viewed in Grafana. To avoid installing and configuring each tool separately, Grafana Labs provides the https://github.com/grafana/docker-otel-lgtm[grafana/otel-lgtm^] Docker image. The image contains all tools of the set, already configured and connected to each other. A container started from this image accepts application data over OTLP right away. Spring Boot recognizes this image: if it is described in the project's Docker Compose file, the application gets the addresses for sending logs, metrics and traces at startup, see {spring-boot-doc}/reference/features/dev-services.html[Development-time Services^]. The image is intended for development and demonstration; in production, the tools are deployed separately.
+
+Grafana offers three ways to view signals:
+
+* *Dashboards* are preconfigured sets of visualizations for continuous monitoring. A visualization (*Panel*) is a single graph, table or number; it is built from a query to a data source and refreshes automatically. For Jmix metrics, there are xref:observability/metrics.adoc#dashboards[ready-made dashboards] in the https://github.com/jmix-framework/jmix-grafana-dashboards[jmix-grafana-dashboards^] repository. The "Jmix 3 Monitoring" dashboard shows the rate and duration of view opening by lifecycle stage, the slowest views, the time of data loaders, fragments and actions, data operations by entity, as well as the database connection pool, HTTP requests and the JVM. The "Jmix 3 Full Observability" dashboard contains the same metrics with exemplars, as well as slow traces, logs and profiles. Dashboards are imported into Grafana from JSON files.
+* *Explore* runs arbitrary queries to one data source: PromQL to Prometheus, LogQL to Loki, TraceQL to Tempo.
+* *Drilldown* lets you browse without writing queries. The Metrics, Logs, Traces and Profiles apps show the available metrics, logs, traces and profiles and let you narrow the selection by labels and attributes. This way is used when it is not yet known what to look for.
+
+[[profiling]]
+== Profiling
+
+Logs, metrics and traces show what happened and how long it took. A profile shows what the time of a span was spent on: in which methods CPU time was used and memory was allocated. Profiles are collected by the Pyroscope Java agent without changes to the application code, and the Pyroscope span processor links a profile to a particular request, including requests in which Jmix views and data loading run. See xref:observability/profiling.adoc[] for details.
+
+[[custom]]
+== Metrics and Traces of Business Operations
+
+In addition to the standard Jmix metrics and traces, you can add your own for business operations of the application, such as placing an order. The operation is wrapped in an observation using the Micrometer `Observation` API: one observation produces both a timer in metrics and a span in the trace, and framework calls inside the operation, such as data loading and saving, become its child spans. If a span is not needed, for example for a counter of placed orders, the metric is registered directly through `MeterRegistry`. See xref:observability/metrics.adoc#custom-metrics[] and xref:observability/tracing.adoc#custom-spans[] for details.
+
+[[production]]
+== Observability in Production
+
+Observability data can be collected continuously, including on production servers, if collection is configured as described below. Continuous collection lets you:
+
+* detect performance degradation: the accumulated data shows, for example, that a view started to open slower after a new version was released;
+* investigate incidents using the data collected before and during the failure, without reproducing the failure;
+* get notified about events, primarily abnormal ones: growing response time, errors, unavailable services;
+* notice problems before users run into them: a gradual growth of response time, database connection pool usage or memory consumption shows that a resource is approaching its limit, and the alert fires before the failure;
+* plan resources: the load history shows how the number of requests and users grows and when the current servers will no longer be enough.
+
+Continuous collection has an overhead: the application spends CPU time and memory on recording data, and storage and log files grow in size. This overhead can be limited: all tools that Jmix uses let you collect detailed data only where it is needed and collect the rest in a reduced form or turn it off. The configuration for continuous operation follows these principles:
+
+* Detailed data is collected on demand. Summary data is collected continuously: `info` level logs, metrics, a share of traces. Detailed output is enabled for a particular part of the application for the time of the investigation, without a restart.
+* Only the needed data is collected. Observation groups, metrics and spans that nobody looks at are disabled, and histograms are enabled only where percentiles are needed.
+* Metric tags do not get unique values. The monitoring system stores a separate history of a metric for every tag value. If a username or order number is written to a tag, there will be as many histories as there are users or orders, and the amount of stored data grows quickly. Such values are written to traces and logs.
+* The retention period depends on the data type. Metrics are compact and are needed for comparison with past periods, so they are kept longer than logs, traces and profiles.
+* Access to the data is restricted. Spans and logs can contain query texts, parameter values and usernames, so the storage systems and the Actuator endpoints are closed to outsiders.
+
+With such a configuration, the overhead can be small compared to the work of the application itself.
+
+The settings for continuous operation are described in the article on each data type:
+
+* xref:observability/metrics.adoc#production[Metrics]: observation groups, histograms, the number of series, the export interval, the retention period, access to Actuator endpoints.
+* xref:observability/tracing.adoc#production[Traces]: the share of sampled traces, filtering in OpenTelemetry Collector, disabling unneeded observations, protecting query parameters, the retention period.
+* xref:observability/logging.adoc#production[Logs]: the permanent log level, SQL output, the retention period.
+* xref:observability/profiling.adoc#production[Profiles]: memory allocation and lock profiles, the retention period.
+
+[[sections]]
+== Sections
+
+* xref:observability/metrics.adoc[]: all Jmix metrics, UI metric modes, the Prometheus endpoint and OTLP export, ready-made Grafana dashboards.
+* xref:observability/tracing.adoc[]: Jmix spans and their attributes, export through OpenTelemetry, the share of traces, viewing traces in Grafana.
+* xref:observability/logging.adoc[]: log levels and the main logging categories, the username and trace IDs in MDC, centralized log collection.
+* xref:observability/profiling.adoc[]: the Pyroscope Java agent, reading the profile of a Vaadin request, linking profiles to spans.
+* xref:observability/performance.adoc[]: the order of investigating performance problems: slow views, extra database queries (N+1), waiting for connections, CPU load, memory and memory leaks.
+
+Step-by-step guides with working examples:
 
 * xref:application-logging-guide:index.adoc[]
 * xref:observability-logging-guide:index.adoc[]
+* xref:observability-tracing-guide:index.adoc[]
+* xref:observability-monitoring-guide:index.adoc[]
 
-[[metrics-and-monitoring]]
-== Metrics and Monitoring
+Additional materials:
 
-Metrics are numeric measurements collected over time. They are used to observe throughput, latency, error rate, resource consumption, and internal framework and application activity. Monitoring is the process of collecting, storing, visualizing, and alerting on these metrics.
-
-A typical Spring Boot application exposes metrics through Actuator and Micrometer. These metrics usually include JVM memory and garbage collection, CPU and process data, thread pools, HTTP server requests, datasource pools.
-
-Jmix adds timer metrics for selected framework operations. These metrics are recorded through Micrometer `MeterRegistry`.
-
-Jmix provides a default `MeterRegistry` bean, and exporting metrics depends on the Spring Boot Actuator and Micrometer registry configuration.
-
-.Metric names and tags
-[cols="1,2,3"]
-|===
-|Name | Tags |Description
-
-|`jmix.ui.views`
-|`view`, `lifeCycle`
-|Duration of UI view lifecycle stages (for example create/show/close) per view.
-
-|`jmix.ui.data`
-|`dataLoader`, `view`, `lifeCycle`
-|Duration of UI data loader lifecycle stages inside a specific view.
-
-|`jmix.EmailSender.send`
-|No custom tags
-|Time spent sending an email message through the framework email sender.
-
-|`jmix.JavaClassLoader.loadClass`
-|No custom tags
-|Time spent resolving/loading a Java class by the dynamic class loader.
-|===
-
-UI lifecycle values include:
-
-* View lifecycle: `create`, `load`, `inject`, `init`, `beforeShow`, `ready`, `beforeClose`, `afterClose`
-* Data loader lifecycle: `preLoad`, `load`, `postLoad`
-
-For a typical monitoring setup, add Spring Boot Actuator and a Micrometer registry for the monitoring backend used in your infrastructure. For example, to expose Prometheus-compatible metrics, add the following dependencies:
-
-[source,groovy]
-.build.gradle
-----
-implementation 'org.springframework.boot:spring-boot-starter-actuator'
-implementation 'io.micrometer:micrometer-registry-prometheus'
-----
-
-Then expose the Prometheus endpoint in the application:
-
-[source,properties]
-.application.properties
-----
-management.endpoints.web.exposure.include=*
-management.endpoints.prometheus.enabled=true
-----
-
-Prometheus can then scrape the `/actuator/prometheus` endpoint. Keep the list of exposed management endpoints as small as possible in production.
-
-For additional information, see:
-
-* {spring-boot-doc}/reference/actuator/metrics.html[Spring Boot Actuator Metrics^]
-* {spring-boot-doc}/reference/actuator/observability.html[Spring Boot Observability^]
-* https://docs.micrometer.io/micrometer/reference/concepts/meters.html[Micrometer Meters^]
-
-[[tracing]]
-== Tracing
-
-Tracing shows how a request or operation moves through an application. It helps identify latency, failures, and dependencies between components. Tracing becomes especially useful when several services or infrastructure layers participate in request processing.
-
-In a typical tracing setup, the application creates spans for important operations, propagates trace context across service boundaries, and sends trace data to a backend for storage and analysis. Trace identifiers can also be added to logs to correlate log records with traces.
-
-Jmix uses Micrometer Observation API to create spans for framework operations. Built-in tracing covers the following areas:
-
-* Data access operations such as load, count, and save
-* UI view lifecycle events
-* UI fragment lifecycle events
-* UI action execution
-
-Jmix can also enrich observations with the current user and tenant context.
-
-To enable Jmix tracing, set the following properties:
-
-[source,properties]
-----
-jmix.core.data-observation-enabled=true
-jmix.ui.ui-observation-enabled=true
-----
-
-To include current user information in observation attributes, use:
-
-[source,properties]
-----
-jmix.core.use-user-info-for-observation=true
-----
-
-The `jmix.core.use-user-info-for-observation` property is enabled by default. Disable it if user or tenant data must not be added to observations.
-
-.Span names and attributes
-[cols="1,2,3"]
-|===
-|Name |Key attributes |Description
-
-|`jmix.data.load`
-|`method`, `entity.name`; may include `jpql.query`, `jpql.parameters`, `properties`
-|Data read operations performed by the framework (entity/value load and count flows).
-
-|`jmix.data.save`
-|`method`, `dataStore`; may include `entitiesToSave.count`, `entitiesToRemove.count`
-|Data write operations performed by the framework when saving/removing entities.
-
-|`jmix.ui.views`
-|`lifecycle.name`, `view.id`, `view.class`
-|UI view lifecycle events represented as tracing/observation spans.
-
-|`jmix.ui.fragments`
-|`lifecycle.name`, `fragment.class`, optional `fragment.id`
-|UI fragment creation/ready lifecycle events represented as spans.
-
-|`jmix.ui.actions`
-|`action.id`, optional `target.id`
-|Execution of UI actions (for example button/menu actions) represented as spans.
-|===
-
-When context enrichment is enabled, observations may also include:
-
-* `jmix.user.username`
-* `jmix.user.tenantId` in xref:multitenancy:index.adoc[multitenancy] setups
-
-For distributed tracing across service boundaries, add the OpenTelemetry starter to the application. Starting with Spring Boot 4, `spring-boot-starter-opentelemetry` is the recommended way to integrate OpenTelemetry: it bundles the Micrometer tracing bridge and the OTLP exporter and wires them into Spring Boot's observability infrastructure. Spring Boot Actuator then configures an `ObservationRegistry` bean and connects it to tracing. A typical setup for a Jmix application is:
-
-[source,groovy]
-.build.gradle
-----
-implementation 'org.springframework.boot:spring-boot-starter-actuator'
-implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
-----
-
-[source,properties]
-.application.properties
-----
-management.tracing.sampling.probability=0.1
-management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:4318/v1/traces
-----
-
-When the application makes outbound HTTP calls, build clients from the auto-configured `RestTemplateBuilder` or `RestClient.Builder` so that trace headers are added to requests automatically.
-
-For detailed configuration and examples, see the xref:observability-tracing-guide:index.adoc[].
-
-For additional information, see:
-
-* {spring-boot-doc}/reference/actuator/tracing.html[Spring Boot Tracing^]
-* {spring-boot-doc}/reference/actuator/observability.html[Spring Boot Observability^]
-* https://spring.io/blog/2025/11/18/opentelemetry-with-spring-boot[OpenTelemetry with Spring Boot^]
-* https://docs.micrometer.io/micrometer/reference/observation.html[Micrometer Observation^]
-* https://docs.micrometer.io/tracing/reference/index.html[Micrometer Tracing^]
+* https://www.jmix.io/blog/monitoring-active-users-in-enterprise-applications-with-jmix/[Monitoring Active Users in Enterprise Applications with Jmix^]: metrics of the number of active users (DAU, WAU, MAU), the https://github.com/jmix-projects/jmix-app-usage-metrics-sample[jmix-app-usage-metrics-sample^] example application.
