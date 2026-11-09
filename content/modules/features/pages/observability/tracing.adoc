@@ -115,7 +115,20 @@ The values of the tags shared with metrics are described on the xref:features:ob
 
 Counting values through `DataManager.getCount(ValueLoadContext)` is recorded as a span named `load values` with the `method=getCount` attribute.
 
-The figure shows a part of the trace of opening a view: the `data loader lifecycle` span of the view loader, and inside it, loading through REST DataStore and request processing in the second application. The selected `load list of entities` span in the second application shows the Jmix attributes: the entity, the JPQL query text, the operation and the user on whose behalf the query was executed.
+For example, in the trace of opening the visit list in the portal, the `data loader lifecycle` span of the view loader contains loading through REST DataStore and request processing in the second application:
+
+[source,text]
+----
+view lifecycle (beforeShow)                              jmix-petclinic-portal
+└── data loader lifecycle (load, visitsDl)               jmix-petclinic-portal
+    └── load list of entities                            jmix-petclinic-portal
+        └── http post                                    jmix-petclinic-portal
+            └── http post /rest/entities/{entityName}/search   jmix-petclinic
+                └── secured request                      jmix-petclinic
+                    └── load list of entities            jmix-petclinic
+----
+
+The `load list of entities` span in the second application has the Jmix attributes: `entity.name` (`petclinic_Visit`), `jpql.query` with the JPQL query text, `method` with the operation and `jmix.user.username` with the user on whose behalf the query was executed.
 
 .A data loading span and its attributes in Grafana Tempo
 image::observability/trace-span-attributes.png["A part of a trace in Grafana: view lifecycle, data loader lifecycle, load list of entities, http post and the entity.name, jmix.user.username, jpql.query, method span attributes"]
@@ -160,10 +173,7 @@ All lifecycle spans of the `User.list` view opened by the `admin` user:
 
 To browse traces without writing queries, use *Drilldown* -> *Traces*: Grafana shows the request rate, errors and duration by service and span and lets you go from outliers on a graph to particular traces.
 
-.Span rate by name in Drilldown -> Traces
-image::observability/traces-drilldown.png["Grafana Traces Drilldown: span rate, errors, duration distribution and the breakdown by span name: authorize request, secured request, view lifecycle and others"]
-
-The upper part shows the rate of all spans, errors and the duration distribution; the lower part shows the same data by span name. In the figure, most spans are created by the Spring Security filter chain (`authorize request`, `secured request`, `security filterchain`): there are more of them than Jmix `view lifecycle` spans. If such spans are not needed, they are disabled, see <<production>>.
+The upper part of the page shows the rate of all spans, errors and the duration distribution; the lower part shows the same data by span name. In the Petclinic example, most spans are created by the Spring Security filter chain (`authorize request`, `secured request`, `security filterchain`): there are more of them than Jmix `view lifecycle` spans. If such spans are not needed, they are disabled, see <<production>>.
 
 Searching and viewing traces is built into Grafana. Slow requests, view stages and `DataManager` loads are collected in the *Traces* section of the "Jmix 3 Full Observability" dashboard, see xref:observability/metrics.adoc#dashboards[]. You can also go to a trace from other signals: from a log line by the trace ID, see xref:observability/logging.adoc#trace-ids[], and from an exemplar point on a metric graph, see xref:observability/metrics.adoc#exemplars[]. The root span of a request opens the CPU or memory allocation profile recorded during this span, see xref:observability/profiling.adoc#span-profiles[]. Going from a log line to a trace is shown in the xref:observability-tracing-guide:index.adoc[] guide.
 
