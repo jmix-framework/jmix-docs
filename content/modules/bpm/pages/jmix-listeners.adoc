@@ -1,69 +1,143 @@
 = Event Listeners
 :page-aliases: listeners.adoc
 
-There are several approaches to handle process engine events like task creation, activity completion, and so on.
+NOTE: You can use xref:bpm:bpmn/bpmn-user-task.adoc#notifications[notifications] of user tasks to send in-app messages and emails when a task is created, assigned, completed or deleted. Use the listeners described on this page for other reactions to process events.
+
+You can make your code react to what happens in a process in three ways:
+
+* <<element-listeners>>: execution and task listeners that you set on BPMN elements.
+* <<engine-events>>: listeners of engine events, for all processes or for one process.
+* <<spring-events-bpm>>: seven engine events that the BPM add-on publishes as Spring application events.
+
+[[element-listeners]]
+== Listeners on BPMN Elements
+
+Execution and task listeners are part of the process definition. You set them on BPMN elements, and the engine calls them at points in the lifecycle of these elements.
 
 [[execution-listeners]]
-== Execution Listeners
+=== Execution Listeners
 
-You can define an execution listener for a particular process node. See https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#execution-listener[Flowable documentation^] for details.
+You can set execution listeners on the elements that have the *Execution listeners* property, see the element pages in the xref:bpm:bpmn/bpmn-elements.adoc[Element Reference].
 
-Process modeler provides UI for configuring listeners.
+In the xref:bpm:menu-views/modeler-web.adoc[Modeler] view, the *Execution listener editor* has the following fields:
 
-In the execution listener editor, the drop-down list contains classes that implement the `org.flowable.engine.delegate.ExecutionListener` interface.
+* *Event*: *start* when the process execution reaches the element, *end* when it leaves the element, or *take* when it follows a sequence flow (sequence flows only).
+* *Type*:
+** *Java class*: a class that implements `org.flowable.engine.delegate.ExecutionListener` or `org.flowable.engine.delegate.JavaDelegate`. Select it in the *Class name* drop-down list.
+** *Expression*: an expression that the engine evaluates, for example, a call of a Spring bean method.
+** *Delegate expression*: an expression that returns a Spring bean, such as `+${myListener}+`. The drop-down list contains the Spring beans that implement `ExecutionListener` or `JavaDelegate`. You can also enter another expression.
+* *Fields*: values for the listener fields.
+
+The *Class name* drop-down list contains the classes of your application and Jmix add-ons that implement `ExecutionListener` or `JavaDelegate` themselves, not through a superclass. When you select a class, or a bean in the *Delegate expression* field, the editor adds the class fields of the `org.flowable.common.engine.api.delegate.Expression` type to the *Fields* section, so you only enter their values. The engine injects these values into the fields when it calls the listener, see https://flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs/#field-injection-on-execution-listeners[field injection^].
 
 [[task-listeners]]
-== Task Listeners
+=== Task Listeners
 
-In the task listener editor, the drop-down list contains classes that implement `org.flowable.engine.delegate.TaskListener` interface. If the class contains https://flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs/#field-injection-on-execution-listeners[injected fields^], then these fields will be automatically added to the *Fields* section of the listener editor.
+A task listener is called on user task events: *create*, *assignment*, *complete* and *delete*. Only user tasks have task listeners.
 
-== Global Event Listeners
+For the order of the events, the task listener editor and an XML example, see xref:bpm:bpmn/bpmn-user-task.adoc#setting-task-listeners[Setting Task Listeners].
 
-The second approach is to declare global event listeners provided by the Flowable framework, see https://flowable.com/open-source/docs/bpmn/ch03-Configuration/#event-handlers[Event handlers^] section. You can define them in the *Event listeners* section in the project properties panel.
+[[engine-events]]
+== Engine Events
+
+The process engine dispatches a typed event for each of its operations, for example, `PROCESS_STARTED`, `ACTIVITY_STARTED`, `TASK_ASSIGNED`, `TIMER_FIRED`, `JOB_EXECUTION_FAILURE` or `VARIABLE_UPDATED`. Events about engine entities also have an entity type, such as task or process instance. See https://flowable.com/open-source/docs/bpmn/ch03-Configuration/#event-handlers[Event handlers^] in the Flowable documentation.
+
+A listener of engine events implements `org.flowable.common.engine.api.delegate.event.FlowableEventListener`. Its `isFailOnException()` method sets what happens if the listener throws an exception: with `true`, the exception fails the engine operation; with `false`, the engine logs the exception and continues.
+
+[[engine-wide-event-listeners]]
+=== Engine-Wide Event Listeners
+
+You can register a listener for the engine events of all processes in the process engine configuration, see xref:bpm:process-engine.adoc#process-engine-configuration[Process Engine Configuration]. For the seven events that Jmix BPM publishes as <<spring-events-bpm,Spring events>>, a Spring event listener is simpler: it needs no engine configuration.
+
+[[process-event-listeners]]
+=== Process Event Listeners
+
+A process can have Flowable event listeners. The engine calls them only for the events of this process definition and its process instances, such as `TASK_ASSIGNED` or `TIMER_FIRED`. See https://flowable.com/open-source/docs/bpmn/ch03-Configuration/#adding-listeners-to-process-definitions[Adding listeners to process definitions^] in the Flowable documentation.
+
+In the Modeler view, you add process event listeners in the *Event listeners* section of the process properties. The *Event listener editor* has the following fields:
+
+* *Type*:
+** *Java class*: a class that implements `org.flowable.common.engine.api.delegate.event.FlowableEventListener`.
+** *Delegate expression*: an expression that returns a Spring bean that implements `FlowableEventListener`.
+* *Entity type*: the type of the entity whose events the listener receives, such as *Task* or *Process instance*.
+* *Events*: the engine event types that the listener receives.
 
 [[spring-events-bpm]]
-== Spring Events for BPM
+== Jmix BPM Spring Events
 
-BPM add-on additionally introduces a set of Spring application events. The following events are published:
+The BPM add-on publishes seven engine events as Spring application events of the `io.jmix.bpm.engine.events` package. You receive them for all processes in a method of a Spring bean annotated with `@EventListener`, without any settings in the process.
 
-* `UserTaskAssignedEvent`
-* `UserTaskCreatedEvent`
-* `UserTaskCompletedEvent`
-* `ActivityStartedEvent`
-* `ActivityCompletedEvent`
-* `ProcessStartedEvent`
-* `ProcessCompletedEvent`
+[cols="1,2", options="header"]
+|===
+|Spring event
+|Published when
 
-Here is an example of an event listener that sends an email notification each time a user task is assigned to a user:
+|`ProcessStartedEvent`
+|A process instance starts.
+
+|`ProcessCompletedEvent`
+|A process instance completes.
+
+|`ActivityStartedEvent`
+|The process execution reaches an activity.
+
+|`ActivityCompletedEvent`
+|An activity completes.
+
+|`UserTaskCreatedEvent`
+|A user task is created.
+
+|`UserTaskAssignedEvent`
+|The assignee of a user task changes.
+
+|`UserTaskCompletedEvent`
+|A user task is completed.
+|===
+
+The engine publishes these events synchronously, in the thread that changes the process and before the change is finished. So a listener runs with the permissions of the user whose action changed the process, and without an authenticated user when a timer or an asynchronous job changed it. If a listener throws an exception, the engine logs a warning and the process continues, but the remaining listeners of this event aren't called.
+
+`UserTaskAssignedEvent` is also published when a task is created with an assignee and when a task is unassigned.
+
+[[log-task-assignments]]
+=== Logging User Task Assignments
+
+The following listener writes a message to the log each time the assignee of a user task changes:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/listener/TaskAssignedNotificationSender.java[tags=event-listener-1;event-listener-2]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/listener/TaskAssignmentLogger.java[tags=event-listener-1;event-listener-2]
 ----
 
-<1> Declares that the method is an event listener.
-<2> The listener is fired each time the `UserTaskAssignedEvent` is published.
-<3> Gets `User` entity to get the user's first name and email address. The `UserTaskAssignedEvent` contains the `username` of the user to whom the task is assigned.
-<4> The `UserTaskAssignedEvent` contains a `Task` object which holds information about the user task.
-<5> Creates and sends email. See the xref:email:index.adoc[Email Sending Guide] for details.
+<1> The event contains the `Task` object with information about the user task.
+<2> `getProcessDefinition()` returns the definition of the process that the task belongs to.
+<3> `getUsername()` returns the username of the new assignee, or `null` if the task is unassigned.
 
-If you need to get a process variable value in the listener, you can do it this way:
+[[process-variable-in-event-listener]]
+=== Reading a Process Variable in an Event Listener
+
+To get a process variable value in the listener, pass the execution id of the task to `RuntimeService`:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/listener/TaskAssignedNotificationSender2.java[tags=get-variable-1;get-variable-2]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/listener/TaskAssignmentVariableLogger.java[tags=get-variable-1;get-variable-2]
 ----
 
-By default, a listener is fired when the user task is assigned in any process. If you want to send notifications only for specific process definition, you can check the process definition in the listener method body:
+[[filter-events-by-process-in-method]]
+=== Filtering Events by Process in the Listener Method
 
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/bpm/ex1/listener/TaskAssignedNotificationSender.java[tags=specific-process-1;specific-process-2]
-----
-
-or you can define a SpEL (Spring Expression Language) expression that should match in order to handle the event:
+By default, a listener is called when the user task is assigned in any process. To handle the events of a specific process definition only, check the process definition key in the listener method body:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/listener/TaskAssignedNotificationSender3.java[tags=spel-example-1;spel-example-2]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/listener/TaskAssignmentLogger.java[tags=specific-process-1;specific-process-2]
+----
+
+[[filter-events-by-process-with-spel]]
+=== Filtering Events by Process with a SpEL Condition
+
+Instead of checking the process definition in the method body, you can define a SpEL (Spring Expression Language) condition in the `@EventListener` annotation. Spring calls the method only for the events that match the condition:
+
+[source,java,indent=0]
+----
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/listener/TaskAssignmentSpelLogger.java[tags=spel-example-1;spel-example-2]
 ----
