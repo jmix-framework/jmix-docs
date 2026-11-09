@@ -117,7 +117,8 @@ After a UI change, build the site and run `node tools/ui-audit.mjs`. It checks k
 
 - In multi-locale examples use German (`de`) as the secondary locale.
 - Use anchored xrefs when linking to named application properties.
-- Give link text to a reference whose anchor is not a section heading, e.g. `<<minSaveInterval,minSaveInterval>>` for an anchor on a definition list item. A reference to a section can omit the text, because the section title is used.
+- Give link text to a reference whose anchor is not a section heading, e.g. `<<minSaveInterval,minSaveInterval>>` for an anchor on a definition list item. A reference to a section on the same page can omit the text, because the section title is used.
+- Give link text to an xref to a section on another page, e.g. `xref:studio:project.adoc#creating-new-project[Creating New Project]`. Use the section title as the text. Without text, the page shows the raw target, such as `studio:project.adoc#creating-new-project`. An xref to a whole page, such as `xref:setup.adoc[]`, can omit the text, because the page title is used.
 - Use bold text only for UI elements and keyboard shortcuts. Don't use bold for emphasis.
 - Write keyboard shortcuts in bold, e.g. `*Ctrl+Space*`. Don't use `kbd:[...]`.
 - Add `^` to the link text of external links so they open in a new tab, e.g. `{spring-framework-doc}/core/expressions.html[SpEL^]`.
