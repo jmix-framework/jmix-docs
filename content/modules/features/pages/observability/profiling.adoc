@@ -14,17 +14,14 @@ The agent samples stacks with the async-profiler library, which exists only for 
 [[reading]]
 == Reading a Profile
 
-.A part of the CPU profile of a Jmix application in Grafana: *Drilldown* -> *Profiles*
-image::observability/pyroscope-cpu-profile.png["A part of a flame graph in Grafana: under the Vaadin navigation frames are View.beforeEnter, the view lifecycle observation, the data loader and UnconstrainedDataManagerImpl.loadList; Jmix methods are highlighted by search"]
-
-A flame graph in Grafana is built from top to bottom: the top row is the whole profile time (`total`), and under each block are the functions it called. The block width is the share of CPU time that the function took together with everything it called. The figure shows a part of the Petclinic profile for 15 minutes of load: the `ServerRpcHandler.handleRpc` block is selected with the *Focus block* command, and Jmix methods are highlighted by searching for `jmix`. About 170 rows of Tomcat, Spring and Vaadin frames remain above the shown part, see <<hiding-frames>>. In the shown navigation branch, of the 6.6 minutes of CPU time taken by `View.beforeEnter`, 6.4 minutes were spent on data loading (`UnconstrainedDataManagerImpl.loadList`). The profile was collected while running in Docker with the Pyroscope agent.
+A flame graph in Grafana is built from top to bottom: the top row is the whole profile time (`total`), and under each block are the functions it called. The block width is the share of CPU time that the function took together with everything it called. For example, in the CPU profile of Petclinic for 15 minutes of load, about 170 rows of Tomcat, Spring and Vaadin frames lie above the Jmix code, see <<hiding-frames>>. To get to the Jmix code, select the `ServerRpcHandler.handleRpc` block with the *Focus block* command and highlight Jmix methods by searching for `jmix`. Under the Vaadin navigation frames are `View.beforeEnter`, the view lifecycle observation, the data loader and `UnconstrainedDataManagerImpl.loadList`. In this navigation branch, of the 6.6 minutes of CPU time taken by `View.beforeEnter`, 6.4 minutes were spent on data loading (`UnconstrainedDataManagerImpl.loadList`). The profile was collected while running in Docker with the Pyroscope agent.
 
 [[vaadin]]
 == Profile of a Vaadin Request
 
 User actions come to the application as Vaadin requests to a single URL and are not distinguished in Spring Boot metrics and traces, see xref:features:observability.adoc#framework-observations[].
 
-In a profile, handling a Vaadin request looks like a deep stack: a Tomcat thread, Spring Security filters, `VaadinServlet.service`, `UidlRequestHandler.synchronizedHandleRequest`, `ServerRpcHandler.handleRpc`, `AbstractNavigationStateRenderer` for navigation, and only under them the Jmix methods and the code of application views (`io/jmix/flowui/...`, the application package). So when reading a UI profile, Jmix and application methods are found by package name, as in the figure in the <<span-profiles>> section, or the service frames are hidden, see <<hiding-frames>>.
+In a profile, handling a Vaadin request looks like a deep stack: a Tomcat thread, Spring Security filters, `VaadinServlet.service`, `UidlRequestHandler.synchronizedHandleRequest`, `ServerRpcHandler.handleRpc`, `AbstractNavigationStateRenderer` for navigation, and only under them the Jmix methods and the code of application views (`io/jmix/flowui/...`, the application package). So when reading a UI profile, Jmix and application methods are found by package name, for example by searching for `jmix` in the flame graph, or the service frames are hidden, see <<hiding-frames>>.
 
 [[hiding-frames]]
 === Hiding Service Frames
@@ -55,10 +52,7 @@ docker run --rm -p 8081:8081 -v "$PWD:/p" golang:1.23-alpine \
 
 The export from Drilldown merges the smallest profile nodes into the `other` node, so for a detailed investigation, export the profile for a short interval.
 
-.The CPU profile of Petclinic in `pprof` without Tomcat, Spring, Vaadin and JDK frames
-image::observability/pprof-hidden-frames.png["The pprof web UI: the flame graph starts with View.beforeEnter, below are the Jmix UI observations, the data loader, DataManager.loadList and JpaDataStore"]
-
-In the figure, the graph starts with `View.beforeEnter`: under it are the view lifecycle observation, the data loader and `UnconstrainedDataManagerImpl.loadList`. In 4 minutes of load, `loadList` took 94 s of CPU time: 48 s of them are events after loading (`AbstractDataStore.fireEvent`, mostly `JpaLazyLoadingListener.afterEntityLoad`), and 29 s are query execution (`JpaDataStore.loadAll`). In the Grafana flame graph, this ratio is split across many stacks under Tomcat and Spring frames and is not visible.
+With these filters, the graph of the Petclinic CPU profile starts with `View.beforeEnter`: under it are the view lifecycle observation, the data loader and `UnconstrainedDataManagerImpl.loadList`. In 4 minutes of load, `loadList` took 94 s of CPU time: 48 s of them are events after loading (`AbstractDataStore.fireEvent`, mostly `JpaLazyLoadingListener.afterEntityLoad`), and 29 s are query execution (`JpaDataStore.loadAll`). In the Grafana flame graph, this ratio is split across many stacks under Tomcat and Spring frames and is not visible.
 
 [[vaadin-session-lock]]
 === Vaadin Session Lock
@@ -92,14 +86,11 @@ In Grafana, the details of such a span contain the *Profiles for this span* butt
 .The root span of a request and the CPU profile for the time of this span
 image::observability/trace-span-profile.png["Grafana: on the left, the request trace and the root span details with the Profiles for this span button; on the right, the flame graph of this span with collapsed frame groups and highlighted Jmix methods"]
 
-In the figure, the left part shows the details of a root span of a request that took 497 ms, and the right part shows the CPU profile for the time of this span: 300 ms of CPU time. The *Collapse all groups* button collapsed the chains of Tomcat, Spring and Vaadin frames into rows with the number of frames, for example `(158) java/lang/Thread.run`, and Jmix methods are highlighted by searching for `jmix`. The widest Jmix branch is `AbstractDataStore.fireEvent` (130 ms), the processing of loaded entities.
+For example, a root span of a request that took 497 ms has a CPU profile with 300 ms of CPU time. The *Collapse all groups* button collapses the chains of Tomcat, Spring and Vaadin frames into rows with the number of frames, for example `(158) java/lang/Thread.run`, and searching for `jmix` highlights Jmix methods. The widest Jmix branch of this profile is `AbstractDataStore.fireEvent` (130 ms), the processing of loaded entities.
 
 Memory allocation events are also labeled with the span ID. To see how much memory the request allocated and where, switch the profile type in the opened Pyroscope query to `memory` -> `alloc_in_new_tlab_bytes`.
 
-.Memory allocation profile for the time of a span
-image::observability/trace-span-memory-profile.png["Grafana: on the left, the request trace and the root span details; on the right, the memory allocation profile of this span with collapsed frame groups and highlighted Jmix methods"]
-
-The figure shows the same request and the memory allocation profile for the time of its root span: the request allocated 175 MiB, of which 89 MiB went to processing loaded entities (`AbstractDataStore.fireEvent` and `JpaLazyLoadingListener` called from it).
+For the same request, the memory allocation profile for the time of its root span shows that the request allocated 175 MiB, of which 89 MiB went to processing loaded entities (`AbstractDataStore.fireEvent` and `JpaLazyLoadingListener` called from it).
 
 Linking profiles to spans has limitations:
 
