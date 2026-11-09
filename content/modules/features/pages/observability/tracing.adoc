@@ -115,7 +115,20 @@ management.tracing.sampling.probability=1.0
 
 Подсчёт значений через `DataManager.getCount(ValueLoadContext)` записывается спаном с именем `load values` и атрибутом `method=getCount`.
 
-На рисунке — фрагмент трейса открытия экрана: спан `data loader lifecycle` загрузчика экрана, внутри него — загрузка через REST DataStore и обработка запроса во втором приложении. У выбранного спана `load list of entities` во втором приложении видны атрибуты Jmix: сущность, текст JPQL-запроса, операция и пользователь, от имени которого выполнен запрос.
+Например, в трейсе открытия списка визитов в портале спан `data loader lifecycle` загрузчика экрана содержит загрузку через REST DataStore и обработку запроса во втором приложении:
+
+[source,text]
+----
+view lifecycle (beforeShow)                              jmix-petclinic-portal
+└── data loader lifecycle (load, visitsDl)               jmix-petclinic-portal
+    └── load list of entities                            jmix-petclinic-portal
+        └── http post                                    jmix-petclinic-portal
+            └── http post /rest/entities/{entityName}/search   jmix-petclinic
+                └── secured request                      jmix-petclinic
+                    └── load list of entities            jmix-petclinic
+----
+
+У спана `load list of entities` во втором приложении есть атрибуты Jmix: `entity.name` (`petclinic_Visit`), `jpql.query` с текстом JPQL-запроса, `method` с операцией и `jmix.user.username` с пользователем, от имени которого выполнен запрос.
 
 .Спан загрузки данных и его атрибуты в Grafana Tempo
 image::observability/trace-span-attributes.png["Фрагмент трейса в Grafana: view lifecycle, data loader lifecycle, load list of entities, http post и атрибуты спана entity.name, jmix.user.username, jpql.query, method"]
@@ -160,10 +173,7 @@ image::observability/trace-span-attributes.png["Фрагмент трейса в
 
 Без написания запросов трейсы просматриваются в *Drilldown* -> *Traces*: Grafana показывает частоту запросов, ошибки и длительность по сервисам и спанам и позволяет перейти от выбросов на графике к конкретным трейсам.
 
-.Частота спанов по именам в Drilldown -> Traces
-image::observability/traces-drilldown.png["Grafana Traces Drilldown: частота спанов, ошибки, распределение длительности и разбивка по именам спанов: authorize request, secured request, view lifecycle и другие"]
-
-Вверху — частота всех спанов, ошибки и распределение длительности; внизу — те же данные по именам спанов. На рисунке больше всего спанов создаёт цепочка фильтров Spring Security (`authorize request`, `secured request`, `security filterchain`): их больше, чем спанов Jmix `view lifecycle`. Если такие спаны не нужны, их отключают, см. <<production>>.
+В верхней части страницы — частота всех спанов, ошибки и распределение длительности; в нижней — те же данные по именам спанов. В примере Petclinic больше всего спанов создаёт цепочка фильтров Spring Security (`authorize request`, `secured request`, `security filterchain`): их больше, чем спанов Jmix `view lifecycle`. Если такие спаны не нужны, их отключают, см. <<production>>.
 
 Поиск и просмотр трейсов встроены в Grafana. Медленные запросы, этапы экранов и загрузки `DataManager` собраны в разделе *Traces* панели мониторинга «Jmix 3 Full Observability», см. xref:observability/metrics.adoc#dashboards[]. Переход к трейсу возможен и из других сигналов: из строки лога по идентификатору трейса, см. xref:observability/logging.adoc#trace-ids[], и из точки exemplar на графике метрики, см. xref:observability/metrics.adoc#exemplars[]. Из корневого спана запроса открывается профиль процессора или выделения памяти за время этого спана, см. xref:observability/profiling.adoc#span-profiles[]. Переход от строки лога к трейсу показан в руководстве xref:observability-tracing-guide:index.adoc[].
 
