@@ -14,17 +14,14 @@
 [[reading]]
 == Чтение профиля
 
-.Фрагмент профиля процессора приложения Jmix в Grafana: *Drilldown* -> *Profiles*
-image::observability/pyroscope-cpu-profile.png["Фрагмент флейм-графа в Grafana: под кадрами навигации Vaadin — View.beforeEnter, наблюдение жизненного цикла экрана, загрузчик данных и UnconstrainedDataManagerImpl.loadList; методы Jmix подсвечены поиском"]
-
-Флейм-граф в Grafana строится сверху вниз: в верхней строке — всё время профиля (`total`), под каждым блоком — функции, которые он вызвал. Ширина блока — доля процессорного времени, которую заняла функция вместе со всем, что она вызвала. На рисунке — фрагмент профиля Petclinic за 15 минут нагрузки: блок `ServerRpcHandler.handleRpc` выбран командой *Focus block*, а поиском `jmix` подсвечены методы Jmix. Над фрагментом остаются около 170 строк кадров Tomcat, Spring и Vaadin, см. <<hiding-frames>>. В показанной ветви навигации из 6,6 минуты процессорного времени, которые занял `View.beforeEnter`, 6,4 минуты пришлись на загрузку данных (`UnconstrainedDataManagerImpl.loadList`). Профиль собран при запуске в Docker с агентом Pyroscope.
+Флейм-граф в Grafana строится сверху вниз: в верхней строке — всё время профиля (`total`), под каждым блоком — функции, которые он вызвал. Ширина блока — доля процессорного времени, которую заняла функция вместе со всем, что она вызвала. Например, в профиле процессора Petclinic за 15 минут нагрузки над кодом Jmix находятся около 170 строк кадров Tomcat, Spring и Vaadin, см. <<hiding-frames>>. Чтобы перейти к коду Jmix, блок `ServerRpcHandler.handleRpc` выбирают командой *Focus block*, а методы Jmix подсвечивают поиском `jmix`. Под кадрами навигации Vaadin идут `View.beforeEnter`, наблюдение жизненного цикла экрана, загрузчик данных и `UnconstrainedDataManagerImpl.loadList`. В этой ветви навигации из 6,6 минуты процессорного времени, которые занял `View.beforeEnter`, 6,4 минуты пришлись на загрузку данных (`UnconstrainedDataManagerImpl.loadList`). Профиль собран при запуске в Docker с агентом Pyroscope.
 
 [[vaadin]]
 == Профиль запроса Vaadin
 
 Действия пользователя приходят в приложение как запросы Vaadin к одному адресу и в метриках и трейсах Spring Boot не различаются, см. xref:features:observability.adoc#framework-observations[].
 
-В профиле обработка запроса Vaadin выглядит как глубокий стек: поток Tomcat, фильтры Spring Security, `VaadinServlet.service`, `UidlRequestHandler.synchronizedHandleRequest`, `ServerRpcHandler.handleRpc`, при навигации — `AbstractNavigationStateRenderer`, и только под ними — методы Jmix и код экранов приложения (`io/jmix/flowui/...`, пакет приложения). Поэтому при чтении профиля интерфейса методы Jmix и приложения ищут по имени пакета, как на рисунке в разделе <<span-profiles>>, или скрывают служебные кадры, см. <<hiding-frames>>.
+В профиле обработка запроса Vaadin выглядит как глубокий стек: поток Tomcat, фильтры Spring Security, `VaadinServlet.service`, `UidlRequestHandler.synchronizedHandleRequest`, `ServerRpcHandler.handleRpc`, при навигации — `AbstractNavigationStateRenderer`, и только под ними — методы Jmix и код экранов приложения (`io/jmix/flowui/...`, пакет приложения). Поэтому при чтении профиля интерфейса методы Jmix и приложения ищут по имени пакета, например поиском `jmix` во флейм-графе, или скрывают служебные кадры, см. <<hiding-frames>>.
 
 [[hiding-frames]]
 === Скрытие служебных кадров
@@ -55,10 +52,7 @@ docker run --rm -p 8081:8081 -v "$PWD:/p" golang:1.23-alpine \
 
 Экспорт из Drilldown объединяет самые мелкие узлы профиля в узел `other`, поэтому для подробного разбора выгружают профиль за короткий интервал.
 
-.Профиль процессора Petclinic в `pprof` без кадров Tomcat, Spring, Vaadin и JDK
-image::observability/pprof-hidden-frames.png["Веб-интерфейс pprof: флейм-граф начинается с View.beforeEnter, ниже наблюдения Jmix UI, загрузчик данных, DataManager.loadList и JpaDataStore"]
-
-На рисунке граф начинается с `View.beforeEnter`: под ним наблюдение жизненного цикла экрана, загрузчик данных и `UnconstrainedDataManagerImpl.loadList`. За 4 минуты нагрузки `loadList` занял 94 с процессорного времени: 48 с из них — события после загрузки (`AbstractDataStore.fireEvent`, в основном `JpaLazyLoadingListener.afterEntityLoad`), 29 с — выполнение запроса (`JpaDataStore.loadAll`). Во флейм-графе Grafana это соотношение разбито по множеству стеков под кадрами Tomcat и Spring и не видно.
+С этими фильтрами граф профиля процессора Petclinic начинается с `View.beforeEnter`: под ним наблюдение жизненного цикла экрана, загрузчик данных и `UnconstrainedDataManagerImpl.loadList`. За 4 минуты нагрузки `loadList` занял 94 с процессорного времени: 48 с из них — события после загрузки (`AbstractDataStore.fireEvent`, в основном `JpaLazyLoadingListener.afterEntityLoad`), 29 с — выполнение запроса (`JpaDataStore.loadAll`). Во флейм-графе Grafana это соотношение разбито по множеству стеков под кадрами Tomcat и Spring и не видно.
 
 [[vaadin-session-lock]]
 === Блокировка сессии Vaadin
@@ -92,14 +86,11 @@ Spring Boot автоматически добавляет бины `SpanProcesso
 .Корневой спан запроса и профиль процессора за время этого спана
 image::observability/trace-span-profile.png["Grafana: слева трейс запроса и подробности корневого спана с кнопкой Profiles for this span, справа флейм-граф этого спана со свёрнутыми группами кадров и выделенными методами Jmix"]
 
-На рисунке слева — подробности корневого спана запроса длительностью 497 мс, справа — профиль процессора за время этого спана: 300 мс процессорного времени. Кнопка *Collapse all groups* свернула цепочки кадров Tomcat, Spring и Vaadin в строки с числом кадров, например `(158) java/lang/Thread.run`, а поиском `jmix` выделены методы Jmix. Самая широкая ветвь Jmix — `AbstractDataStore.fireEvent` (130 мс), обработка загруженных сущностей.
+Например, у корневого спана запроса длительностью 497 мс профиль процессора содержит 300 мс процессорного времени. Кнопка *Collapse all groups* сворачивает цепочки кадров Tomcat, Spring и Vaadin в строки с числом кадров, например `(158) java/lang/Thread.run`, а поиск `jmix` выделяет методы Jmix. Самая широкая ветвь Jmix в этом профиле — `AbstractDataStore.fireEvent` (130 мс), обработка загруженных сущностей.
 
 События выделения памяти тоже помечаются идентификатором спана. Чтобы увидеть, сколько памяти выделил запрос и где, в открывшемся запросе Pyroscope тип профиля переключают на `memory` -> `alloc_in_new_tlab_bytes`.
 
-.Профиль выделения памяти за время спана
-image::observability/trace-span-memory-profile.png["Grafana: слева трейс запроса и подробности корневого спана, справа профиль выделения памяти этого спана со свёрнутыми группами кадров и выделенными методами Jmix"]
-
-На рисунке — тот же запрос и профиль выделения памяти за время его корневого спана: запрос выделил 175 МиБ, из них 89 МиБ — обработка загруженных сущностей (`AbstractDataStore.fireEvent` и вызываемый из неё `JpaLazyLoadingListener`).
+Для того же запроса профиль выделения памяти за время его корневого спана показывает, что запрос выделил 175 МиБ, из них 89 МиБ — обработка загруженных сущностей (`AbstractDataStore.fireEvent` и вызываемый из неё `JpaLazyLoadingListener`).
 
 У связи профилей со спанами есть ограничения:
 
