@@ -1,156 +1,195 @@
 = Flowable API
 
-Jmix BPM uses the <<flowable-api, Flowable API>>, which facilitates easy interaction between the Spring Boot application and the process engine.
+Jmix BPM uses the xref:bpm:introduction.adoc#flowable-bpm[Flowable] process engine. Your code works with processes through the Flowable API.
 
 [[flowable-api]]
-== Flowable API
+== Process Engine Services
 
-https://www.flowable.com/open-source/docs/bpmn/ch04-API[Flowable API^] allows programmatic interaction with various services.
+The process engine provides its API as services. The following table lists the Flowable services and shows which of them Jmix BPM uses. For details on the Flowable services, see https://www.flowable.com/open-source/docs/bpmn/ch04-API#the-process-engine-api-and-services[The Process Engine API and services^] in the Flowable documentation.
 
-For what each service does, see https://www.flowable.com/open-source/docs/bpmn/ch04-API#the-process-engine-api-and-services[The Process Engine API and services^] in the Flowable documentation.
-In Jmix BPM:
+[cols="1,2,2", options="header"]
+|===
+|Flowable service
+|What it does
+|Used by Jmix BPM
 
-* The task service of the engine is `BpmTaskService`, which extends Flowable's `TaskService`. See the <<using-bpm-task-service,example>> below.
-* `FormService` and `IdentityService` are not used.
-* `ProcessMigrationService` migrates process instances to another version of the process definition. Jmix BPM uses it for xref:bpm:instance-migration.adoc[instance migration].
+|`RepositoryService`
+|Deploys processes, queries process definitions, suspends and activates them.
+|Yes. See <<process-definitions>>.
 
-Flowable services can be accessed in two ways:
+|`RuntimeService`
+|Starts process instances, reads and changes process variables, sends messages and signals.
+|Yes. See <<starting-process-programmatically>>.
 
-* Using `ProcessEngine`:
-+
+|`TaskService`
+|Queries, claims, assigns and completes user tasks.
+|Yes, as `BpmTaskService`, which extends `TaskService`.
+
+|`HistoryService`
+|Queries the data of running and finished process instances, tasks and variables.
+|Yes. See xref:bpm:history.adoc[].
+
+|`ManagementService`
+|Queries and runs jobs, such as timers and asynchronous continuations.
+|Yes. See xref:bpm:job-executor.adoc[].
+
+|`ProcessMigrationService`
+|Migrates process instances to another version of the process definition.
+|Yes, for xref:bpm:instance-migration.adoc[instance migration].
+
+|`DynamicBpmnService`
+|Changes properties of a deployed process definition without a new deployment.
+|No.
+
+|`FormService`
+|Works with Flowable start and task forms.
+|No. Jmix BPM has its own xref:bpm:forms.adoc[process forms].
+
+|`IdentityService`
+|Manages Flowable users and groups.
+|No. Jmix BPM takes users from the application and user groups from the xref:bpm:menu-views/user-groups.adoc[User Groups] view.
+|===
+
+Jmix BPM adds its own services in the `io.jmix.bpm.service` package:
+
+[cols="1,4", options="header"]
+|===
+|Jmix BPM service
+|What it does
+
+|`BpmTaskService`
+|The task service of the engine. It extends `TaskService` with the `completeTaskWithOutcome()` method. See <<using-bpm-task-service>>.
+
+|`UserGroupService`
+|Returns all user groups, the groups of a user and the users of a group.
+
+|`BpmExpressionEvaluatorService`
+|Evaluates an expression for a process execution or with the given variables.
+
+|`BpmModelService`
+|Returns the extension properties of a BPMN element in a process definition. See xref:bpm:bpmn/bpmn-elements.adoc#extension-properties[Extension Properties].
+
+|`SendEmailService`
+|Sends an email. The xref:bpm:bpmn/jmix-email-task.adoc[] uses it. Available when the project has the Email add-on.
+|===
+
+The services are Spring beans, so you can inject them into your beans:
+
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=services]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/OrderApprovalService.java[tags=bean;runtime-service]
 ----
-+
-* Injecting services inside your beans as they are registered as Spring beans:
-+
+
+In code that isn't a Spring bean, get the services from the process engine:
+
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=bean;runtime-service]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessEngineAccess.java[tags=services]
 ----
 
 [[flowable-dmn-api]]
 == Flowable DMN API
 
-See https://www.flowable.com/open-source/docs/dmn/ch03-API
+For the API of the DMN engine, see https://www.flowable.com/open-source/docs/dmn/ch03-API[DMN API^] in the Flowable documentation.
 
 [[examples]]
 == Examples
 
 [[starting-process-programmatically]]
-=== Starting Process Programmatically
+=== Starting a Process Programmatically
 
-In the example below, the process is started programmatically from the regular entity editor using `RuntimeService`:
+When the user clicks *Start process*, the following detail view saves the order and starts the order approval process for it:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=runtime-service;commit]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/view/order/OrderDetailView.java[tags=run-process]
 ----
-<1> Puts the edited entity to the process variable with the `customer` name.
-<2> The customer's name is put to the process variable with a String type.
-<3> `RuntimeService` is used to start the process.
-<4> `new-customer` is the process definition key.
-<5> Puts the process variables map.
+<1> Starts the process after the order is saved. The `order` process variable keeps only the id of the entity, and the process loads the order by this id.
+<2> Puts the order to the `order` process variable.
+<3> `order-approval` is the process definition key.
+<4> The order number becomes the xref:bpm:bpm-concepts.adoc#business-key[business key] of the process instance.
 
 [[getting-list-of-user-tasks]]
 === Getting a List of User Tasks
 
-Let's look at the examples that show getting a list of active tasks assigned to the authenticated user:
+The following method returns the active tasks of the order approval process that are assigned to the current user:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=task-service;current-authentication;get-tasks]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/OrderApprovalService.java[tags=task-service;current-authentication;get-tasks]
 ----
-<1> Uses `TaskService` to get a list of tasks.
-<2> Searches for the tasks of the `approval` process.
-<3> Searches for the tasks assigned to the current user.
+<1> Creates a task query.
+<2> Selects the tasks of the `order-approval` process.
+<3> Selects the tasks assigned to the current user.
 
 [[getting-list-of-process-instances]]
-=== Getting List of Process Instances
+=== Getting a List of Process Instances
 
-The example below shows getting a list of process instances of the `approval` definition related to the specified `Order` entity:
+The following method returns the active instances of the order approval process for an order. It finds them by the business key that the <<starting-process-programmatically,detail view above>> sets:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/service/MyCustomBean.java[tags=runtime-service;get-instances]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/OrderApprovalService.java[tags=runtime-service;get-instances]
 ----
-<1> Uses `RuntimeService` to get a list of tasks.
-<2> Searches for the instances of the `approval` process.
-<3> Searches for the process instances with the specified `orderId` process variable.
+<1> Creates a process instance query.
+<2> Selects the instances of the `order-approval` process.
+<3> Selects the instances with the order number as the business key.
+
+To find process instances by a process variable, use `variableValueEquals()` instead of `processInstanceBusinessKey()`.
 
 [[using-bpm-task-service]]
 === Using BpmTaskService
 
-`BpmTaskService` extends the `TaskService` and adds a method for completing tasks with an outcome:
+`BpmTaskService` extends `TaskService` with the `completeTaskWithOutcome()` method, which completes a user task with an outcome. Gateways can route the process by the outcome, see xref:bpm:bpmn/bpmn-gateways.adoc#user-task-outcomes[User Task Outcomes].
+
+The following method completes an order approval task with the `approve` outcome:
 
 [source,java,indent=0]
 ----
-void completeTaskWithOutcome(String taskId, String outcomeId, Map<String, Object> processVariables);
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/OrderApprovalService.java[tags=bpm-task-service;complete-task]
 ----
+<1> `completeTaskWithOutcome()` adds the outcome to this map, so don't pass an immutable map, such as `Map.of()`.
+<2> `approve` is the outcome id.
 
-You can inject the service into your Spring component:
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=inject-service]
-----
-
-or use the `ProcessEngines` class:
-
-[source,java,indent=0]
-----
-include::example$/ex1/src/main/java/bpm/ex1/screen/customer/CustomerEdit.java[tags=get-service]
-----
-
+[[process-definitions]]
 === Working with Process Definitions via the API
 
-Flowable provides a rich API for interacting with process definitions:
+`RepositoryService` deploys and manages process definitions.
 
-. *Deployment*: Process definitions are typically deployed as part of a deployment unit, which can include multiple definitions and related resources.
-+
-[source,java]
+To deploy a BPMN file from the classpath:
+
+[source,java,indent=0]
 ----
-Deployment deployment = repositoryService.createDeployment()
-                        .addClasspathResource("my-process.bpmn20.xml")
-                        .deploy();
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessDefinitionService.java[tags=deploy]
 ----
 
-. *Querying*: The RepositoryService allows querying process definitions based on various criteria:
-+
-[source,java]
+Each deployment creates a new version of the process definition. To find the latest version by the process definition key:
+
+[source,java,indent=0]
 ----
-ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
-                                     .processDefinitionId("myProcessDefinitionId")
-                                     .singleResult();
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessDefinitionService.java[tags=find-definition]
 ----
 
-. *Suspension and Activation*: Process definitions can be suspended or activated, controlling whether new process instances can be started based on the definition:
-+
-[source,java]
-.filename.java
+A suspended process definition can't start new process instances. To suspend a process definition and activate it again:
+
+[source,java,indent=0]
 ----
-repositoryService.suspendProcessDefinitionById("myProcessDefinitionId");
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessDefinitionService.java[tags=suspend]
 ----
 
-. *Diagram Generation*: Flowable can generate process diagram images for deployed process definitions:
-+
-[source,java]
-.filename.java
+When you deploy a BPMN file with diagram data, the engine also generates an image of the process diagram. To get it:
+
+[source,java,indent=0]
 ----
-InputStream diagramStream = repositoryService.getProcessDiagram(processDefinition.getId());
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessDefinitionService.java[tags=diagram]
 ----
 
 [[business-key]]
 === Setting and Updating a Business Key
 
-//todo - BK in starting process
+To set the business key of a process instance, pass it to `startProcessInstanceByKey()`, as the <<starting-process-programmatically,detail view above>> does. To change it later, call `updateBusinessKey()` of `RuntimeService`:
 
-Business key can be updated programmatically via API:
-
-[source,java]
+[source,java,indent=0]
 ----
-runtimeService.updateBusinessKey("processInstanceId", "businessKey");
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/OrderApprovalService.java[tags=update-business-key]
 ----
-
-

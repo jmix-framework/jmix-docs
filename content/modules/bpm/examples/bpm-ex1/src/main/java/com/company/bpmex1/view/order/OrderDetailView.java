@@ -25,13 +25,14 @@ public class OrderDetailView extends StandardDetailView<Order> {
 
     @Subscribe("startProcessBtn")
     public void onStartProcessBtnClick(final ClickEvent<JmixButton> event) {
-        Order order = getEditedEntity();
-        Map<String, Object> processVariables = new HashMap<>();
-        processVariables.put("order", order); // <1>
-        runtimeService.startProcessInstanceByKey("order-approval", // <2>
-                order.getNumber(),
-                processVariables);
-        closeWithSave();
+        closeWithSave().then(() -> { // <1>
+            Order order = getEditedEntity();
+            Map<String, Object> processVariables = new HashMap<>();
+            processVariables.put("order", order); // <2>
+            runtimeService.startProcessInstanceByKey("order-approval", // <3>
+                    order.getNumber(), // <4>
+                    processVariables);
+        });
     }
     // end::run-process[]
 }
