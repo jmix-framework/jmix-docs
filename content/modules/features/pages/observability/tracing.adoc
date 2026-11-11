@@ -1,0 +1,213 @@
+= Трассировка
+
+Трейс показывает путь одного запроса через приложение и другие сервисы. Он состоит из спанов: каждый спан соответствует одной операции, например загрузке экрана или SQL-запросу, и хранит её длительность и атрибуты. Спаны вложены друг в друга, поэтому по трейсу видно, какая операция выполнялась дольше всего.
+
+Трассировка в Jmix строится на Micrometer Observation и Micrometer Tracing, экспорт выполняется через OpenTelemetry. Jmix создаёт спаны для своих операций; Spring Boot — для входящих и исходящих HTTP-запросов.
+
+[[enabling]]
+== Включение спанов Jmix
+
+[source,properties]
+.application.properties
+----
+jmix.core.data-observation-enabled=true
+jmix.ui.ui-observation-enabled=true
+----
+
+Первое свойство включает спаны доступа к данным, второе — спаны UI. По умолчанию оба имеют значение `false`. Эти же свойства включают xref:features:observability/metrics.adoc[метрики] Jmix: одно наблюдение даёт и метрику, и спан.
+
+Vaadin передаёт все действия пользователя запросами к одному адресу, и корневой спан каждого из них называется одинаково — `+http post /**+`. Какой экран открывался и какое действие выполнял пользователь, видно только по спанам Jmix `view lifecycle`, `data loader lifecycle`, `fragment lifecycle` и `execute action` и их атрибутам.
+
+[[opentelemetry]]
+== Экспорт через OpenTelemetry
+
+Добавьте стартер OpenTelemetry. Начиная со Spring Boot 4 это рекомендуемый способ подключения: стартер содержит мост Micrometer Tracing и экспортёр OTLP.
+
+[source,groovy]
+.build.gradle
+----
+implementation 'org.springframework.boot:spring-boot-starter-actuator'
+implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
+----
+
+Укажите адрес сборщика трейсов, например OpenTelemetry Collector или Grafana Tempo:
+
+[source,properties]
+.application.properties
+----
+management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:4318/v1/traces
+----
+
+[[sampling]]
+== Доля сохраняемых трейсов
+
+Свойство `management.tracing.sampling.probability` задаёт долю запросов, для которых трейс отправляется в систему хранения. Значение по умолчанию `0.1`: сохраняется один трейс из десяти.
+
+[source,properties]
+.application.properties
+----
+management.tracing.sampling.probability=1.0
+----
+
+Значение `1.0` удобно при разработке и отладке. В промышленной эксплуатации оно увеличивает нагрузку на приложение и объём хранимых данных, поэтому там задают значение от `0.01` до `0.1`.
+
+[[spans]]
+== Спаны Jmix
+
+Имя спана в системе трассировки отличается от имени наблюдения: например, наблюдение `jmix.ui.views` даёт спаны с именем `view lifecycle`.
+
+[cols="2,2,3"]
+|===
+|Наблюдение |Имя спана |Атрибуты
+
+.4+|`jmix.data.load`
+|`load entity`
+.4+|`method`, `entity.name` (кроме операций со значениями), `jpql.query`, `jpql.parameters`, `properties` (для операций со значениями)
+
+|`load list of entities`
+
+|`count entities`
+
+|`load values`
+
+|`jmix.data.save`
+|`save entities`
+|`method`, `dataStore`, `entitiesToSave.count`, `entitiesToRemove.count`
+
+|`jmix.ui.views`
+|`view lifecycle`
+|`lifecycle.name`, `view.id`, `view.class`
+
+|`jmix.ui.fragments`
+|`fragment lifecycle`
+|`lifecycle.name`, `fragment.class`, `fragment.id`, `view.id`
+
+|`jmix.ui.data`
+|`data loader lifecycle`
+|`lifecycle.name`, `loader.id`, `full_loader_id`, `view.id`, `fragment.id`
+
+|`jmix.ui.actions`
+|`execute action`
+|`action.id`, `target.id`, `view.id`, `fragment.id`
+|===
+
+Значения тегов, общих с метриками, описаны на странице xref:features:observability/metrics.adoc[]. Атрибуты, которых нет в метриках:
+
+[cols="1,3"]
+|===
+|Атрибут |Значение
+
+|`jpql.query`
+|Текст JPQL-запроса
+
+|`jpql.parameters`
+|Параметры запроса с их значениями. Добавляется, если у запроса есть параметры
+
+|`properties`
+|Список свойств загружаемых значений
+
+|`entitiesToSave.count`, `entitiesToRemove.count`
+|Количество сохраняемых и удаляемых сущностей каждого типа, например `{Order_=1, OrderLine_=3}`
+
+|`full_loader_id`
+|Исходный идентификатор загрузчика, если в `loader.id` записано `<generated>`
+|===
+
+Подсчёт значений через `DataManager.getCount(ValueLoadContext)` записывается спаном с именем `load values` и атрибутом `method=getCount`.
+
+Например, в трейсе открытия списка визитов в портале спан `data loader lifecycle` загрузчика экрана содержит загрузку через REST DataStore и обработку запроса во втором приложении:
+
+[source,text]
+----
+view lifecycle (beforeShow)                              jmix-petclinic-portal
+└── data loader lifecycle (load, visitsDl)               jmix-petclinic-portal
+    └── load list of entities                            jmix-petclinic-portal
+        └── http post                                    jmix-petclinic-portal
+            └── http post /rest/entities/{entityName}/search   jmix-petclinic
+                └── secured request                      jmix-petclinic
+                    └── load list of entities            jmix-petclinic
+----
+
+У спана `load list of entities` во втором приложении есть атрибуты Jmix: `entity.name` (`petclinic_Visit`), `jpql.query` с текстом JPQL-запроса, `method` с операцией и `jmix.user.username` с пользователем, от имени которого выполнен запрос.
+
+.Спан загрузки данных и его атрибуты в Grafana Tempo
+image::observability/trace-span-attributes.png["Фрагмент трейса в Grafana: view lifecycle, data loader lifecycle, load list of entities, http post и атрибуты спана entity.name, jmix.user.username, jpql.query, method"]
+
+Как по спанам загрузки данных находить лишние и медленные запросы к базе данных, описано на странице xref:features:observability/performance.adoc#data-access[].
+
+[[user-context]]
+== Атрибуты пользователя и арендатора
+
+При включённом свойстве xref:ROOT:app-properties.adoc#jmix.core.use-user-info-for-observation[jmix.core.use-user-info-for-observation] (значение по умолчанию) ко всем спанам добавляются атрибуты:
+
+* `jmix.user.username` — имя текущего пользователя;
+* `jmix.user.tenantId` — идентификатор арендатора в приложениях с xref:multitenancy:index.adoc[мультиарендностью].
+
+По `jmix.user.username` в системе трассировки находят запросы конкретного пользователя. Если имена пользователей не должны попадать в систему трассировки, задайте свойству значение `false`.
+
+Атрибут `jpql.parameters` содержит значения параметров запросов, в том числе персональные данные из условий поиска. Учитывайте это при настройке доступа к системе хранения трейсов.
+
+[[propagation]]
+== Передача контекста между сервисами
+
+Чтобы трейс продолжался в другом сервисе, исходящий HTTP-запрос должен нести заголовки трассировки. Spring Boot добавляет их автоматически, если клиент создан из автоматически настроенного `RestClient.Builder` или `RestTemplateBuilder`. Клиент, созданный через `RestClient.create()` или `new RestTemplate()`, заголовки не передаёт, и трейс обрывается на границе сервиса.
+
+[[grafana]]
+== Просмотр трейсов в Grafana
+
+Трейсы хранятся в системе трассировки, например Grafana Tempo, и просматриваются в Grafana через *Explore* с источником данных Tempo. Трейс отображается как дерево спанов на шкале времени: длина полосы — длительность операции, вложенность — какая операция какую вызвала. По этой шкале видно, какой спан занял большую часть времени запроса.
+
+Трейсы ищут запросом на языке TraceQL. Атрибуты спана указываются с префиксом `span.`. Загрузки списка сущностей дольше 500 мс:
+
+[source,text]
+----
+{ name = "load list of entities" && duration > 500ms }
+----
+
+Все спаны жизненного цикла экрана `User.list`, открытого пользователем `admin`:
+
+[source,text]
+----
+{ name = "view lifecycle" && span.view.id = "User.list" && span.jmix.user.username = "admin" }
+----
+
+Без написания запросов трейсы просматриваются в *Drilldown* -> *Traces*: Grafana показывает частоту запросов, ошибки и длительность по сервисам и спанам и позволяет перейти от выбросов на графике к конкретным трейсам.
+
+В верхней части страницы — частота всех спанов, ошибки и распределение длительности; в нижней — те же данные по именам спанов. В примере Petclinic больше всего спанов создаёт цепочка фильтров Spring Security (`authorize request`, `secured request`, `security filterchain`): их больше, чем спанов Jmix `view lifecycle`. Если такие спаны не нужны, их отключают, см. <<production>>.
+
+Поиск и просмотр трейсов встроены в Grafana. Медленные запросы, этапы экранов и загрузки `DataManager` собраны в разделе *Traces* панели мониторинга «Jmix 3 Full Observability», см. xref:observability/metrics.adoc#dashboards[]. Переход к трейсу возможен и из других сигналов: из строки лога по идентификатору трейса, см. xref:observability/logging.adoc#trace-ids[], и из точки exemplar на графике метрики, см. xref:observability/metrics.adoc#exemplars[]. Из корневого спана запроса открывается профиль процессора или выделения памяти за время этого спана, см. xref:observability/profiling.adoc#span-profiles[]. Переход от строки лога к трейсу показан в руководстве xref:observability-tracing-guide:index.adoc[].
+
+[[custom-spans]]
+== Спаны бизнес-операций
+
+Бизнес-операцию, которая включает несколько вызовов фреймворка, можно объединить в один спан через `Observation` API Micrometer. Наблюдение создаётся через бин `ObservationRegistry`:
+
+[source,java,indent=0]
+----
+include::example$/observability-ex1/src/main/java/com/company/demo/sales/OrderService.java[tags=observation-registry;custom-span]
+----
+<1> Обработка заказа: вызовы `DataManager` и других сервисов внутри операции.
+
+Наблюдение даёт спан `confirm order`; спаны `load entity`, `save entities` и исходящих HTTP-запросов, созданные внутри операции, становятся его дочерними спанами. Одновременно появляется таймер `sales.order.confirm` с тегом `order.channel`. Если операция завершилась исключением, `observe()` записывает его в спан и в тег `error` таймера.
+
+Теги `lowCardinalityKeyValue` попадают и в метрику, и в спан, поэтому для них подходят только значения из небольшого набора. Идентификаторы и другие уникальные значения добавляются через `highCardinalityKeyValue`: они записываются только в спан.
+
+Полный пример со спаном регистрации пользователя приведён в руководстве xref:observability-tracing-guide:index.adoc[].
+
+[[production]]
+== Настройка для промышленной эксплуатации
+
+* Сохраняется доля трейсов, обычно от 1 до 10%, см. <<sampling>>.
+* Чтобы сохранять все трейсы с ошибками и медленные запросы, решение принимают после завершения трейса в OpenTelemetry Collector с процессором https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor[tail_sampling^]. В этом случае приложение отправляет в Collector все трейсы (`management.tracing.sampling.probability=1.0`), а отбор выполняет Collector.
+* Ненужные наблюдения отключаются свойством `management.observations.enable` по префиксу имени, вместе с их спанами и метриками. Например, Spring Security добавляет к каждому запросу несколько спанов цепочки фильтров; их отключает `management.observations.enable.spring.security=false`.
+* Спаны содержат персональные данные (`jpql.parameters`, `jmix.user.username`), см. <<user-context>>; от этого зависят выбор системы хранения трейсов и права доступа к ней.
+* Срок хранения трейсов в Tempo задаётся параметром `compactor.compaction.block_retention`.
+
+[[see-also]]
+== См. также
+
+* xref:observability-tracing-guide:index.adoc[] — пример из двух приложений с Grafana Tempo
+* {spring-boot-doc}/reference/actuator/tracing.html[Spring Boot Tracing^]
+* {spring-boot-doc}/reference/actuator/observability.html[Spring Boot Observability^]
+* https://docs.micrometer.io/micrometer/reference/observation.html[Micrometer Observation^]
+* https://docs.micrometer.io/tracing/reference/index.html[Micrometer Tracing^]
