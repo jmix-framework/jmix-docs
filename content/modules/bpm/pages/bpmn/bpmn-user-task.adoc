@@ -109,23 +109,12 @@ But at runtime wrong value will cause an error.
 [[accessing-due-date-programmatically]]
 === Accessing Due Date Programmatically
 
-It is possible to manipulate _due date_ parameter using `Task` class methods:
+You can change the due date of a task from your code, for example, when the assignee asks for more time to complete the task. The following method postpones the due date by the given duration:
 
-[source,java]
+[source,java,indent=0]
 ----
-Task task = taskService.createTaskQuery()
-                .taskId("taskId").singleResult(); <1>
-task.getDueDate(); <2>
-task.setDueDate(null); <3>
-taskService.saveTask(task); <4>
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UserTaskService.java[tags=due-date]
 ----
-<1> -- get task by id
-<2> -- get the current value of due date
-<3> -- set new due date value equals 'null'
-<4> -- save task object
-
-So, you can change due dates dynamically depending on your business logic.
-For example, the assignee can ask for additional time to complete the task.
 
 [[using-business-calendar]]
 === Using Business Calendar
@@ -268,28 +257,44 @@ image::bpmn-user-task/selecting-user-provider.png[,460]
 
 The user provider class needs to implement one or more methods with the `String` return type.
 A method gets parameter values that are specified in the modeler and returns a username of the user that becomes a task assignee.
+To pass the value of a process variable, enter the variable name and select the *Is variable* checkbox, as described in xref:bpmn/bpmn-service-task.adoc#spring-bean-service-task[Spring Bean].
+Without the checkbox, the method gets the variable name as a string.
 
-*XML representation*
+A user provider is a Spring bean with the `@UserProvider` annotation. The annotation has two attributes:
 
-A user task with performer assigned by User Provider:
-[source,xml]
-----
-<userTask id="user-task" name="User task" jmix:assigneeSource="userProvider" jmix:assigneeValue="smpl_MyUserProvider">
-  <extensionElements>
-    <jmix:springBean beanName="smpl_MyUserProvider" methodName="getUser" />
-  </extensionElements>
-</userTask>
-----
+* `value` -- the bean name.
+* `description` -- optional text that the Modeler shows in parentheses after the bean name in the list of user providers.
 
-User provider class is a common Spring bean, annotated by `@UserProvider` annotation.
-Here is an example of the user provider that reads a process variable with the user email and finds the user in the database.
+The following user provider finds a user by email:
 
 [source,java,indent=0]
 ----
-include::example$/ex1/src/main/java/bpm/ex1/service/MyUserProvider.java[tags=user-provider]
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/provider/UserByEmailProvider.java[tags=user-provider]
 ----
-You can implement any business rules in `UserProvider` class.
-For example, select the less busy user from the role or from the department; select next in turn; at least, select a random user from the group.
+<1> xref:data-access:data-manager.adoc#security[`UnconstrainedDataManager`] doesn't check permissions. The provider runs as the user whose action moved the process to this task. When a timer or an asynchronous job moves the process, there is no authenticated user.
+
+If no user has the email, `one()` throws an exception, and the action that moved the process to this task fails, for example, starting the process or completing the previous task.
+
+You can implement any business rules in a user provider, for example, select the least busy user of a department, the next user in turn or a random user of a group.
+
+*XML representation*
+
+A user task with the performer assigned by this user provider. The `email` parameter gets the value of the `customerEmail` process variable:
+
+[source,xml]
+----
+<userTask id="user-task" name="User task"
+    flowable:assignee="${UserByEmailProvider.getUserByEmail(customerEmail)}"
+    jmix:assigneeSource="userProvider"
+    jmix:assigneeValue="UserByEmailProvider">
+  <extensionElements>
+    <jmix:springBean beanName="UserByEmailProvider" methodName="getUserByEmail">
+      <jmix:methodParam name="email" type="java.lang.String"
+          isVariable="true">customerEmail</jmix:methodParam>
+    </jmix:springBean>
+  </extensionElements>
+</userTask>
+----
 
 [[assigning-task-by-lane]]
 === Assigning Tasks by Lane
@@ -335,28 +340,19 @@ In XML, lanes are represented by the `laneSet` element and its `lane` elements. 
 [[assigning-task-programmaticaly]]
 === Assigning Task Programmatically
 
-To set the task _assignee_ programmatically, you can use the `setAssignee` method on the `TaskService`. Here's an example:
+To set the task _assignee_ programmatically, call the `setAssignee()` method of `TaskService` with the username:
 
-[source,java]
+[source,java,indent=0]
 ----
-Task task = taskService.createTaskQuery()
-                       .taskId("taskId")
-                       .singleResult(); <1>
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UserTaskService.java[tags=set-assignee]
+----
 
-taskService.setAssignee(task.getId(), "jane"); <2>
-----
-<1> getting task object by Query API
-<2> setting assignee by username
+To get the tasks assigned to a user, query them by the username:
 
-Tasks assigned to the certain user can be retrieved through the `TaskService` as follows:
-
-[source,java]
+[source,java,indent=0]
 ----
-List<Task> tasks = taskService.createTaskQuery()
-    .taskAssignee("jane") <1>
-    .list();
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UserTaskService.java[tags=assigned-tasks]
 ----
-<1> username
 
 [[task-candidate-users-and-groups]]
 == Task Candidate Users and Groups
@@ -399,12 +395,13 @@ image::bpmn-user-task/my-tasks-claimed-task.png[,300]
 [[claiming-task-programmatically]]
 === Claiming Task Programmatically
 
-It's possible to claim the task on the specified user via API:
+To claim a task for the current user, call the `claim()` method of `TaskService`:
 
-[source,java]
+[source,java,indent=0]
 ----
-taskService.claim("taskId", "userId");
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UserTaskService.java[tags=claim]
 ----
+<1> Throws `FlowableTaskAlreadyClaimedException` if the task is already assigned to another user.
 
 [[setting-candidates-in-web]]
 === Setting Candidates in Modeler
@@ -437,31 +434,13 @@ image::bpmn-user-task/selecting-user-group-provider.png[,450]
 It allows you to select one of the previously created Java beans provided with the `@UserGroupListProvider` annotation.
 This bean must implement one or more methods returning `List<String>` containing user group codes.
 
-The `@UserGroupListProvider` annotation has two attributes:
+The `@UserGroupListProvider` annotation has the same `value` and `description` attributes as <<assign-task-by-user-provider,`@UserProvider`>>.
 
-* *value* -- a name that will be displayed in the modeler.
-* *description* -- an explanation of the method’s purpose, optional.
+The following provider returns the codes of all user groups:
 
-Here is an example:
-
-[source,java]
+[source,java,indent=0]
 ----
-@UserGroupListProvider(value="allGroups",
-                       description = "Returns a list of all groups")
-public class MyGroupListProvider {
-
-    @Autowired
-    private UserGroupService userGroupService;
-
-    public List<String> getAllUserGroups() {
-        List<UserGroup> allUserGroups = userGroupService.getAllUserGroups();
-        if (!allUserGroups.isEmpty()) {
-            return allUserGroups.stream().map(UserGroup::getCode).toList();
-        } else {
-            return Collections.emptyList();
-        }
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/provider/AllUserGroupsProvider.java[tags=user-group-list-provider]
 ----
 
 See the xref:bpm:menu-views/user-groups.adoc[User groups] section for more information.
@@ -482,8 +461,8 @@ Here are sources you can choose from:
 
 image::bpmn-user-task/candidate-users-options.png[,350]
 
-* *User groups* -- pick usernames from the list.
-* *User groups provider* -- select a special Java class that returns a list of usernames.
+* *Users* -- pick usernames from the list.
+* *Users provider* -- select a special Java class that returns a list of usernames.
 * *Expression* -- get a list of usernames from expression.
 
 [[user-list-provider]]
@@ -494,29 +473,11 @@ via calling a method of the Spring bean annotated by `@UserListProvider` annotat
 
 image::bpmn-user-task/candidate-user-list-provider.png[,450]
 
-Here is an example:
+The following provider returns the usernames of all active users. It uses `UnconstrainedDataManager` for the same reason as the <<assign-task-by-user-provider,user provider>>:
 
-[source,java]
+[source,java,indent=0]
 ----
-@UserListProvider(value = "smpl_UserListProviderDemo",
-                  description = "Get all users")
-public class UserListProviderDemo {
-
-    @Autowired
-    private DataManager dataManager;
-    @Autowired
-    private SystemAuthenticator authenticator;
-
-    public List<String> getAllUsers() {
-        authenticator.begin();
-        try {
-            List<User> users = dataManager.load(User.class).all().list();
-            return users.stream().map(User::getUsername).toList();
-        } finally {
-            authenticator.end();
-        }
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/provider/ActiveUsersProvider.java[tags=user-list-provider]
 ----
 
 [[candidate-users-by-expression]]
