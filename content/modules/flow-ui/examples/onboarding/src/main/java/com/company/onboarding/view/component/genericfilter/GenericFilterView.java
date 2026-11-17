@@ -63,7 +63,7 @@ public class GenericFilterView extends StandardView {
                 .operationEditable(true)
                 .build();
 
-        genericFilter.runtimeConfigurationBuilder() // <4>
+        genericFilter.filterConfigurationBuilder() // <4>
                 .id("javaConfiguration")
                 .name("Default configuration")
                 .add(agePropertyFilter)
@@ -108,16 +108,15 @@ public class GenericFilterView extends StandardView {
                 .build();
         // end::groupFilter[]
 
-        // tag::runtimeConfiguration[]
-        genericFilter.runtimeConfigurationBuilder()
+        // tag::filterConfiguration[]
+        genericFilter.filterConfigurationBuilder()
                 .id("dynamicConfiguration")
                 .name("Dynamic configuration")
                 .add(ageFilter, 18) // <1>
                 .add(orGroup) // <2>
                 .makeCurrent() // <3>
-                .allowDeletion() // <4>
                 .buildAndRegister();
-        // end::runtimeConfiguration[]
+        // end::filterConfiguration[]
     }
 
 }

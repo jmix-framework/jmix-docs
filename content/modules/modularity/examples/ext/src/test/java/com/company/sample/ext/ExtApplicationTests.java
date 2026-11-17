@@ -71,6 +71,7 @@ class ExtApplicationTests {
         List<String> moduleProps = jmixModules.getPropertyValues("jmix.ui.menu-config");
         assertEquals(Arrays.asList("io/jmix/securityflowui/menu.xml",
                         "com/company/sample/base/menu.xml",
+                        "io/jmix/pessimisticlockflowui/menu.xml",
                         "com/company/sample/ext/menu.xml"),
                 moduleProps);
     }
