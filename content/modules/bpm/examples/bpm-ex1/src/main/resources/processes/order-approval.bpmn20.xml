@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:flowable="http://flowable.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:jmix="http://jmix.io/schema/bpm/bpmn" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="http://www.flowable.org/processdef">
+  <process id="order-approval" name="Order approval" isExecutable="true">
+    <startEvent id="start">
+      <outgoing>toCheckOrder</outgoing>
+    </startEvent>
+    <sequenceFlow id="toCheckOrder" sourceRef="start" targetRef="checkOrder" />
+    <userTask id="checkOrder" name="Check order" flowable:assignee="${initiator.username}" jmix:assigneeSource="processVariable" jmix:assigneeValue="initiator">
+      <extensionElements>
+        <jmix:formData type="input-dialog" openMode="DIALOG">
+          <jmix:formFields>
+            <jmix:formField id="order" caption="Order" type="entity" editable="false" required="false">
+              <jmix:formFieldProperty name="uiComponent" value="entityPicker" />
+              <jmix:formFieldProperty name="entityName" value="smpl_Order" />
+            </jmix:formField>
+            <jmix:formField id="comment" caption="Comment" type="string" editable="true" required="false" />
+          </jmix:formFields>
+          <jmix:formOutcomes>
+            <jmix:formOutcome id="approve" caption="Approve" />
+            <jmix:formOutcome id="reject" caption="Reject" />
+          </jmix:formOutcomes>
+        </jmix:formData>
+      </extensionElements>
+      <incoming>toCheckOrder</incoming>
+      <outgoing>toDecision</outgoing>
+    </userTask>
+    <sequenceFlow id="toDecision" sourceRef="checkOrder" targetRef="decision" />
+    <exclusiveGateway id="decision">
+      <incoming>toDecision</incoming>
+      <outgoing>approved</outgoing>
+      <outgoing>rejected</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="approved" name="Approved" sourceRef="decision" targetRef="shipOrder">
+      <extensionElements>
+        <jmix:conditionDetails conditionSource="userTaskOutcome" conditionType="anyoneCompleted" userTaskId="checkOrder" userTaskOutcome="approve" />
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression">${execution.getVariable('checkOrder_result') != null &amp;&amp; bpm_UserTaskResults.containsOutcome(execution.getVariable('checkOrder_result'), 'approve')}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="rejected" name="Rejected" sourceRef="decision" targetRef="rejectedEnd">
+      <extensionElements>
+        <jmix:conditionDetails conditionSource="userTaskOutcome" conditionType="anyoneCompleted" userTaskId="checkOrder" userTaskOutcome="reject" />
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression">${execution.getVariable('checkOrder_result') != null &amp;&amp; bpm_UserTaskResults.containsOutcome(execution.getVariable('checkOrder_result'), 'reject')}</conditionExpression>
+    </sequenceFlow>
+    <userTask id="shipOrder" name="Ship order" flowable:assignee="${initiator.username}" jmix:assigneeSource="processVariable" jmix:assigneeValue="initiator">
+      <extensionElements>
+        <jmix:formData type="input-dialog" openMode="DIALOG">
+          <jmix:formFields>
+            <jmix:formField id="order" caption="Order" type="entity" editable="false" required="false">
+              <jmix:formFieldProperty name="uiComponent" value="entityPicker" />
+              <jmix:formFieldProperty name="entityName" value="smpl_Order" />
+            </jmix:formField>
+            <jmix:formField id="comment" caption="Comment" type="string" editable="false" required="false" />
+          </jmix:formFields>
+        </jmix:formData>
+      </extensionElements>
+      <incoming>approved</incoming>
+      <outgoing>toShippedEnd</outgoing>
+    </userTask>
+    <sequenceFlow id="toShippedEnd" sourceRef="shipOrder" targetRef="shippedEnd" />
+    <endEvent id="shippedEnd" name="Shipped">
+      <incoming>toShippedEnd</incoming>
+    </endEvent>
+    <endEvent id="rejectedEnd" name="Rejected">
+      <incoming>rejected</incoming>
+    </endEvent>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_order-approval">
+    <bpmndi:BPMNPlane id="BPMNPlane_order-approval" bpmnElement="order-approval">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start">
+        <omgdc:Bounds x="152" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="checkOrder_di" bpmnElement="checkOrder">
+        <omgdc:Bounds x="240" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="decision_di" bpmnElement="decision" isMarkerVisible="true">
+        <omgdc:Bounds x="395" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shipOrder_di" bpmnElement="shipOrder">
+        <omgdc:Bounds x="510" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shippedEnd_di" bpmnElement="shippedEnd">
+        <omgdc:Bounds x="672" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="671" y="225" width="38" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rejectedEnd_di" bpmnElement="rejectedEnd">
+        <omgdc:Bounds x="542" y="292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="538" y="335" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="toCheckOrder_di" bpmnElement="toCheckOrder">
+        <omgdi:waypoint x="188" y="200" />
+        <omgdi:waypoint x="240" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="toDecision_di" bpmnElement="toDecision">
+        <omgdi:waypoint x="340" y="200" />
+        <omgdi:waypoint x="395" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="approved_di" bpmnElement="approved">
+        <omgdi:waypoint x="445" y="200" />
+        <omgdi:waypoint x="510" y="200" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="451" y="182" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="rejected_di" bpmnElement="rejected">
+        <omgdi:waypoint x="420" y="225" />
+        <omgdi:waypoint x="420" y="310" />
+        <omgdi:waypoint x="542" y="310" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="428" y="290" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="toShippedEnd_di" bpmnElement="toShippedEnd">
+        <omgdi:waypoint x="610" y="200" />
+        <omgdi:waypoint x="672" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
