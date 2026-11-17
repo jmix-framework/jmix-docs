@@ -154,19 +154,12 @@ For example, to get access to process variables and the current task properties.
 There is an embedded process variable named "`execution`" of the type `DelegateExecution` that can be used as a Spring bean method parameter.
 Create such a method, for example:
 
-[source, java]
+[source,java,indent=0]
 ----
-@Component("MyProcessBean")
-public class MyProcessBean {
-
-    public void mySampleMethod(DelegateExecution execution) { <1>
-        String currentActivityId = execution.getCurrentActivityId();
-        Set<String> variableNames = execution.getVariableNames();
-        // etc.
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/MyProcessBean.java[tags=bean]
 ----
-<1> -- `execution` parameter
+<1> The `execution` parameter receives the current execution.
+<2> Reads the process context: the current activity and the names of the process variables.
 
 Then set this method in your service task:
 
@@ -183,15 +176,9 @@ image::bpmn-service-task/create-java-delegate.png[,460]
 
 For example, let's implement the class creating a process variable with random value:
 
-[source,java]
+[source,java,indent=0]
 ----
-public class RandomIndexJavaDelegate implements JavaDelegate {
-    @Override
-    public void execute(DelegateExecution execution) {
-        long randomIndex = new Random().nextLong(100L);
-        execution.setVariable("randomIndex", randomIndex);
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/RandomIndexJavaDelegate.java[tags=delegate]
 ----
 
 .*XML Representation*
@@ -202,7 +189,7 @@ the fully qualified class name needs to be provided by the `flowable:class` attr
 [source,xml]
 ----
 <serviceTask id="Activity_java_delegate" name="Java delegate"
-    flowable:class="com.company.jmixbpmtraining.delegate.RandomIndexJavaDelegate" <1>
+    flowable:class="com.company.bpmex1.app.RandomIndexJavaDelegate" <1>
     jmix:taskType="javaDelegateClass"> <2>
   <extensionElements />
 </serviceTask>
@@ -239,22 +226,16 @@ This allows for dependency injection and the use of Spring's features within the
 To use delegated classes in delegate expressions, annotate them with `@Component`, similar to a Spring bean.
 In this case, it combines the features of both types -- _Spring bean_ and _Java Delegate_ class:
 
-[source,java]
+[source,java,indent=0]
 ----
-@Component
-public class MyDelegateExpression implements JavaDelegate {
-    // Class fields and injections
-    @Override
-    public void execute(DelegateExecution execution) {
-    // Required logic
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/MyDelegateExpression.java[tags=delegate]
 ----
+<1> The delegate expression refers to the bean by this name: `$\{MyDelegateExpression\}`.
+<2> Spring injects dependencies as in any other bean.
+<3> The `execution` parameter gives access to the process context.
 
 In result, you have access to Spring context and process context from within this class.
-To invoke it, use the _Delegate expression_ task type. For example:
-
-image::bpmn-service-task/delegate-expression.png[,473]
+To invoke it, select *Delegate expression* in the *Task type* field and enter the expression `$\{MyDelegateExpression\}`.
 
 .*XML Representation*
 
@@ -344,26 +325,20 @@ Here is a sample usage:
 [[field-injections]]
 === Field Injections
 
-The *field injections* is a Flowable mechanism of passing parameter in Java Delegate class as fixed string values or expressions resolved in strings.
+*Field injection* is a Flowable mechanism that passes fixed strings or results of expressions to the fields of a Java delegate class.
 
 Injected field must always be of `org.flowable.common.engine.api.delegate.Expression` type.
 When the injected expression is resolved, it can be cast to the appropriate target type.
 
-[WARNING]
-====
-You can't pass entities or other objects via _Field injection_. Actually, expression is resolved in `String` type.
-If the string value can be cast to your type, it's OK.
-Otherwise, it'll be an error.
-====
+A string value is passed as a `String`. An expression is passed as its result, which can be of any type: `$\{3\}` gives a `Long`, and `$\{order\}` gives the value of the `order` process variable, for example, an entity.
 
 How to inject fields:
 
 . Create fields definition in your delegated class:
 +
-[source,java]
+[source,java,indent=0]
 ----
-private Expression messageField;
-private Expression quantityField;
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UpperCaseJavaDelegate.java[tags=fields]
 ----
 . Select the service task and create fields with the same name as you defined in code. The field values can be either expressions or strings.
 +
@@ -371,18 +346,19 @@ image::bpmn-service-task/field-injection-properties.png[,473]
 +
 [TIP]
 ====
-If you need to pass a numeric values, use expression like shown above, for example `$\{3\}`.
-If you write just _3_, this will be interpreted as `String` object "3" and cannot be cast to `Integer` type.
+To pass a number, use an expression, such as `$\{3\}`.
+A plain `3` is passed as the string `"3"`, which can't be cast to a number.
 ====
 
-. At runtime, the process engine resolves expression and passes result strings to the delegated class.
-. In Java Delegate class, there must be a code getting values from the fields and casing them to desired types:
+. At runtime, the delegate calls `getValue(execution)` on a field. The engine evaluates the expression for the current execution and returns the result.
+. In the delegate class, get the values from the fields and cast them to the needed types:
 +
-[source,java]
+[source,java,indent=0]
 ----
-String message = (String) messageField.getValue(execution);
-Integer quantity = (Integer) quantityField.getValue(execution);
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UpperCaseJavaDelegate.java[tags=get-values]
 ----
++
+<1> An integer in an expression gives a `Long`, so the example converts the value through `Number` instead of casting it to `Integer`.
 
 [[field-injection-thread-safety]]
 ==== Field Injection and Thread Safety
@@ -419,22 +395,10 @@ This is in contrast to the singleton scope, where only one instance of the bean 
 
 *Example*
 
-[source,java]
+The following delegate writes the message in upper case to the log as many times as the quantity field says:
+
+[source,java,indent=0]
 ----
-public class UpperCaseJavaDelegate implements JavaDelegate {
-
-    private Expression messageField;
-    private Expression quantityField;
-    @Override
-    public void execute(DelegateExecution execution) {
-
-        String message = (String) messageField.getValue(execution);
-        Integer quantity = (Integer) quantityField.getValue(execution);
-
-        String upperCaseMessage = message.toUpperCase();
-        for (int i = 0; i < quantity; i++) {
-            System.out.println(upperCaseMessage);
-        }
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/UpperCaseJavaDelegate.java[tags=delegate]
 ----
+<1> An integer in an expression gives a `Long`, so the example converts the value through `Number`.
