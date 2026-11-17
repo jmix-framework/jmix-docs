@@ -165,45 +165,26 @@ The engine stores subscriptions in the `ACT_RU_EVENT_SUBSCR` database table.
 
 ==== Querying Event Subscriptions
 
-You can query for existing event subscriptions to see which processes are waiting for specific events. For example:
+To see which process instances wait for a message, query the event subscriptions. The following method returns the subscriptions to a message:
 
-[source,java]
+[source,java,indent=0]
 ----
-List<EventSubscription> messageSubscriptions = runtimeService.createEventSubscriptionQuery()
-    .eventType("message")
-    .list();
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessEventService.java[tags=runtime-service;message-subscriptions]
 ----
+<1> The event type: `message`, `signal`, or `compensate`. The engine keeps `compensate` subscriptions for completed activities that have a compensation handler.
+<2> The message name, not the id of the message definition.
 
-==== Getting Event Subscriptions
+Timers don't have subscriptions. To see the timers that a process instance waits for, query its timer jobs:
 
-You can get a list of subscriptions using `RuntimeService` API.
-For example, signal subscriptions:
-
-[source,java]
+[source,java,indent=0]
 ----
-// Query for all signal event subscriptions
-List<EventSubscription> signalSubscriptions = runtimeService.createEventSubscriptionQuery()
-    .eventType("signal")
-    .list();
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessEventService.java[tags=management-service;timer-jobs]
 ----
-
-For message subscriptions, use `"message"`. The engine also keeps `"compensate"` subscriptions for completed activities that have a compensation handler.
-
-For timers, use `ManagementService`:
-
-[source,java]
-----
-List<Job> timerJobs = managementService.createTimerJobQuery().list();
-----
+<1> `Job.getDuedate()` returns the time when the timer is due.
 
 ==== Triggering Event Subscriptions
 
-You can trigger event subscription when the corresponding event occurs. For example, to trigger a message event:
-
-[source,java]
-----
-runtimeService.messageEventReceived("orderPlaced", executionId, processVariables);
-----
+To deliver a message or throw a signal from your code, see <<sending-messages>> and <<throwing-signals>>.
 
 ==== Handling Events with Listeners
 
@@ -432,13 +413,9 @@ Your code sends messages through `RuntimeService` and passes the message name, n
 * `startProcessInstanceByMessage(messageName)` starts a process instance at a message start event. If no deployed process has a start event for the message, the call fails with `no subscription to message with name ... found`. A message can start only one process: deploying another process with a start event for the same message fails with `there already is a message event subscription for the message with name ...`.
 * `messageEventReceived(messageName, executionId)` delivers the message to an execution that waits for it. If the execution doesn't wait for the message, the call fails with `does not have a subscription to a message event with name ...`. Find the execution by the message name:
 +
-[source,java]
+[source,java,indent=0]
 ----
-Execution execution = runtimeService.createExecutionQuery()
-        .processInstanceId(processInstanceId)
-        .messageEventSubscriptionName("Payment received")
-        .singleResult();
-runtimeService.messageEventReceived("Payment received", execution.getId());
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessEventService.java[tags=send-message]
 ----
 
 Both methods have variants that also pass process variables. After the message, the process runs in the transaction of the call until the next wait state. If a following step throws an exception, the call fails, and the process stays at the event. See https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#throwing-a-message-event[Throwing a Message Event^] in the Flowable documentation.
@@ -523,9 +500,9 @@ Signal events refer to signal definitions of the process. A definition has an id
 
 Your code throws a signal through `RuntimeService` and passes the signal name, not the id:
 
-[source,java]
+[source,java,indent=0]
 ----
-runtimeService.signalEventReceived("Shop closed");
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/ProcessEventService.java[tags=throw-signal]
 ----
 
 The engine delivers a signal in the transaction of the code or process instance that throws it. If a catching process instance fails with an exception, the throwing side fails too, and its transaction rolls back. To deliver a signal asynchronously, set `flowable:async="true"` on the `signalEventDefinition` element of a throwing event in XML. The *Asynchronous* property only makes the event itself asynchronous. See https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs#throwing-a-signal-event[Throwing a Signal Event^] in the Flowable documentation.
@@ -941,29 +918,24 @@ In this section, you'll find recipes how to implement a desired process logic fo
 [[message-throwing-event-workaround]]
 === Message Throwing Event
 
-First, use _signals_ instead of _messages_ everywhere it is possible. In most cases, these types of events are interchangeable.
-
-image::bpmn-events/signal-instead-of-message.png[,270]
-
-Second, use a service task with the API call.
+To send a message from a process, use a service task that calls `RuntimeService`. To replace a message end event, add a none end event after the service task.
 
 image::bpmn-events/throw-message-workaround-1.png[,350]
 
-Service task can be implemented as Spring bean, for example:
+The following bean delivers a message to the process instance with the given business key:
 
-[source,java]
+[source,java,indent=0]
 ----
-@Component(value = "smpl_MyService")
-public class MyService {
-
-    @Autowired
-    private RuntimeService runtimeService;
-
-    public void sendMessage(String messageName, String executionId) {
-        runtimeService.messageEventReceived(messageName, executionId);
-    }
-}
+include::example$/bpm-ex1/src/main/java/com/company/bpmex1/app/MessageSender.java[tags=message-sender]
 ----
+<1> With `true`, the query also returns child executions, such as the execution that waits at a catching event. Without it, the query returns only process instances.
+<2> Selects the execution that waits for the message.
+
+Call the bean from the service task with an expression, for example, `$\{MessageSender.sendMessage('Payment received', orderNumber)\}`. The receiving process continues in the transaction of the service task, see <<sending-messages>>.
+
+A signal throwing event can replace a message only when every process instance that waits for the signal must react: a message goes to one receiver, and a signal goes to all of them. The receiving process must then wait for the signal instead of the message.
+
+image::bpmn-events/signal-instead-of-message.png[,270]
 
 
 [[signal-throwing-end-event-workaround]]
