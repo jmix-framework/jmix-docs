@@ -81,21 +81,21 @@ A data loading span, such as `load list of entities`, covers the whole `DataMana
 |The span duration; the xref:features:observability/metrics.adoc#data-metrics[jmix.data.load and jmix.data.save] metrics
 
 |Which SQL queries EclipseLink built and how many
-|Log lines of the `eclipselink.logging.sql` category with the trace and span IDs, see xref:features:observability/logging.adoc#sql[]
+|Log lines of the `eclipselink.logging.sql` category with the trace and span IDs, see xref:features:observability/logging.adoc#sql[SQL Statements in the Trace Context]
 
 |How long each SQL query ran
 |The `[N ms] spent` line after each SQL query in the same log
 
 |How long the operation waited for a database connection
-|HikariCP connection pool metrics, see xref:features:observability/metrics.adoc#connection-pool[]
+|HikariCP connection pool metrics, see xref:features:observability/metrics.adoc#connection-pool[Database Connection Pool]
 
 |Which methods used CPU time and memory
-|The root span profile, see xref:features:observability/profiling.adoc#span-profiles[]
+|The root span profile, see xref:features:observability/profiling.adoc#span-profiles[Linking Profiles to Spans]
 |===
 
 In Grafana, the *Logs for this span* button in the span details opens the log lines of this trace written during the span, including SQL queries.
 
-For example, a `load values` span took 10.6 ms, and the log lines of this span contain the SQL query with parameter values and its execution time, see xref:features:observability/logging.adoc#sql[]. The JPQL query in the span attributes and the SQL query in the log show how EclipseLink translated the query: the `petclinic_Visit` entity became the `PETCLINIC_VISIT` table, the `assignedNurse` reference became the `ASSIGNED_NURSE_ID` column, and Jmix added the `DELETED_DATE IS NULL` soft deletion condition. The SQL query itself ran for 1 ms; the rest of the span time went to getting a connection and processing the query and the result in Jmix and EclipseLink.
+For example, a `load values` span took 10.6 ms, and the log lines of this span contain the SQL query with parameter values and its execution time, see xref:features:observability/logging.adoc#sql[SQL Statements in the Trace Context]. The JPQL query in the span attributes and the SQL query in the log show how EclipseLink translated the query: the `petclinic_Visit` entity became the `PETCLINIC_VISIT` table, the `assignedNurse` reference became the `ASSIGNED_NURSE_ID` column, and Jmix added the `DELETED_DATE IS NULL` soft deletion condition. The SQL query itself ran for 1 ms; the rest of the span time went to getting a connection and processing the query and the result in Jmix and EclipseLink.
 
 [[n-plus-one]]
 === Extra Queries (N+1)
@@ -148,7 +148,7 @@ All these spans have the same `jpql.query` attribute and different `jpql.paramet
 [[n-plus-one-lazy]]
 ==== Accessing a Reference Outside the Fetch Plan
 
-If a reference attribute is not in the fetch plan, Jmix loads it on first access through `DataManager` by ID, see xref:data-access:fetching.adoc#lazy-loading[]. A UI table column bound to a reference that is not in the loader fetch plan behaves the same way. Code that reads such a reference for each record of a list performs a separate load for each record:
+If a reference attribute is not in the fetch plan, Jmix loads it on first access through `DataManager` by ID, see xref:data-access:fetching.adoc#lazy-loading[Lazy Loading]. A UI table column bound to a reference that is not in the loader fetch plan behaves the same way. Code that reads such a reference for each record of a list performs a separate load for each record:
 
 [source,java,indent=0]
 ----
@@ -175,7 +175,7 @@ The difference is that these spans have no `jpql.query` attribute, because the e
 
 How a reference attribute from the fetch plan is loaded is set by the `fetch` attribute of the fetch plan property (the `FetchMode` enumeration): `AUTO` lets the framework choose, `JOIN` joins tables in the same SQL query, `BATCH` uses one separate query for all related entities, `UNDEFINED` follows the JPA rules, that is, a separate query for each reference. In the `UNDEFINED` mode, EclipseLink executes an SQL query for every loaded reference. The trace does not show this: all the work is done inside one `DataManager` call.
 
-For example, a `load list of entities` span took 82 ms. Its log lines show that besides the list query, EclipseLink executed separate `SELECT ... FROM PETCLINIC_PET WHERE (ID = ?)` and `SELECT ... FROM PETCLINIC_OWNER WHERE (ID = ?)` queries for each pet and owner, 17 SQL queries in total. Such loads are found by a LogQL query that counts SQL queries by span ID, see xref:features:observability/logging.adoc#sql[]. The cause is found in the fetch plan: the loading mode of the reference and the set of attributes.
+For example, a `load list of entities` span took 82 ms. Its log lines show that besides the list query, EclipseLink executed separate `SELECT ... FROM PETCLINIC_PET WHERE (ID = ?)` and `SELECT ... FROM PETCLINIC_OWNER WHERE (ID = ?)` queries for each pet and owner, 17 SQL queries in total. Such loads are found by a LogQL query that counts SQL queries by span ID, see xref:features:observability/logging.adoc#sql[SQL Statements in the Trace Context]. The cause is found in the fetch plan: the loading mode of the reference and the set of attributes.
 
 [[data-access-other]]
 === Other Data Access Problems
@@ -207,19 +207,19 @@ If all pool connections are in use, data access operations wait until a connecti
 * `hikaricp.connections.acquire` grows: the time of getting a connection;
 * `hikaricp.connections.timeout` grows: operations did not get a connection in time and ended with an error.
 
-The pool can be exhausted by slow SQL queries, long transactions, calls to other services inside a transaction, or a too small pool size. For more about pool metrics, see xref:features:observability/metrics.adoc#connection-pool[].
+The pool can be exhausted by slow SQL queries, long transactions, calls to other services inside a transaction, or a too small pool size. For more about pool metrics, see xref:features:observability/metrics.adoc#connection-pool[Database Connection Pool].
 
 [[remote-calls]]
 == Calls to Other Services
 
-If outgoing HTTP request spans, including xref:rest-ds:index.adoc[REST DataStore] requests, take most of the time in the trace of a slow view, the time went to a call to another service. If the second application also sends traces and the trace context is passed, its spans are included in the same trace, see xref:features:observability/tracing.adoc#propagation[]. The trace shows how much time the processing in the second application took and how much the transfer of the request and response took.
+If outgoing HTTP request spans, including xref:rest-ds:index.adoc[REST DataStore] requests, take most of the time in the trace of a slow view, the time went to a call to another service. If the second application also sends traces and the trace context is passed, its spans are included in the same trace, see xref:features:observability/tracing.adoc#propagation[Context Propagation Between Services]. The trace shows how much time the processing in the second application took and how much the transfer of the request and response took.
 
 The response time of other services, grouped by `uri`, `method` and `status`, is shown by the Spring Boot `http.client.requests` metric.
 
 [[cpu]]
 == CPU Load
 
-If a span takes long while it has no child spans or only short ones, the time went to the code inside the span itself. Which methods executed it is shown by the CPU profile of the root span of the request, see xref:features:observability/profiling.adoc#span-profiles[]. For load not related to a particular request, such as background tasks, the CPU profile of the whole service for the selected interval in *Drilldown* -> *Profiles* is used.
+If a span takes long while it has no child spans or only short ones, the time went to the code inside the span itself. Which methods executed it is shown by the CPU profile of the root span of the request, see xref:features:observability/profiling.adoc#span-profiles[Linking Profiles to Spans]. For load not related to a particular request, such as background tasks, the CPU profile of the whole service for the selected interval in *Drilldown* -> *Profiles* is used.
 
 The CPU usage of the application and the server is shown by the Spring Boot `process.cpu.usage` and `system.cpu.usage` metrics.
 
@@ -247,7 +247,7 @@ Memory problems do not always show up as slow requests, so they are detected by 
 |The share of CPU time spent on garbage collection
 |===
 
-Frequent garbage collections are caused by intensive memory allocation. Where memory is allocated is shown by the memory allocation profile: for a single request, the root span profile; for the application as a whole, the service profile in *Drilldown* -> *Profiles*. The memory allocation profile is enabled in the Pyroscope Java agent, see xref:features:observability/profiling.adoc#production[].
+Frequent garbage collections are caused by intensive memory allocation. Where memory is allocated is shown by the memory allocation profile: for a single request, the root span profile; for the application as a whole, the service profile in *Drilldown* -> *Profiles*. The memory allocation profile is enabled in the Pyroscope Java agent, see xref:features:observability/profiling.adoc#production[Configuration for Production].
 
 [[memory-leak]]
 === Memory Leak
@@ -267,21 +267,21 @@ The memory allocation profile shows where memory is allocated, but not which obj
 
 A heap dump shows which objects are retained and which references prevent their removal. It is taken from the Actuator `heapdump` endpoint or automatically on an error, with the `-XX:+HeapDumpOnOutOfMemoryError` JVM option. The dump is written while the application is stopped and takes about as much disk space as the used heap. The dump is opened in a heap analyzer, for example https://eclipse.dev/mat/[Eclipse Memory Analyzer^]: the dominator tree shows the objects that retain the most memory, and the path to the garbage collection roots shows the chain of references that keeps an object from being removed.
 
-A heap dump contains all data from the application memory, including personal data and passwords. By default, the `heapdump` endpoint is not exposed over the web; if it is exposed, access to it is restricted the same way as to other Actuator endpoints, see xref:features:observability/metrics.adoc#production[].
+A heap dump contains all data from the application memory, including personal data and passwords. By default, the `heapdump` endpoint is not exposed over the web; if it is exposed, access to it is restricted the same way as to other Actuator endpoints, see xref:features:observability/metrics.adoc#production[Configuration for Production].
 
 [[locks]]
 == Locks and Waiting Threads
 
 The `jvm.threads.states` metric shows the number of threads in each state. Growth of the number of threads in the `blocked` and `waiting` states under constant load means that threads wait for each other or for external resources.
 
-Where exactly threads wait is shown by the Pyroscope lock profile. In Grafana, it is represented by two types: `mutex` for waiting on `synchronized` monitors, and `block` for waiting on `java.util.concurrent` locks, such as `ReentrantLock`. The agent records waits longer than the threshold set by the `PYROSCOPE_PROFILER_LOCK` variable, see xref:features:observability/profiling.adoc#production[].
+Where exactly threads wait is shown by the Pyroscope lock profile. In Grafana, it is represented by two types: `mutex` for waiting on `synchronized` monitors, and `block` for waiting on `java.util.concurrent` locks, such as `ReentrantLock`. The agent records waits longer than the threshold set by the `PYROSCOPE_PROFILER_LOCK` variable, see xref:features:observability/profiling.adoc#production[Configuration for Production].
 
-One of the sources of waiting in the Jmix UI is the Vaadin session lock: the requests of one user session are handled one at a time, and a long operation in a view handler delays the other requests of this session. How this looks in a profile and how to avoid it is described in the xref:features:observability/profiling.adoc#vaadin-session-lock[] section.
+One of the sources of waiting in the Jmix UI is the Vaadin session lock: the requests of one user session are handled one at a time, and a long operation in a view handler delays the other requests of this session. How this looks in a profile and how to avoid it is described in the xref:features:observability/profiling.adoc#vaadin-session-lock[Vaadin Session Lock] section.
 
 [[see-also]]
 == See Also
 
 * xref:features:observability.adoc[]: an overview of observability and the links between signals
-* xref:features:observability.adoc#production[]: configuring observability for continuous operation
+* xref:features:observability.adoc#production[Observability in Production]: configuring observability for continuous operation
 * xref:data-access:fetching.adoc[]: fetch plans and reference loading modes
 * xref:observability-monitoring-guide:index.adoc[]: an example of finding a slow view by metrics

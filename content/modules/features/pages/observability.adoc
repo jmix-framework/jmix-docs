@@ -54,7 +54,7 @@ Observations get the username (`jmix.user.username`) and, in applications with x
 [[user-in-logs]]
 === Username in MDC
 
-MDC (Mapped Diagnostic Context) is a set of key-value pairs that Logback keeps for the current thread and can output in every log line. Jmix puts the current username into MDC under the `jmixUser` key. If the log line format outputs this key, every line, including Jmix lines and SQL statements, shows on behalf of which user the code ran, and the lines of one user can be selected among the lines of concurrent requests from other users. See xref:observability/logging.adoc#mdc[].
+MDC (Mapped Diagnostic Context) is a set of key-value pairs that Logback keeps for the current thread and can output in every log line. Jmix puts the current username into MDC under the `jmixUser` key. If the log line format outputs this key, every line, including Jmix lines and SQL statements, shows on behalf of which user the code ran, and the lines of one user can be selected among the lines of concurrent requests from other users. See xref:observability/logging.adoc#mdc[MDC: Log Record Context].
 
 [[email-timer]]
 === Email Sending Metric
@@ -66,11 +66,11 @@ The xref:email:index.adoc[Email] add-on records the time of sending emails in th
 
 Signals of different types complement each other, and when investigating a problem you move from one to another: from a metric to traces, from a trace to log lines and a profile. This is possible because the signals of one request share common identifiers: metrics and spans share tags, spans and log lines share trace and span IDs, and profiles carry the root span ID.
 
-The metrics and spans of one observation have common tags: for example, the `jmix.ui.views` metric with the `view.id=User.list` tag and the spans of the same view. The metric points to a slow view, and the traces point to particular slow requests to it and the longest operations inside them. If metrics are collected from the `prometheus` endpoint, the Prometheus registry attaches trace IDs (exemplars) to timer values, and Grafana opens a trace directly from a point on the metric graph, see xref:observability/metrics.adoc#exemplars[].
+The metrics and spans of one observation have common tags: for example, the `jmix.ui.views` metric with the `view.id=User.list` tag and the spans of the same view. The metric points to a slow view, and the traces point to particular slow requests to it and the longest operations inside them. If metrics are collected from the `prometheus` endpoint, the Prometheus registry attaches trace IDs (exemplars) to timer values, and Grafana opens a trace directly from a point on the metric graph, see xref:observability/metrics.adoc#exemplars[Exemplars].
 
 If tracing is enabled in the application, Spring Boot adds the current trace and span IDs to every log line. The ID from a log line leads to the trace of the request, and the trace leads to all log lines written during its execution, including those in other services.
 
-Profiles are linked to spans. If the Pyroscope span processor is added to tracing, the root span of a request opens the CPU or memory allocation profile recorded during that span, see xref:observability/profiling.adoc#span-profiles[]. A problem is investigated along the chain: the metric shows a slow view, the trace shows the longest operation of a request, the log shows the details of that operation, and the profile shows the methods that used CPU time and allocated memory.
+Profiles are linked to spans. If the Pyroscope span processor is added to tracing, the root span of a request opens the CPU or memory allocation profile recorded during that span, see xref:observability/profiling.adoc#span-profiles[Linking Profiles to Spans]. A problem is investigated along the chain: the metric shows a slow view, the trace shows the longest operation of a request, the log shows the details of that operation, and the profile shows the methods that used CPU time and allocated memory.
 
 This chain is used, in particular, for data access problems: an inefficient JPQL query, an incomplete fetch plan, loading in a loop (the N+1 problem), waiting for a connection from the pool, or a slow SQL query. The `+jmix.data.*+` metrics and the connection pool metrics show which entities are loaded often or slowly, the loading spans show the JPQL query and its parameters, and the EclipseLink log lines show the generated SQL statements and their execution time. See xref:observability/performance.adoc[] for details.
 
@@ -84,7 +84,7 @@ image::observability/trace-portal-backend.png["Trace in Grafana: view lifecycle,
 
 Signals are exported by standard Spring Boot means, so you can choose any storage and viewing system. The application publishes metrics on the Actuator `prometheus` endpoint or sends them over the OTLP protocol. Traces and logs are sent over OTLP only.
 
-The `prometheus` endpoint returns metrics in the Prometheus text format. Many monitoring systems support this format (VictoriaMetrics, Zabbix, OpenTelemetry Collector and others), so the endpoint can be scraped not only by Prometheus. Micrometer can also send metrics directly to other systems (Datadog, Elastic, InfluxDB and others), see xref:observability/metrics.adoc#prometheus[].
+The `prometheus` endpoint returns metrics in the Prometheus text format. Many monitoring systems support this format (VictoriaMetrics, Zabbix, OpenTelemetry Collector and others), so the endpoint can be scraped not only by Prometheus. Micrometer can also send metrics directly to other systems (Datadog, Elastic, InfluxDB and others), see xref:observability/metrics.adoc#prometheus[Prometheus Endpoint].
 
 The examples in the Jmix observability articles and guides use LGTM, a set of open source tools from Grafana Labs. Loki stores logs, Tempo stores traces, Prometheus stores metrics, and all three signal types are viewed in Grafana. To avoid installing and configuring each tool separately, Grafana Labs provides the https://github.com/grafana/docker-otel-lgtm[grafana/otel-lgtm^] Docker image. The image contains all tools of the set, already configured and connected to each other. A container started from this image accepts application data over OTLP right away. Spring Boot recognizes this image: if it is described in the project's Docker Compose file, the application gets the addresses for sending logs, metrics and traces at startup, see {spring-boot-doc}/reference/features/dev-services.html[Development-time Services^]. The image is intended for development and demonstration; in production, the tools are deployed separately.
 
@@ -102,7 +102,7 @@ Logs, metrics and traces show what happened and how long it took. A profile show
 [[custom]]
 == Metrics and Traces of Business Operations
 
-In addition to the standard Jmix metrics and traces, you can add your own for business operations of the application, such as placing an order. The operation is wrapped in an observation using the Micrometer `Observation` API: one observation produces both a timer in metrics and a span in the trace, and framework calls inside the operation, such as data loading and saving, become its child spans. If a span is not needed, for example for a counter of placed orders, the metric is registered directly through `MeterRegistry`. See xref:observability/metrics.adoc#custom-metrics[] and xref:observability/tracing.adoc#custom-spans[] for details.
+In addition to the standard Jmix metrics and traces, you can add your own for business operations of the application, such as placing an order. The operation is wrapped in an observation using the Micrometer `Observation` API: one observation produces both a timer in metrics and a span in the trace, and framework calls inside the operation, such as data loading and saving, become its child spans. If a span is not needed, for example for a counter of placed orders, the metric is registered directly through `MeterRegistry`. See xref:observability/metrics.adoc#custom-metrics[Metrics of Business Operations] and xref:observability/tracing.adoc#custom-spans[Spans of Business Operations] for details.
 
 [[production]]
 == Observability in Production
