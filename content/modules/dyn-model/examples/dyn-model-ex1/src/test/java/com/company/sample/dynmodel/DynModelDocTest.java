@@ -69,6 +69,9 @@ public class DynModelDocTest {
     @AfterEach
     void tearDown() {
         cleanSettings();
+        // Apply the empty default model to remove the dynamic entities, views and menu items
+        // from the Spring context that the next tests reuse
+        settingsService.applyActive();
     }
 
     private void cleanSettings() {

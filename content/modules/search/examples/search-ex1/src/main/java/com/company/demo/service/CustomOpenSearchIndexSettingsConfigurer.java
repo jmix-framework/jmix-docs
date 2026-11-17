@@ -19,7 +19,7 @@ public class CustomOpenSearchIndexSettingsConfigurer implements OpenSearchIndexS
     public void configure(OpenSearchIndexSettingsConfigurationContext context) {
         // end::configure[]
         // tag::configure-body[]
-        IndexSettings.Builder commonSettingsBuilder = context.getCommonSettingsBuilder();
+        IndexSettings.Builder commonSettingsBuilder = context.getCommonIndexSettingsBuilder();
         commonSettingsBuilder
                 .maxResultWindow(15000)
                 .analysis(analysisBuilder ->
@@ -30,7 +30,7 @@ public class CustomOpenSearchIndexSettingsConfigurer implements OpenSearchIndexS
                         )
                 );
 
-        IndexSettings.Builder orderSettingsBuilder = context.getEntitySettingsBuilder(Order.class);
+        IndexSettings.Builder orderSettingsBuilder = context.getEntityIndexSettingsBuilder(Order.class);
         orderSettingsBuilder
                 .maxResultWindow(15000)
                 .maxRegexLength(2000)

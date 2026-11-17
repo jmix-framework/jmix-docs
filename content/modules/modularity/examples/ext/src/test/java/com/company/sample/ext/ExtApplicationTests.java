@@ -72,6 +72,7 @@ class ExtApplicationTests {
         assertEquals(Arrays.asList("io/jmix/flowui/menu.xml",
                         "io/jmix/securityflowui/menu.xml",
                         "com/company/sample/base/menu.xml",
+                        "io/jmix/pessimisticlockflowui/menu.xml",
                         "com/company/sample/ext/menu.xml"),
                 moduleProps);
     }
