@@ -184,6 +184,8 @@ Typical reduction for UI screenshots: 70-80% size, no visible quality loss.
 
 Screenshots keep their own light background in the dark theme, but a diagram drawn with dark lines on a transparent background disappears. Add `role=light-background` to the image macro of such a diagram, for example `image::transactions/transactions-1.png[,500,role=light-background]`, or export it with a white background. Check new pages in both themes by choosing Light and Dark in the theme menu in the header.
 
+To export a draw.io diagram source, run `node tools/export-diagrams.mjs <file.drawio> <images-dir> [--prefix <prefix>] [--page <name>]...`. It writes one SVG for each page, named `<prefix><page name>.svg`, with a transparent background and the padding that `role=light-background` needs. Give `--page` to export only some pages. It needs the draw.io desktop app, and the `.drawio` file must be saved uncompressed. The comment at the top of the script lists the command for each diagram source in `content/modules`. For a new diagram, run `node tools/restyle-drawio.mjs <file.drawio>` first to give it the colors, fonts and lines of the other diagrams.
+
 ## Changing the UI
 
 UI styles live in `content/supplemental/css/`. Use the custom properties from `tokens.css` for colors; `node tools/check-css.mjs` rejects color literals in the other files. A new `--color-*` or `--shadow-*` token needs a value in the dark block of `tokens.css` too; the check reports it when it is missing. Build the site and run `node tools/ui-audit.mjs` before you open a pull request; it needs Playwright with Chromium (`npx playwright@latest install chromium`). The default UI bundle is pinned; see `ui/README.md` before you replace it.
